@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Mina from "@/public/assets/mina.svg";
 import Ethereum from "@/public/assets/Ethereum.svg";
+import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
 
 type WalletButtonTypes = "Mina" | "Ethereum";
 
@@ -13,6 +14,7 @@ export type MinaButtonProps = {
 };
 
 const WalletButton = ({ types, onClick, content, width }: MinaButtonProps) => {
+  const { isConnected, walletDisplayAddress } = useEthereumWallet();
   return (
     <button
       style={{ width }}
@@ -23,7 +25,8 @@ const WalletButton = ({ types, onClick, content, width }: MinaButtonProps) => {
       {types === "Ethereum" && (
         <Image src={Ethereum} alt={"EthereumSVG"} height={20} />
       )}
-      {content}
+      {types === "Ethereum" && (isConnected ? walletDisplayAddress : content)}
+      {types === "Mina" && "Connect Wallet"}
     </button>
   );
 };

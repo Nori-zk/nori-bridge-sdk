@@ -1,5 +1,6 @@
 import { MinaWalletProvider } from "@/providers/MinaWalletProvider";
 import "../styles/globals.css";
+import { EthereumWalletProvider } from "@/providers/EthereumWalletProvider";
 
 export const metadata = {
   title: "Mina zkApp UI",
@@ -16,9 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <MinaWalletProvider>
-        <body>{children}</body>
-      </MinaWalletProvider>
+      <EthereumWalletProvider>
+        <MinaWalletProvider>
+          <body>{children}</body>
+        </MinaWalletProvider>
+      </EthereumWalletProvider>
     </html>
   );
 }

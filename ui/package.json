@@ -10,6 +10,7 @@
     "ts-watch": "tsc --noEmit --incremental --watch"
   },
   "dependencies": {
+    "ethers": "^6.13.5",
     "next": "14.2.12",
     "o1js": "^2.*",
     "react": "^18",
