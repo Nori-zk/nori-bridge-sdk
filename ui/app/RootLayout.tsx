@@ -1,4 +1,4 @@
-import { MinaWalletProvider } from "@/providers/MinaWalletProvider";
+import { EthereumWalletProvider } from "@/providers/EthereumWalletProvider";
 
 export default function RootLayout({
   children,
@@ -7,9 +7,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <MinaWalletProvider>
+      <EthereumWalletProvider>
         <body>{children}</body>
-      </MinaWalletProvider>
+      </EthereumWalletProvider>
     </html>
   );
 }

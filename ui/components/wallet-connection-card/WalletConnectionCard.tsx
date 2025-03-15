@@ -1,6 +1,5 @@
 "use client";
 import WalletButton from "@/components/ui/WalletButton";
-import { useMinaWallet } from "@/providers/MinaWalletProvider";
 import { FaArrowRight } from "react-icons/fa";
 
 type WalletConnectionCardProps = {
@@ -14,7 +13,7 @@ const WalletConnectionCard = ({
   width = 300,
   height = 300,
 }: WalletConnectionCardProps) => {
-  const { tryConnectWallet } = useMinaWallet();
+  // const { tryConnectWallet } = useMinaWallet();
 
   return (
     <div
@@ -39,7 +38,7 @@ const WalletConnectionCard = ({
           <WalletButton
             types={"Ethereum"}
             content={"Connect Wallet"}
-            onClick={tryConnectWallet}
+            // onClick={tryConnectWallet}
             width={200}
           />
           <div className="flex items-center justify-center w-7 h-7 text-black bg-white rounded-full mx-2">

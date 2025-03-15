@@ -10,6 +10,12 @@
     "ts-watch": "tsc --noEmit --incremental --watch"
   },
   "dependencies": {
+    "@mina-js/accounts": "https://pkg.pr.new/palladians/mina-js/@mina-js/accounts@a9d6774",
+    "@mina-js/connect": "https://pkg.pr.new/palladians/mina-js/@mina-js/connect@a9d6774",
+    "@mina-js/klesia-sdk": "https://pkg.pr.new/palladians/mina-js/@mina-js/klesia-sdk@a9d6774",
+    "@mina-js/providers": "https://pkg.pr.new/palladians/mina-js/@mina-js/providers@a9d6774",
+    "@mina-js/utils": "https://pkg.pr.new/palladians/mina-js/@mina-js/utils@a9d6774",
+    "@uidotdev/usehooks": "^2.4.1",
     "ethers": "^6.13.5",
     "next": "14.2.12",
     "o1js": "^2.*",
