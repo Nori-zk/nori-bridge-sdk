@@ -1,11 +1,13 @@
 "use client";
 import { createStore } from "@mina-js/connect";
-import { useSyncExternalStore } from "react";
-import { useLocalStorage } from "@uidotdev/usehooks";
+import { useState, useSyncExternalStore } from "react";
 import { createContext, ReactNode, useContext, useEffect } from "react";
 
 interface MinaWalletContextType {
-  tryConnectWallet: () => Promise<void>;
+  walletDisplayAddress: string | null;
+  walletAddress: string | null;
+  isConnected: boolean;
+  tryConnectWallet: () => void;
 }
 
 declare global {
@@ -14,6 +16,8 @@ declare global {
   }
 }
 
+const cleanedProvider = "pallad";
+const initialSnapshot = [];
 const store = createStore();
 
 const MinaWalletContext = createContext<MinaWalletContextType | undefined>(
@@ -35,39 +39,50 @@ export const useMinaWallet = (): MinaWalletContextType => {
 export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const isClient = typeof window !== "undefined";
-  const [currentProvider, setCurrentProvider] = isClient
-    ? useLocalStorage("minajs:provider", "")
-    : ["", () => {}];
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
-  const providers = useSyncExternalStore(store.subscribe, store.getProviders);
-  const provider = providers.find(
-    (p) => p.info.slug === currentProvider
-  )?.provider;
+  const providers = useSyncExternalStore(
+    store.subscribe,
+    store.getProviders,
+    () => initialSnapshot
+  );
 
   const tryConnectWallet = async () => {
     try {
-      console.log("This is try connect mina wallet");
-    } catch (err) {
-      console.log(err);
-    }
-  };
+      if (!window.mina) {
+        throw new Error("Pallad is not installed");
+      }
+      const provider = providers.find(
+        (p) => p.info.slug === cleanedProvider
+      )?.provider;
 
-  useEffect(() => {
-    const fetchRequestAccounts = async () => {
       if (!provider) return;
       const { result } = await provider.request({
         method: "mina_requestAccounts",
       });
-      console.log("fetchRequestAccounts", result);
-      // setResults(() => ({ mina_accounts: JSON.stringify(result) }));
-    };
+      if (result.length > 0) {
+        setWalletAddress(result[0]);
+        setIsConnected(true);
+      }
+    } catch (err) {
+      console.error("Failed to connect wallet:", err);
+    }
+  };
 
-    fetchRequestAccounts();
-  }, []);
+  useEffect(() => {
+    tryConnectWallet();
+  }, [providers]);
+
+  const walletDisplayAddress = walletAddress
+    ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
+    : null;
 
   const value: MinaWalletContextType = {
     tryConnectWallet,
+    walletAddress,
+    walletDisplayAddress,
+    isConnected,
   };
 
   return (

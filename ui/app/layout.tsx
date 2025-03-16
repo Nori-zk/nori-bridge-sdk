@@ -1,3 +1,4 @@
+import { MinaWalletProvider } from "@/providers/MinaWalletProvider";
 import "../styles/globals.css";
 import { EthereumWalletProvider } from "@/providers/EthereumWalletProvider";
 
@@ -17,9 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <EthereumWalletProvider>
-        {/* <MinaWalletProvider> */}
-        <body>{children}</body>
-        {/* </MinaWalletProvider> */}
+        <MinaWalletProvider>
+          <body>{children}</body>
+        </MinaWalletProvider>
       </EthereumWalletProvider>
     </html>
   );
