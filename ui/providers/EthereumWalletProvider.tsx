@@ -65,11 +65,6 @@ export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({
     tryConnectWallet();
   }, []);
 
-  // useEffect(() => {
-  //   console.log("walletAddress", walletAddress);
-  //   console.log("isConnected", isConnected);
-  // }, [isConnected, walletAddress]);
-
   const walletDisplayAddress = walletAddress
     ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
     : null;
