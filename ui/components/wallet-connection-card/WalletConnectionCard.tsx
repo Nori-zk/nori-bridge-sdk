@@ -13,8 +13,6 @@ const WalletConnectionCard = ({
   width = 300,
   height = 300,
 }: WalletConnectionCardProps) => {
-  // const { tryConnectWallet } = useMinaWallet();
-
   return (
     <div
       className="relative p-8 rounded-2xl bg-[#07150d]"
