@@ -30,6 +30,7 @@ const WalletConnectionCard = ({
         <div className="w-3/4">
           <div className="flex text-white justify-between items-center ">
             <WalletButton
+              id="eth-btn"
               types={"Ethereum"}
               content={"Connect Wallet"}
               width={200}
@@ -38,6 +39,7 @@ const WalletConnectionCard = ({
               <FaArrowRight />
             </div>
             <WalletButton
+              id="mina-btn"
               types={"Mina"}
               content={"Connect Wallet"}
               width={200}
@@ -45,7 +47,7 @@ const WalletConnectionCard = ({
           </div>
           <div className="flex justify-center mt-6">
             <TextInput
-              id={""}
+              id={"amount-input"}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {}}
             />
           </div>

@@ -5,10 +5,12 @@ import Ethereum from "@/public/assets/Ethereum.svg";
 import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
 import { useMinaWallet } from "@/providers/MinaWalletProvider";
 import clsx from "clsx"; // Import clsx
+import { id } from "ethers";
 
 type WalletButtonTypes = "Mina" | "Ethereum";
 
 export type MinaButtonProps = {
+  id: string;
   types: WalletButtonTypes;
   onClick?: () => void;
   content: string;
@@ -35,7 +37,13 @@ const getWalletState = (
   };
 };
 
-const WalletButton = ({ types, onClick, content, width }: MinaButtonProps) => {
+const WalletButton = ({
+  id,
+  types,
+  onClick,
+  content,
+  width,
+}: MinaButtonProps) => {
   const { isConnected: ethConnected, walletDisplayAddress: ethAddress } =
     useEthereumWallet();
   const { isConnected: minaConnected, walletDisplayAddress: minaAddress } =
@@ -52,6 +60,7 @@ const WalletButton = ({ types, onClick, content, width }: MinaButtonProps) => {
 
   return (
     <button
+      id={id}
       style={{ width }}
       className={clsx(
         "flex rounded-lg px-4 py-2 items-center justify-evenly",
