@@ -3,6 +3,7 @@ import WalletConnectionCard from "@/components/wallet-connection-card/WalletConn
 import Image from "next/image";
 import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
+import ScrollingMath from "@/components/panels/ScrollingMath";
 
 export default function Home() {
   return (
@@ -11,12 +12,18 @@ export default function Home() {
         <div className="flex w-full justify-center my-5">
           <Image src={Nori} alt={"Nori-svg"} height={30} />
         </div>
-        <div className="flex flex-grow w-full justify-center items-center">
-          <WalletConnectionCard
-            title={"First connect wallets"}
-            width={650}
-            height={450}
-          />
+        <div className="flex flex-grow w-full justify-center items-center h-full">
+          <div className="w-1/4 h-[450px]">
+            <ScrollingMath />
+          </div>
+          <div className="1/2">
+            <WalletConnectionCard
+              title={"First connect wallets"}
+              width={650}
+              height={450}
+            />
+          </div>
+          <div className="w-1/4 h-[450px] text-white">Bridge</div>
         </div>
         <div className="flex w-full justify-center relative">
           <Image
