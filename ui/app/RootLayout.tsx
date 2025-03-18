@@ -7,9 +7,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <EthereumWalletProvider>
-        <body>{children}</body>
-      </EthereumWalletProvider>
+      <body>{children}</body>
     </html>
   );
 }

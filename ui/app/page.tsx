@@ -2,19 +2,29 @@
 import WalletConnectionCard from "@/components/wallet-connection-card/WalletConnectionCard";
 import Image from "next/image";
 import Nori from "@/public/assets/nori.svg";
+import BottomShadows from "@/public/assets/BottomShadows.svg";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#030d08] relative">
-      <div className="flex w-full justify-center my-5">
-        <Image src={Nori} alt={"Nori-svg"} height={30} />
-      </div>
-      <div className="flex flex-grow w-full justify-center items-center">
-        <WalletConnectionCard
-          title={"First connect wallets"}
-          width={650}
-          height={450}
-        />
+    <div className="h-full w-full bg-[radial-gradient(50%_100%_at_50%_0%,theme('colors.darkGreen')_1.31%,theme('colors.veryDarkGreen')_100%)]">
+      <div className="flex  h-full w-full flex-col relative bg-custom-svg bg-no-repeat bg-cover bg-center">
+        <div className="flex w-full justify-center my-5">
+          <Image src={Nori} alt={"Nori-svg"} height={30} />
+        </div>
+        <div className="flex flex-grow w-full justify-center items-center">
+          <WalletConnectionCard
+            title={"First connect wallets"}
+            width={650}
+            height={450}
+          />
+        </div>
+        <div className="flex w-full justify-center relative">
+          <Image
+            className="absolute bottom-[-100px] w-full"
+            src={BottomShadows}
+            alt="BottomShadows"
+          />
+        </div>
       </div>
     </div>
   );
