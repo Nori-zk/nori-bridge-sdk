@@ -11,6 +11,12 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        darkGreen: "#052115",
+        connectedGreen: "#1f3029",
+        lightGreen: "#64E18E",
+      },
+      backgroundImage: {
+        "custom-svg": "url('/assets/BackgroundLight.svg')",
       },
     },
   },
