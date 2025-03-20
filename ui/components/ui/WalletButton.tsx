@@ -4,8 +4,7 @@ import Mina from "@/public/assets/mina.svg";
 import Ethereum from "@/public/assets/Ethereum.svg";
 import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
 import { useMinaWallet } from "@/providers/MinaWalletProvider";
-import clsx from "clsx"; // Import clsx
-import { id } from "ethers";
+import clsx from "clsx";
 
 type WalletButtonTypes = "Mina" | "Ethereum";
 
@@ -37,17 +36,9 @@ const getWalletState = (
   };
 };
 
-const WalletButton = ({
-  id,
-  types,
-  onClick,
-  content,
-  width,
-}: MinaButtonProps) => {
-  const { isConnected: ethConnected, walletDisplayAddress: ethAddress } =
-    useEthereumWallet();
-  const { isConnected: minaConnected, walletDisplayAddress: minaAddress } =
-    useMinaWallet();
+const WalletButton = ({ id, types, onClick, content, width }: MinaButtonProps) => {
+  const { isConnected: ethConnected, walletDisplayAddress: ethAddress } = useEthereumWallet();
+  const { isConnected: minaConnected, walletDisplayAddress: minaAddress } = useMinaWallet();
 
   const { bgClass, textClass, displayAddress, logo } = getWalletState(
     types,
@@ -62,11 +53,7 @@ const WalletButton = ({
     <button
       id={id}
       style={{ width }}
-      className={clsx(
-        "flex rounded-lg px-4 py-2 items-center justify-evenly",
-        bgClass,
-        textClass
-      )}
+      className={clsx("flex rounded-lg px-4 py-2 items-center justify-evenly", bgClass, textClass)}
       onClick={onClick}
     >
       <Image src={logo} alt={`${types} logo`} height={20} />
