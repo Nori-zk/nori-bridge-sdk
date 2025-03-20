@@ -2,16 +2,12 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 const ScrollingMath = () => {
-  const [mathTexts, setMathTexts] = useState<string[]>([
-    "∫ dx ∫ x²z |₀¹⁰(x + 3y) dy = ...",
-  ]);
+  const [mathTexts, setMathTexts] = useState<string[]>(["∫ dx ∫ x²z |₀¹⁰(x + 3y) dy = ..."]);
 
   useEffect(() => {
     const fetchMathText = async () => {
       try {
-        const response = await fetch(
-          "https://api.mathjs.org/v4/?expr=2*atan(3)-sqrt(4)"
-        );
+        const response = await fetch("https://api.mathjs.org/v4/?expr=2*atan(3)-sqrt(4)");
         const data = await response.text();
 
         setMathTexts((prev) => {
@@ -43,8 +39,7 @@ const ScrollingMath = () => {
     <div
       className="relative w-full h-full overflow-hidden"
       style={{
-        maskImage:
-          "linear-gradient(to right, transparent 5%, white 30%, white 100%)", // Fades LHS
+        maskImage: "linear-gradient(to right, transparent 5%, white 30%, white 100%)",
       }}
     >
       {mathTexts.map((text, index) => (

@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import Mina from "@/public/assets/mina.svg";
 import Ethereum from "@/public/assets/Ethereum.svg";
 import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
@@ -32,7 +31,7 @@ const getWalletState = (
     bgClass: connected ? "bg-connectedGreen" : "bg-white",
     textClass: connected ? "text-white" : "text-black",
     displayAddress: connected ? address : content,
-    logo: isEthereum ? Ethereum : Mina,
+    logo: isEthereum ? <Ethereum alt={`Ethereum logo`} className="scale-[0.65]" /> : <Mina alt={`Mina logo`} className="scale-[0.65]" />,
   };
 };
 
@@ -56,7 +55,7 @@ const WalletButton = ({ id, types, onClick, content, width }: MinaButtonProps) =
       className={clsx("flex rounded-lg px-4 py-2 items-center justify-evenly", bgClass, textClass)}
       onClick={onClick}
     >
-      <Image src={logo} alt={`${types} logo`} height={20} />
+      {logo}
       {displayAddress}
     </button>
   );
