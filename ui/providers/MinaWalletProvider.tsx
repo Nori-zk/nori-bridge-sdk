@@ -20,47 +20,31 @@ const cleanedProvider = "pallad";
 const initialSnapshot = [];
 const store = createStore();
 
-const MinaWalletContext = createContext<MinaWalletContextType | undefined>(
-  undefined
-);
+const MinaWalletContext = createContext<MinaWalletContextType | undefined>(undefined);
 
 export const useMinaWallet = (): MinaWalletContextType => {
-  try {
-    const context = useContext(MinaWalletContext);
-    if (!context) {
-      throw new Error("useMinaWallet must be used within a MinaWalletProvider");
-    }
-    return context;
-  } catch (err) {
-    throw err;
+  const context = useContext(MinaWalletContext);
+  if (!context) {
+    throw new Error("useMinaWallet must be used within a MinaWalletProvider");
   }
+  return context;
 };
 
-export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
-  const providers = useSyncExternalStore(
-    store.subscribe,
-    store.getProviders,
-    () => initialSnapshot
-  );
+  const providers = useSyncExternalStore(store.subscribe, store.getProviders, () => initialSnapshot);
 
   const tryConnectWallet = async () => {
     try {
-      if (!window.mina) {
-        throw new Error("Pallad is not installed");
-      }
-      const provider = providers.find(
-        (p) => p.info.slug === cleanedProvider
-      )?.provider;
-
+      const provider = providers.find((p) => p.info.slug === cleanedProvider)?.provider;
       if (!provider) return;
+
       const { result } = await provider.request({
         method: "mina_requestAccounts",
       });
+
       if (result.length > 0) {
         setWalletAddress(result[0]);
         setIsConnected(true);
@@ -71,12 +55,14 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
+    if (!window.mina) {
+      console.error("Pallad is not installed");
+      return;
+    }
     tryConnectWallet();
-  }, [providers]);
+  }, []);
 
-  const walletDisplayAddress = walletAddress
-    ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
-    : null;
+  const walletDisplayAddress = walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}` : null;
 
   const value: MinaWalletContextType = {
     tryConnectWallet,
@@ -85,9 +71,5 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
     isConnected,
   };
 
-  return (
-    <MinaWalletContext.Provider value={value}>
-      {children}
-    </MinaWalletContext.Provider>
-  );
+  return <MinaWalletContext.Provider value={value}>{children}</MinaWalletContext.Provider>;
 };

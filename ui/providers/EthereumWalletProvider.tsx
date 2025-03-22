@@ -1,11 +1,5 @@
 "use client";
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { BrowserProvider } from "ethers";
 
 interface EthereumWalletContextType {
@@ -21,17 +15,13 @@ declare global {
   }
 }
 
-const EthereumWalletContext = createContext<
-  EthereumWalletContextType | undefined
->(undefined);
+const EthereumWalletContext = createContext<EthereumWalletContextType | undefined>(undefined);
 
 export const useEthereumWallet = (): EthereumWalletContextType => {
   try {
     const context = useContext(EthereumWalletContext);
     if (!context) {
-      throw new Error(
-        "useEthereumWallet must be used within a EthereumWalletProvider"
-      );
+      throw new Error("useEthereumWallet must be used within a EthereumWalletProvider");
     }
     return context;
   } catch (err) {
@@ -39,17 +29,12 @@ export const useEthereumWallet = (): EthereumWalletContextType => {
   }
 };
 
-export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   const tryConnectWallet = async () => {
     try {
-      if (!window.ethereum) {
-        throw new Error("MetaMask is not installed");
-      }
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       if (accounts.length > 0) {
@@ -62,12 +47,14 @@ export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
+    if (!window.ethereum) {
+      console.error("MetaMask is not installed");
+      return;
+    }
     tryConnectWallet();
   }, []);
 
-  const walletDisplayAddress = walletAddress
-    ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
-    : null;
+  const walletDisplayAddress = walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}` : null;
 
   const value: EthereumWalletContextType = {
     tryConnectWallet,
@@ -76,9 +63,5 @@ export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({
     isConnected,
   };
 
-  return (
-    <EthereumWalletContext.Provider value={value}>
-      {children}
-    </EthereumWalletContext.Provider>
-  );
+  return <EthereumWalletContext.Provider value={value}>{children}</EthereumWalletContext.Provider>;
 };
