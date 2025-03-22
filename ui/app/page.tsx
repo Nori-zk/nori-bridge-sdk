@@ -1,6 +1,5 @@
 "use client";
 import WalletConnectionCard from "@/components/wallet-connection-card/WalletConnectionCard";
-import Image from "next/image";
 import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
 import ScrollingMath from "@/components/panels/ScrollingMath";
@@ -25,7 +24,7 @@ export default function Home() {
           </div>
         </div>
         <div className="flex w-full justify-center relative">
-          <Image className="absolute bottom-[-100px] w-full" src={BottomShadows} alt="BottomShadows" />
+          <BottomShadows className="absolute bottom-[-100px] scale-[0.9]" alt="BottomShadows" />
         </div>
       </div>
     </div>
