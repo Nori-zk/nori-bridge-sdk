@@ -1,5 +1,6 @@
 import Providers from "@/providers/Providers";
 import "../styles/globals.css";
+import { Toaster } from "sonner";
 
 export const metadata = {
   title: "Mina zkApp UI",
@@ -13,7 +14,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

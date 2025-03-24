@@ -1,7 +1,8 @@
 "use client";
+import { openExternalLink } from "@/helpers/navigation";
+import { toast } from "@/helpers/useToast";
 import { createStore } from "@mina-js/connect";
-import { useState, useSyncExternalStore } from "react";
-import { createContext, ReactNode, useContext, useEffect } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState, useSyncExternalStore } from "react";
 
 interface MinaWalletContextType {
   walletDisplayAddress: string | null;
@@ -56,7 +57,18 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({ children
 
   useEffect(() => {
     if (!window.mina) {
-      console.error("Pallad is not installed");
+      const msg = "Pallad is not installed";
+      console.error(msg);
+      toast({
+        title: "Error",
+        description: msg,
+        button: {
+          label: "Install",
+          onClick: () => {
+            openExternalLink("https://pallad.co");
+          },
+        },
+      });
       return;
     }
     tryConnectWallet();

@@ -1,6 +1,8 @@
 "use client";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { BrowserProvider } from "ethers";
+import { toast } from "@/helpers/useToast";
+import { openExternalLink } from "@/helpers/navigation";
 
 interface EthereumWalletContextType {
   walletDisplayAddress: string | null;
@@ -48,7 +50,18 @@ export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({ chil
 
   useEffect(() => {
     if (!window.ethereum) {
-      console.error("MetaMask is not installed");
+      const msg = "MetaMask is not installed";
+      console.error(msg);
+      toast({
+        title: "Error",
+        description: msg,
+        button: {
+          label: "Install",
+          onClick: () => {
+            openExternalLink("https://metamask.io/");
+          },
+        },
+      });
       return;
     }
     tryConnectWallet();
