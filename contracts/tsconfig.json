@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "module": "es2022",
+    "module": "NodeNext",
     "lib": ["dom", "esnext"],
     "outDir": "./build",
     "rootDir": ".",
@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "allowJs": true,
@@ -18,7 +18,7 @@
     "sourceMap": true,
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
-    "useDefineForClassFields": false,
+    "useDefineForClassFields": false
   },
-  "include": ["./src"],
+  "include": ["./src"]
 }
