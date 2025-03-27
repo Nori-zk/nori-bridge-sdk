@@ -163,6 +163,27 @@ export class FungibleToken extends TokenContract {
       this.deriveTokenId()
     );
     circulationUpdate.balanceChange = Int64.fromUnsigned(amount);
+    // AccountUpdate.create(this.address, this.deriveTokenId()).update.appState[0].value = 69
+
+    // UserAcc {
+    //   address = 0x123
+    //    tokenId =1
+    //    balance = 2 MINA
+    // }
+
+    // ZkappAcc(WETH)  {
+    //   VerificationKey = xyz
+    //   tokenId = wethUUID
+    //   appState = [...stateN n=8]
+    // }
+
+    // TokenUserAcc(WETH) {
+    //   address = 0x123
+    //   token id = wethUUID
+    //   balance = 58 wethTOKENS
+    //   appState = []
+    // }
+
     return accountUpdate;
   }
 

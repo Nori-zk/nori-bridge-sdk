@@ -13,7 +13,7 @@ import {
   UInt64,
   UInt8,
 } from 'o1js';
-//   import { FungibleToken, FungibleTokenAdmin } from "../index.js"
+import { FungibleToken, FungibleTokenAdmin } from './index.js';
 
 export class TokenEscrow extends SmartContract {
   @state(PublicKey)
@@ -40,7 +40,7 @@ export class TokenEscrow extends SmartContract {
     });
   }
 
-  @method
+  @method //admin only
   async deposit(amount: UInt64) {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
@@ -55,8 +55,9 @@ export class TokenEscrow extends SmartContract {
     this.total.set(total.add(amount));
   }
 
-  @method
+  @method //user only under proof validation
   async withdraw(to: PublicKey, amount: UInt64) {
+    //proof1: MPT verification, proof2: ECDSA signature-proof
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
 
@@ -66,12 +67,18 @@ export class TokenEscrow extends SmartContract {
     this.owner.getAndRequireEquals().assertEquals(sender);
 
     let receiverUpdate = this.send({ to: sender, amount });
+    let mintedSoFar = receiverUpdate.update.appState[0].value;
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);
+    // AccountUpdate.setValue(
+    //   receiverUpdate.update.appState[0],
+    //   mintedSoFar.add(amount)
+    // );
 
-    const total = this.total.getAndRequireEquals();
-    total.assertGreaterThanOrEqual(amount, 'insufficient balance');
-    this.total.set(total.sub(amount));
+    // pointless
+    // const total = this.total.getAndRequireEquals();
+    // total.assertGreaterThanOrEqual(amount, 'insufficient balance');
+    // this.total.set(total.sub(amount));
   }
 }

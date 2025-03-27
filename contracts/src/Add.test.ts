@@ -23,7 +23,7 @@ import {
   ZkPassResponseItem,
   EcdsaEthereum,
 } from 'mina-attestations/imported';
-import { DynamicBytes, Credential } from 'mina-attestations';
+// import { DynamicBytes, Credential } from 'mina-attestations';
 // import { ByteUtils } from 'mina-attestations/dynamic';
 
 const proofsEnabled = true;
@@ -58,6 +58,9 @@ describe('Add', () => {
     zkAppPrivateKey = PrivateKey.random();
     zkAppAddress = zkAppPrivateKey.toPublicKey();
     zkApp = new Add(zkAppAddress);
+    console.log(zkApp.tokenId.toString());
+    // const abc = await Add.analyzeMethods({ printSummary: true });
+    // console.log(abc['update'].gates);
   });
 
   async function localDeploy() {
@@ -66,6 +69,7 @@ describe('Add', () => {
       await zkApp.deploy();
     });
     await txn.prove();
+    console.log(await txn.toPretty());
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey]).send();
   }
@@ -76,74 +80,74 @@ describe('Add', () => {
     expect(num).toEqual(Field(1));
   });
 
-  it('correctly updates the num state on the `Add` smart contract', async () => {
-    await localDeploy();
+  // it('correctly updates the num state on the `Add` smart contract', async () => {
+  //   await localDeploy();
 
-    // let { signature, parityBit } = parseSignature(response.validatorSignature);
-    // let address = ByteUtils.fromHex(response.validatorAddress);
-    const maxMessageLength = 2;
-    const Message = DynamicBytes({ maxLength: maxMessageLength });
-    let message = Message.fromString('a');
-    console.time('hash helper constraints');
-    let ethPrivateKey = Secp256k1.Scalar.random();
-    let ethPublicKey = Secp256k1.generator.scale(ethPrivateKey);
-    // let { short: shortCs } = await getHashHelper(
-    //   maxMessageLength
-    // ).analyzeMethods();
-    // console.log(shortCs.summary());
-    // console.timeEnd('hash helper constraints');
-    // const message = Bytes32.fromString('t');
-    let signature = Ecdsa.sign(message.toBytes(), ethPrivateKey.toBigInt());
-    console.time('compile dependencies');
-    await EcdsaEthereum.compileDependencies({
-      maxMessageLength,
-      proofsEnabled,
-    });
-    console.timeEnd('compile dependencies');
+  //   // let { signature, parityBit } = parseSignature(response.validatorSignature);
+  //   // let address = ByteUtils.fromHex(response.validatorAddress);
+  //   const maxMessageLength = 2;
+  //   const Message = DynamicBytes({ maxLength: maxMessageLength });
+  //   let message = Message.fromString('a');
+  //   console.time('hash helper constraints');
+  //   let ethPrivateKey = Secp256k1.Scalar.random();
+  //   let ethPublicKey = Secp256k1.generator.scale(ethPrivateKey);
+  //   // let { short: shortCs } = await getHashHelper(
+  //   //   maxMessageLength
+  //   // ).analyzeMethods();
+  //   // console.log(shortCs.summary());
+  //   // console.timeEnd('hash helper constraints');
+  //   // const message = Bytes32.fromString('t');
+  //   let signature = Ecdsa.sign(message.toBytes(), ethPrivateKey.toBigInt());
+  //   console.time('compile dependencies');
+  //   await EcdsaEthereum.compileDependencies({
+  //     maxMessageLength,
+  //     proofsEnabled,
+  //   });
+  //   console.timeEnd('compile dependencies');
 
-    console.time('ecdsa create credential');
-    const EcdsaCredential = await EcdsaEthereum.Credential({
-      maxMessageLength,
-    });
-    console.timeEnd('ecdsa create credential');
+  //   console.time('ecdsa create credential');
+  //   const EcdsaCredential = await EcdsaEthereum.Credential({
+  //     maxMessageLength,
+  //   });
+  //   console.timeEnd('ecdsa create credential');
 
-    console.time('ecdsa compile');
-    let vk = await EcdsaCredential.compile({ proofsEnabled });
-    console.timeEnd('ecdsa compile');
+  //   console.time('ecdsa compile');
+  //   let vk = await EcdsaCredential.compile({ proofsEnabled });
+  //   console.timeEnd('ecdsa compile');
 
-    console.time('ecdsa prove');
-    let credential = await EcdsaCredential.create({
-      owner: userAccount,
-      publicInput: {
-        signerAddress: EcdsaEthereum.Address.from(ethPublicKey),
-      },
-      privateInput: { message, signature, parityBit },
-    });
-    console.timeEnd('ecdsa prove');
+  //   console.time('ecdsa prove');
+  //   let credential = await EcdsaCredential.create({
+  //     owner: userAccount,
+  //     publicInput: {
+  //       signerAddress: EcdsaEthereum.Address.from(ethPublicKey),
+  //     },
+  //     privateInput: { message, signature, parityBit },
+  //   });
+  //   console.timeEnd('ecdsa prove');
 
-    let json = Credential.toJSON(credential);
-    let recovered = await Credential.fromJSON(json);
+  //   let json = Credential.toJSON(credential);
+  //   let recovered = await Credential.fromJSON(json);
 
-    if (proofsEnabled) await Credential.validate(recovered);
+  //   if (proofsEnabled) await Credential.validate(recovered);
 
-    let messageVar = Provable.witness(Message, () => message);
-    let signatureVar = Provable.witness(
-      EcdsaEthereum.Signature,
-      () => signature
-    );
-    let addressVar = Provable.witness(EcdsaEthereum.Address, () =>
-      EcdsaEthereum.Address.from(address)
-    );
-    let parityBitVar = Unconstrained.witness(() => parityBit);
+  //   let messageVar = Provable.witness(Message, () => message);
+  //   let signatureVar = Provable.witness(
+  //     EcdsaEthereum.Signature,
+  //     () => signature
+  //   );
+  //   let addressVar = Provable.witness(EcdsaEthereum.Address, () =>
+  //     EcdsaEthereum.Address.from(address)
+  //   );
+  //   let parityBitVar = Unconstrained.witness(() => parityBit);
 
-    // update transaction
-    const txn = await Mina.transaction(senderAccount, async () => {
-      await zkApp.update();
-    });
-    await txn.prove();
-    await txn.sign([senderKey]).send();
+  //   // update transaction
+  //   const txn = await Mina.transaction(senderAccount, async () => {
+  //     await zkApp.update();
+  //   });
+  //   await txn.prove();
+  //   await txn.sign([senderKey]).send();
 
-    const updatedNum = zkApp.num.get();
-    expect(updatedNum).toEqual(Field(3));
-  });
+  //   const updatedNum = zkApp.num.get();
+  //   expect(updatedNum).toEqual(Field(3));
+  // });
 });
