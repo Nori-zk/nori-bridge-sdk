@@ -18,11 +18,11 @@ import { Add } from './Add.js';
 //   // parseSignature,
 // } from 'mina-attestations/build/src/imported.js';
 // import {} from 'mina-attestations/';
-import {
-  ZkPass,
-  ZkPassResponseItem,
-  EcdsaEthereum,
-} from 'mina-attestations/imported';
+// import {
+//   ZkPass,
+//   ZkPassResponseItem,
+//   EcdsaEthereum,
+// } from 'mina-attestations/imported';
 // import { DynamicBytes, Credential } from 'mina-attestations';
 // import { ByteUtils } from 'mina-attestations/dynamic';
 
