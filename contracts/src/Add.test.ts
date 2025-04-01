@@ -12,6 +12,8 @@ import {
   Unconstrained,
 } from 'o1js';
 import { Add } from './Add.js';
+import { describe, it, beforeEach, before } from 'node:test';
+import assert from 'node:assert';
 // import {
 //   EcdsaEthereum,
 //   // getHashHelper,
@@ -43,7 +45,7 @@ describe('Add', () => {
     zkAppPrivateKey: PrivateKey,
     zkApp: Add;
 
-  beforeAll(async () => {
+  before(async () => {
     if (proofsEnabled) await Add.compile();
   });
 
@@ -77,7 +79,7 @@ describe('Add', () => {
   it('generates and deploys the `Add` smart contract', async () => {
     await localDeploy();
     const num = zkApp.num.get();
-    expect(num).toEqual(Field(1));
+    assert.strictEqual(num.toString(), Field(1).toString());
   });
 
   // it('correctly updates the num state on the `Add` smart contract', async () => {
