@@ -12,7 +12,7 @@ import {
   Unconstrained,
 } from 'o1js';
 import { Add } from './Add.js';
-import { describe, it, beforeEach, before } from 'node:test';
+import { test, describe, it, beforeEach, before } from 'node:test';
 import assert from 'node:assert';
 // import {
 //   EcdsaEthereum,
@@ -60,7 +60,7 @@ describe('Add', () => {
     zkAppPrivateKey = PrivateKey.random();
     zkAppAddress = zkAppPrivateKey.toPublicKey();
     zkApp = new Add(zkAppAddress);
-    console.log(zkApp.tokenId.toString());
+    // console.log(zkApp.tokenId.toString());
     // const abc = await Add.analyzeMethods({ printSummary: true });
     // console.log(abc['update'].gates);
   });
@@ -71,7 +71,7 @@ describe('Add', () => {
       await zkApp.deploy();
     });
     await txn.prove();
-    console.log(await txn.toPretty());
+    // console.log(await txn.toPretty());
     // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
     await txn.sign([deployerKey, zkAppPrivateKey]).send();
   }
@@ -80,6 +80,10 @@ describe('Add', () => {
     await localDeploy();
     const num = zkApp.num.get();
     assert.strictEqual(num.toString(), Field(1).toString());
+  });
+
+  test('simple test', () => {
+    assert.strictEqual(1 + 1, 2);
   });
 
   // it('correctly updates the num state on the `Add` smart contract', async () => {
