@@ -15,6 +15,8 @@ import { test, describe, before } from 'node:test';
 
 const proofsEnabled = true;
 const enforceTransactionLimits = false;
+let isDeployed = false;
+let isInitialised = false;
 
 type Keypair = {
   publicKey: PublicKey;
@@ -25,9 +27,8 @@ describe('Escrow', async () => {
   const fee = 1e8;
   let deployer: Mina.TestPublicKey,
     owner: Mina.TestPublicKey,
-    alexa: Mina.TestPublicKey,
-    billy: Mina.TestPublicKey,
-    jackie: Mina.TestPublicKey;
+    whale: Mina.TestPublicKey,
+    colin: Mina.TestPublicKey;
   let token: FungibleToken;
   let tokenId: Field;
   let escrow: TokenEscrow;
@@ -45,16 +46,15 @@ describe('Escrow', async () => {
       enforceTransactionLimits,
     });
     Mina.setActiveInstance(Local);
-    [deployer, owner, alexa, billy, jackie] = Local.testAccounts;
+    [deployer, owner, whale, colin] = Local.testAccounts;
     tokenContract = PrivateKey.randomKeypair();
     escrowContract = PrivateKey.randomKeypair();
     admin = PrivateKey.randomKeypair();
     console.log(`
           deployer ${deployer.toBase58()}
           owner ${owner.toBase58()}
-          alexa ${alexa.toBase58()}
-          billy ${billy.toBase58()}
-          jackie ${jackie.toBase58()}
+          whale ${whale.toBase58()}
+          billy ${colin.toBase58()}
           token ${tokenContract.publicKey.toBase58()}
           escrow ${escrowContract.publicKey.toBase58()}
           admin ${admin.publicKey.toBase58()}
@@ -65,7 +65,8 @@ describe('Escrow', async () => {
     adminContract = new FungibleTokenAdmin(admin.publicKey);
   });
 
-  async function deployToken() {
+  async function deployTokenAdminContract() {
+    console.log('deploying token & admin contract');
     const txn = await Mina.transaction(
       {
         sender: deployer,
@@ -84,9 +85,11 @@ describe('Escrow', async () => {
     await txn.prove();
     txn.sign([deployer.key, tokenContract.privateKey, admin.privateKey]);
     await txn.send().then((v) => v.wait());
+    isDeployed = true;
   }
 
   async function initialiseTokenContract() {
+    console.log('initialise token admin');
     const txn = await Mina.transaction(
       {
         sender: deployer,
@@ -109,6 +112,51 @@ describe('Escrow', async () => {
     await txn.prove();
     txn.sign([deployer.key, tokenContract.privateKey, admin.privateKey]);
     await txn.send().then((v) => v.wait());
+    isInitialised = true;
+  }
+
+  async function mintToAccount(mintee: Mina.TestPublicKey) {
+    console.log('mint to account');
+    const mintTx = await Mina.transaction(
+      {
+        sender: owner,
+        fee,
+      },
+      async () => {
+        AccountUpdate.fundNewAccount(owner, 1);
+        await token.mint(mintee, new UInt64(2e9));
+      }
+    );
+    await mintTx.prove();
+    mintTx.sign([owner.key, admin.privateKey]);
+    await mintTx.send().then((v) => v.wait());
+  }
+
+  async function transferTokens(
+    giver: Mina.TestPublicKey,
+    receiver: Mina.TestPublicKey
+  ) {
+    console.log('transferring tokens');
+    const transferTx = await Mina.transaction(
+      {
+        sender: giver,
+        fee,
+      },
+      async () => {
+        AccountUpdate.fundNewAccount(giver, 1);
+        await token.transfer(giver, receiver, new UInt64(1e9));
+      }
+    );
+    await transferTx.prove();
+    transferTx.sign([giver.key]);
+    await transferTx.send().then((v) => v.wait());
+  }
+
+  async function conditionalSetUp() {
+    console.log('conditionalSetUp');
+
+    if (!isDeployed) await deployTokenAdminContract();
+    if (!isInitialised) await initialiseTokenContract();
   }
 
   test('deploy token contract test', async () => {
@@ -117,13 +165,46 @@ describe('Escrow', async () => {
   });
 
   test('initialise token contract test', async () => {
-    await deployToken();
-    await initialiseTokenContract();
-
+    await conditionalSetUp();
     const tokenAdminKey = await token.admin.get();
     const tokenDecimal = await token.decimals.fetch();
     assert.equal(tokenAdminKey.toBase58(), admin.publicKey.toBase58());
     assert.equal(tokenDecimal, 9);
+  });
+
+  test('mint to account', async () => {
+    const whaleBalanceBeforeMint = (await token.getBalanceOf(whale)).toBigInt();
+    assert.equal(whaleBalanceBeforeMint, 0n);
+
+    await conditionalSetUp();
+    await mintToAccount(whale);
+
+    const whaleBalanceAfterMint = (await token.getBalanceOf(whale)).toBigInt();
+    assert.equal(whaleBalanceAfterMint, BigInt(2e9));
+  });
+
+  test('transfer from whale account to Colin', async () => {
+    const colinBalanceBeforeMint = (await token.getBalanceOf(colin)).toBigInt();
+    const whaleBalanceBeforeMint = (await token.getBalanceOf(whale)).toBigInt();
+    assert.equal(colinBalanceBeforeMint, 0n);
+
+    await conditionalSetUp();
+
+    if (whaleBalanceBeforeMint == 0n) await mintToAccount(whale);
+
+    const whaleBalanceAfterMint = (await token.getBalanceOf(whale)).toBigInt();
+    assert.equal(whaleBalanceAfterMint, BigInt(2e9));
+
+    await transferTokens(whale, colin);
+
+    const colinBalanceAfterTransfer = (
+      await token.getBalanceOf(colin)
+    ).toBigInt();
+    const whaleBalanceAfterTransfer = (
+      await token.getBalanceOf(whale)
+    ).toBigInt();
+    assert.equal(colinBalanceAfterTransfer, BigInt(1e9));
+    assert.equal(whaleBalanceAfterTransfer, BigInt(1e9));
   });
 });
 
