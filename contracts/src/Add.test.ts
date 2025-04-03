@@ -23,7 +23,7 @@ import {
   ZkPassResponseItem,
   EcdsaEthereum,
 } from 'mina-attestations/imported';
-// import { DynamicBytes, Credential } from 'mina-attestations';
+import { DynamicBytes, Credential } from 'mina-attestations';
 // import { ByteUtils } from 'mina-attestations/dynamic';
 
 const proofsEnabled = true;
