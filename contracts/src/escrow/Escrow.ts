@@ -66,7 +66,7 @@ export class TokenEscrow extends SmartContract {
     senderUpdate.body.useFullCommitment = Bool(true);
     this.owner.getAndRequireEquals().assertEquals(sender);
 
-    let receiverUpdate = this.send({ to: sender, amount });
+    let receiverUpdate = this.send({ to: to, amount });
     let mintedSoFar = receiverUpdate.update.appState[0].value;
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
