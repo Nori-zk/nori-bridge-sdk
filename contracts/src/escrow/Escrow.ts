@@ -18,8 +18,6 @@ import { FungibleToken, FungibleTokenAdmin } from '../index.js';
 export class TokenEscrow extends SmartContract {
   @state(PublicKey)
   tokenAddress = State<PublicKey>();
-  @state(UInt64)
-  total = State<UInt64>();
   @state(PublicKey)
   owner = State<PublicKey>();
   async deploy(
@@ -28,7 +26,6 @@ export class TokenEscrow extends SmartContract {
     await super.deploy(args);
 
     this.tokenAddress.set(args.tokenAddress);
-    this.total.set(UInt64.zero);
     this.owner.set(args.owner);
     this.account.permissions.set({
       ...Permissions.default(),
@@ -48,11 +45,9 @@ export class TokenEscrow extends SmartContract {
     const sender = this.sender.getUnconstrained();
     const senderUpdate = AccountUpdate.createSigned(sender);
     senderUpdate.body.useFullCommitment = Bool(true);
+    this.owner.getAndRequireEquals().assertEquals(sender);
 
     await token.transfer(sender, this.address, amount);
-
-    const total = this.total.getAndRequireEquals();
-    this.total.set(total.add(amount));
   }
 
   @method //user only under proof validation
@@ -61,24 +56,15 @@ export class TokenEscrow extends SmartContract {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
 
-    // const sender = this.sender.getUnconstrained();
-    // const senderUpdate = AccountUpdate.createSigned(sender);
-    // senderUpdate.body.useFullCommitment = Bool(true);
-    // this.owner.getAndRequireEquals().assertEquals(sender);
-
     let receiverUpdate = this.send({ to, amount });
-    // let mintedSoFar = receiverUpdate.update.appState[0].value;
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);
+
+    // let mintedSoFar = receiverUpdate.update.appState[0].value;
     // AccountUpdate.setValue(
     //   receiverUpdate.update.appState[0],
     //   mintedSoFar.add(amount)
     // );
-
-    // pointless
-    // const total = this.total.getAndRequireEquals()
-    // total.assertGreaterThanOrEqual(amount, 'insufficient balance')
-    // this.total.set(total.sub(amount))
   }
 }

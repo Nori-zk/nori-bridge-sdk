@@ -31,6 +31,7 @@ describe('Escrow', async () => {
     whale: Mina.TestPublicKey,
     colin: Mina.TestPublicKey,
     dave: Mina.TestPublicKey,
+    bob: Mina.TestPublicKey,
     jackie: Mina.TestPublicKey;
   let token: FungibleToken;
   let tokenId: Field;
@@ -49,7 +50,7 @@ describe('Escrow', async () => {
       enforceTransactionLimits,
     });
     Mina.setActiveInstance(Local);
-    [deployer, owner, whale, colin, dave, jackie] = Local.testAccounts;
+    [deployer, owner, whale, colin, bob, dave, jackie] = Local.testAccounts;
     tokenKeypair = PrivateKey.randomKeypair();
     escrowKeypair = PrivateKey.randomKeypair();
     adminKeypair = PrivateKey.randomKeypair();
@@ -59,6 +60,7 @@ describe('Escrow', async () => {
           whale ${whale.toBase58()}
           colin ${colin.toBase58()}
           dave ${dave.toBase58()}
+          bob ${bob.toBase58()}
           jackie ${jackie.toBase58()}
           token ${tokenKeypair.publicKey.toBase58()}
           escrow ${escrowKeypair.publicKey.toBase58()}
@@ -273,27 +275,45 @@ describe('Escrow', async () => {
     );
   });
 
+  test('fail to deposit to escrow as not admin', async () => {
+    await conditionalTokenSetUp();
+    await conditionalEscrowSetUp();
+    const bobBalanceBeforeDeposit = (await token.getBalanceOf(bob)).toBigInt();
+    const escrowBalanceBeforeDeposit = (
+      await token.getBalanceOf(escrow.address)
+    ).toBigInt();
+    assert.equal(escrowBalanceBeforeDeposit, 0n);
+    if (bobBalanceBeforeDeposit == 0n) await mintToAccount(bob);
+    const bobBalanceAfterMint = (await token.getBalanceOf(bob)).toBigInt();
+    assert.equal(bobBalanceAfterMint, BigInt(2e9));
+    await assert.rejects(() => depositToEscrow(bob));
+  });
+
   test('deposit to escrow', async () => {
     await conditionalTokenSetUp();
     await conditionalEscrowSetUp();
-    const whaleBalanceBeforeDeposit = (
-      await token.getBalanceOf(whale)
+    const ownerBalanceBeforeDeposit = (
+      await token.getBalanceOf(owner)
     ).toBigInt();
-    const escrowBalanceBeforeDeposit = (await escrow.total.fetch()).toBigInt();
+    const escrowBalanceBeforeDeposit = (
+      await token.getBalanceOf(escrow.address)
+    ).toBigInt();
     assert.equal(escrowBalanceBeforeDeposit, 0n);
-    if (whaleBalanceBeforeDeposit == 0n) await mintToAccount(whale);
-    const whaleBalanceAfterMint = (await token.getBalanceOf(whale)).toBigInt();
-    assert.equal(whaleBalanceAfterMint, BigInt(2e9));
-    await depositToEscrow(whale);
-    const escrowBalanceAfterDeposit = (await escrow.total.fetch()).toBigInt();
-    assert.equal(escrowBalanceAfterDeposit, BigInt(2e9));
-    const whaleBalanceAfterDeposit = (
-      await token.getBalanceOf(whale)
+    if (ownerBalanceBeforeDeposit == 0n) await mintToAccount(owner);
+    const ownerBalanceAfterMint = (await token.getBalanceOf(owner)).toBigInt();
+    assert.equal(ownerBalanceAfterMint, BigInt(2e9));
+    await depositToEscrow(owner);
+    const escrowBalanceAfterDeposit = (
+      await token.getBalanceOf(escrow.address)
     ).toBigInt();
-    assert.equal(whaleBalanceAfterDeposit, 0n);
+    assert.equal(escrowBalanceAfterDeposit, BigInt(2e9));
+    const ownerBalanceAfterDeposit = (
+      await token.getBalanceOf(owner)
+    ).toBigInt();
+    assert.equal(ownerBalanceAfterDeposit, 0n);
   });
 
-  test.only('withdraw from escrow', async () => {
+  test('withdraw from escrow', async () => {
     await conditionalTokenSetUp();
     await conditionalEscrowSetUp();
     const escrowBalanceBefore = (
