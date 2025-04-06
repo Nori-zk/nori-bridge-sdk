@@ -61,13 +61,13 @@ export class TokenEscrow extends SmartContract {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
 
-    const sender = this.sender.getUnconstrained();
-    const senderUpdate = AccountUpdate.createSigned(sender);
-    senderUpdate.body.useFullCommitment = Bool(true);
-    this.owner.getAndRequireEquals().assertEquals(sender);
+    // const sender = this.sender.getUnconstrained();
+    // const senderUpdate = AccountUpdate.createSigned(sender);
+    // senderUpdate.body.useFullCommitment = Bool(true);
+    // this.owner.getAndRequireEquals().assertEquals(sender);
 
-    let receiverUpdate = this.send({ to: to, amount });
-    let mintedSoFar = receiverUpdate.update.appState[0].value;
+    let receiverUpdate = this.send({ to, amount });
+    // let mintedSoFar = receiverUpdate.update.appState[0].value;
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);

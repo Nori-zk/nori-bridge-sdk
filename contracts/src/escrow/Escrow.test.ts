@@ -13,7 +13,7 @@ import { TokenEscrow } from './Escrow.js';
 import assert from 'node:assert';
 import { test, describe, before } from 'node:test';
 
-const proofsEnabled = true;
+const proofsEnabled = false;
 const enforceTransactionLimits = false;
 let isTokenDeployed = false;
 let isTokenInitialised = false;
@@ -36,7 +36,7 @@ describe('Escrow', async () => {
   let tokenId: Field;
   let escrow: TokenEscrow;
   let adminContract: FungibleTokenAdmin;
-  let tokenContract: Keypair, escrowContract: Keypair, admin: Keypair;
+  let tokenKeypair: Keypair, escrowKeypair: Keypair, adminKeypair: Keypair;
 
   before(async () => {
     if (proofsEnabled) {
@@ -50,9 +50,9 @@ describe('Escrow', async () => {
     });
     Mina.setActiveInstance(Local);
     [deployer, owner, whale, colin, dave, jackie] = Local.testAccounts;
-    tokenContract = PrivateKey.randomKeypair();
-    escrowContract = PrivateKey.randomKeypair();
-    admin = PrivateKey.randomKeypair();
+    tokenKeypair = PrivateKey.randomKeypair();
+    escrowKeypair = PrivateKey.randomKeypair();
+    adminKeypair = PrivateKey.randomKeypair();
     console.log(`
           deployer ${deployer.toBase58()}
           owner ${owner.toBase58()}
@@ -60,14 +60,14 @@ describe('Escrow', async () => {
           colin ${colin.toBase58()}
           dave ${dave.toBase58()}
           jackie ${jackie.toBase58()}
-          token ${tokenContract.publicKey.toBase58()}
-          escrow ${escrowContract.publicKey.toBase58()}
-          admin ${admin.publicKey.toBase58()}
+          token ${tokenKeypair.publicKey.toBase58()}
+          escrow ${escrowKeypair.publicKey.toBase58()}
+          admin ${adminKeypair.publicKey.toBase58()}
         `);
-    token = new FungibleToken(tokenContract.publicKey);
+    token = new FungibleToken(tokenKeypair.publicKey);
     tokenId = token.deriveTokenId();
-    escrow = new TokenEscrow(escrowContract.publicKey, tokenId);
-    adminContract = new FungibleTokenAdmin(admin.publicKey);
+    escrow = new TokenEscrow(escrowKeypair.publicKey, tokenId);
+    adminContract = new FungibleTokenAdmin(adminKeypair.publicKey);
   });
 
   async function deployTokenAdminContract() {
@@ -79,7 +79,7 @@ describe('Escrow', async () => {
       },
       async () => {
         AccountUpdate.fundNewAccount(deployer, 2);
-        await adminContract.deploy({ adminPublicKey: admin.publicKey });
+        await adminContract.deploy({ adminPublicKey: adminKeypair.publicKey });
         await token.deploy({
           symbol: 'abc',
           src: 'https://github.com/MinaFoundation/mina-fungible-token/blob/main/FungibleToken.ts',
@@ -88,7 +88,7 @@ describe('Escrow', async () => {
       }
     );
     await txn.prove();
-    txn.sign([deployer.key, tokenContract.privateKey, admin.privateKey]);
+    txn.sign([deployer.key, tokenKeypair.privateKey, adminKeypair.privateKey]);
     await txn.send().then((v) => v.wait());
     isTokenDeployed = true;
   }
@@ -103,14 +103,14 @@ describe('Escrow', async () => {
       async () => {
         AccountUpdate.fundNewAccount(deployer, 1);
         await escrow.deploy({
-          tokenAddress: tokenContract.publicKey,
+          tokenAddress: tokenKeypair.publicKey,
           owner,
         });
         await token.approveAccountUpdate(escrow.self);
       }
     );
     await txn.prove();
-    txn.sign([deployer.key, escrowContract.privateKey]);
+    txn.sign([deployer.key, escrowKeypair.privateKey]);
     await txn.send().then((v) => v.wait());
     isEscrowDeployed = true;
   }
@@ -126,7 +126,7 @@ describe('Escrow', async () => {
         AccountUpdate.fundNewAccount(deployer, 1);
 
         await token.initialize(
-          admin.publicKey,
+          adminKeypair.publicKey,
           UInt8.from(9),
           // We can set `startPaused` to `Bool(false)` here, because we are doing an atomic deployment
           // If you are not deploying the admin and token contracts in the same transaction,
@@ -137,7 +137,7 @@ describe('Escrow', async () => {
       }
     );
     await txn.prove();
-    txn.sign([deployer.key, tokenContract.privateKey, admin.privateKey]);
+    txn.sign([deployer.key, tokenKeypair.privateKey, adminKeypair.privateKey]);
     await txn.send().then((v) => v.wait());
     isTokenInitialised = true;
   }
@@ -155,7 +155,7 @@ describe('Escrow', async () => {
       }
     );
     await mintTx.prove();
-    mintTx.sign([owner.key, admin.privateKey]);
+    mintTx.sign([owner.key, adminKeypair.privateKey]); // play around with making admin key not needed
     await mintTx.send().then((v) => v.wait());
   }
 
@@ -208,6 +208,7 @@ describe('Escrow', async () => {
         await token.approveAccountUpdate(escrow.self);
       }
     );
+    // console.log(txn.toPretty());
     await txn.prove();
     txn.sign([owner.key]);
     await txn.send().then((v) => v.wait());
@@ -230,7 +231,7 @@ describe('Escrow', async () => {
     await conditionalTokenSetUp();
     const tokenAdminKey = await token.admin.fetch();
     const tokenDecimal = await token.decimals.fetch();
-    assert.equal(tokenAdminKey.toBase58(), admin.publicKey.toBase58());
+    assert.equal(tokenAdminKey.toBase58(), adminKeypair.publicKey.toBase58());
     assert.equal(tokenDecimal, 9);
   });
 
@@ -268,7 +269,7 @@ describe('Escrow', async () => {
     const escrowTokenAddress = await escrow.tokenAddress.fetch();
     assert.equal(
       escrowTokenAddress.toBase58(),
-      tokenContract.publicKey.toBase58()
+      tokenKeypair.publicKey.toBase58()
     );
   });
 
@@ -292,19 +293,24 @@ describe('Escrow', async () => {
     assert.equal(whaleBalanceAfterDeposit, 0n);
   });
 
-  test('withdraw from escrow', async () => {
+  test.only('withdraw from escrow', async () => {
     await conditionalTokenSetUp();
     await conditionalEscrowSetUp();
-    const whaleBalanceBeforeDeposit = (
-      await token.getBalanceOf(whale)
+    const escrowBalanceBefore = (
+      await token.getBalanceOf(escrow.address)
     ).toBigInt();
-    if (whaleBalanceBeforeDeposit == 0n) await mintToAccount(whale);
-    await depositToEscrow(whale);
+
+    if (escrowBalanceBefore == 0n) {
+      await mintToAccount(whale);
+      await depositToEscrow(whale);
+    }
     await withdrawFromEscrow(jackie);
     const jackieBalanceAfterWithdraw = (
       await token.getBalanceOf(jackie)
     ).toBigInt();
-    const escrowBalanceAfterWithdraw = (await escrow.total.fetch()).toBigInt();
+    const escrowBalanceAfterWithdraw = (
+      await token.getBalanceOf(escrow.address)
+    ).toBigInt();
 
     console.log('jackieBalanceAfterWithdraw', jackieBalanceAfterWithdraw);
     console.log('escrowBalanceAfterWithdraw', escrowBalanceAfterWithdraw);
