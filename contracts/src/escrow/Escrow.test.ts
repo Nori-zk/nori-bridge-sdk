@@ -8,6 +8,7 @@ import {
   PublicKey,
   UInt64,
   UInt8,
+  VerificationKey,
 } from 'o1js';
 import { FungibleToken, FungibleTokenAdmin } from '../index.js';
 import { TokenEscrow } from './Escrow.js';
@@ -38,12 +39,14 @@ describe('Escrow', async () => {
   let escrow: TokenEscrow;
   let adminContract: FungibleTokenAdmin;
   let tokenKeypair: Keypair, escrowKeypair: Keypair, adminKeypair: Keypair;
+  let escrowVk: VerificationKey;
 
   before(async () => {
     if (proofsEnabled) {
-      await TokenEscrow.compile({
+      let a = await TokenEscrow.compile({
         cache: Cache.FileSystem('./cache'),
       });
+      escrowVk = a.verificationKey;
       await FungibleToken.compile({
         cache: Cache.FileSystem('./cache'),
       });
@@ -211,9 +214,13 @@ describe('Escrow', async () => {
         fee,
       },
       async () => {
-        AccountUpdate.fundNewAccount(owner, 1);
-        await escrow.withdraw(withdrawTo, new UInt64(1e9));
-        // await token.approveAccountUpdate(escrow.self);
+        AccountUpdate.fundNewAccount(withdrawTo, 1);
+        await escrow.withdraw(
+          withdrawTo,
+          new UInt64(1e9)
+          // VerificationKey.fromValue(escrowVk)
+        );
+        await token.approveAccountUpdate(escrow.self);
       }
     );
     // console.log(txn.toPretty());
@@ -330,6 +337,15 @@ describe('Escrow', async () => {
       await mintToAccount(owner);
       await depositToEscrow(owner);
     }
+    const jackieBalanceBeforeWithdraw = (
+      await token.getBalanceOf(jackie)
+    ).toBigInt();
+    const escrowBalanceBeforeWithdraw = (
+      await token.getBalanceOf(escrow.address)
+    ).toBigInt();
+    console.log('jackieBalanceBeforeWithdraw', jackieBalanceBeforeWithdraw);
+    console.log('escrowBalanceBeforeWithdraw', escrowBalanceBeforeWithdraw);
+
     await withdrawFromEscrow(jackie);
     const jackieBalanceAfterWithdraw = (
       await token.getBalanceOf(jackie)
