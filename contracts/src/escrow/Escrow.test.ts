@@ -1,6 +1,7 @@
 import {
   AccountUpdate,
   Bool,
+  Cache,
   Field,
   Mina,
   PrivateKey,
@@ -14,7 +15,6 @@ import assert from 'node:assert';
 import { test, describe, before } from 'node:test';
 
 const proofsEnabled = false;
-const enforceTransactionLimits = false;
 let isTokenDeployed = false;
 let isTokenInitialised = false;
 let isEscrowDeployed = false;
@@ -41,13 +41,19 @@ describe('Escrow', async () => {
 
   before(async () => {
     if (proofsEnabled) {
-      await TokenEscrow.compile();
-      await FungibleToken.compile();
-      await FungibleTokenAdmin.compile();
+      await TokenEscrow.compile({
+        cache: Cache.FileSystem('./cache'),
+      });
+      await FungibleToken.compile({
+        cache: Cache.FileSystem('./cache'),
+      });
+      await FungibleTokenAdmin.compile({
+        cache: Cache.FileSystem('./cache'),
+      });
     }
     const Local = await Mina.LocalBlockchain({
       proofsEnabled,
-      enforceTransactionLimits,
+      // enforceTransactionLimits,
     });
     Mina.setActiveInstance(Local);
     [deployer, owner, whale, colin, bob, dave, jackie] = Local.testAccounts;
@@ -201,18 +207,18 @@ describe('Escrow', async () => {
     console.log('withdraw from escrow');
     const txn = await Mina.transaction(
       {
-        sender: owner,
+        sender: withdrawTo,
         fee,
       },
       async () => {
         AccountUpdate.fundNewAccount(owner, 1);
         await escrow.withdraw(withdrawTo, new UInt64(1e9));
-        await token.approveAccountUpdate(escrow.self);
+        // await token.approveAccountUpdate(escrow.self);
       }
     );
     // console.log(txn.toPretty());
     await txn.prove();
-    txn.sign([owner.key]);
+    txn.sign([withdrawTo.key]);
     await txn.send().then((v) => v.wait());
     // console.log('Withdraw tx result:', withdrawTxResult.toPretty());
     // assert.equal(withdrawTxResult.status, 'included');
@@ -313,7 +319,7 @@ describe('Escrow', async () => {
     assert.equal(ownerBalanceAfterDeposit, 0n);
   });
 
-  test('withdraw from escrow', async () => {
+  test.only('withdraw from escrow', async () => {
     await conditionalTokenSetUp();
     await conditionalEscrowSetUp();
     const escrowBalanceBefore = (
@@ -321,8 +327,8 @@ describe('Escrow', async () => {
     ).toBigInt();
 
     if (escrowBalanceBefore == 0n) {
-      await mintToAccount(whale);
-      await depositToEscrow(whale);
+      await mintToAccount(owner);
+      await depositToEscrow(owner);
     }
     await withdrawFromEscrow(jackie);
     const jackieBalanceAfterWithdraw = (

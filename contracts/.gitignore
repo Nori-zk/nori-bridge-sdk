@@ -12,3 +12,5 @@ target
 
 # Never commit keys to Git!
 keys
+
+cache
