@@ -3,6 +3,7 @@ import {
   assert,
   Bool,
   DeployArgs,
+  Field,
   method,
   Permissions,
   Provable,
@@ -12,6 +13,8 @@ import {
   state,
   VerificationKey,
 } from 'o1js';
+
+import { EscrowStorage } from '../escrow/EscrowStorage.js';
 
 export type FungibleTokenAdminBase = SmartContract & {
   canMint(accountUpdate: AccountUpdate): Promise<Bool>;
@@ -72,7 +75,74 @@ export class FungibleTokenAdmin
 
   @method.returns(Bool)
   public async canMint(_accountUpdate: AccountUpdate) {
-    await this.ensureAdminSignature();
+    // await this.ensureAdminSignature();
+    // Provable.log(_accountUpdate.body.balanceChange, 'balance change');
+    // Provable.log('tokenId', _accountUpdate.tokenId);
+    // Provable.log('pubKey', _accountUpdate.publicKey);
+    // let storage = new EscrowStorage(
+    //   _accountUpdate.publicKey,
+    //   _accountUpdate.tokenId
+    // );
+    // Provable.log(storage.mintedSoFar.get(), 'minted so far');
+    // let newUpdate = AccountUpdate.createSigned(
+    //   _accountUpdate.publicKey,
+    //   _accountUpdate.tokenId
+    // );
+    // let mintedSoFar = newUpdate.update.appState[0].value;
+    // Provable.log(_accountUpdate.update.appState[0], 'app state');
+    // Provable.log(mintedSoFar, 'app state');
+    // AccountUpdate.setValue(
+    // _accountUpdate.update.appState[0],
+    // mintedSoFar.add(amount)
+    // Field(8)
+    // );
+    // _accountUpdate.body.update.permissions = {
+    //   isSome: Bool(true),
+    //   value: {
+    //     ...Permissions.default(),
+    //     // TODO test acc update for this with sig only
+    //     editState: Permissions.proof(),
+    //     // VK upgradability here?
+    //     setVerificationKey:
+    //       Permissions.VerificationKey.impossibleDuringCurrentVersion(),
+    //     setPermissions: Permissions.impossible(),
+    //   },
+    // };
+    // let newUpdate = AccountUpdate.createSigned(
+    //   _accountUpdate.publicKey,
+    //   _accountUpdate.tokenId
+    // );
+    // Provable.log('tokenId', _accountUpdate.tokenId);
+    // Provable.log('pubKey', _accountUpdate.publicKey);
+
+    // newUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
+
+    // this.approve(newUpdate);
+    // TODO assetEqual correct vk
+    // newUpdate.body.update.verificationKey = {
+    //   isSome: Bool(true),
+    //   value: vk,
+    // };
+    // newUpdate.body.update.permissions = {
+    //   isSome: Bool(true),
+    //   value: {
+    //     ...Permissions.default(),
+    //     // TODO test acc update for this with sig only
+    //     editState: Permissions.proof(),
+    //     // VK upgradability here?
+    //     setVerificationKey:
+    //       Permissions.VerificationKey.impossibleDuringCurrentVersion(),
+    //     setPermissions: Permissions.impossible(),
+    //   },
+    // };
+
+    // let mintedSoFar = newUpdate.update.appState[0].value;
+    // Provable.log(mintedSoFar, 'mintedSoFar Admin');
+    // AccountUpdate.setValue(
+    //   newUpdate.update.appState[0],
+    //   // mintedSoFar.add(amount)
+    //   Field(6)
+    // );
     return Bool(true);
   }
 

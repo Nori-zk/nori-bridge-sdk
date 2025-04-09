@@ -82,6 +82,7 @@ export class FungibleToken extends TokenContract {
         : Permissions.VerificationKey.impossibleDuringCurrentVersion(),
       setPermissions: Permissions.impossible(),
       access: Permissions.proof(),
+      // editState: Permissions.proof(),
     });
   }
 

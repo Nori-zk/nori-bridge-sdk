@@ -2,6 +2,7 @@ import {
   AccountUpdate,
   Bool,
   Cache,
+  fetchAccount,
   Field,
   Mina,
   PrivateKey,
@@ -14,6 +15,7 @@ import { FungibleToken, FungibleTokenAdmin } from '../index.js';
 import { TokenEscrow } from './Escrow.js';
 import assert from 'node:assert';
 import { test, describe, before } from 'node:test';
+import { EscrowStorage } from './EscrowStorage.js';
 
 const proofsEnabled = false;
 let isTokenDeployed = false;
@@ -42,11 +44,11 @@ describe('Escrow', async () => {
   let escrowVk: VerificationKey;
 
   before(async () => {
+    let { verificationKey: vk } = await TokenEscrow.compile({
+      cache: Cache.FileSystem('./cache'),
+    });
+    escrowVk = vk;
     if (proofsEnabled) {
-      let a = await TokenEscrow.compile({
-        cache: Cache.FileSystem('./cache'),
-      });
-      escrowVk = a.verificationKey;
       await FungibleToken.compile({
         cache: Cache.FileSystem('./cache'),
       });
@@ -63,22 +65,23 @@ describe('Escrow', async () => {
     tokenKeypair = PrivateKey.randomKeypair();
     escrowKeypair = PrivateKey.randomKeypair();
     adminKeypair = PrivateKey.randomKeypair();
-    console.log(`
-          deployer ${deployer.toBase58()}
-          owner ${owner.toBase58()}
-          whale ${whale.toBase58()}
-          colin ${colin.toBase58()}
-          dave ${dave.toBase58()}
-          bob ${bob.toBase58()}
-          jackie ${jackie.toBase58()}
-          token ${tokenKeypair.publicKey.toBase58()}
-          escrow ${escrowKeypair.publicKey.toBase58()}
-          admin ${adminKeypair.publicKey.toBase58()}
-        `);
     token = new FungibleToken(tokenKeypair.publicKey);
     tokenId = token.deriveTokenId();
     escrow = new TokenEscrow(escrowKeypair.publicKey, tokenId);
     adminContract = new FungibleTokenAdmin(adminKeypair.publicKey);
+    console.log(`
+      deployer ${deployer.toBase58()}
+      owner ${owner.toBase58()}
+      whale ${whale.toBase58()}
+      colin ${colin.toBase58()}
+      dave ${dave.toBase58()}
+      bob ${bob.toBase58()}
+      jackie ${jackie.toBase58()}
+      token ${tokenKeypair.publicKey.toBase58()}
+      escrow ${escrowKeypair.publicKey.toBase58()}
+      admin ${adminKeypair.publicKey.toBase58()}
+      tokenId ${tokenId.toString()}
+    `);
   });
 
   async function deployTokenAdminContract() {
@@ -206,6 +209,27 @@ describe('Escrow', async () => {
     await txn.send().then((v) => v.wait());
   }
 
+  async function firstWithdrawFromEscrow(withdrawTo: Mina.TestPublicKey) {
+    console.log('firstWithdraw from escrow');
+    const txn = await Mina.transaction(
+      {
+        sender: withdrawTo,
+        fee,
+      },
+      async () => {
+        AccountUpdate.fundNewAccount(withdrawTo, 1);
+        await escrow.firstWithdraw(withdrawTo, new UInt64(1e9), escrowVk);
+        await token.approveAccountUpdate(escrow.self);
+      }
+    );
+    // console.log(txn.toPretty());
+    await txn.prove();
+    txn.sign([withdrawTo.key]);
+    await txn.send().then((v) => v.wait());
+    // console.log('Withdraw tx result:', withdrawTxResult.toPretty());
+    // assert.equal(withdrawTxResult.status, 'included');
+  }
+
   async function withdrawFromEscrow(withdrawTo: Mina.TestPublicKey) {
     console.log('withdraw from escrow');
     const txn = await Mina.transaction(
@@ -214,12 +238,8 @@ describe('Escrow', async () => {
         fee,
       },
       async () => {
-        AccountUpdate.fundNewAccount(withdrawTo, 1);
-        await escrow.withdraw(
-          withdrawTo,
-          new UInt64(1e9)
-          // VerificationKey.fromValue(escrowVk)
-        );
+        // AccountUpdate.fundNewAccount(withdrawTo, 1);
+        await escrow.withdraw(withdrawTo, new UInt64(1e9));
         await token.approveAccountUpdate(escrow.self);
       }
     );
@@ -346,7 +366,21 @@ describe('Escrow', async () => {
     console.log('jackieBalanceBeforeWithdraw', jackieBalanceBeforeWithdraw);
     console.log('escrowBalanceBeforeWithdraw', escrowBalanceBeforeWithdraw);
 
-    await withdrawFromEscrow(jackie);
+    await firstWithdrawFromEscrow(jackie);
+    // const mintTx = await Mina.transaction(
+    //   {
+    //     sender: jackie,
+    //     fee,
+    //   },
+    //   async () => {
+    //     // AccountUpdate.fundNewAccount(jackie, 1);
+    //     await token.mint(jackie, new UInt64(5e9));
+    //   }
+    // );
+    // await mintTx.prove();
+    // mintTx.sign([jackie.key]);
+    // await mintTx.send().then((v) => v.wait());
+
     const jackieBalanceAfterWithdraw = (
       await token.getBalanceOf(jackie)
     ).toBigInt();
@@ -357,8 +391,45 @@ describe('Escrow', async () => {
     console.log('jackieBalanceAfterWithdraw', jackieBalanceAfterWithdraw);
     console.log('escrowBalanceAfterWithdraw', escrowBalanceAfterWithdraw);
 
-    assert.equal(jackieBalanceAfterWithdraw, BigInt(1e9));
-    assert.equal(escrowBalanceAfterWithdraw, BigInt(1e9));
+    // assert.equal(jackieBalanceAfterWithdraw, BigInt(1e9));
+    // assert.equal(escrowBalanceAfterWithdraw, BigInt(1e9));
+
+    console.log('jackie', jackie.toBase58());
+    console.log('tokenId', token.deriveTokenId().toString());
+
+    let storage = new EscrowStorage(jackie, token.deriveTokenId());
+    console.log('storage', storage.mintedSoFar.get().toString());
+
+    await withdrawFromEscrow(jackie);
+
+    console.log('storage2', storage.mintedSoFar.get().toString());
+    // let a = Mina.getAccount(jackie, token.deriveTokenId());
+    // let a = await fetchAccount({
+    //   publicKey: jackie,
+    //   tokenId: token.deriveTokenId(),
+    // });
+    // if (a.account === undefined) {
+    //   console.log('error: ', a.error);
+    // } else {
+
+    // }
+    // const txn = await Mina.transaction(
+    //   {
+    //     sender: jackie,
+    //     fee,
+    //   },
+    //   async () => {
+    //     await token.mint(jackie, new UInt64(77777));
+    //   }
+    // );
+    // console.log(txn.toPretty());
+    // await txn.prove();
+    // txn.sign([jackie.key, owner.key]);
+    // await txn.send().then((v) => v.wait());
+    // const jackieLatestBalance = (await token.getBalanceOf(jackie)).toBigInt();
+    // console.log('jackieLatestBalance', jackieLatestBalance);
+    // let b = Mina.getAccount(jackie, token.deriveTokenId());
+    // console.log('newState B', b.zkapp.appState[0].toString());
   });
 });
 

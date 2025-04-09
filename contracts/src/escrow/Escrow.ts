@@ -1,5 +1,6 @@
 import {
   AccountUpdate,
+  AccountUpdateForest,
   Bool,
   DeployArgs,
   Field,
@@ -12,17 +13,17 @@ import {
   SmartContract,
   State,
   state,
+  TokenContract,
   UInt64,
   UInt8,
   VerificationKey,
 } from 'o1js';
 import { FungibleToken, FungibleTokenAdmin } from '../index.js';
 
-export class TokenEscrow extends SmartContract {
-  @state(PublicKey)
-  tokenAddress = State<PublicKey>();
-  @state(PublicKey)
-  owner = State<PublicKey>();
+export class TokenEscrow extends TokenContract {
+  @state(PublicKey) tokenAddress = State<PublicKey>();
+  @state(PublicKey) owner = State<PublicKey>();
+  // @state(Field) vaultVerificationKeyHash = State<Field>();
   async deploy(
     args: DeployArgs & { tokenAddress: PublicKey; owner: PublicKey }
   ) {
@@ -39,6 +40,10 @@ export class TokenEscrow extends SmartContract {
     });
   }
 
+  @method
+  async approveBase(updates: AccountUpdateForest): Promise<void> {
+    this.checkZeroBalanceChange(updates);
+  }
   @method //admin only
   async deposit(amount: UInt64) {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
@@ -53,11 +58,7 @@ export class TokenEscrow extends SmartContract {
   }
 
   @method //user only under proof validation
-  async withdraw(
-    to: PublicKey,
-    amount: UInt64
-    // , vk: VerificationKey
-  ) {
+  async firstWithdraw(to: PublicKey, amount: UInt64, vk: VerificationKey) {
     //proof1: MPT verification, proof2: ECDSA signature-proof
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
@@ -75,6 +76,8 @@ export class TokenEscrow extends SmartContract {
     // calc locked-mintedSoFar
     // appState[1].value = locked (2.3eth)
 
+    // let newUpdate = await token.mint(to, amount);
+
     //how to see ethaccA on tokenAccBalance
     let receiverUpdate = this.send({ to, amount });
     receiverUpdate.body.mayUseToken =
@@ -82,28 +85,60 @@ export class TokenEscrow extends SmartContract {
     receiverUpdate.body.useFullCommitment = Bool(true);
     // await token.transfer(this.address, to, amount);
 
-    let newUpdate = AccountUpdate.createSigned(to, this.tokenId);
+    let newUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
+    newUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
 
-    // newUpdate.body.update.verificationKey = {
-    //   isSome: Bool(true),
-    //   value: vk,
-    // };
+    // this.approve(newUpdate);
+    // TODO assetEqual correct vk
+    newUpdate.body.update.verificationKey = {
+      isSome: Bool(true),
+      value: vk,
+    };
     newUpdate.body.update.permissions = {
       isSome: Bool(true),
       value: {
         ...Permissions.default(),
         // TODO test acc update for this with sig only
         editState: Permissions.none(),
-        // send: Permissions.none(), // we don't want to allow sending - soulbound
+        // VK upgradability here?
+        setVerificationKey:
+          Permissions.VerificationKey.impossibleDuringCurrentVersion(),
+        setPermissions: Permissions.proof(),
       },
     };
 
     // let mintedSoFar = newUpdate.update.appState[0].value;
-    // Provable.log(mintedSoFar);
-    // AccountUpdate.setValue(
-    //   newUpdate.update.appState[0],
-    //   // mintedSoFar.add(amount)
-    //   Field(7)
-    // );
+    // Provable.log(mintedSoFar, 'mintedSoFar firstWithdraw');
+    AccountUpdate.setValue(
+      newUpdate.update.appState[0],
+      // mintedSoFar.add(amount)
+      Field(11)
+    );
+    this.approve(newUpdate);
+  }
+
+  @method //user only under proof validation
+  async withdraw(to: PublicKey, amount: UInt64) {
+    const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
+    token.deriveTokenId().assertEquals(this.tokenId);
+
+    let receiverUpdate = this.send({ to, amount });
+    receiverUpdate.body.mayUseToken =
+      AccountUpdate.MayUseToken.InheritFromParent;
+    receiverUpdate.body.useFullCommitment = Bool(true);
+    // await token.transfer(this.address, to, amount);
+
+    let newUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
+    newUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
+    // let mintedSoFar = newUpdate.update.appState[0].value;
+    // Provable.log(mintedSoFar, 'mintedSoFar withdraw');
+    AccountUpdate.setValue(
+      newUpdate.update.appState[0],
+      // mintedSoFar.add(amount)
+      // mintedSoFar.add(Field(11))
+      Field(99)
+    );
+
+    this.approve(newUpdate);
   }
 }
