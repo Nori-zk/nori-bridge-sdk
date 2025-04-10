@@ -100,6 +100,7 @@ export class TokenEscrow extends SmartContract {
     let tokenAccUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
     tokenAccUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
+    tokenAccUpdate.body.useFullCommitment = Bool(true);
 
     // this.approve(tokenAccUpdate);
     // this.
@@ -140,22 +141,44 @@ export class TokenEscrow extends SmartContract {
 
     let escrowStorage = new EscrowStorage(to, token.deriveTokenId());
     escrowStorage.account.isNew.requireEquals(Bool(false));
+    Provable.log(
+      'escroVKINcontract?',
+      escrowStorage.self.body.authorizationKind.verificationKeyHash
+    );
+    Provable.log(
+      'update escroVKINcontract?',
+      escrowStorage.self.update.verificationKey.value.hash
+    );
+    // escrowStorage.account.
     //TODO need to validate not only if new, but that has correct vk an permissions
     let mintedSoFar = escrowStorage.mintedSoFar.getAndRequireEquals();
     let amount = totalAmountLockedOnEth.sub(mintedSoFar);
 
-    let receiverUpdate = this.send({ to, amount: totalAmountLockedOnEth });
-    // let receiverUpdate = this.send({ to, amount });
+    let receiverUpdate = this.send({ to, amount });
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);
 
     // escrowStorage.mintedSoFar.set(totalAmountLockedOnEth);
     let accUpdate = await escrowStorage.setMintedSoFar(totalAmountLockedOnEth);
-    // let accUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
+    Provable.log('prooof:', accUpdate.authorization.proof);
+    Provable.log(
+      'update vk hash:',
+      accUpdate.update.verificationKey.value.hash
+    );
+    // let accUpdate = AccountUpdate.create(to, token.deriveTokenId());
+
+    // accUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
+    // AccountUpdate.setValue(
+    //   receiverUpdate.update.appState[0],
+    //   // mintedSoFar.add(amount)
+    //   totalAmountLockedOnEth.value
+    //   // Field(1)
+    // );
+
     // this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
 
-    // this.approve(accUpdate);
+    // this.approve(receiverUpdate);
   }
   // @method.returns(AccountUpdate) async setMintedSoFar(
   //   to: PublicKey,

@@ -41,25 +41,28 @@ describe('Escrow', async () => {
   let escrow: TokenEscrow;
   let adminContract: FungibleTokenAdmin;
   let tokenKeypair: Keypair, escrowKeypair: Keypair, adminKeypair: Keypair;
-  let escrowVk: VerificationKey;
+  let escrowStorageVk: VerificationKey;
 
   before(async () => {
     let { verificationKey: vk } = await TokenEscrow.compile({
       cache: Cache.FileSystem('./cache'),
     });
+    console.log('TokenEscrow VK', vk.hash.toString());
     // escrowVk = vk;
     let { verificationKey: storageVk } = await EscrowStorage.compile({
       cache: Cache.FileSystem('./cache'),
     });
-    escrowVk = storageVk;
-    console.log('TokenEscrow VK', escrowVk.hash.toString());
+    escrowStorageVk = storageVk;
+    console.log('EscrowStorage VK', escrowStorageVk.hash.toString());
     if (proofsEnabled) {
-      await FungibleToken.compile({
+      let { verificationKey: tokenVk } = await FungibleToken.compile({
         cache: Cache.FileSystem('./cache'),
       });
-      await FungibleTokenAdmin.compile({
+      console.log('Token VK', tokenVk.hash.toString());
+      let { verificationKey: tokenAdminVK } = await FungibleTokenAdmin.compile({
         cache: Cache.FileSystem('./cache'),
       });
+      console.log('TokenAdmin VK', tokenAdminVK.hash.toString());
     }
     const Local = await Mina.LocalBlockchain({
       proofsEnabled,
@@ -223,7 +226,11 @@ describe('Escrow', async () => {
       },
       async () => {
         AccountUpdate.fundNewAccount(withdrawTo, 1);
-        await escrow.firstWithdraw(withdrawTo, new UInt64(5e8), escrowVk);
+        await escrow.firstWithdraw(
+          withdrawTo,
+          new UInt64(5e8),
+          escrowStorageVk
+        );
         await token.approveAccountUpdate(escrow.self);
       }
     );
@@ -244,7 +251,7 @@ describe('Escrow', async () => {
       },
       async () => {
         // AccountUpdate.fundNewAccount(withdrawTo, 1);
-        await escrow.withdraw(withdrawTo, new UInt64(1e9));
+        await escrow.withdraw(withdrawTo, new UInt64(9e8));
         await token.approveAccountUpdate(escrow.self);
       }
     );

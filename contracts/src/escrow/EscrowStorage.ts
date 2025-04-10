@@ -15,6 +15,9 @@ import {
 export class EscrowStorage extends SmartContract {
   @state(UInt64) mintedSoFar = State<UInt64>();
 
+  @method async mock() {
+    Field(1).assertEquals(Field(1));
+  }
   @method.returns(AccountUpdate) async setMintedSoFar(
     totalAmountLockedOnEth: UInt64
   ) {
