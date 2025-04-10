@@ -75,7 +75,7 @@ export class FungibleTokenAdmin
 
   @method.returns(Bool)
   public async canMint(_accountUpdate: AccountUpdate) {
-    // await this.ensureAdminSignature();
+    await this.ensureAdminSignature();
     // Provable.log(_accountUpdate.body.balanceChange, 'balance change');
     // Provable.log('tokenId', _accountUpdate.tokenId);
     // Provable.log('pubKey', _accountUpdate.publicKey);

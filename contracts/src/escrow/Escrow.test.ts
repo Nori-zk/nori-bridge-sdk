@@ -17,7 +17,7 @@ import assert from 'node:assert';
 import { test, describe, before } from 'node:test';
 import { EscrowStorage } from './EscrowStorage.js';
 
-const proofsEnabled = false;
+const proofsEnabled = true;
 let isTokenDeployed = false;
 let isTokenInitialised = false;
 let isEscrowDeployed = false;
@@ -47,7 +47,12 @@ describe('Escrow', async () => {
     let { verificationKey: vk } = await TokenEscrow.compile({
       cache: Cache.FileSystem('./cache'),
     });
-    escrowVk = vk;
+    // escrowVk = vk;
+    let { verificationKey: storageVk } = await EscrowStorage.compile({
+      cache: Cache.FileSystem('./cache'),
+    });
+    escrowVk = storageVk;
+    console.log('TokenEscrow VK', escrowVk.hash.toString());
     if (proofsEnabled) {
       await FungibleToken.compile({
         cache: Cache.FileSystem('./cache'),
@@ -218,7 +223,7 @@ describe('Escrow', async () => {
       },
       async () => {
         AccountUpdate.fundNewAccount(withdrawTo, 1);
-        await escrow.firstWithdraw(withdrawTo, new UInt64(1e9), escrowVk);
+        await escrow.firstWithdraw(withdrawTo, new UInt64(5e8), escrowVk);
         await token.approveAccountUpdate(escrow.self);
       }
     );
@@ -403,6 +408,11 @@ describe('Escrow', async () => {
     await withdrawFromEscrow(jackie);
 
     console.log('storage2', storage.mintedSoFar.get().toString());
+    const escrowBalanceAfter2Withdraw = (
+      await token.getBalanceOf(escrow.address)
+    ).toBigInt();
+
+    console.log('escrowBalanceAfter2Withdraw', escrowBalanceAfter2Withdraw);
     // let a = Mina.getAccount(jackie, token.deriveTokenId());
     // let a = await fetchAccount({
     //   publicKey: jackie,

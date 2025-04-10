@@ -13,17 +13,28 @@ import {
   SmartContract,
   State,
   state,
+  Struct,
   TokenContract,
   UInt64,
   UInt8,
   VerificationKey,
 } from 'o1js';
 import { FungibleToken, FungibleTokenAdmin } from '../index.js';
+import { EscrowStorage } from './EscrowStorage.js';
 
-export class TokenEscrow extends TokenContract {
+// export class MockMPTProof extends Struct({
+//   lockedAmount: UInt64,
+//   ethAddress: Field,
+// }) {
+//   async verify() {
+//     return Bool(true);
+//   }
+// }
+
+export class TokenEscrow extends SmartContract {
   @state(PublicKey) tokenAddress = State<PublicKey>();
   @state(PublicKey) owner = State<PublicKey>();
-  // @state(Field) vaultVerificationKeyHash = State<Field>();
+
   async deploy(
     args: DeployArgs & { tokenAddress: PublicKey; owner: PublicKey }
   ) {
@@ -34,17 +45,14 @@ export class TokenEscrow extends TokenContract {
     this.account.permissions.set({
       ...Permissions.default(),
       send: Permissions.proof(),
+      // receive: Permissions.proof(),
       setVerificationKey:
         Permissions.VerificationKey.impossibleDuringCurrentVersion(),
       setPermissions: Permissions.impossible(),
     });
   }
 
-  @method
-  async approveBase(updates: AccountUpdateForest): Promise<void> {
-    this.checkZeroBalanceChange(updates);
-  }
-  @method //admin only
+  @method //admin only// todo why anyone can transfer no? change recive permissions?
   async deposit(amount: UInt64) {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
@@ -62,6 +70,11 @@ export class TokenEscrow extends TokenContract {
     //proof1: MPT verification, proof2: ECDSA signature-proof
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
+    //what if someone send him a token, rather than withdrawing via us.
+    //maybe have function to set
+    let isNewAccount = new EscrowStorage(to, token.deriveTokenId()).account
+      .isNew;
+    isNewAccount.requireEquals(Bool(true));
     //store on ETH locked[minaAddr]=amount
     //OR locked[minaAddr][ethAddr]=amount (or do 2 mappings bidirect)
     //OR locked[ethAddr]=(amount, minaAddr)
@@ -78,28 +91,30 @@ export class TokenEscrow extends TokenContract {
 
     // let newUpdate = await token.mint(to, amount);
 
-    //how to see ethaccA on tokenAccBalance
+    //why is this not the same as tokennAccUpdate
     let receiverUpdate = this.send({ to, amount });
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);
-    // await token.transfer(this.address, to, amount);
 
-    let newUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
-    newUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
+    let tokenAccUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
+    tokenAccUpdate.body.mayUseToken =
+      AccountUpdate.MayUseToken.InheritFromParent;
 
-    // this.approve(newUpdate);
+    // this.approve(tokenAccUpdate);
+    // this.
     // TODO assetEqual correct vk
-    newUpdate.body.update.verificationKey = {
+    // this.account.verificationKey
+    tokenAccUpdate.body.update.verificationKey = {
       isSome: Bool(true),
       value: vk,
     };
-    newUpdate.body.update.permissions = {
+    tokenAccUpdate.body.update.permissions = {
       isSome: Bool(true),
       value: {
         ...Permissions.default(),
         // TODO test acc update for this with sig only
-        editState: Permissions.none(),
+        editState: Permissions.proof(),
         // VK upgradability here?
         setVerificationKey:
           Permissions.VerificationKey.impossibleDuringCurrentVersion(),
@@ -107,38 +122,52 @@ export class TokenEscrow extends TokenContract {
       },
     };
 
-    // let mintedSoFar = newUpdate.update.appState[0].value;
+    // let mintedSoFar = tokenAccUpdate.update.appState[0].value;
     // Provable.log(mintedSoFar, 'mintedSoFar firstWithdraw');
     AccountUpdate.setValue(
-      newUpdate.update.appState[0],
+      tokenAccUpdate.update.appState[0],
       // mintedSoFar.add(amount)
-      Field(11)
+      amount.value
+      // Field(1)
     );
-    this.approve(newUpdate);
+    this.approve(tokenAccUpdate);
   }
 
   @method //user only under proof validation
-  async withdraw(to: PublicKey, amount: UInt64) {
+  async withdraw(to: PublicKey, totalAmountLockedOnEth: UInt64) {
     const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
     token.deriveTokenId().assertEquals(this.tokenId);
 
-    let receiverUpdate = this.send({ to, amount });
+    let escrowStorage = new EscrowStorage(to, token.deriveTokenId());
+    escrowStorage.account.isNew.requireEquals(Bool(false));
+    //TODO need to validate not only if new, but that has correct vk an permissions
+    let mintedSoFar = escrowStorage.mintedSoFar.getAndRequireEquals();
+    let amount = totalAmountLockedOnEth.sub(mintedSoFar);
+
+    let receiverUpdate = this.send({ to, amount: totalAmountLockedOnEth });
+    // let receiverUpdate = this.send({ to, amount });
     receiverUpdate.body.mayUseToken =
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);
-    // await token.transfer(this.address, to, amount);
 
-    let newUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
-    newUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
-    // let mintedSoFar = newUpdate.update.appState[0].value;
-    // Provable.log(mintedSoFar, 'mintedSoFar withdraw');
-    AccountUpdate.setValue(
-      newUpdate.update.appState[0],
-      // mintedSoFar.add(amount)
-      // mintedSoFar.add(Field(11))
-      Field(99)
-    );
+    // escrowStorage.mintedSoFar.set(totalAmountLockedOnEth);
+    let accUpdate = await escrowStorage.setMintedSoFar(totalAmountLockedOnEth);
+    // let accUpdate = AccountUpdate.createSigned(to, token.deriveTokenId());
+    // this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
 
-    this.approve(newUpdate);
+    // this.approve(accUpdate);
   }
+  // @method.returns(AccountUpdate) async setMintedSoFar(
+  //   to: PublicKey,
+  //   totalAmountLockedOnEth: UInt64
+  // ) {
+  //   let tokenAccUpdate = AccountUpdate.createSigned(to, this.tokenId);
+  //   AccountUpdate.setValue(
+  //     tokenAccUpdate.update.appState[0],
+  //     // mintedSoFar.add(amount)
+  //     totalAmountLockedOnEth.value
+  //     // Field(1)
+  //   );
+  //   return tokenAccUpdate;
+  // }
 }
