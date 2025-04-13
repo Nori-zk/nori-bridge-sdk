@@ -11,7 +11,8 @@ import {
 import { FungibleToken, FungibleTokenAdmin } from '../index.js';
 import { TokenEscrow } from './Escrow.js';
 import assert from 'node:assert';
-import { test, describe, before } from 'node:test';
+import { test, describe, before, after } from 'node:test';
+import * as trace from 'autrace';
 
 const proofsEnabled = false;
 const enforceTransactionLimits = false;
@@ -23,6 +24,8 @@ type Keypair = {
   publicKey: PublicKey;
   privateKey: PrivateKey;
 };
+
+const autrace = new trace.AUTrace();
 
 describe('Escrow', async () => {
   const fee = 1e8;
@@ -55,21 +58,33 @@ describe('Escrow', async () => {
     escrowKeypair = PrivateKey.randomKeypair();
     adminKeypair = PrivateKey.randomKeypair();
     console.log(`
-          deployer ${deployer.toBase58()}
-          owner ${owner.toBase58()}
-          whale ${whale.toBase58()}
-          colin ${colin.toBase58()}
-          dave ${dave.toBase58()}
-          bob ${bob.toBase58()}
-          jackie ${jackie.toBase58()}
-          token ${tokenKeypair.publicKey.toBase58()}
-          escrow ${escrowKeypair.publicKey.toBase58()}
-          admin ${adminKeypair.publicKey.toBase58()}
-        `);
+           deployer ${deployer.toBase58()}
+           owner ${owner.toBase58()}
+           whale ${whale.toBase58()}
+           colin ${colin.toBase58()}
+           dave ${dave.toBase58()}
+           bob ${bob.toBase58()}
+           jackie ${jackie.toBase58()}
+           token ${tokenKeypair.publicKey.toBase58()}
+           escrow ${escrowKeypair.publicKey.toBase58()}
+           admin ${adminKeypair.publicKey.toBase58()}
+         `);
     token = new FungibleToken(tokenKeypair.publicKey);
     tokenId = token.deriveTokenId();
     escrow = new TokenEscrow(escrowKeypair.publicKey, tokenId);
     adminContract = new FungibleTokenAdmin(adminKeypair.publicKey);
+
+    autrace.initializeContracts([token, adminContract, escrow]);
+    autrace.getContractAnalysis();
+    autrace.clearTransactionState();
+  });
+
+  after(async () => {
+    const history = autrace.getStateHistory();
+    const visualizer = new trace.AUVisualizer(history);
+    await visualizer.generateMarkdownFile('output.md');
+    await visualizer.generatePNG('output.png');
+    await visualizer.generateSVG('output.svg');
   });
 
   async function deployTokenAdminContract() {
@@ -92,6 +107,7 @@ describe('Escrow', async () => {
     await txn.prove();
     txn.sign([deployer.key, tokenKeypair.privateKey, adminKeypair.privateKey]);
     await txn.send().then((v) => v.wait());
+    autrace.getTransactionState(txn);
     isTokenDeployed = true;
   }
 
@@ -114,6 +130,7 @@ describe('Escrow', async () => {
     await txn.prove();
     txn.sign([deployer.key, escrowKeypair.privateKey]);
     await txn.send().then((v) => v.wait());
+    autrace.getTransactionState(txn);
     isEscrowDeployed = true;
   }
 
@@ -126,7 +143,6 @@ describe('Escrow', async () => {
       },
       async () => {
         AccountUpdate.fundNewAccount(deployer, 1);
-
         await token.initialize(
           adminKeypair.publicKey,
           UInt8.from(9),
@@ -142,6 +158,7 @@ describe('Escrow', async () => {
     txn.sign([deployer.key, tokenKeypair.privateKey, adminKeypair.privateKey]);
     await txn.send().then((v) => v.wait());
     isTokenInitialised = true;
+    autrace.getTransactionState(txn);
   }
 
   async function mintToAccount(mintee: Mina.TestPublicKey) {
@@ -159,6 +176,7 @@ describe('Escrow', async () => {
     await mintTx.prove();
     mintTx.sign([owner.key, adminKeypair.privateKey]); // play around with making admin key not needed
     await mintTx.send().then((v) => v.wait());
+    autrace.getTransactionState(mintTx);
   }
 
   async function transferTokens(
@@ -179,6 +197,7 @@ describe('Escrow', async () => {
     await transferTx.prove();
     transferTx.sign([giver.key]);
     await transferTx.send().then((v) => v.wait());
+    autrace.getTransactionState(transferTx);
   }
 
   async function depositToEscrow(depositer: Mina.TestPublicKey) {
@@ -195,6 +214,7 @@ describe('Escrow', async () => {
     await txn.prove();
     txn.sign([depositer.key]);
     await txn.send().then((v) => v.wait());
+    autrace.getTransactionState(txn);
   }
 
   async function withdrawFromEscrow(withdrawTo: Mina.TestPublicKey) {
@@ -210,12 +230,10 @@ describe('Escrow', async () => {
         await token.approveAccountUpdate(escrow.self);
       }
     );
-    // console.log(txn.toPretty());
     await txn.prove();
     txn.sign([owner.key]);
     await txn.send().then((v) => v.wait());
-    // console.log('Withdraw tx result:', withdrawTxResult.toPretty());
-    // assert.equal(withdrawTxResult.status, 'included');
+    autrace.getTransactionState(txn);
   }
 
   async function conditionalTokenSetUp() {
