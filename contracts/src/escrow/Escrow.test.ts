@@ -42,6 +42,9 @@ describe('Escrow', async () => {
   let adminContract: FungibleTokenAdmin;
   let tokenKeypair: Keypair, escrowKeypair: Keypair, adminKeypair: Keypair;
   let escrowStorageVk: VerificationKey;
+  const depositAmount = new UInt64(2e9);
+  const firstWithdrawAmount = new UInt64(5e8);
+  const totalAmountLocked = new UInt64(9e8);
 
   before(async () => {
     let { verificationKey: vk } = await TokenEscrow.compile({
@@ -208,7 +211,7 @@ describe('Escrow', async () => {
         fee,
       },
       async () => {
-        await escrow.deposit(new UInt64(2e9));
+        await escrow.deposit(depositAmount);
         await token.approveAccountUpdate(escrow.self);
       }
     );
@@ -218,7 +221,7 @@ describe('Escrow', async () => {
   }
 
   async function firstWithdrawFromEscrow(withdrawTo: Mina.TestPublicKey) {
-    console.log('firstWithdraw from escrow');
+    console.log('----firstWithdraw from escrow----');
     const txn = await Mina.transaction(
       {
         sender: withdrawTo,
@@ -228,7 +231,7 @@ describe('Escrow', async () => {
         AccountUpdate.fundNewAccount(withdrawTo, 1);
         await escrow.firstWithdraw(
           withdrawTo,
-          new UInt64(5e8),
+          firstWithdrawAmount,
           escrowStorageVk
         );
         await token.approveAccountUpdate(escrow.self);
@@ -243,7 +246,7 @@ describe('Escrow', async () => {
   }
 
   async function withdrawFromEscrow(withdrawTo: Mina.TestPublicKey) {
-    console.log('withdraw from escrow');
+    console.log('----withdraw from escrow----');
     const txn = await Mina.transaction(
       {
         sender: withdrawTo,
@@ -251,7 +254,7 @@ describe('Escrow', async () => {
       },
       async () => {
         // AccountUpdate.fundNewAccount(withdrawTo, 1);
-        await escrow.withdraw(withdrawTo, new UInt64(9e8));
+        await escrow.withdraw(withdrawTo, totalAmountLocked);
         await token.approveAccountUpdate(escrow.self);
       }
     );
@@ -378,21 +381,18 @@ describe('Escrow', async () => {
     console.log('jackieBalanceBeforeWithdraw', jackieBalanceBeforeWithdraw);
     console.log('escrowBalanceBeforeWithdraw', escrowBalanceBeforeWithdraw);
 
-    await firstWithdrawFromEscrow(jackie);
-    // const mintTx = await Mina.transaction(
-    //   {
-    //     sender: jackie,
-    //     fee,
-    //   },
-    //   async () => {
-    //     // AccountUpdate.fundNewAccount(jackie, 1);
-    //     await token.mint(jackie, new UInt64(5e9));
-    //   }
-    // );
-    // await mintTx.prove();
-    // mintTx.sign([jackie.key]);
-    // await mintTx.send().then((v) => v.wait());
+    assert.equal(
+      escrowBalanceBeforeWithdraw,
+      depositAmount.toBigInt(),
+      'deposit amount incorrect'
+    );
+    assert.equal(
+      jackieBalanceBeforeWithdraw,
+      0n,
+      'jackie initial balance incorrect'
+    );
 
+    await firstWithdrawFromEscrow(jackie);
     const jackieBalanceAfterWithdraw = (
       await token.getBalanceOf(jackie)
     ).toBigInt();
@@ -403,23 +403,59 @@ describe('Escrow', async () => {
     console.log('jackieBalanceAfterWithdraw', jackieBalanceAfterWithdraw);
     console.log('escrowBalanceAfterWithdraw', escrowBalanceAfterWithdraw);
 
-    // assert.equal(jackieBalanceAfterWithdraw, BigInt(1e9));
-    // assert.equal(escrowBalanceAfterWithdraw, BigInt(1e9));
+    assert.equal(
+      jackieBalanceAfterWithdraw,
+      firstWithdrawAmount.toBigInt(),
+      'jackie balance after first withdrawal incorrect'
+    );
+    assert.equal(
+      escrowBalanceAfterWithdraw,
+      depositAmount.sub(firstWithdrawAmount).toBigInt(),
+      'escrow balance after first withdrawal incorrect'
+    );
 
-    console.log('jackie', jackie.toBase58());
-    console.log('tokenId', token.deriveTokenId().toString());
+    // console.log('jackie', jackie.toBase58());
+    // console.log('tokenId', token.deriveTokenId().toString());
 
     let storage = new EscrowStorage(jackie, token.deriveTokenId());
-    console.log('storage', storage.mintedSoFar.get().toString());
+    const mintedSoFar1 = storage.mintedSoFar.get().toBigInt();
+    console.log('mintedSoFar after first withdrawal', mintedSoFar1);
+
+    assert.equal(
+      mintedSoFar1,
+      firstWithdrawAmount.toBigInt(),
+      'minted so far incorrect'
+    );
+    assert.equal(jackieBalanceAfterWithdraw, mintedSoFar1, 'balances mismatch');
 
     await withdrawFromEscrow(jackie);
 
-    console.log('storage2', storage.mintedSoFar.get().toString());
+    const jackieEndBalance = (await token.getBalanceOf(jackie)).toBigInt();
+    const mintedSoFar2 = storage.mintedSoFar.get().toBigInt();
     const escrowBalanceAfter2Withdraw = (
       await token.getBalanceOf(escrow.address)
     ).toBigInt();
 
+    console.log('jackie End Balance', jackieEndBalance);
+    console.log('mintedSoFar after second withdrawal', mintedSoFar2);
     console.log('escrowBalanceAfter2Withdraw', escrowBalanceAfter2Withdraw);
+
+    assert.equal(
+      jackieEndBalance,
+      totalAmountLocked.toBigInt(),
+      'jackie end balance incorrect'
+    );
+
+    assert.equal(
+      mintedSoFar2,
+      totalAmountLocked.toBigInt(),
+      'minted so far incorrect'
+    );
+    assert.equal(
+      escrowBalanceAfter2Withdraw,
+      depositAmount.sub(totalAmountLocked).toBigInt(),
+      'escrow balance after second withdrawal incorrect'
+    );
     // let a = Mina.getAccount(jackie, token.deriveTokenId());
     // let a = await fetchAccount({
     //   publicKey: jackie,

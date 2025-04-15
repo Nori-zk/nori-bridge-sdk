@@ -141,16 +141,16 @@ export class TokenEscrow extends SmartContract {
 
     let escrowStorage = new EscrowStorage(to, token.deriveTokenId());
     escrowStorage.account.isNew.requireEquals(Bool(false));
-    Provable.log(
-      'escroVKINcontract?',
-      escrowStorage.self.body.authorizationKind.verificationKeyHash
-    );
-    Provable.log(
-      'update escroVKINcontract?',
-      escrowStorage.self.update.verificationKey.value.hash
-    );
-    // escrowStorage.account.
+    // Provable.log(
+    //   'escroVKINcontract?',
+    //   escrowStorage.self.body.authorizationKind.verificationKeyHash
+    // );
+    // Provable.log(
+    //   'update escroVKINcontract?',
+    //   escrowStorage.self.update.verificationKey.value.hash
+    // );
     //TODO need to validate not only if new, but that has correct vk an permissions
+    //TODO above is impossible precondition in current protocol version
     let mintedSoFar = escrowStorage.mintedSoFar.getAndRequireEquals();
     let amount = totalAmountLockedOnEth.sub(mintedSoFar);
 
@@ -159,13 +159,13 @@ export class TokenEscrow extends SmartContract {
       AccountUpdate.MayUseToken.InheritFromParent;
     receiverUpdate.body.useFullCommitment = Bool(true);
 
-    // escrowStorage.mintedSoFar.set(totalAmountLockedOnEth);
-    let accUpdate = await escrowStorage.setMintedSoFar(totalAmountLockedOnEth);
-    Provable.log('prooof:', accUpdate.authorization.proof);
-    Provable.log(
-      'update vk hash:',
-      accUpdate.update.verificationKey.value.hash
-    );
+    // let accUpdate =
+    await escrowStorage.setMintedSoFar(totalAmountLockedOnEth);
+    // Provable.log('prooof:', accUpdate.authorization.proof);
+    // Provable.log(
+    //   'update vk hash:',
+    //   accUpdate.update.verificationKey.value.hash
+    // );
     // let accUpdate = AccountUpdate.create(to, token.deriveTokenId());
 
     // accUpdate.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
