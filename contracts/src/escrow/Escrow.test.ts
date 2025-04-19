@@ -418,7 +418,7 @@ describe('Escrow', async () => {
     // console.log('tokenId', token.deriveTokenId().toString());
 
     let storage = new EscrowStorage(jackie, token.deriveTokenId());
-    const mintedSoFar1 = storage.mintedSoFar.get().toBigInt();
+    const mintedSoFar1 = storage.mintedSoFar.get().toBigint(); // TODO tell them bove bigInt
     console.log('mintedSoFar after first withdrawal', mintedSoFar1);
 
     assert.equal(
@@ -431,7 +431,7 @@ describe('Escrow', async () => {
     await withdrawFromEscrow(jackie);
 
     const jackieEndBalance = (await token.getBalanceOf(jackie)).toBigInt();
-    const mintedSoFar2 = storage.mintedSoFar.get().toBigInt();
+    const mintedSoFar2 = storage.mintedSoFar.get().toBigint();
     const escrowBalanceAfter2Withdraw = (
       await token.getBalanceOf(escrow.address)
     ).toBigInt();

@@ -9,23 +9,27 @@ import {
   method,
   AccountUpdate,
   Provable,
+  Int64,
 } from 'o1js';
 
 /** Stores  */
 export class EscrowStorage extends SmartContract {
-  @state(UInt64) mintedSoFar = State<UInt64>();
+  @state(Field) userKeyHash = State<Field>();
+  @state(Int64) mintedSoFar = State<Int64>();
 
   @method async mock() {
     Field(1).assertEquals(Field(1));
   }
-  @method.returns(AccountUpdate) async setMintedSoFar(
-    totalAmountLockedOnEth: UInt64
-  ) {
-    // let mintedSoFaraa = this.mintedSoFar.getAndRequireEquals();
+  @method
+  // .returns(AccountUpdate)
+  async increaseMintedAmount(amount: Int64) {
+    amount.isPositive().assertEquals(true);
+    let mintedSoFar = this.mintedSoFar.get();
+    this.mintedSoFar.requireEquals(mintedSoFar);
     // Provable.log(mintedSoFaraa, 'minted so farrrrrrrr');
     // let amount = totalAmountLockedOnEth.sub(mintedSoFar);
-    this.mintedSoFar.set(totalAmountLockedOnEth);
-    this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
-    return this.self;
+    this.mintedSoFar.set(mintedSoFar.add(amount));
+    // this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
+    // return this.self;
   }
 }

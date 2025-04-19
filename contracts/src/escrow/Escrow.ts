@@ -152,15 +152,15 @@ export class TokenEscrow extends SmartContract {
     //TODO need to validate not only if new, but that has correct vk an permissions
     //TODO above is impossible precondition in current protocol version
     let mintedSoFar = escrowStorage.mintedSoFar.getAndRequireEquals();
-    let amount = totalAmountLockedOnEth.sub(mintedSoFar);
+    // let amount = totalAmountLockedOnEth.sub(mintedSoFar);
 
-    let receiverUpdate = this.send({ to, amount });
-    receiverUpdate.body.mayUseToken =
-      AccountUpdate.MayUseToken.InheritFromParent;
-    receiverUpdate.body.useFullCommitment = Bool(true);
+    // let receiverUpdate = this.send({ to, amount });
+    // receiverUpdate.body.mayUseToken =
+    //   AccountUpdate.MayUseToken.InheritFromParent;
+    // receiverUpdate.body.useFullCommitment = Bool(true);
 
     // let accUpdate =
-    await escrowStorage.setMintedSoFar(totalAmountLockedOnEth);
+    // await escrowStorage.setMintedSoFar(totalAmountLockedOnEth);
     // Provable.log('prooof:', accUpdate.authorization.proof);
     // Provable.log(
     //   'update vk hash:',
