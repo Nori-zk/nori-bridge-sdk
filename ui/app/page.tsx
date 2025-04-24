@@ -17,14 +17,21 @@ export default function Home() {
             <ScrollingMath />
           </div>
           <div className="1/2">
-            <WalletConnectionCard title={"First connect wallets"} width={650} height={450} />
+            <WalletConnectionCard
+              title={"First connect wallets"}
+              width={650}
+              height={450}
+            />
           </div>
           <div className="w-1/4 h-[450px]">
             <ScrollingBridge />
           </div>
         </div>
         <div className="flex w-full justify-center relative">
-          <BottomShadows className="absolute bottom-[-100px] scale-[0.9]" alt="BottomShadows" />
+          <BottomShadows
+            className="absolute bottom-[-100px] scale-[0.9]"
+            alt="BottomShadows"
+          />
         </div>
       </div>
     </div>
