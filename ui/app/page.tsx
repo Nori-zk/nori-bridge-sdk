@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="h-full w-full bg-[radial-gradient(50%_100%_at_50%_0%,theme('colors.darkGreen')_1.31%,theme('colors.veryDarkGreen')_100%)]">
       <div className="flex  h-full w-full flex-col relative bg-custom-svg bg-no-repeat bg-cover bg-center">
-        <div className="flex w-full justify-center my-5">
+        <div className="absolute w-full justify-center my-5">
           <Nori className="scale-[0.75]" />
         </div>
         <div className="flex flex-grow w-full justify-center items-center h-full">
@@ -19,8 +19,8 @@ export default function Home() {
           <div className="1/2">
             <WalletConnectionCard
               title={"First connect wallets"}
-              width={650}
-              height={450}
+              width={750}
+              height={500}
             />
           </div>
           <div className="w-1/4 h-[450px]">
