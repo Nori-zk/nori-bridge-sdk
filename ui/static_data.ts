@@ -4,7 +4,7 @@ import { ProgressTrackerStepProps } from "./components/ui/ProgressTrackerStep";
 export const progressSteps = [
   {
     title: "Accounts Linked",
-    isActive: true,
+    isActive: false,
     isCompleted: true,
   },
   {

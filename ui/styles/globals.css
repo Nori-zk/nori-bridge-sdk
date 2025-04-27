@@ -53,6 +53,13 @@
   --border-radius: 12px;
   --font-primary: 'Clash Display', sans-serif;
   --foreground-rgb: 0, 0, 0;
+  --darkGreen:#062817;
+  --veryDarkGreen: #060A08;
+  --connectedGreen: #1f3029;
+  --lightGreen: #64E18E;
+  --veryDarkRed: #3F1717;
+  --darkRed: #950606;
+  --lightRed: #FF0000;
 }
 
 * {
