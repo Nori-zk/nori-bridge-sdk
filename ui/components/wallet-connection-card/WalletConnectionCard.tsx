@@ -5,6 +5,8 @@ import TextInput from "../ui/TextInput";
 import { useEffect, useState } from "react";
 import { progressSteps } from "@/static_data";
 import ProgressTracker from "../ui/ProgressTracker";
+import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
+import { useMinaWallet } from "@/providers/MinaWalletProvider";
 
 type WalletConnectionCardProps = {
   title: string;
@@ -14,6 +16,8 @@ type WalletConnectionCardProps = {
 
 const WalletConnectionCard = (props: WalletConnectionCardProps) => {
   const { title, width, height } = props;
+  const { isConnected: ethConnected } = useEthereumWallet();
+  const { isConnected: minaConnected } = useMinaWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
 
   useEffect(() => {
@@ -78,15 +82,21 @@ const WalletConnectionCard = (props: WalletConnectionCardProps) => {
               Connect Wallet
             </button>
           </div>
-          <div className="flex flex-col items-center m-6">
-            <div className="text-white">
-              Wallet Linking Is Required For The First Time
+          {ethConnected && minaConnected && (
+            <div>
+              <div className="flex flex-col items-center m-6">
+                <div className="text-white">
+                  Wallet Linking Is Required For The First Time
+                </div>
+                <div className="text-lightGreen">
+                  Bridge Contracts Are Compiling
+                </div>
+              </div>
+              {displayProgressSteps && (
+                <ProgressTracker steps={progressSteps} />
+              )}
             </div>
-            <div className="text-lightGreen">
-              Bridge Contracts Are Compiling
-            </div>
-          </div>
-          {displayProgressSteps && <ProgressTracker />}
+          )}
         </div>
       </div>
     </div>
