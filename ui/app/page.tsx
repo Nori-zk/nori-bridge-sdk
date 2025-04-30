@@ -1,5 +1,5 @@
 "use client";
-import WalletConnectionCard from "@/components/wallet-connection-card/WalletConnectionCard";
+import BridgeControlCard from "@/components/bridge-control-card/BridgeControlCard";
 import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
 import ScrollingMath from "@/components/panels/ScrollingMath";
@@ -21,7 +21,7 @@ export default function Home() {
             {ethConnected && minaConnected && <ScrollingMath />}
           </div>
           <div className="1/2">
-            <WalletConnectionCard
+            <BridgeControlCard
               title={"First connect wallets"}
               width={750}
               height={500}

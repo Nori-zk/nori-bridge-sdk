@@ -8,13 +8,13 @@ import ProgressTracker from "../ui/ProgressTracker";
 import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
 import { useMinaWallet } from "@/providers/MinaWalletProvider";
 
-type WalletConnectionCardProps = {
+type BridgeControlCardProps = {
   title: string;
   width?: number;
   height?: number;
 };
 
-const WalletConnectionCard = (props: WalletConnectionCardProps) => {
+const BridgeControlCard = (props: BridgeControlCardProps) => {
   const { title, width, height } = props;
   const { isConnected: ethConnected } = useEthereumWallet();
   const { isConnected: minaConnected } = useMinaWallet();
@@ -28,12 +28,14 @@ const WalletConnectionCard = (props: WalletConnectionCardProps) => {
 
   return (
     <div
-      className="relative rounded-2xl"
+      // className="relative rounded-2xl"
       style={{
         width,
         height,
         boxShadow:
           "-21px 0px 15px -15px lightGreen, 21px 0px 15px -15px LightGreen",
+        borderRadius: "20px",
+        border: "0.5px solid var(--lightGreen)",
       }}
     >
       <div
@@ -103,4 +105,4 @@ const WalletConnectionCard = (props: WalletConnectionCardProps) => {
   );
 };
 
-export default WalletConnectionCard;
+export default BridgeControlCard;
