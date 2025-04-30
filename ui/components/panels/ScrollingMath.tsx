@@ -30,7 +30,7 @@ const ScrollingMath = () => {
 
     const setRandomInterval = () => {
       fetchMathText();
-      const randomDelay = Math.floor(Math.random() * (10000 - 2000 + 1)) + 2000;
+      const randomDelay = Math.floor(Math.random() * (3000 - 1000 + 1)) + 2000;
       return setTimeout(setRandomInterval, randomDelay);
     };
 
