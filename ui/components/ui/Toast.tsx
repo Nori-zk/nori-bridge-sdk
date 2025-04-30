@@ -6,7 +6,7 @@ export type ToastProps = {
   id: string | number;
   title: string;
   description: string;
-  button: {
+  button?: {
     label: string;
     onClick: () => void;
   };
@@ -28,18 +28,19 @@ const Toast = (props: ToastProps) => {
           <p className="mt-1 text-sm text-gray-300">{description}</p>
         </div>
       </div>
-
-      <div className="ml-5 shrink-0 rounded-md">
-        <button
-          className="rounded bg-darkRed px-3 py-1 text-sm font-semibold text-white hover:bg-lightRed transition"
-          onClick={() => {
-            button.onClick();
-            sonnerToast.dismiss(id);
-          }}
-        >
-          {button.label}
-        </button>
-      </div>
+      {button && (
+        <div className="ml-5 shrink-0 rounded-md">
+          <button
+            className="rounded bg-darkRed px-3 py-1 text-sm font-semibold text-white hover:bg-lightRed transition"
+            onClick={() => {
+              button.onClick();
+              sonnerToast.dismiss(id);
+            }}
+          >
+            {button.label}
+          </button>{" "}
+        </div>
+      )}
     </motion.div>
   );
 };

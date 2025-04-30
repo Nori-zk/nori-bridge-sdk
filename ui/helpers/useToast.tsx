@@ -1,19 +1,22 @@
-"use client";
-
 import React from "react";
 import { toast as sonnerToast } from "sonner";
 import Toast, { ToastProps } from "@/components/ui/Toast";
 
-export function toast(toast: Omit<ToastProps, "id">) {
+type ToastOptions = Omit<ToastProps, "id">;
+
+export function toast({ button, ...rest }: ToastOptions) {
   return sonnerToast.custom((id) => (
     <Toast
       id={id}
-      title={toast.title}
-      description={toast.description}
-      button={{
-        label: toast.button.label,
-        onClick: toast.button.onClick,
-      }}
+      {...rest}
+      button={
+        button
+          ? {
+              label: button.label,
+              onClick: button.onClick || (() => {}),
+            }
+          : undefined
+      }
     />
   ));
 }
