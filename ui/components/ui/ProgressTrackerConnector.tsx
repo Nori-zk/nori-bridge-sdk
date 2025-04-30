@@ -11,6 +11,8 @@ const ProgressTrackerConnector = ({
   isCompleted,
   isNextActive,
 }: ConnectorProps) => {
+  //Tailwind colour names (like connectedGreen) are only available inside Tailwind classes, not directly inside React JavaScript/TypeScript like a string.
+  // Use CSS variables instead, which are defined in global CSS file.
   const color =
     isCompleted || isNextActive ? "var(--lightGreen)" : "var(--connectedGreen)";
 
