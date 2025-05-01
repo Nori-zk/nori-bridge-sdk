@@ -4,7 +4,7 @@ import Toast, { ToastProps } from "@/components/ui/Toast";
 
 type ToastOptions = Omit<ToastProps, "id">;
 
-export function toast({ button, ...rest }: ToastOptions) {
+export function useToast({ button, ...rest }: ToastOptions) {
   return sonnerToast.custom((id) => (
     <Toast
       id={id}
