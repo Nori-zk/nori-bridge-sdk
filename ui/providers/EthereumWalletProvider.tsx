@@ -1,80 +1,128 @@
 "use client";
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { BrowserProvider } from "ethers";
-import { toast } from "@/helpers/useToast";
-import { openExternalLink } from "@/helpers/navigation";
 
 interface EthereumWalletContextType {
-  walletDisplayAddress: string | null;
   walletAddress: string | null;
+  displayAddress: string | null;
   isConnected: boolean;
-  tryConnectWallet: () => void;
+  connect: () => Promise<void>;
+  disconnect: () => void;
 }
 
 declare global {
   interface Window {
-    ethereum: any;
+    ethereum?: any;
   }
 }
 
-const EthereumWalletContext = createContext<EthereumWalletContextType | undefined>(undefined);
+const EthereumWalletContext = createContext<
+  EthereumWalletContextType | undefined
+>(undefined);
 
 export const useEthereumWallet = (): EthereumWalletContextType => {
-  try {
-    const context = useContext(EthereumWalletContext);
-    if (!context) {
-      throw new Error("useEthereumWallet must be used within a EthereumWalletProvider");
-    }
-    return context;
-  } catch (err) {
-    throw err;
+  const context = useContext(EthereumWalletContext);
+  if (!context) {
+    throw new Error(
+      "useEthereumWallet must be used within a EthereumWalletProvider"
+    );
   }
+  return context;
 };
 
-export const EthereumWalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const EthereumWalletProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const tryConnectWallet = async () => {
+  const formatDisplayAddress = (address: string | null) => {
+    return address ? `${address.substring(0, 6)}...${address.slice(-4)}` : null;
+  };
+
+  const connect = useCallback(async () => {
+    console.log("here");
+    if (!window.ethereum) {
+      console.error("MetaMask not installed");
+      return;
+    }
+
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
+
       if (accounts.length > 0) {
         setWalletAddress(accounts[0]);
         setIsConnected(true);
       }
-    } catch (err) {
-      console.error("Failed to connect wallet:", err);
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
     }
-  };
-
-  useEffect(() => {
-    if (!window.ethereum) {
-      const msg = "MetaMask is not installed";
-      console.error(msg);
-      toast({
-        title: "Error",
-        description: msg,
-        button: {
-          label: "Install",
-          onClick: () => {
-            openExternalLink("https://metamask.io/");
-          },
-        },
-      });
-      return;
-    }
-    tryConnectWallet();
   }, []);
 
-  const walletDisplayAddress = walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}` : null;
+  const disconnect = useCallback(() => {
+    setWalletAddress(null);
+    setIsConnected(false);
+  }, []);
 
-  const value: EthereumWalletContextType = {
-    tryConnectWallet,
+  // Handle account changes
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length === 0) {
+        disconnect();
+      } else if (accounts[0] !== walletAddress) {
+        setWalletAddress(accounts[0]);
+        setIsConnected(true);
+      }
+    };
+
+    window.ethereum.on("accountsChanged", handleAccountsChanged);
+    return () =>
+      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+  }, [walletAddress, disconnect]);
+
+  // Check initial connection
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (!window.ethereum) return;
+
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const accounts = await provider.send("eth_accounts", []);
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          setIsConnected(true);
+        }
+      } catch (error) {
+        console.error("Error checking initial connection:", error);
+      }
+    };
+
+    checkConnection();
+  }, []);
+
+  const value = {
     walletAddress,
-    walletDisplayAddress,
+    displayAddress: formatDisplayAddress(walletAddress),
     isConnected,
+    connect,
+    disconnect,
   };
 
-  return <EthereumWalletContext.Provider value={value}>{children}</EthereumWalletContext.Provider>;
+  return (
+    <EthereumWalletContext.Provider value={value}>
+      {children}
+    </EthereumWalletContext.Provider>
+  );
 };

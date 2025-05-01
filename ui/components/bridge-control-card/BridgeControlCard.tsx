@@ -16,7 +16,12 @@ type BridgeControlCardProps = {
 
 const BridgeControlCard = (props: BridgeControlCardProps) => {
   const { title, width, height } = props;
-  const { isConnected: ethConnected } = useEthereumWallet();
+  const {
+    isConnected: ethConnected,
+    connect: ethConnect,
+    disconnect: ethDisconnect,
+    displayAddress: ethDisplayAddress,
+  } = useEthereumWallet();
   const { isConnected: minaConnected } = useMinaWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
 
@@ -28,7 +33,6 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
 
   return (
     <div
-      // className="relative rounded-2xl"
       style={{
         width,
         height,
@@ -60,8 +64,17 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
             <WalletButton
               id="eth-btn"
               types={"Ethereum"}
-              content={"Connect Wallet"}
+              content={
+                ethConnected ? ethDisplayAddress ?? "" : "Connect Wallet"
+              }
               width={200}
+              onClick={() => {
+                if (ethConnected) {
+                  ethConnect();
+                } else {
+                  ethDisconnect();
+                }
+              }}
             />
             <div className="flex items-center justify-center w-7 h-7 text-black bg-white rounded-full mx-2">
               <FaArrowRight />

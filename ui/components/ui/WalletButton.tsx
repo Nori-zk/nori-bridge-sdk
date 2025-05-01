@@ -1,13 +1,8 @@
-"use client";
-import Mina from "@/public/assets/mina.svg";
-import Ethereum from "@/public/assets/Ethereum.svg";
-import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
-import { useMinaWallet } from "@/providers/MinaWalletProvider";
+import { useWalletButtonProps } from "@/helpers/useWalletButtonProps";
+import { WalletButtonTypes } from "@/types/types";
 import clsx from "clsx";
 
-type WalletButtonTypes = "Mina" | "Ethereum";
-
-export type MinaButtonProps = {
+type MinaButtonProps = {
   id: string;
   types: WalletButtonTypes;
   onClick?: () => void;
@@ -15,45 +10,21 @@ export type MinaButtonProps = {
   width?: number;
 };
 
-const getWalletState = (
-  type: WalletButtonTypes,
-  ethConnected: boolean,
-  ethAddress: string,
-  minaConnected: boolean,
-  minaAddress: string,
-  content: string
-) => {
-  const isEthereum = type === "Ethereum";
-  const connected = isEthereum ? ethConnected : minaConnected;
-  const address = isEthereum ? ethAddress : minaAddress;
-
-  return {
-    bgClass: connected ? "bg-connectedGreen" : "bg-white",
-    textClass: connected ? "text-white" : "text-black",
-    displayAddress: connected ? address : content,
-    logo: isEthereum ? <Ethereum alt={`Ethereum logo`} className="scale-[0.65]" /> : <Mina alt={`Mina logo`} className="scale-[0.65]" />,
-  };
-};
-
-const WalletButton = ({ id, types, onClick, content, width }: MinaButtonProps) => {
-  const { isConnected: ethConnected, walletDisplayAddress: ethAddress } = useEthereumWallet();
-  const { isConnected: minaConnected, walletDisplayAddress: minaAddress } = useMinaWallet();
-
-  const { bgClass, textClass, displayAddress, logo } = getWalletState(
-    types,
-    ethConnected,
-    ethAddress ?? "",
-    minaConnected,
-    minaAddress ?? "",
-    content
-  );
+const WalletButton = ({ id, types, content, width }: MinaButtonProps) => {
+  //used a hook or button styling and functionality props
+  const { bgClass, textClass, displayAddress, logo, onClick } =
+    useWalletButtonProps(types, content);
 
   return (
     <button
       id={id}
       style={{ width }}
-      className={clsx("flex rounded-lg px-4 py-2 items-center justify-evenly", bgClass, textClass)}
       onClick={onClick}
+      className={clsx(
+        "px-4 py-2 rounded-lg flex items-center justify-evenly",
+        bgClass,
+        textClass
+      )}
     >
       {logo}
       {displayAddress}

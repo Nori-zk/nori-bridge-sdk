@@ -1,6 +1,6 @@
 "use client";
 import { openExternalLink } from "@/helpers/navigation";
-import { toast } from "@/helpers/useToast";
+import { useToast } from "@/helpers/useToast";
 import { createStore } from "@mina-js/connect";
 import {
   createContext,
@@ -80,7 +80,7 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
     if (!window.mina) {
       const msg = "Pallad is not installed";
       console.error(msg);
-      toast({
+      useToast({
         title: "Error",
         description: msg,
         button: {
