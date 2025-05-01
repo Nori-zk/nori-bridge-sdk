@@ -8,6 +8,8 @@ import {
   useCallback,
 } from "react";
 import { BrowserProvider } from "ethers";
+import { useToast } from "@/helpers/useToast";
+import { openExternalLink } from "@/helpers/navigation";
 
 interface EthereumWalletContextType {
   walletAddress: string | null;
@@ -50,9 +52,19 @@ export const EthereumWalletProvider = ({
   };
 
   const connect = useCallback(async () => {
-    console.log("here");
     if (!window.ethereum) {
-      console.error("MetaMask not installed");
+      const msg = "MetaMask not installed";
+      console.error(msg);
+      useToast({
+        title: "Error",
+        description: msg,
+        button: {
+          label: "Install",
+          onClick: () => {
+            openExternalLink("https://metamask.io/en-GB");
+          },
+        },
+      });
       return;
     }
 
@@ -74,7 +86,6 @@ export const EthereumWalletProvider = ({
     setIsConnected(false);
   }, []);
 
-  // Handle account changes
   useEffect(() => {
     if (!window.ethereum) return;
 
@@ -92,7 +103,6 @@ export const EthereumWalletProvider = ({
       window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
   }, [walletAddress, disconnect]);
 
-  // Check initial connection
   useEffect(() => {
     const checkConnection = async () => {
       if (!window.ethereum) return;
