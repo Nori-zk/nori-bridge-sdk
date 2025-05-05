@@ -2,10 +2,10 @@
 import BridgeControlCard from "@/components/bridge-control-card/BridgeControlCard";
 import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
-import ScrollingMath from "@/components/panels/ScrollingMath";
 import ScrollingBridge from "@/components/panels/ScrollingBridge";
 import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
 import { useMinaWallet } from "@/providers/MinaWalletProvider";
+import ScrollingWSS from "@/components/panels/ScrollingWSS";
 
 export default function Home() {
   const { isConnected: ethConnected } = useEthereumWallet();
@@ -18,7 +18,7 @@ export default function Home() {
         </div>
         <div className="flex flex-grow w-full justify-center items-center h-full">
           <div className="w-1/4 h-[450px]">
-            {ethConnected && minaConnected && <ScrollingMath />}
+            {ethConnected && minaConnected && <ScrollingWSS />}
           </div>
           <div className="1/2">
             <BridgeControlCard
