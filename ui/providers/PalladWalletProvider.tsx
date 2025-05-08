@@ -8,6 +8,7 @@ import {
   ReactNode,
   useContext,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -49,6 +50,8 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
+  //hasWarnedRef is used to prevent multiple toast warnings
+  const hasWarnedRef = useRef(false);
   const providers = useSyncExternalStore(
     store.subscribe,
     store.getProviders,
@@ -77,23 +80,30 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
-    if (!window.mina) {
-      const msg = "Pallad is not installed";
-      console.error(msg);
+    if (providers.length === 0) return;
+    const provider = providers.find(
+      (p) => p.info.slug === cleanedProvider
+    )?.provider;
+    if (
+      !hasWarnedRef.current &&
+      (!window.mina ||
+        (window.mina &&
+          !provider &&
+          process.env.NEXT_PUBLIC_WALLET === cleanedProvider))
+    ) {
+      hasWarnedRef.current = true;
       useToast({
         title: "Error",
-        description: msg,
+        description: "Pallad is not installed",
         button: {
           label: "Install",
-          onClick: () => {
-            openExternalLink("https://pallad.co");
-          },
+          onClick: () => openExternalLink("https://pallad.co"),
         },
       });
       return;
     }
     tryConnectWallet();
-  }, [providers]);
+  }, [providers, useToast]);
 
   const walletDisplayAddress = walletAddress
     ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`

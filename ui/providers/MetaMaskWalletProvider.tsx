@@ -53,16 +53,12 @@ export const MetaMaskWalletProvider = ({
 
   const connect = useCallback(async () => {
     if (!window.ethereum) {
-      const msg = "MetaMask not installed";
-      console.error(msg);
       useToast({
         title: "Error",
-        description: msg,
+        description: "MetaMask not installed",
         button: {
           label: "Install",
-          onClick: () => {
-            openExternalLink("https://metamask.io/en-GB");
-          },
+          onClick: () => openExternalLink("https://metamask.io/en-GB"),
         },
       });
       return;
@@ -71,7 +67,6 @@ export const MetaMaskWalletProvider = ({
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
-
       if (accounts.length > 0) {
         setWalletAddress(accounts[0]);
         setIsConnected(true);
@@ -79,7 +74,7 @@ export const MetaMaskWalletProvider = ({
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     }
-  }, []);
+  }, [useToast]);
 
   const disconnect = useCallback(() => {
     setWalletAddress(null);
@@ -105,22 +100,30 @@ export const MetaMaskWalletProvider = ({
 
   useEffect(() => {
     const checkConnection = async () => {
-      if (!window.ethereum) return;
+      if (!window.ethereum) {
+        useToast({
+          title: "Error",
+          description: "MetaMask not installed",
+          button: {
+            label: "Install",
+            onClick: () => openExternalLink("https://metamask.io/en-GB"),
+          },
+        });
+        return;
+      }
 
-      try {
-        const provider = new BrowserProvider(window.ethereum);
-        const accounts = await provider.send("eth_accounts", []);
-        if (accounts.length > 0) {
-          setWalletAddress(accounts[0]);
-          setIsConnected(true);
-        }
-      } catch (error) {
-        console.error("Error checking initial connection:", error);
+      const provider = new BrowserProvider(window.ethereum);
+      const accounts: string[] = await provider.send("eth_accounts", []);
+      if (accounts.length > 0) {
+        setWalletAddress(accounts[0]);
+        setIsConnected(true);
+      } else {
+        await connect();
       }
     };
 
-    checkConnection();
-  }, []);
+    void checkConnection();
+  }, [connect, useToast]);
 
   const value = {
     walletAddress,

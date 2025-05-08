@@ -3,7 +3,7 @@
 import React, { ReactNode } from "react";
 import { PalladWalletProvider } from "@/providers/PalladWalletProvider";
 import { MetaMaskWalletProvider } from "@/providers/MetaMaskWalletProvider";
-import { AuroWalletProvider } from "./AuroWalletProvider";
+import { AuroWalletProvider } from "@/providers/AuroWalletProvider";
 
 interface AppProvidersProps {
   children: ReactNode;
