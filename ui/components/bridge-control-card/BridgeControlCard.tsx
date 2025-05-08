@@ -5,8 +5,8 @@ import TextInput from "../ui/TextInput";
 import { useEffect, useState } from "react";
 import { progressSteps } from "@/static_data";
 import ProgressTracker from "../ui/ProgressTracker";
-import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
-import { useMinaWallet } from "@/providers/MinaWalletProvider";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider";
 
 type BridgeControlCardProps = {
   title: string;
@@ -21,8 +21,8 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
     connect: ethConnect,
     disconnect: ethDisconnect,
     displayAddress: ethDisplayAddress,
-  } = useEthereumWallet();
-  const { isConnected: minaConnected } = useMinaWallet();
+  } = useMetaMaskWallet();
+  const { isConnected: minaConnected } = usePalladWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
 
   useEffect(() => {

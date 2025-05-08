@@ -2,6 +2,7 @@
 import { openExternalLink } from "@/helpers/navigation";
 import { useToast } from "@/helpers/useToast";
 import { createStore } from "@mina-js/connect";
+import { MinaProviderClient } from "@mina-js/providers";
 import {
   createContext,
   ReactNode,
@@ -11,7 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-interface MinaWalletContextType {
+interface PalladWalletContextType {
   walletDisplayAddress: string | null;
   walletAddress: string | null;
   isConnected: boolean;
@@ -20,7 +21,7 @@ interface MinaWalletContextType {
 
 declare global {
   interface Window {
-    mina: any;
+    mina: MinaProviderClient;
   }
 }
 
@@ -28,19 +29,21 @@ const cleanedProvider = "pallad";
 const initialSnapshot = [];
 const store = createStore();
 
-const MinaWalletContext = createContext<MinaWalletContextType | undefined>(
+const PalladWalletContext = createContext<PalladWalletContextType | undefined>(
   undefined
 );
 
-export const useMinaWallet = (): MinaWalletContextType => {
-  const context = useContext(MinaWalletContext);
+export const usePalladWallet = (): PalladWalletContextType => {
+  const context = useContext(PalladWalletContext);
   if (!context) {
-    throw new Error("useMinaWallet must be used within a MinaWalletProvider");
+    throw new Error(
+      "usePalladWallet must be used within a PalladWalletProvider"
+    );
   }
   return context;
 };
 
-export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
+export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -57,9 +60,6 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
       const provider = providers.find(
         (p) => p.info.slug === cleanedProvider
       )?.provider;
-
-      console.log("providers: " + providers);
-      console.log("provider: " + provider);
 
       if (!provider) return;
 
@@ -99,7 +99,7 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
     ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
     : null;
 
-  const value: MinaWalletContextType = {
+  const value: PalladWalletContextType = {
     tryConnectWallet,
     walletAddress,
     walletDisplayAddress,
@@ -107,8 +107,8 @@ export const MinaWalletProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   return (
-    <MinaWalletContext.Provider value={value}>
+    <PalladWalletContext.Provider value={value}>
       {children}
-    </MinaWalletContext.Provider>
+    </PalladWalletContext.Provider>
   );
 };

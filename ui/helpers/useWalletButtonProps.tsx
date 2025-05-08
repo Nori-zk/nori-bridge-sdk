@@ -1,5 +1,5 @@
-import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
-import { useMinaWallet } from "@/providers/MinaWalletProvider";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider";
 import { WalletButtonTypes } from "@/types/types";
 import Mina from "@/public/assets/mina.svg";
 import Ethereum from "@/public/assets/Ethereum.svg";
@@ -16,8 +16,8 @@ export function useWalletButtonProps(
   type: WalletButtonTypes,
   content: string
 ): WalletButtonUIProps {
-  const eth = useEthereumWallet();
-  const mina = useMinaWallet();
+  const eth = useMetaMaskWallet();
+  const mina = usePalladWallet();
 
   const isEthereum = type === "Ethereum";
 

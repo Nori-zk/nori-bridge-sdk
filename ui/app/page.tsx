@@ -3,13 +3,13 @@ import BridgeControlCard from "@/components/bridge-control-card/BridgeControlCar
 import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
 import ScrollingBridge from "@/components/panels/ScrollingBridge";
-import { useEthereumWallet } from "@/providers/EthereumWalletProvider";
-import { useMinaWallet } from "@/providers/MinaWalletProvider";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider";
 import ScrollingWSS from "@/components/panels/ScrollingWSS";
 
 export default function Home() {
-  const { isConnected: ethConnected } = useEthereumWallet();
-  const { isConnected: minaConnected } = useMinaWallet();
+  const { isConnected: ethConnected } = useMetaMaskWallet();
+  const { isConnected: minaConnected } = usePalladWallet();
   return (
     <div className="h-full w-full bg-[radial-gradient(50%_100%_at_50%_0%,theme('colors.darkGreen')_1.31%,theme('colors.veryDarkGreen')_100%)]">
       <div className="flex  h-full w-full flex-col relative bg-custom-svg bg-no-repeat bg-cover bg-center">

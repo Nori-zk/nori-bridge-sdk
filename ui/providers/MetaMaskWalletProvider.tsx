@@ -11,7 +11,7 @@ import { BrowserProvider } from "ethers";
 import { useToast } from "@/helpers/useToast";
 import { openExternalLink } from "@/helpers/navigation";
 
-interface EthereumWalletContextType {
+interface MetaMaskWalletContextType {
   walletAddress: string | null;
   displayAddress: string | null;
   isConnected: boolean;
@@ -25,21 +25,21 @@ declare global {
   }
 }
 
-const EthereumWalletContext = createContext<
-  EthereumWalletContextType | undefined
+const MetaMaskWalletContext = createContext<
+  MetaMaskWalletContextType | undefined
 >(undefined);
 
-export const useEthereumWallet = (): EthereumWalletContextType => {
-  const context = useContext(EthereumWalletContext);
+export const useMetaMaskWallet = (): MetaMaskWalletContextType => {
+  const context = useContext(MetaMaskWalletContext);
   if (!context) {
     throw new Error(
-      "useEthereumWallet must be used within a EthereumWalletProvider"
+      "useMetaMaskWallet must be used within a MetaMaskWalletProvider"
     );
   }
   return context;
 };
 
-export const EthereumWalletProvider = ({
+export const MetaMaskWalletProvider = ({
   children,
 }: {
   children: ReactNode;
@@ -131,8 +131,8 @@ export const EthereumWalletProvider = ({
   };
 
   return (
-    <EthereumWalletContext.Provider value={value}>
+    <MetaMaskWalletContext.Provider value={value}>
       {children}
-    </EthereumWalletContext.Provider>
+    </MetaMaskWalletContext.Provider>
   );
 };

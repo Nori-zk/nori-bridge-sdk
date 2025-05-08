@@ -1,8 +1,9 @@
 "use client";
 
 import React, { ReactNode } from "react";
-import { MinaWalletProvider } from "@/providers/MinaWalletProvider";
-import { EthereumWalletProvider } from "@/providers/EthereumWalletProvider";
+import { PalladWalletProvider } from "@/providers/PalladWalletProvider";
+import { MetaMaskWalletProvider } from "@/providers/MetaMaskWalletProvider";
+import { AuroWalletProvider } from "./AuroWalletProvider";
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -10,9 +11,13 @@ interface AppProvidersProps {
 
 const Providers = ({ children }: AppProvidersProps) => {
   return (
-    <EthereumWalletProvider>
-      <MinaWalletProvider>{children}</MinaWalletProvider>
-    </EthereumWalletProvider>
+    <MetaMaskWalletProvider>
+      {process.env.NEXT_PUBLIC_WALLET == "pallad" ? (
+        <PalladWalletProvider>{children}</PalladWalletProvider>
+      ) : (
+        <AuroWalletProvider>{children}</AuroWalletProvider>
+      )}
+    </MetaMaskWalletProvider>
   );
 };
 
