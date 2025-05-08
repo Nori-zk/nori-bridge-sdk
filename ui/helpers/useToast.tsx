@@ -5,18 +5,23 @@ import Toast, { ToastProps } from "@/components/ui/Toast";
 type ToastOptions = Omit<ToastProps, "id">;
 
 export function useToast({ button, ...rest }: ToastOptions) {
-  return sonnerToast.custom((id) => (
-    <Toast
-      id={id}
-      {...rest}
-      button={
-        button
-          ? {
-              label: button.label,
-              onClick: button.onClick || (() => {}),
-            }
-          : undefined
-      }
-    />
-  ));
+  return sonnerToast.custom(
+    (id) => (
+      <Toast
+        id={id}
+        {...rest}
+        button={
+          button
+            ? {
+                label: button.label,
+                onClick: button.onClick || (() => {}),
+              }
+            : undefined
+        }
+      />
+    ),
+    {
+      duration: 5000,
+    }
+  );
 }
