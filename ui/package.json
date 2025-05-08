@@ -10,6 +10,7 @@
     "ts-watch": "tsc --noEmit --incremental --watch"
   },
   "dependencies": {
+    "@aurowallet/mina-provider": "^1.0.12",
     "@mina-js/accounts": "https://pkg.pr.new/palladians/mina-js/@mina-js/accounts@a9d6774",
     "@mina-js/connect": "https://pkg.pr.new/palladians/mina-js/@mina-js/connect@a9d6774",
     "@mina-js/klesia-sdk": "https://pkg.pr.new/palladians/mina-js/@mina-js/klesia-sdk@a9d6774",
