@@ -47,20 +47,24 @@ export const MetaMaskWalletProvider = ({
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  const showMetaMaskMissing = useCallback(() => {
+    useToast({
+      title: "Error",
+      description: "MetaMask not installed",
+      button: {
+        label: "Install",
+        onClick: () => openExternalLink("https://metamask.io/en-GB"),
+      },
+    });
+  }, [useToast]);
+
   const formatDisplayAddress = (address: string | null) => {
     return address ? `${address.substring(0, 6)}...${address.slice(-4)}` : null;
   };
 
   const connect = useCallback(async () => {
     if (!window.ethereum) {
-      useToast({
-        title: "Error",
-        description: "MetaMask not installed",
-        button: {
-          label: "Install",
-          onClick: () => openExternalLink("https://metamask.io/en-GB"),
-        },
-      });
+      showMetaMaskMissing();
       return;
     }
 
@@ -101,14 +105,7 @@ export const MetaMaskWalletProvider = ({
   useEffect(() => {
     const checkConnection = async () => {
       if (!window.ethereum) {
-        useToast({
-          title: "Error",
-          description: "MetaMask not installed",
-          button: {
-            label: "Install",
-            onClick: () => openExternalLink("https://metamask.io/en-GB"),
-          },
-        });
+        showMetaMaskMissing();
         return;
       }
 
