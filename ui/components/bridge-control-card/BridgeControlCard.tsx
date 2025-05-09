@@ -70,9 +70,9 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
               width={200}
               onClick={() => {
                 if (ethConnected) {
-                  ethConnect();
-                } else {
                   ethDisconnect();
+                } else {
+                  ethConnect();
                 }
               }}
             />
