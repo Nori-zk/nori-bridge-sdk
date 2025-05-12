@@ -44,7 +44,6 @@ describe("WalletButton", () => {
     expect(screen.getByTestId("logo")).toBeInTheDocument();
   });
 
-  // Test 2: Applies correct classNames from useWalletButtonProps
   it("renders button with correct id, content, and width", () => {
     render(<WalletButton {...defaultProps} />);
     const button = screen.getByTestId("wallet-button");
@@ -52,7 +51,6 @@ describe("WalletButton", () => {
     expect(button).toHaveClass("text-white");
   });
 
-  // Test 3: Calls onClick from useWalletButtonProps when clicked
   it("calls onClick from useWalletButtonProps when clicked", () => {
     render(<WalletButton {...defaultProps} />);
     const button = screen.getByTestId("wallet-button");
