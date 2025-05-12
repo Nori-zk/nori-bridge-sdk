@@ -7,20 +7,20 @@ const ScrollingWSS = () => {
   const [messageLines, setMessageLines] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
   const resolverRef = useRef(Promise.resolve());
-  const lineHeightRef = useRef(0);
+  // const lineHeightRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const measureLineHeight = () => {
-    if (containerRef.current) {
-      const probe = document.createElement("span");
-      probe.textContent = "M";
-      probe.style.position = "absolute";
-      probe.style.visibility = "hidden";
-      containerRef.current.appendChild(probe);
-      lineHeightRef.current = probe.offsetHeight;
-      containerRef.current.removeChild(probe);
-    }
-  };
+  // const measureLineHeight = () => {
+  //   if (containerRef.current) {
+  //     const probe = document.createElement("span");
+  //     probe.textContent = "M";
+  //     probe.style.position = "absolute";
+  //     probe.style.visibility = "hidden";
+  //     containerRef.current.appendChild(probe);
+  //     lineHeightRef.current = probe.offsetHeight;
+  //     containerRef.current.removeChild(probe);
+  //   }
+  // };
 
   const addText = (text: string) => {
     resolverRef.current = resolverRef.current.then(() => _addText(text));
@@ -59,7 +59,7 @@ const ScrollingWSS = () => {
   };
 
   useEffect(() => {
-    measureLineHeight();
+    // measureLineHeight();
     const socket = new WebSocket("wss://wss.nori.it.com/");
 
     socket.addEventListener("open", () => {
@@ -94,6 +94,7 @@ const ScrollingWSS = () => {
   return (
     <div
       ref={containerRef}
+      data-testid="scrolling-wss-container"
       className="relative w-full h-full overflow-hidden left-4 text-lightGreen"
       style={{
         maskImage:
