@@ -17,6 +17,7 @@ const WalletButton = ({ id, types, content, width }: MinaButtonProps) => {
 
   return (
     <button
+      data-testid={id}
       id={id}
       style={{ width }}
       onClick={onClick}
