@@ -21,11 +21,19 @@ const Toast = (props: ToastProps) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       className="flex rounded-lg bg-veryDarkRed text-white shadow-lg ring-1 ring-darkRed w-full md:max-w-[364px] items-center p-3"
+      data-testid={id}
     >
       <div className="flex flex-1 items-center">
         <div className="w-full">
-          <p className="text-sm font-medium">{title}</p>
-          <p className="mt-1 text-sm text-gray-300">{description}</p>
+          <p data-testid={`toast-title-${id}`} className="text-sm font-medium">
+            {title}
+          </p>
+          <p
+            data-testid={`toast-description-${id}`}
+            className="mt-1 text-sm text-gray-300"
+          >
+            {description}
+          </p>
         </div>
       </div>
       {button && (
