@@ -28,7 +28,8 @@
     "react": "^18",
     "react-dom": "^18",
     "react-icons": "^5.5.0",
-    "sonner": "^2.0.1"
+    "sonner": "^2.0.1",
+    "vite-plugin-svgr": "^4.3.0"
   },
   "devDependencies": {
     "@svgr/webpack": "^8.1.0",
