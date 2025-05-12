@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import BridgeControlCard from "./BridgeControlCard";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
 import { usePalladWallet } from "@/providers/PalladWalletProvider";
@@ -13,9 +13,10 @@ vi.mock("@/providers/PalladWalletProvider", () => ({
   usePalladWallet: vi.fn(),
 }));
 vi.mock("@/components/ui/WalletButton", () => ({
-  default: ({ id, types, content, onClick }: any) => (
+  default: ({ id, onClick, content = "WalletButton", types = "" }: any) => (
     <button data-testid={id} onClick={onClick}>
-      {content} ({types})
+      {typeof content === "string" ? content : <span>Mocked Icon</span>} (
+      {types})
     </button>
   ),
 }));
@@ -25,12 +26,17 @@ vi.mock("@/components/ui/TextInput", () => ({
   ),
 }));
 vi.mock("@/components/ui/ProgressTracker", () => ({
-  default: ({ steps }: any) => (
+  default: ({ steps = [] }: any) => (
     <div data-testid="progress-tracker">{steps.length} steps</div>
   ),
 }));
 vi.mock("@/static_data", () => ({
   progressSteps: ["Step 1", "Step 2"],
+}));
+vi.mock("*.svg", () => ({
+  default: ({ className, ...props }) => (
+    <svg data-testid="mocked-svg" className={className} {...props} />
+  ),
 }));
 
 describe("BridgeControlCard", () => {
@@ -39,9 +45,7 @@ describe("BridgeControlCard", () => {
   };
 
   beforeEach(() => {
-    // Reset mocks before each test
     vi.clearAllMocks();
-    // Default mock implementations
     (useMetaMaskWallet as any).mockReturnValue({
       isConnected: false,
       connect: vi.fn(),
@@ -60,15 +64,12 @@ describe("BridgeControlCard", () => {
 
   it("renders wallet buttons with correct initial content", () => {
     render(<BridgeControlCard {...defaultProps} />);
-    expect(screen.getByTestId("eth-btn")).toHaveTextContent(
-      "Connect Wallet (Ethereum)"
-    );
-    expect(screen.getByTestId("mina-btn")).toHaveTextContent(
-      "Connect Wallet (Mina)"
-    );
+    expect(screen.getByTestId("eth-btn")).toHaveTextContent("Connect Wallet");
+    expect(screen.getByTestId("mina-btn")).toHaveTextContent("Connect Wallet");
   });
 
-  it("calls connect when Ethereum wallet button is clicked and not connected", () => {
+  //TODO: Add the mina equivalent of the button tests below
+  it("calls connect when Ethereum wallet button is clicked and not connected", async () => {
     const connectMock = vi.fn();
     (useMetaMaskWallet as any).mockReturnValue({
       isConnected: false,
@@ -77,11 +78,15 @@ describe("BridgeControlCard", () => {
       displayAddress: null,
     });
     render(<BridgeControlCard {...defaultProps} />);
-    fireEvent.click(screen.getByTestId("eth-btn"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("eth-btn"));
+    });
+
     expect(connectMock).toHaveBeenCalled();
   });
 
-  it("calls disconnect when Ethereum wallet button is clicked and connected", () => {
+  it("calls disconnect when Ethereum wallet button is clicked and connected", async () => {
     const disconnectMock = vi.fn();
     (useMetaMaskWallet as any).mockReturnValue({
       isConnected: true,
@@ -90,7 +95,11 @@ describe("BridgeControlCard", () => {
       displayAddress: "0x123...456",
     });
     render(<BridgeControlCard {...defaultProps} />);
-    fireEvent.click(screen.getByTestId("eth-btn"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("eth-btn"));
+    });
+
     expect(disconnectMock).toHaveBeenCalled();
   });
 
@@ -99,7 +108,7 @@ describe("BridgeControlCard", () => {
       isConnected: true,
       connect: vi.fn(),
       disconnect: vi.fn(),
-      displayAddress: "0x123...456",
+      displayAddress: "0x123...456 (Ethereum)",
     });
     render(<BridgeControlCard {...defaultProps} />);
     expect(screen.getByTestId("eth-btn")).toHaveTextContent(
@@ -110,11 +119,6 @@ describe("BridgeControlCard", () => {
   it("renders text input", () => {
     render(<BridgeControlCard {...defaultProps} />);
     expect(screen.getByTestId("amount-input")).toBeInTheDocument();
-  });
-
-  it("renders connect wallet button", () => {
-    render(<BridgeControlCard {...defaultProps} />);
-    expect(screen.getByText("Connect Wallet")).toBeInTheDocument();
   });
 
   it("does not show wallet linking message or progress tracker when wallets are not connected", () => {

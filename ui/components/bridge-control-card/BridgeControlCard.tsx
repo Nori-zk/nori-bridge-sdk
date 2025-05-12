@@ -1,5 +1,5 @@
 "use client";
-import WalletButton from "@/components/ui/WalletButton";
+import WalletButton from "@/components/ui/WalletButton/WalletButton";
 import { FaArrowRight } from "react-icons/fa";
 import TextInput from "../ui/TextInput";
 import { useEffect, useState } from "react";
@@ -22,7 +22,8 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
     disconnect: ethDisconnect,
     displayAddress: ethDisplayAddress,
   } = useMetaMaskWallet();
-  const { isConnected: minaConnected } = usePalladWallet();
+  const { isConnected: minaConnected, walletDisplayAddress } =
+    usePalladWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
 
   useEffect(() => {
@@ -82,7 +83,16 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
             <WalletButton
               id="mina-btn"
               types={"Mina"}
-              content={"Connect Wallet"}
+              content={
+                minaConnected ? walletDisplayAddress ?? "" : "Connect Wallet"
+              }
+              onClick={() => {
+                // if (minaConnected) {
+                //   minaDisconnect();
+                // } else {
+                //   minaConnect();
+                // }
+              }}
               width={200}
             />
           </div>
