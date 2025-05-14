@@ -1,6 +1,7 @@
 "use client";
 import { openExternalLink } from "@/helpers/navigation";
 import { useToast } from "@/helpers/useToast";
+import { formatDisplayAddress } from "@/helpers/walletHelper";
 import { createStore } from "@mina-js/connect";
 import { MinaProviderClient } from "@mina-js/providers";
 import {
@@ -16,7 +17,7 @@ import {
 } from "react";
 
 interface PalladWalletContextType {
-  walletDisplayAddress: string | null;
+  displayAddress: string | null;
   walletAddress: string | null;
   isConnected: boolean;
   tryConnectWallet: () => void;
@@ -61,10 +62,9 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
   });
   const hasWarnedRef = useRef(false);
 
-  // Cache the providers to ensure stable reference
   const providers = useSyncExternalStore(
     store.subscribe,
-    useCallback(() => store.getProviders(), []), // Cache getProviders result
+    useCallback(() => store.getProviders(), []),
     () => initialSnapshot
   );
 
@@ -105,36 +105,21 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
           process.env.NEXT_PUBLIC_WALLET === cleanedProvider))
     ) {
       hasWarnedRef.current = true;
-      toast({
-        title: "Error",
-        description: "Pallad is not installed",
-        button: {
-          label: "Install",
-          onClick: () => openExternalLink("https://pallad.co"),
-        },
-      });
+      toast();
       return;
     }
 
     tryConnectWallet();
-  }, [providers, toast]);
-
-  const walletDisplayAddress = useMemo(
-    () =>
-      walletAddress
-        ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
-        : null,
-    [walletAddress]
-  );
+  }, [providers, toast, tryConnectWallet]);
 
   const value = useMemo(
     () => ({
       tryConnectWallet,
       walletAddress,
-      walletDisplayAddress,
+      displayAddress: formatDisplayAddress(walletAddress),
       isConnected,
     }),
-    [tryConnectWallet, walletAddress, walletDisplayAddress, isConnected]
+    [tryConnectWallet, walletAddress, isConnected]
   );
 
   return (

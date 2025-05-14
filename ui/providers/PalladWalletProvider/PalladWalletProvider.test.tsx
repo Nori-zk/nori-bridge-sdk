@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom";
-import { describe, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { describe, afterEach, beforeEach, expect, it, vi, Mock } from "vitest";
 import { PalladWalletProvider, usePalladWallet } from "./PalladWalletProvider";
 import { render, renderHook, screen, act } from "@testing-library/react";
+import * as toastModule from "@/helpers/useToast";
 
 // Mocks
 const mockProvider = {
@@ -17,7 +18,7 @@ Object.defineProperty(window, "mina", {
 });
 
 vi.mock("@/helpers/useToast", () => ({
-  useToast: () => vi.fn(),
+  useToast: vi.fn(),
 }));
 
 vi.mock("@/helpers/navigation", () => ({
@@ -41,16 +42,13 @@ vi.mock("@mina-js/connect", () => ({
   }),
 }));
 
-const mockToast = vi.fn();
-
 // Test component to consume the context
 const TestComponent = () => {
-  const { walletAddress, walletDisplayAddress, isConnected } =
-    usePalladWallet();
+  const { walletAddress, displayAddress, isConnected } = usePalladWallet();
   return (
     <div>
       <div data-testid="address">{walletAddress || ""}</div>
-      <div data-testid="display-address">{walletDisplayAddress || ""}</div>
+      <div data-testid="display-address">{displayAddress || ""}</div>
       <div data-testid="connected">{isConnected.toString()}</div>
     </div>
   );
@@ -102,16 +100,28 @@ describe("PalladWalletProvider", () => {
   });
 
   it("shows toast when Pallad is not installed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_WALLET", "pallad");
+    // Mock useToast specifically for this test
+    const mockToast = vi.fn();
+    (toastModule.useToast as Mock).mockImplementation((defaultOptions) => {
+      return (options?: any) => {
+        const mergedOptions = {
+          title: "Default Title",
+          description: "Default Description",
+          ...defaultOptions,
+          ...options,
+        };
+        mockToast(mergedOptions);
+      };
+    });
+
     Object.defineProperty(window, "mina", { value: undefined, writable: true });
-    vi.mock("@/helpers/useToast", () => ({
-      useToast: () => mockToast,
-    }));
+
     render(
       <PalladWalletProvider>
         <TestComponent />
       </PalladWalletProvider>
     );
+
     await act(async () => {
       await vi.waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith({
@@ -119,7 +129,7 @@ describe("PalladWalletProvider", () => {
           description: "Pallad is not installed",
           button: {
             label: "Install",
-            onClick: expect.any(Function),
+            onClick: expect.any(Function), // Use expect.any(Function) since openExternalLink is mocked
           },
         });
       });
