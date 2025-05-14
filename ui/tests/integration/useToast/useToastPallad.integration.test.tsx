@@ -1,4 +1,4 @@
-import { PalladWalletProvider } from "@/providers/PalladWalletProvider";
+import { PalladWalletProvider } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import "@testing-library/jest-dom";
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
