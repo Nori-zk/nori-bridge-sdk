@@ -12,6 +12,7 @@ import {
   useState,
   useSyncExternalStore,
   useCallback,
+  useMemo,
 } from "react";
 
 interface PalladWalletContextType {
@@ -50,17 +51,25 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
-
-  const toast = useToast();
-
+  const toast = useToast({
+    title: "Error",
+    description: "Pallad is not installed",
+    button: {
+      label: "Install",
+      onClick: () => openExternalLink("https://pallad.co"),
+    },
+  });
   const hasWarnedRef = useRef(false);
+
+  // Cache the providers to ensure stable reference
   const providers = useSyncExternalStore(
     store.subscribe,
-    store.getProviders,
+    useCallback(() => store.getProviders(), []), // Cache getProviders result
     () => initialSnapshot
   );
 
   const tryConnectWallet = useCallback(async () => {
+    if (isConnected) return;
     try {
       const provider = providers.find(
         (p) => p.info.slug === cleanedProvider
@@ -79,10 +88,11 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
     } catch (err) {
       console.error("Failed to connect wallet:", err);
     }
-  }, [providers]);
+  }, [providers, isConnected]);
 
   useEffect(() => {
     if (providers.length === 0) return;
+
     const provider = providers.find(
       (p) => p.info.slug === cleanedProvider
     )?.provider;
@@ -106,21 +116,26 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
-    if (!isConnected) {
-      tryConnectWallet();
-    }
-  }, [providers, toast, tryConnectWallet, isConnected]);
+    tryConnectWallet();
+  }, [providers, toast]);
 
-  const walletDisplayAddress = walletAddress
-    ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
-    : null;
+  const walletDisplayAddress = useMemo(
+    () =>
+      walletAddress
+        ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
+        : null,
+    [walletAddress]
+  );
 
-  const value: PalladWalletContextType = {
-    tryConnectWallet,
-    walletAddress,
-    walletDisplayAddress,
-    isConnected,
-  };
+  const value = useMemo(
+    () => ({
+      tryConnectWallet,
+      walletAddress,
+      walletDisplayAddress,
+      isConnected,
+    }),
+    [tryConnectWallet, walletAddress, walletDisplayAddress, isConnected]
+  );
 
   return (
     <PalladWalletContext.Provider value={value}>

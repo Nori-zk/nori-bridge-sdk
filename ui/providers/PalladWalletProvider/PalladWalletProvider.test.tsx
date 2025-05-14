@@ -1,12 +1,13 @@
 import "@testing-library/jest-dom";
-import { describe } from "node:test";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { describe, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PalladWalletProvider, usePalladWallet } from "./PalladWalletProvider";
-import { render, renderHook, screen } from "@testing-library/react";
+import { render, renderHook, screen, act } from "@testing-library/react";
 
 // Mocks
 const mockProvider = {
-  request: vi.fn().mockResolvedValue({ result: ["B62qxxx...xxxx"] }),
+  request: vi.fn().mockResolvedValue({
+    result: ["B62qxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"],
+  }),
 };
 
 const mockMina = { ...mockProvider };
@@ -16,20 +17,31 @@ Object.defineProperty(window, "mina", {
 });
 
 vi.mock("@/helpers/useToast", () => ({
-  useToast: () => vi.fn(), // Correctly mock useToast
-}));
-
-// Mock the store
-vi.mock("@mina-js/connect", () => ({
-  createStore: () => ({
-    subscribe: () => () => {},
-    getProviders: () => [],
-  }),
+  useToast: () => vi.fn(),
 }));
 
 vi.mock("@/helpers/navigation", () => ({
   openExternalLink: vi.fn(),
 }));
+
+const mockProviders = [
+  {
+    info: { slug: "pallad" },
+    provider: mockProvider,
+  },
+];
+
+vi.mock("@mina-js/connect", () => ({
+  createStore: () => ({
+    subscribe: (callback: () => void) => {
+      callback();
+      return () => {};
+    },
+    getProviders: () => mockProviders,
+  }),
+}));
+
+const mockToast = vi.fn();
 
 // Test component to consume the context
 const TestComponent = () => {
@@ -61,7 +73,7 @@ describe("PalladWalletProvider", () => {
     );
   });
 
-  it("initializes context with default values", () => {
+  it("initializes context with default values", async () => {
     render(
       <PalladWalletProvider>
         <TestComponent />
@@ -71,5 +83,46 @@ describe("PalladWalletProvider", () => {
     expect(screen.getByTestId("address").textContent).toBe("");
     expect(screen.getByTestId("display-address").textContent).toBe("");
     expect(screen.getByTestId("connected").textContent).toBe("false");
+
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(mockProvider.request).toHaveBeenCalledWith({
+          method: "mina_requestAccounts",
+        });
+      });
+    });
+
+    expect(screen.getByTestId("address").textContent).toBe(
+      "B62qxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    );
+    expect(screen.getByTestId("display-address").textContent).toBe(
+      "B62qxx...xxxx"
+    );
+    expect(screen.getByTestId("connected").textContent).toBe("true");
+  });
+
+  it("shows toast when Pallad is not installed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WALLET", "pallad");
+    Object.defineProperty(window, "mina", { value: undefined, writable: true });
+    vi.mock("@/helpers/useToast", () => ({
+      useToast: () => mockToast,
+    }));
+    render(
+      <PalladWalletProvider>
+        <TestComponent />
+      </PalladWalletProvider>
+    );
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith({
+          title: "Error",
+          description: "Pallad is not installed",
+          button: {
+            label: "Install",
+            onClick: expect.any(Function),
+          },
+        });
+      });
+    });
   });
 });
