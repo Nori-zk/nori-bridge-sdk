@@ -1,17 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, Mock, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import BridgeControlCard from "./BridgeControlCard";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import "@testing-library/jest-dom";
 
-vi.mock("@/providers/MetaMaskWalletProvider", () => ({
-  useMetaMaskWallet: vi.fn(),
-}));
-vi.mock("@/providers/PalladWalletProvider", () => ({
-  usePalladWallet: vi.fn(),
-}));
+vi.mock("@/providers/MetaMaskWalletProvider");
+vi.mock("@/providers/PalladWalletProvider/PalladWalletProvider");
+
 vi.mock("@/components/ui/WalletButton", () => ({
   default: ({ id, onClick, content = "WalletButton", types = "" }: any) => (
     <button data-testid={id} onClick={onClick}>
@@ -20,19 +17,23 @@ vi.mock("@/components/ui/WalletButton", () => ({
     </button>
   ),
 }));
+
 vi.mock("@/components/ui/TextInput", () => ({
   default: ({ id, onChange }: any) => (
     <input data-testid={id} onChange={onChange} />
   ),
 }));
+
 vi.mock("@/components/ui/ProgressTracker", () => ({
   default: ({ steps = [] }: any) => (
     <div data-testid="progress-tracker">{steps.length} steps</div>
   ),
 }));
+
 vi.mock("@/static_data", () => ({
   progressSteps: ["Step 1", "Step 2"],
 }));
+
 vi.mock("*.svg", () => ({
   default: ({ className, ...props }) => (
     <svg data-testid="mocked-svg" className={className} {...props} />
@@ -44,17 +45,28 @@ describe("BridgeControlCard", () => {
     title: "Bridge Control",
   };
 
+  const mockMetaMaskWallet = {
+    isConnected: false,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    displayAddress: null,
+    walletAddress: null,
+  };
+
+  const mockPalladWallet = {
+    isConnected: false,
+    walletDisplayAddress: null,
+    walletAddress: null,
+    tryConnectWallet: vi.fn(),
+  };
+
   beforeEach(() => {
+    (useMetaMaskWallet as Mock).mockReturnValue(mockMetaMaskWallet);
+    (usePalladWallet as Mock).mockReturnValue(mockPalladWallet);
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
-    (useMetaMaskWallet as any).mockReturnValue({
-      isConnected: false,
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      displayAddress: null,
-    });
-    (usePalladWallet as any).mockReturnValue({
-      isConnected: false,
-    });
   });
 
   it("renders the title correctly", () => {
@@ -68,15 +80,13 @@ describe("BridgeControlCard", () => {
     expect(screen.getByTestId("mina-btn")).toHaveTextContent("Connect Wallet");
   });
 
-  //TODO: Add the mina equivalent of the button tests below
   it("calls connect when Ethereum wallet button is clicked and not connected", async () => {
     const connectMock = vi.fn();
-    (useMetaMaskWallet as any).mockReturnValue({
-      isConnected: false,
+    (useMetaMaskWallet as Mock).mockReturnValue({
+      ...mockMetaMaskWallet,
       connect: connectMock,
-      disconnect: vi.fn(),
-      displayAddress: null,
     });
+
     render(<BridgeControlCard {...defaultProps} />);
 
     await act(async () => {
