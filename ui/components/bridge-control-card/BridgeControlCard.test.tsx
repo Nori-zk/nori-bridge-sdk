@@ -2,12 +2,17 @@
 import { describe, it, expect, vi, beforeEach, Mock, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import BridgeControlCard from "./BridgeControlCard";
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
 import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import "@testing-library/jest-dom";
 
-vi.mock("@/providers/MetaMaskWalletProvider");
-vi.mock("@/providers/PalladWalletProvider/PalladWalletProvider");
+// Mock the providers
+vi.mock("@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider", () => ({
+  useMetaMaskWallet: vi.fn(),
+}));
+vi.mock("@/providers/PalladWalletProvider/PalladWalletProvider", () => ({
+  usePalladWallet: vi.fn(),
+}));
 
 vi.mock("@/components/ui/WalletButton", () => ({
   default: ({ id, onClick, content = "WalletButton", types = "" }: any) => (
@@ -61,8 +66,13 @@ describe("BridgeControlCard", () => {
   };
 
   beforeEach(() => {
-    (useMetaMaskWallet as Mock).mockReturnValue(mockMetaMaskWallet);
-    (usePalladWallet as Mock).mockReturnValue(mockPalladWallet);
+    // Set up mock return values
+    (useMetaMaskWallet as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockMetaMaskWallet
+    );
+    (usePalladWallet as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockPalladWallet
+    );
   });
 
   afterEach(() => {

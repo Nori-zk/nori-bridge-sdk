@@ -10,6 +10,7 @@ import {
 import { BrowserProvider } from "ethers";
 import { useToast } from "@/helpers/useToast";
 import { openExternalLink } from "@/helpers/navigation";
+import { formatDisplayAddress } from "@/helpers/walletHelper";
 
 interface MetaMaskWalletContextType {
   walletAddress: string | null;
@@ -46,25 +47,18 @@ export const MetaMaskWalletProvider = ({
 }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-
-  const showMetaMaskMissing = useCallback(() => {
-    useToast({
-      title: "Error",
-      description: "MetaMask not installed",
-      button: {
-        label: "Install",
-        onClick: () => openExternalLink("https://metamask.io/en-GB"),
-      },
-    });
-  }, [useToast]);
-
-  const formatDisplayAddress = (address: string | null) => {
-    return address ? `${address.substring(0, 6)}...${address.slice(-4)}` : null;
-  };
+  const toast = useToast({
+    title: "Error",
+    description: "MetaMask is not installed",
+    button: {
+      label: "Install",
+      onClick: () => openExternalLink("https://pallad.co"),
+    },
+  });
 
   const connect = useCallback(async () => {
     if (!window.ethereum) {
-      showMetaMaskMissing();
+      toast();
       return;
     }
 
@@ -78,7 +72,7 @@ export const MetaMaskWalletProvider = ({
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     }
-  }, [useToast]);
+  }, [toast]);
 
   const disconnect = useCallback(() => {
     setWalletAddress(null);
@@ -105,7 +99,7 @@ export const MetaMaskWalletProvider = ({
   useEffect(() => {
     const checkConnection = async () => {
       if (!window.ethereum) {
-        showMetaMaskMissing();
+        toast();
         return;
       }
 
@@ -120,7 +114,7 @@ export const MetaMaskWalletProvider = ({
     };
 
     void checkConnection();
-  }, [connect, useToast]);
+  }, [connect, toast]);
 
   const value = {
     walletAddress,

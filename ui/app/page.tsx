@@ -3,7 +3,7 @@ import BridgeControlCard from "@/components/bridge-control-card/BridgeControlCar
 import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
 import ScrollingBridge from "@/components/panels/ScrollingBridge/ScrollingBridge";
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
 import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import ScrollingWSS from "@/components/panels/ScrollingWSS/ScrollingWSS";
 

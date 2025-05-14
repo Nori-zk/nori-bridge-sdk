@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   MetaMaskWalletProvider,
   useMetaMaskWallet,
-} from "@/providers/MetaMaskWalletProvider";
+} from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
 import * as toastModule from "@/helpers/useToast";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
@@ -38,7 +38,7 @@ describe("MetaMaskWalletProvider", () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
         title: "Error",
-        description: "MetaMask not installed",
+        description: "MetaMask is not installed",
         button: {
           label: "Install",
           onClick: expect.any(Function),

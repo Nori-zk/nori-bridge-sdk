@@ -5,7 +5,7 @@ import TextInput from "../ui/TextInput";
 import { useEffect, useState } from "react";
 import { progressSteps } from "@/static_data";
 import ProgressTracker from "../ui/ProgressTracker";
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
 import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 
 type BridgeControlCardProps = {
@@ -22,8 +22,7 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
     disconnect: ethDisconnect,
     displayAddress: ethDisplayAddress,
   } = useMetaMaskWallet();
-  const { isConnected: minaConnected, walletDisplayAddress } =
-    usePalladWallet();
+  const { isConnected: minaConnected, displayAddress } = usePalladWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
 
   useEffect(() => {
@@ -83,9 +82,7 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
             <WalletButton
               id="mina-btn"
               types={"Mina"}
-              content={
-                minaConnected ? walletDisplayAddress ?? "" : "Connect Wallet"
-              }
+              content={minaConnected ? displayAddress ?? "" : "Connect Wallet"}
               onClick={() => {
                 // if (minaConnected) {
                 //   minaDisconnect();
