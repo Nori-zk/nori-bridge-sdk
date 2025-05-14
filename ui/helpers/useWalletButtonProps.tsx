@@ -1,5 +1,5 @@
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import { WalletButtonTypes } from "@/types/types";
 import Mina from "@/public/assets/mina.svg";
 import Ethereum from "@/public/assets/Ethereum.svg";

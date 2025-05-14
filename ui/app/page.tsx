@@ -4,7 +4,7 @@ import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
 import ScrollingBridge from "@/components/panels/ScrollingBridge/ScrollingBridge";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import ScrollingWSS from "@/components/panels/ScrollingWSS/ScrollingWSS";
 
 export default function Home() {

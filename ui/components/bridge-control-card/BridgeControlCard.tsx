@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { progressSteps } from "@/static_data";
 import ProgressTracker from "../ui/ProgressTracker";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider";
+import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 
 type BridgeControlCardProps = {
   title: string;

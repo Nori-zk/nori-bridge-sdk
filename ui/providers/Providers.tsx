@@ -1,7 +1,7 @@
 "use client";
 
 import React, { ReactNode } from "react";
-import { PalladWalletProvider } from "@/providers/PalladWalletProvider";
+import { PalladWalletProvider } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import { MetaMaskWalletProvider } from "@/providers/MetaMaskWalletProvider";
 import { AuroWalletProvider } from "@/providers/AuroWalletProvider";
 

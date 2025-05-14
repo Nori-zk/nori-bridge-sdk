@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  useCallback,
 } from "react";
 
 interface PalladWalletContextType {
@@ -50,7 +51,8 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
-  //hasWarnedRef is used to prevent multiple toast warnings
+  const toast = useToast();
+
   const hasWarnedRef = useRef(false);
   const providers = useSyncExternalStore(
     store.subscribe,
@@ -58,7 +60,7 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
     () => initialSnapshot
   );
 
-  const tryConnectWallet = async () => {
+  const tryConnectWallet = useCallback(async () => {
     try {
       const provider = providers.find(
         (p) => p.info.slug === cleanedProvider
@@ -77,13 +79,14 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
     } catch (err) {
       console.error("Failed to connect wallet:", err);
     }
-  };
+  }, [providers]);
 
   useEffect(() => {
     if (providers.length === 0) return;
     const provider = providers.find(
       (p) => p.info.slug === cleanedProvider
     )?.provider;
+
     if (
       !hasWarnedRef.current &&
       (!window.mina ||
@@ -92,7 +95,7 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
           process.env.NEXT_PUBLIC_WALLET === cleanedProvider))
     ) {
       hasWarnedRef.current = true;
-      useToast({
+      toast({
         title: "Error",
         description: "Pallad is not installed",
         button: {
@@ -102,8 +105,11 @@ export const PalladWalletProvider: React.FC<{ children: ReactNode }> = ({
       });
       return;
     }
-    tryConnectWallet();
-  }, [providers, useToast]);
+
+    if (!isConnected) {
+      tryConnectWallet();
+    }
+  }, [providers, toast, tryConnectWallet, isConnected]);
 
   const walletDisplayAddress = walletAddress
     ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
