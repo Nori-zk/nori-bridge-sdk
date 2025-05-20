@@ -19,12 +19,13 @@ interface MetaMaskWalletContextType {
   walletAddress: string | null;
   displayAddress: string | null;
   isConnected: boolean;
+  lockedAmount: string | null; // Added for external access
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: () => Promise<void>;
   bridgeOperator: () => Promise<void>;
   lockTokens: () => Promise<void>;
-  getLockedTokens: () => Promise<string | undefined>;
+  getLockedTokens: () => Promise<void>;
 }
 
 declare global {
@@ -61,11 +62,12 @@ export const MetaMaskWalletProvider = ({
   const [lockedAmount, setLockedAmount] = useState<string | null>(null);
 
   const rawToast = useToast({
+    type: "error",
     title: "Error",
     description: "MetaMask is not installed",
     button: {
       label: "Install",
-      onClick: () => openExternalLink("https://pallad.co"),
+      onClick: () => openExternalLink("https://metamask.io"),
     },
   });
   const toast = useRef(rawToast);
@@ -94,9 +96,19 @@ export const MetaMaskWalletProvider = ({
 
         const newContract = await initializeContract(signer);
         setContract(newContract);
+        toast.current({
+          type: "notification",
+          title: "Success",
+          description: "Wallet connected successfully!",
+        });
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Failed to connect wallet.",
+      });
     }
   }, [initializeContract, toast]);
 
@@ -105,64 +117,131 @@ export const MetaMaskWalletProvider = ({
     setIsConnected(false);
     setSigner(null);
     setContract(null);
-  }, []);
+    toast.current({
+      type: "notification",
+      title: "Disconnected",
+      description: "Wallet disconnected successfully.",
+    });
+  }, [toast]);
 
   const signMessage = useCallback(async () => {
-    console.log("signing", signer);
-    if (!signer) return;
+    if (!signer) {
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Please connect wallet first.",
+      });
+      return;
+    }
     try {
       const message = "signing";
       const signature = await signer.signMessage(message);
       const digest = ethers.utils.hashMessage(message);
       const publicKey = ethers.utils.recoverPublicKey(digest, signature);
       console.log("Public Key:", publicKey);
+      toast.current({
+        type: "notification",
+        title: "Success",
+        description: "Message signed successfully!",
+      });
     } catch (error) {
       console.error("Error signing message:", error);
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Error signing message.",
+      });
     }
-  }, [signer]);
+  }, [signer, toast]);
 
   const bridgeOperator = useCallback(async () => {
-    if (!contract) return;
+    if (!contract) {
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Please connect wallet first.",
+      });
+      return;
+    }
     try {
       const operator = await contract.bridgeOperator();
-      alert(`Bridge Operator: ${operator}`);
+      toast.current({
+        type: "notification",
+        title: "Bridge Operator",
+        description: `Bridge Operator: ${operator}`,
+      });
     } catch (error) {
       console.error("Error calling bridgeOperator:", error);
-      alert("Failed to fetch bridge operator. Check console for details.");
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Error calling bridge operator.",
+      });
     }
-  }, [contract]);
+  }, [contract, toast]);
 
   const lockTokens = useCallback(async () => {
-    if (!contract) return alert("Connect wallet first!");
+    if (!contract) {
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Please connect wallet first.",
+      });
+      return;
+    }
     try {
       const tx = await contract.lockTokens({
         value: ethers.utils.parseEther("0.0000000000000001"),
       });
       await tx.wait();
-      alert("Tokens locked successfully!");
+      toast.current({
+        type: "notification",
+        title: "Success",
+        description: "Tokens locked successfully!",
+      });
     } catch (error) {
       console.error("Error calling lockTokens:", error);
-      alert("Transaction failed. Check console for details.");
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Error locking tokens.",
+      });
     }
-  }, [contract]);
+  }, [contract, toast]);
 
   const getLockedTokens = useCallback(async () => {
-    if (!contract || !walletAddress) return;
-    try {
-      const amount = await contract.lockedTokens(walletAddress);
-      return ethers.utils.formatEther(amount);
-    } catch (error) {
-      toast.current();
-      console.error("Error fetching locked tokens:", error);
-      alert("Transaction failed. Check console for details.");
+    if (!contract || !walletAddress) {
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Please connect wallet first.",
+      });
       return;
     }
-  }, [contract, walletAddress]);
+    try {
+      const amount = await contract.lockedTokens(walletAddress);
+      const formattedAmount = ethers.utils.formatEther(amount);
+      setLockedAmount(formattedAmount);
+      toast.current({
+        type: "notification",
+        title: "Locked Tokens",
+        description: `You have ${formattedAmount} tokens locked.`,
+      });
+    } catch (error) {
+      console.error("Error fetching locked tokens:", error);
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Error getting locked tokens.",
+      });
+    }
+  }, [contract, walletAddress, toast]);
 
   useEffect(() => {
     const checkConnection = async () => {
       if (!window.ethereum) {
-        return toast.current();
+        toast.current();
+        return;
       }
 
       const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -190,6 +269,13 @@ export const MetaMaskWalletProvider = ({
       } else {
         if (accounts[0] !== walletAddress) {
           setWalletAddress(accounts[0]);
+          toast.current({
+            type: "notification",
+            title: "Account Changed",
+            description: `Switched to account: ${formatDisplayAddress(
+              accounts[0]
+            )}`,
+          });
         }
       }
     };
@@ -198,13 +284,14 @@ export const MetaMaskWalletProvider = ({
     return () => {
       window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
     };
-  }, [walletAddress, disconnect]);
+  }, [walletAddress, disconnect, toast]);
 
   const value = useMemo(
     () => ({
       walletAddress,
       displayAddress: formatDisplayAddress(walletAddress),
       isConnected,
+      lockedAmount,
       connect,
       disconnect,
       signMessage,
@@ -215,6 +302,7 @@ export const MetaMaskWalletProvider = ({
     [
       walletAddress,
       isConnected,
+      lockedAmount,
       connect,
       disconnect,
       signMessage,

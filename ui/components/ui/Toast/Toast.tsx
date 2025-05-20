@@ -6,6 +6,7 @@ export type ToastProps = {
   id: string | number;
   title: string;
   description: string;
+  type?: "error" | "notification";
   button?: {
     label: string;
     onClick: () => void;
@@ -13,14 +14,23 @@ export type ToastProps = {
 };
 
 const Toast = (props: ToastProps) => {
-  const { title, description, button, id } = props;
+  const { title, description, type = "notification", button, id } = props;
+
+  const baseStyles =
+    "flex rounded-lg shadow-lg ring-1 w-full md:max-w-[364px] items-center p-3";
+  const typeStyles = {
+    error: "bg-veryDarkRed text-white ring-darkRed",
+    notification: "bg-darkBlue text-white ring-blue-500",
+  };
+
+  const className = `${baseStyles} ${typeStyles[type]}`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="flex rounded-lg bg-veryDarkRed text-white shadow-lg ring-1 ring-darkRed w-full md:max-w-[364px] items-center p-3"
+      className={className}
       data-testid={id}
     >
       <div className="flex flex-1 items-center">
@@ -39,14 +49,18 @@ const Toast = (props: ToastProps) => {
       {button && (
         <div className="ml-5 shrink-0 rounded-md">
           <button
-            className="rounded bg-darkRed px-3 py-1 text-sm font-semibold text-white hover:bg-lightRed transition"
+            className={`rounded px-3 py-1 text-sm font-semibold text-white transition ${
+              type === "error"
+                ? "bg-darkRed hover:bg-lightRed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
             onClick={() => {
               button.onClick();
               sonnerToast.dismiss(id);
             }}
           >
             {button.label}
-          </button>{" "}
+          </button>
         </div>
       )}
     </motion.div>
