@@ -21,6 +21,9 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
     connect: ethConnect,
     disconnect: ethDisconnect,
     displayAddress: ethDisplayAddress,
+    signMessage,
+    lockTokens,
+    getLockedTokens,
   } = useMetaMaskWallet();
   const { isConnected: minaConnected, displayAddress } = usePalladWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
@@ -99,11 +102,44 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => {}}
             />
           </div>
-          <div className="w-full">
-            <button className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]">
-              Connect Wallet
-            </button>
-          </div>
+          <>
+            {!ethConnected ? (
+              <button
+                className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
+                onClick={async () => {}}
+              >
+                {"Connect Wallet"}
+              </button>
+            ) : (
+              <div className="w-full flex ">
+                <button
+                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
+                  onClick={async () => {
+                    await signMessage();
+                  }}
+                >
+                  {"Sign"}
+                </button>
+                <button
+                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
+                  onClick={async () => {
+                    await lockTokens();
+                  }}
+                >
+                  {"Lock Tokens "}
+                </button>
+                <button
+                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
+                  onClick={async () => {
+                    await getLockedTokens();
+                  }}
+                >
+                  {"Get Locked Tokens "}
+                </button>
+              </div>
+            )}
+          </>
+
           {ethConnected && minaConnected && (
             <div>
               <div className="flex flex-col items-center m-6">
