@@ -27,7 +27,7 @@ const ScrollingWSS = () => {
   };
 
   const _addText = async (text: string) => {
-    console.log("Adding text:", text);
+    // console.log("Adding text:", text);
 
     const nChars = text.length;
     const delayTime = 0;
