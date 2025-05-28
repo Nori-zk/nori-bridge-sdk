@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { progressSteps } from "@/static_data";
 import ProgressTracker from "../ui/ProgressTracker";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
+import { useAccount } from "wagmina";
+import { formatDisplayAddress } from "@/helpers/walletHelper";
 
 type BridgeControlCardProps = {
   title: string;
@@ -18,21 +19,27 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
   const { title, width, height } = props;
   const {
     isConnected: ethConnected,
-    connect: ethConnect,
-    disconnect: ethDisconnect,
     displayAddress: ethDisplayAddress,
     signMessage,
     lockTokens,
     getLockedTokens,
   } = useMetaMaskWallet();
-  const { isConnected: minaConnected, displayAddress } = usePalladWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
+  const { isConnected: minaConnected, address: minaAddress } = useAccount();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     if (progressSteps.length > 0) {
       setDisplayProgressSteps(true);
     }
   }, []);
+
+  const minaButtonContent = isMounted
+    ? minaConnected
+      ? formatDisplayAddress(minaAddress ?? "") || "Connect Wallet"
+      : "Connect Wallet"
+    : "Connect Wallet";
 
   return (
     <div
@@ -70,14 +77,6 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
               content={
                 ethConnected ? ethDisplayAddress ?? "" : "Connect Wallet"
               }
-              width={200}
-              onClick={() => {
-                if (ethConnected) {
-                  ethDisconnect();
-                } else {
-                  ethConnect();
-                }
-              }}
             />
             <div className="flex items-center justify-center w-7 h-7 text-black bg-white rounded-full mx-2">
               <FaArrowRight />
@@ -85,15 +84,7 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
             <WalletButton
               id="mina-btn"
               types={"Mina"}
-              content={minaConnected ? displayAddress ?? "" : "Connect Wallet"}
-              onClick={() => {
-                // if (minaConnected) {
-                //   minaDisconnect();
-                // } else {
-                //   minaConnect();
-                // }
-              }}
-              width={200}
+              content={minaButtonContent}
             />
           </div>
           <div className="flex justify-center mt-6">

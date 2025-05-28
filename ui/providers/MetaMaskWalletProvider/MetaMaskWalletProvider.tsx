@@ -115,7 +115,7 @@ export const MetaMaskWalletProvider = ({
   const disconnect = useCallback(() => {
     setWalletAddress(null);
     setIsConnected(false);
-    setSigner(null);
+    setSigner(undefined);
     setContract(null);
     toast.current({
       type: "notification",

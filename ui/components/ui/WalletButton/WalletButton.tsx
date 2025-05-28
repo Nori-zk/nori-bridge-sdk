@@ -1,33 +1,58 @@
+"use client";
 import { useWalletButtonProps } from "@/helpers/useWalletButtonProps";
 import { WalletButtonTypes } from "@/types/types";
 import clsx from "clsx";
+import { useState, useEffect } from "react";
 
 export type WalletButtonProps = {
   id: string;
   types: WalletButtonTypes;
   onClick?: () => void;
-  content: string;
+  content?: string;
   width?: number;
 };
 
 const WalletButton = ({
   id,
   types,
-  content,
-  width,
+  content = "Connect Wallet",
+  width = 200,
   onClick,
 }: WalletButtonProps) => {
-  //used a hook or button styling and functionality props
+  const [isMounted, setIsMounted] = useState(false);
   const {
     bgClass,
     textClass,
     displayAddress,
     logo,
     onClick: hookOnClick,
+    isConnecting,
   } = useWalletButtonProps(types, content);
 
-  // Use custom onClick if provided, otherwise use hook's onClick
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const handleClick = onClick || hookOnClick;
+
+  if (!isMounted) {
+    return (
+      <button
+        data-testid={id}
+        id={id}
+        style={{ width }}
+        onClick={handleClick}
+        className={clsx(
+          "px-4 py-2 rounded-lg flex items-center justify-evenly",
+          "bg-white",
+          "text-black"
+        )}
+      >
+        {logo}
+        {content}
+      </button>
+    );
+  }
 
   return (
     <button
@@ -35,10 +60,12 @@ const WalletButton = ({
       id={id}
       style={{ width }}
       onClick={handleClick}
+      disabled={isConnecting}
       className={clsx(
         "px-4 py-2 rounded-lg flex items-center justify-evenly",
         bgClass,
-        textClass
+        textClass,
+        isConnecting && "opacity-50 cursor-not-allowed"
       )}
     >
       {logo}

@@ -4,12 +4,12 @@ import Nori from "@/public/assets/nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
 import ScrollingBridge from "@/components/panels/ScrollingBridge/ScrollingBridge";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import ScrollingWSS from "@/components/panels/ScrollingWSS/ScrollingWSS";
+import { useAccount } from "wagmina";
 
 export default function Home() {
   const { isConnected: ethConnected } = useMetaMaskWallet();
-  const { isConnected: minaConnected } = usePalladWallet();
+  const { isConnected: minaConnected } = useAccount();
   return (
     <div className="h-full w-full bg-[radial-gradient(50%_100%_at_50%_0%,theme('colors.darkGreen')_1.31%,theme('colors.veryDarkGreen')_100%)]">
       <div className="flex  h-full w-full flex-col relative bg-custom-svg bg-no-repeat bg-cover bg-center">

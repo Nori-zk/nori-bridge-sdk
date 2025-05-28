@@ -1,22 +1,24 @@
 "use client";
-
 import React, { ReactNode } from "react";
-import { PalladWalletProvider } from "@/providers/PalladWalletProvider/PalladWalletProvider";
 import { MetaMaskWalletProvider } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import { AuroWalletProvider } from "@/providers/AuroWalletProvider";
+import { WagminaProvider } from "wagmina";
+import { config } from "@/config";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 interface AppProvidersProps {
   children: ReactNode;
 }
 
+const queryClient = new QueryClient();
+
 const Providers = ({ children }: AppProvidersProps) => {
   return (
     <MetaMaskWalletProvider>
-      {process.env.NEXT_PUBLIC_WALLET == "pallad" ? (
-        <PalladWalletProvider>{children}</PalladWalletProvider>
-      ) : (
-        <AuroWalletProvider>{children}</AuroWalletProvider>
-      )}
+      <WagminaProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </WagminaProvider>
     </MetaMaskWalletProvider>
   );
 };
