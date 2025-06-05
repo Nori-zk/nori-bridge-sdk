@@ -9,7 +9,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { ethers } from "ethers";
+import { BrowserProvider, Contract, ethers, Signer } from "ethers";
 import { useToast } from "@/helpers/useToast";
 import { openExternalLink } from "@/helpers/navigation";
 import { formatDisplayAddress } from "@/helpers/walletHelper";
@@ -19,7 +19,7 @@ interface MetaMaskWalletContextType {
   walletAddress: string | null;
   displayAddress: string | null;
   isConnected: boolean;
-  lockedAmount: string | null; // Added for external access
+  lockedAmount: string | null;
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: () => Promise<void>;
@@ -55,10 +55,8 @@ export const MetaMaskWalletProvider = ({
 }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [signer, setSigner] = useState<
-    ethers.providers.JsonRpcSigner | undefined
-  >();
-  const [contract, setContract] = useState<ethers.Contract | null>(null);
+  const [signer, setSigner] = useState<Signer | null>(null);
+  const [contract, setContract] = useState<Contract | null>(null);
   const [lockedAmount, setLockedAmount] = useState<string | null>(null);
 
   const rawToast = useToast({
@@ -72,9 +70,9 @@ export const MetaMaskWalletProvider = ({
   });
   const toast = useRef(rawToast);
 
-  const initializeContract = useCallback(async (signer: ethers.Signer) => {
+  const initializeContract = useCallback(async (signer: Signer) => {
     const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
-    return new ethers.Contract(contractAddress, contractABI, signer);
+    return new Contract(contractAddress, contractABI, signer);
   }, []);
 
   const connect = useCallback(async () => {
@@ -84,10 +82,10 @@ export const MetaMaskWalletProvider = ({
     }
 
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
       if (accounts.length > 0) {
-        const signer = provider.getSigner();
+        const signer = await provider.getSigner();
         console.log("Signer:", signer);
         const address = accounts[0];
         setWalletAddress(address);
@@ -115,7 +113,7 @@ export const MetaMaskWalletProvider = ({
   const disconnect = useCallback(() => {
     setWalletAddress(null);
     setIsConnected(false);
-    setSigner(undefined);
+    setSigner(null);
     setContract(null);
     toast.current({
       type: "notification",
@@ -136,8 +134,8 @@ export const MetaMaskWalletProvider = ({
     try {
       const message = "signing";
       const signature = await signer.signMessage(message);
-      const digest = ethers.utils.hashMessage(message);
-      const publicKey = ethers.utils.recoverPublicKey(digest, signature);
+      const digest = ethers.hashMessage(message);
+      const publicKey = ethers.recoverAddress(digest, signature);
       console.log("Public Key:", publicKey);
       toast.current({
         type: "notification",
@@ -191,7 +189,7 @@ export const MetaMaskWalletProvider = ({
     }
     try {
       const tx = await contract.lockTokens({
-        value: ethers.utils.parseEther("0.0000000000000001"),
+        value: ethers.parseEther("0.0000000000000001"),
       });
       await tx.wait();
       toast.current({
@@ -220,7 +218,7 @@ export const MetaMaskWalletProvider = ({
     }
     try {
       const amount = await contract.lockedTokens(walletAddress);
-      const formattedAmount = ethers.utils.formatEther(amount);
+      const formattedAmount = ethers.formatEther(amount);
       setLockedAmount(formattedAmount);
       toast.current({
         type: "notification",
@@ -244,10 +242,10 @@ export const MetaMaskWalletProvider = ({
         return;
       }
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_accounts", []);
       if (accounts.length > 0) {
-        const signer = provider.getSigner();
+        const signer = await provider.getSigner();
         const address = accounts[0];
         setWalletAddress(address);
         setIsConnected(true);
