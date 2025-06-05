@@ -20,7 +20,7 @@ const Toast = (props: ToastProps) => {
     "flex rounded-lg shadow-lg ring-1 w-full md:max-w-[364px] items-center p-3";
   const typeStyles = {
     error: "bg-veryDarkRed text-white ring-darkRed",
-    notification: "bg-darkBlue text-white ring-blue-500",
+    notification: "bg-veryDarkGreen text-white ring-blue-500",
   };
 
   const className = `${baseStyles} ${typeStyles[type]}`;
