@@ -8,6 +8,7 @@ import ProgressTracker from "../ui/ProgressTracker";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
 import { useAccount } from "wagmina";
 import { formatDisplayAddress } from "@/helpers/walletHelper";
+import { createEcdsaCredential } from "@/lib/ecdsa-credential";
 
 type BridgeControlCardProps = {
   title: string;
@@ -20,9 +21,9 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
   const {
     isConnected: ethConnected,
     displayAddress: ethDisplayAddress,
-    signMessage,
-    lockTokens,
-    getLockedTokens,
+    // signMessage,
+    // lockTokens,
+    // getLockedTokens,
   } = useMetaMaskWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
   const { isConnected: minaConnected, address: minaAddress } = useAccount();
@@ -88,10 +89,7 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
             />
           </div>
           <div className="flex justify-center mt-6">
-            <TextInput
-              id={"amount-input"}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {}}
-            />
+            <TextInput id={"amount-input"} onChange={() => {}} />
           </div>
           <>
             {!ethConnected ? (
@@ -103,7 +101,7 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
               </button>
             ) : (
               <div className="w-full flex ">
-                <button
+                {/* <button
                   className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
                   onClick={async () => {
                     await signMessage();
@@ -117,7 +115,7 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
                     await lockTokens();
                   }}
                 >
-                  {"Lock Tokens "}
+                  {"Lock Tokens"}
                 </button>
                 <button
                   className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
@@ -125,7 +123,15 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
                     await getLockedTokens();
                   }}
                 >
-                  {"Get Locked Tokens "}
+                  {"Get Locked Tokens"}
+                </button> */}
+                <button
+                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
+                  onClick={async () => {
+                    await createEcdsaCredential("abc");
+                  }}
+                >
+                  {"Create Credential"}
                 </button>
               </div>
             )}
