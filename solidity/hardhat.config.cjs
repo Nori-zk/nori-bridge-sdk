@@ -14,7 +14,7 @@ module.exports = {
     holesky: {
       url:
         process.env.HOLESKY_RPC_URL ||
-        "https://eth-holesky.g.alchemy.com/v2/your-alchemy-key",
+        "https://eth-holesky.g.alchemy.com/v2/jZWyVztZ88UzQDVq0LRskd1CwZg2iB5d",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 17000,
     },
