@@ -1,9 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
-import ProgressTrackerStep from "./ProgressTrackerStep"; // We'll build this next
-import ProgressTrackerConnector from "./ProgressTrackerConnector"; // We'll build this too
-import { ProgressTrackerStepProps } from "./ProgressTrackerStep";
+import ProgressTrackerStep from "./ProgressTrackerStep.tsx";
+import ProgressTrackerConnector from "./ProgressTrackerConnector.tsx";
+import { ProgressTrackerStepProps } from "./ProgressTrackerStep.tsx";
 
 interface ProgressTrackerProps {
   steps: ProgressTrackerStepProps[];

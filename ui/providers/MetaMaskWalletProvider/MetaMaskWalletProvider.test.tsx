@@ -3,9 +3,9 @@ import { describe, afterEach, beforeEach, expect, it, vi, Mock } from "vitest";
 import {
   MetaMaskWalletProvider,
   useMetaMaskWallet,
-} from "./MetaMaskWalletProvider";
+} from "./MetaMaskWalletProvider.tsx";
 import { render, screen, act, renderHook } from "@testing-library/react";
-import * as toastModule from "@/helpers/useToast";
+import * as toastModule from "@/helpers/useToast.tsx";
 import { BrowserProvider } from "ethers";
 
 // Mocks

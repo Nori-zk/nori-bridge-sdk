@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import Toast, { ToastProps } from "./Toast";
+import Toast, { ToastProps } from "./Toast.tsx";
 import { toast as sonnerToast } from "sonner";
 
 describe("Toast", () => {

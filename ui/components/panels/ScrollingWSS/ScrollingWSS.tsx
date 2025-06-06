@@ -1,7 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
-import { noticeToText } from "@/helpers/textHelper";
+import { noticeToText } from "@/helpers/textHelper.tsx";
 
 const ScrollingWSS = () => {
   const [messageLines, setMessageLines] = useState<string[]>([]);

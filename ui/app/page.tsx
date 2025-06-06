@@ -1,10 +1,10 @@
 "use client";
-import BridgeControlCard from "@/components/bridge-control-card/BridgeControlCard";
-import Nori from "@/public/assets/nori.svg";
+import BridgeControlCard from "@/components/bridge-control-card/BridgeControlCard.tsx";
+import Nori from "@/public/assets/Nori.svg";
 import BottomShadows from "@/public/assets/BottomShadows.svg";
-import ScrollingBridge from "@/components/panels/ScrollingBridge/ScrollingBridge";
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import ScrollingWSS from "@/components/panels/ScrollingWSS/ScrollingWSS";
+import ScrollingBridge from "@/components/panels/ScrollingBridge/ScrollingBridge.tsx";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
+import ScrollingWSS from "@/components/panels/ScrollingWSS/ScrollingWSS.tsx";
 import { useAccount } from "wagmina";
 
 export default function Home() {

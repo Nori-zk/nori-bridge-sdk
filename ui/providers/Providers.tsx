@@ -2,7 +2,7 @@
 import React, { ReactNode } from "react";
 import { MetaMaskWalletProvider } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
 import { WagminaProvider } from "wagmina";
-import { config } from "@/config";
+import { config } from "@/config/index.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 interface AppProvidersProps {

@@ -1,17 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, Mock, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import BridgeControlCard from "./BridgeControlCard";
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import { usePalladWallet } from "@/providers/PalladWalletProvider/PalladWalletProvider";
+import BridgeControlCard from "./BridgeControlCard.tsx";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
+
 import "@testing-library/jest-dom";
 
 // Mock the providers
 vi.mock("@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider", () => ({
   useMetaMaskWallet: vi.fn(),
-}));
-vi.mock("@/providers/PalladWalletProvider/PalladWalletProvider", () => ({
-  usePalladWallet: vi.fn(),
 }));
 
 vi.mock("@/components/ui/WalletButton", () => ({

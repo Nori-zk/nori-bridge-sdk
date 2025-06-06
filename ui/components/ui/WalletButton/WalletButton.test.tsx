@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import "@testing-library/jest-dom";
-import { WalletButtonTypes } from "@/types/types";
+import { WalletButtonTypes } from "@/types/types.ts";
 import { fireEvent, render, screen } from "@testing-library/react";
-import WalletButton, { WalletButtonProps } from "./WalletButton";
-import { useWalletButtonProps } from "@/helpers/useWalletButtonProps";
+import WalletButton, { WalletButtonProps } from "./WalletButton.tsx";
+import { useWalletButtonProps } from "@/helpers/useWalletButtonProps.tsx";
 
 // Mock the useWalletButtonProps hook
 vi.mock("@/helpers/useWalletButtonProps");

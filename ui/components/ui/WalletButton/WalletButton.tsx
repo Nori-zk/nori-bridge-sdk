@@ -1,6 +1,6 @@
 "use client";
-import { useWalletButtonProps } from "@/helpers/useWalletButtonProps";
-import { WalletButtonTypes } from "@/types/types";
+import { useWalletButtonProps } from "@/helpers/useWalletButtonProps.tsx";
+import { WalletButtonTypes } from "@/types/types.ts";
 import clsx from "clsx";
 import { useState, useEffect } from "react";
 

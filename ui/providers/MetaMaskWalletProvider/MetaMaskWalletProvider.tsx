@@ -10,9 +10,9 @@ import {
   useRef,
 } from "react";
 import { BrowserProvider, Contract, ethers, Signer } from "ethers";
-import { useToast } from "@/helpers/useToast";
-import { openExternalLink } from "@/helpers/navigation";
-import { formatDisplayAddress } from "@/helpers/walletHelper";
+import { useToast } from "@/helpers/useToast.tsx";
+import { openExternalLink } from "@/helpers/navigation.tsx";
+import { formatDisplayAddress } from "@/helpers/walletHelper.tsx";
 import contractABI from "@/contractABI.json";
 
 interface MetaMaskWalletContextType {

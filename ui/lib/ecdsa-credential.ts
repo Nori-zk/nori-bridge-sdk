@@ -1,5 +1,5 @@
 import { Credential, DynamicBytes } from "mina-attestations";
-import { EcdsaEthereum } from "mina-attestations/src/imported";
+import { EcdsaEthereum } from "mina-attestations/imported";
 import { PrivateKey, Bytes } from "o1js";
 import { id, Wallet } from "ethers";
 
@@ -7,7 +7,7 @@ const maxMessageLength = 32;
 const proofsEnabled = false;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
 
-export async function createEcdsaCredential(message: string) {
+export async function createEcdsaCredential(message: string): Promise<unknown> {
   try {
     // Prepare ECDSA credential
     await EcdsaEthereum.compileDependencies({

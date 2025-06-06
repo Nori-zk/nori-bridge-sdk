@@ -1,8 +1,8 @@
-import { PalladWalletProvider } from "@/providers/PalladWalletProvider/PalladWalletProvider";
+import { PalladWalletProvider } from "@/providers/PalladWalletProvider/PalladWalletProvider.";
 import "@testing-library/jest-dom";
 import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
-import * as toastModule from "@/helpers/useToast";
+import * as toastModule from "@/helpers/useToast.tsx";
 
 // Mocks
 const mockProvider = {

@@ -3,8 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   MetaMaskWalletProvider,
   useMetaMaskWallet,
-} from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import * as toastModule from "@/helpers/useToast";
+} from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
+import * as toastModule from "@/helpers/useToast.tsx";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
 // Mock `useToast` to verify it was called

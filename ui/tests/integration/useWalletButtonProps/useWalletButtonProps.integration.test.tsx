@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useWalletButtonProps } from "@/helpers/useWalletButtonProps";
-import * as MetaMask from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
+import { useWalletButtonProps } from "@/helpers/useWalletButtonProps.tsx";
+import * as MetaMask from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
 import * as Pallad from "@/providers/PalladWalletProvider/PalladWalletProvider";
 
 describe("useWalletButtonProps", () => {

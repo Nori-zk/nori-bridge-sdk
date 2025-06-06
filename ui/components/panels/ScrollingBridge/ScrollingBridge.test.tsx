@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import ScrollingBridge from "./ScrollingBridge";
+import ScrollingBridge from "./ScrollingBridge.tsx";
 import "@testing-library/jest-dom";
 
 global.fetch = vi.fn();

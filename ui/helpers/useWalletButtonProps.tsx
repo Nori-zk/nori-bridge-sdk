@@ -1,9 +1,9 @@
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
-import { WalletButtonTypes } from "@/types/types";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
+import { WalletButtonTypes } from "@/types/types.ts";
 import Mina from "@/public/assets/mina.svg";
 import Ethereum from "@/public/assets/Ethereum.svg";
 import { useAccount, useConnect, useConnectors, useDisconnect } from "wagmina";
-import { formatDisplayAddress } from "./walletHelper";
+import { formatDisplayAddress } from "./walletHelper.tsx";
 import { useMemo, useState } from "react";
 
 type WalletButtonUIProps = {

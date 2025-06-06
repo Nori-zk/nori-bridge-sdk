@@ -1,6 +1,6 @@
 import React from "react";
 import { toast as sonnerToast } from "sonner";
-import Toast, { ToastProps } from "@/components/ui/Toast/Toast";
+import Toast, { ToastProps } from "@/components/ui/Toast/Toast.tsx";
 
 type ToastType = "error" | "notification";
 

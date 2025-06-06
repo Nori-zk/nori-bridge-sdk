@@ -1,14 +1,14 @@
 "use client";
-import WalletButton from "@/components/ui/WalletButton/WalletButton";
+import WalletButton from "@/components/ui/WalletButton/WalletButton.tsx";
 import { FaArrowRight } from "react-icons/fa";
-import TextInput from "../ui/TextInput";
+import TextInput from "../ui/TextInput.tsx";
 import { useEffect, useState } from "react";
-import { progressSteps } from "@/static_data";
-import ProgressTracker from "../ui/ProgressTracker";
-import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider";
+import { progressSteps } from "@/static_data.ts";
+import ProgressTracker from "../ui/ProgressTracker.tsx";
+import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
 import { useAccount } from "wagmina";
-import { formatDisplayAddress } from "@/helpers/walletHelper";
-import { createEcdsaCredential } from "@/lib/ecdsa-credential";
+import { formatDisplayAddress } from "@/helpers/walletHelper.tsx";
+import { createEcdsaCredential } from "@/lib/ecdsa-credential.ts";
 
 type BridgeControlCardProps = {
   title: string;
