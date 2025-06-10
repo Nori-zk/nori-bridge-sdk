@@ -1,14 +1,15 @@
 "use client";
 import WalletButton from "@/components/ui/WalletButton/WalletButton.tsx";
 import { FaArrowRight } from "react-icons/fa";
-import TextInput from "../ui/TextInput.tsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { progressSteps } from "@/static_data.ts";
 import ProgressTracker from "../ui/ProgressTracker.tsx";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
 import { useAccount } from "wagmina";
 import { formatDisplayAddress } from "@/helpers/walletHelper.tsx";
 import { createEcdsaCredential } from "@/lib/ecdsa-credential.ts";
+import { PublicKey } from "o1js";
+import { useToast } from "@/helpers/useToast.tsx";
 
 type BridgeControlCardProps = {
   title: string;
@@ -21,13 +22,23 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
   const {
     isConnected: ethConnected,
     displayAddress: ethDisplayAddress,
-    // signMessage,
-    // lockTokens,
-    // getLockedTokens,
+    signMessageForEcdsa,
   } = useMetaMaskWallet();
   const [displayProgressSteps, setDisplayProgressSteps] = useState(false);
   const { isConnected: minaConnected, address: minaAddress } = useAccount();
-  const [isMounted, setIsMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [message, setMessage] = useState<string>("abc");
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [credential, setCredential] = useState<string | undefined>();
+
+  const { connector } = useAccount();
+
+  const rawToast = useToast({
+    type: "error",
+    title: "Error",
+    description: "",
+  });
+  const toast = useRef(rawToast);
 
   useEffect(() => {
     setIsMounted(true);
@@ -41,6 +52,64 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
       ? formatDisplayAddress(minaAddress ?? "") || "Connect Wallet"
       : "Connect Wallet"
     : "Connect Wallet";
+
+  const handleCreateCredential = async () => {
+    setIsProcessing(true);
+    try {
+      const { signature, walletAddress, hashedMessage } =
+        await signMessageForEcdsa(message);
+      const cred = await createEcdsaCredential(
+        message,
+        PublicKey.fromBase58(minaAddress ?? ""),
+        signature,
+        walletAddress
+      );
+      toast.current({
+        type: "notification",
+        title: "Success",
+        description: "Credential created successfully!",
+      });
+      setCredential(cred);
+    } catch (error) {
+      console.error("Error creating credential:", error);
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Failed to create credential. Please try again.",
+      });
+      setCredential(undefined);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleStoreCredential = async () => {
+    setIsProcessing(true);
+    try {
+      if (connector && credential) {
+        const provider = await connector.getProvider();
+        console.log("Provider:", provider);
+        if (provider) {
+          // @ts-ignore
+          await provider.request<"mina_storePrivateCredential">({
+            method: "mina_storePrivateCredential",
+            params: [JSON.parse(credential)],
+          });
+        }
+      }
+      setCredential(undefined);
+    } catch (error) {
+      console.error("Error creating credential:", error);
+      toast.current({
+        type: "error",
+        title: "Error",
+        description: "Failed to create credential. Please try again.",
+      });
+      setCredential(undefined);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div
@@ -89,7 +158,12 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
             />
           </div>
           <div className="flex justify-center mt-6">
-            <TextInput id={"amount-input"} onChange={() => {}} />
+            {/* <TextInput
+              id={"message-input"}
+              onChange={(e) => setMessage(e.target.value)}
+              value={message}
+              placeholder="Enter message to sign"
+            /> */}
           </div>
           <>
             {!ethConnected ? (
@@ -100,42 +174,32 @@ const BridgeControlCard = (props: BridgeControlCardProps) => {
                 {"Connect Wallet"}
               </button>
             ) : (
-              <div className="w-full flex ">
-                {/* <button
-                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
-                  onClick={async () => {
-                    await signMessage();
-                  }}
-                >
-                  {"Sign"}
-                </button>
+              <div className="w-full flex">
                 <button
                   className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
                   onClick={async () => {
-                    await lockTokens();
+                    await handleCreateCredential();
                   }}
+                  disabled={isProcessing}
                 >
-                  {"Lock Tokens"}
-                </button>
-                <button
-                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
-                  onClick={async () => {
-                    await getLockedTokens();
-                  }}
-                >
-                  {"Get Locked Tokens"}
-                </button> */}
-                <button
-                  className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
-                  onClick={async () => {
-                    await createEcdsaCredential("abc");
-                  }}
-                >
-                  {"Create Credential"}
+                  {isProcessing ? "Processing..." : "Create Credential"}
                 </button>
               </div>
             )}
           </>
+          {credential !== undefined && (
+            <div className="w-full flex">
+              <button
+                className="mt-6 w-full text-white rounded-lg px-4 py-3 border-white border-[1px]"
+                onClick={async () => {
+                  await handleStoreCredential();
+                }}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Processing..." : "Store Credential"}
+              </button>
+            </div>
+          )}
 
           {ethConnected && minaConnected && (
             <div>

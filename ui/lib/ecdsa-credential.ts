@@ -1,15 +1,18 @@
 import { Credential, DynamicBytes } from "mina-attestations";
 import { EcdsaEthereum } from "mina-attestations/imported";
-import { PrivateKey, Bytes } from "o1js";
-import { id, Wallet } from "ethers";
+import { PublicKey } from "o1js";
 
 const maxMessageLength = 32;
 const proofsEnabled = false;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
 
-export async function createEcdsaCredential(message: string): Promise<unknown> {
+export async function createEcdsaCredential(
+  message: string,
+  minaPubKey: PublicKey,
+  signature: string,
+  signerAddress: string
+): Promise<string> {
   try {
-    // Prepare ECDSA credential
     await EcdsaEthereum.compileDependencies({
       maxMessageLength,
       proofsEnabled,
@@ -18,37 +21,23 @@ export async function createEcdsaCredential(message: string): Promise<unknown> {
       maxMessageLength,
     });
     await EcdsaCredential.compile({ proofsEnabled });
-
-    // Wallets
-    const { publicKey: minaPubKey } = PrivateKey.randomKeypair();
-    const signer = new Wallet(id("test"));
-
-    // Signature
-    const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
-    const hashMessage = (msg: string) => parseHex(id(msg));
-    const sig = await signer.signMessage(hashMessage(message));
-
-    // Create credential
-    const { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
+    const { signature: parsedSignature, parityBit } =
+      EcdsaEthereum.parseSignature(signature);
     const credential = await EcdsaCredential.create({
       owner: minaPubKey,
       publicInput: {
-        signerAddress: EcdsaEthereum.parseAddress(signer.address),
+        signerAddress: EcdsaEthereum.parseAddress(signerAddress),
       },
       privateInput: {
         message: Message.fromString(message),
-        signature,
+        signature: parsedSignature,
         parityBit,
       },
     });
 
-    // Log the credential
-    console.log(
-      "✅ created credential",
-      Credential.toJSON(credential).slice(0, 1000) + "..."
-    );
+    const credentialJson = Credential.toJSON(credential);
 
-    return credential;
+    return credentialJson;
   } catch (error) {
     console.error("Error creating ECDSA credential:", error);
     throw error;
