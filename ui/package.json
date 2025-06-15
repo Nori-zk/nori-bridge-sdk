@@ -29,6 +29,7 @@
     "o1js": "^2.3.0",
     "react": "^18",
     "react-dom": "^18",
+    "react-hook-form": "^7.58.0",
     "react-icons": "^5.5.0",
     "sonner": "^2.0.1",
     "vimina": "https://pkg.pr.new/DeMonkeyCoder/vimina@main",
