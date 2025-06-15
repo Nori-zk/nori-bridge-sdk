@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useContext, useReducer, useState } from "react";
 import {
   progressReducer,
   initialState,
@@ -9,6 +9,8 @@ import { ProgressState, ProgressAction } from "@/types/types.ts";
 interface ProgressContextType {
   state: ProgressState;
   dispatch: React.Dispatch<ProgressAction>;
+  setCredential: React.Dispatch<React.SetStateAction<string | undefined>>;
+  credential: string | undefined;
 }
 
 const ProgressContext = createContext<ProgressContextType | undefined>(
@@ -29,8 +31,17 @@ export const ProgressProvider = ({
   children: React.ReactNode;
 }) => {
   const [state, dispatch] = useReducer(progressReducer, initialState);
+  const [credential, setCredential] = useState<string | undefined>(undefined);
+
+  const value = {
+    state,
+    dispatch,
+    setCredential,
+    credential,
+  };
+
   return (
-    <ProgressContext.Provider value={{ state, dispatch }}>
+    <ProgressContext.Provider value={value}>
       {children}
     </ProgressContext.Provider>
   );
