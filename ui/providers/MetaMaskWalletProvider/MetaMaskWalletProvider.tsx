@@ -31,7 +31,7 @@ interface MetaMaskWalletContextType {
   signMessage: () => Promise<void>;
   signMessageForEcdsa: (message: string) => Promise<SignMessageResult>;
   bridgeOperator: () => Promise<void>;
-  lockTokens: () => Promise<void>;
+  lockTokens: (amount: number) => Promise<void>;
   getLockedTokens: () => Promise<void>;
 }
 
@@ -216,34 +216,37 @@ export const MetaMaskWalletProvider = ({
     }
   }, [contract, toast]);
 
-  const lockTokens = useCallback(async () => {
-    if (!contract) {
-      toast.current({
-        type: "error",
-        title: "Error",
-        description: "Please connect wallet first.",
-      });
-      return;
-    }
-    try {
-      const tx = await contract.lockTokens({
-        value: ethers.parseEther("0.0000000000000001"),
-      });
-      await tx.wait();
-      toast.current({
-        type: "notification",
-        title: "Success",
-        description: "Tokens locked successfully!",
-      });
-    } catch (error) {
-      console.error("Error calling lockTokens:", error);
-      toast.current({
-        type: "error",
-        title: "Error",
-        description: "Error locking tokens.",
-      });
-    }
-  }, [contract, toast]);
+  const lockTokens = useCallback(
+    async (amount: number) => {
+      if (!contract) {
+        toast.current({
+          type: "error",
+          title: "Error",
+          description: "Please connect wallet first.",
+        });
+        return;
+      }
+      try {
+        const tx = await contract.lockTokens({
+          value: ethers.parseEther(amount.toString()),
+        });
+        await tx.wait();
+        toast.current({
+          type: "notification",
+          title: "Success",
+          description: "Tokens locked successfully!",
+        });
+      } catch (error) {
+        console.error("Error calling lockTokens:", error);
+        toast.current({
+          type: "error",
+          title: "Error",
+          description: "Error locking tokens.",
+        });
+      }
+    },
+    [contract, toast]
+  );
 
   const getLockedTokens = useCallback(async () => {
     if (!contract || !walletAddress) {
