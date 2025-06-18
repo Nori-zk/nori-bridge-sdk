@@ -1,4 +1,4 @@
-import { ProgressTrackerStepProps } from "./components/ui/ProgressTrackerStep";
+import { ProgressTrackerStepProps } from "@/components/ui/ProgressTrackerStep.tsx";
 
 //progress steps
 export const progressSteps = [

@@ -7,6 +7,9 @@ const __dirname = path.dirname(__filename);
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  experimental: {
+    esmExternals: true,
+  },
   webpack(config, { isServer }) {
     if (!isServer) {
       config.resolve.alias = {

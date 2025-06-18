@@ -34,7 +34,7 @@ export default function Home() {
         <div className="flex w-full justify-center relative">
           <BottomShadows
             className="absolute bottom-[-100px] scale-[0.9]"
-            alt="BottomShadows"
+            title="BottomShadows"
           />
         </div>
       </div>

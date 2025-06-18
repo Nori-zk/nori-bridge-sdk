@@ -1,5 +1,4 @@
 "use client";
-
 import TextInput from "@/components/ui/TextInput.tsx";
 import { useMetaMaskWallet } from "@/providers/MetaMaskWalletProvider/MetaMaskWalletProvider.tsx";
 import { useProgress } from "@/providers/ProgressProvider/ProgressProvider.tsx";
@@ -22,7 +21,7 @@ const LockTokens = () => {
   const onSubmit = async (data: FormValues) => {
     try {
       const amount = parseFloat(data.amount);
-      if (!isNaN(amount) && amount >= 0.00000001) {
+      if (!isNaN(amount) && amount >= 0.004) {
         await lockTokens(amount);
         dispatch({
           type: "NEXT_STEP",
@@ -51,12 +50,12 @@ const LockTokens = () => {
               message: "Must be a valid number",
             },
             min: {
-              value: 0.0001,
-              message: "Must be at least 0.0001",
+              value: 0.004,
+              message: "Must be at least 0.004",
             },
 
             validate: (value) =>
-              parseFloat(value) >= 0.0001 || "Must be at least 0.0001",
+              parseFloat(value) >= 0.004 || "Must be at least 0.004",
           })}
         />
         {errors.amount && (

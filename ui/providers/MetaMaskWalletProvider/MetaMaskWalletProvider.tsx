@@ -13,7 +13,7 @@ import { BrowserProvider, Contract, ethers, Signer } from "ethers";
 import { useToast } from "@/helpers/useToast.tsx";
 import { openExternalLink } from "@/helpers/navigation.tsx";
 import { formatDisplayAddress } from "@/helpers/walletHelper.tsx";
-import contractABI from "@/contractABI.json";
+import contractABI from "@/contractABI.json" with { type: "json" };
 
 interface SignMessageResult {
   signature: string;

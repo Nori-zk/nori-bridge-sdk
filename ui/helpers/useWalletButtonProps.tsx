@@ -52,7 +52,7 @@ export function useWalletButtonProps(
       bgClass: eth.isConnected ? "bg-connectedGreen" : "bg-white",
       textClass: eth.isConnected ? "text-white" : "text-black",
       displayAddress: eth.isConnected ? eth.displayAddress ?? content : content,
-      logo: <Ethereum alt="Ethereum logo" className="scale-[0.65]" />,
+      logo: <Ethereum title="Ethereum logo" className="scale-[0.65]" />,
       onClick: () => (eth.isConnected ? eth.disconnect() : eth.connect()),
       isConnecting: false,
     };
@@ -63,7 +63,7 @@ export function useWalletButtonProps(
       displayAddress: isConnected
         ? formatDisplayAddress(address ?? "") || content
         : content,
-      logo: <Mina alt="Mina logo" className="scale-[0.65]" />,
+      logo: <Mina title="Mina logo" className="scale-[0.65]" />,
       onClick: () => (isConnected ? disconnect() : handleConnect()),
       isConnecting: isConnectingWalletOpen,
     };

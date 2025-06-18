@@ -1,9 +1,9 @@
-import Providers from "@/providers/Providers";
+import Providers from "@/providers/Providers.tsx";
 import "../styles/globals.css";
 import { Toaster } from "sonner";
 
 export const metadata = {
-  title: "Mina zkApp UI",
+  title: "Nori zkApp UI",
   description: "built with o1js",
   icons: {
     icon: "/assets/favicon.png",
