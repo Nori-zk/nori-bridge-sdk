@@ -1,19 +1,23 @@
-"use client";
-
 import React from "react";
 import { toast as sonnerToast } from "sonner";
-import Toast, { ToastProps } from "@/components/ui/Toast";
+import Toast, { ToastProps } from "@/components/ui/Toast/Toast.tsx";
 
-export function toast(toast: Omit<ToastProps, "id">) {
-  return sonnerToast.custom((id) => (
-    <Toast
-      id={id}
-      title={toast.title}
-      description={toast.description}
-      button={{
-        label: toast.button.label,
-        onClick: toast.button.onClick,
-      }}
-    />
-  ));
+type ToastType = "error" | "notification";
+
+type ToastOptions = Omit<ToastProps, "id">;
+
+export function useToast(defaultOptions?: ToastOptions) {
+  return (options?: ToastOptions) => {
+    const mergedOptions = {
+      type: "notification" as ToastType,
+      title: "Default Title", // Fallback for title
+      description: "Default Description", // Fallback for description
+
+      ...(options || defaultOptions || {}),
+    };
+
+    return sonnerToast.custom((id) => <Toast id={id} {...mergedOptions} />, {
+      duration: 5000,
+    });
+  };
 }

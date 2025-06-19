@@ -14,3 +14,8 @@ target
 keys
 
 cache
+
+# Autrace generate files
+output.md
+output.svg
+output.png
