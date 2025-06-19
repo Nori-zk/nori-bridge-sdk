@@ -31,6 +31,18 @@ export default function Home() {
             {ethConnected && minaConnected && <ScrollingBridge />}
           </div>
         </div>
+        <div className="text-white/30 text-xs m-2 flex justify-end z-10">
+          Powered by{" "}
+          <a
+            href="https://www.coingecko.com/en/api"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="z-10 mx-1 hover:underline"
+          >
+            CoinGecko API
+          </a>
+        </div>
         <div className="flex w-full justify-center relative">
           <BottomShadows
             className="absolute bottom-[-100px] scale-[0.9]"
