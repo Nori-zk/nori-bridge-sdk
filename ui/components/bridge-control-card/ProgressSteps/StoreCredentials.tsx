@@ -25,10 +25,10 @@ const StoreCredentials = () => {
         console.log("Provider:", provider);
         if (provider) {
           // @ts-ignore
-          // await provider.request<"mina_storePrivateCredential">({
-          //   method: "mina_storePrivateCredential",
-          //   params: [JSON.parse(credential)],
-          // });
+          await provider.request<"mina_storePrivateCredential">({
+            method: "mina_storePrivateCredential",
+            params: [JSON.parse(credential)],
+          });
         }
       }
       setCredential(undefined);

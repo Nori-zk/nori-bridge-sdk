@@ -2,7 +2,7 @@ import { Credential, DynamicBytes } from "mina-attestations";
 import { EcdsaEthereum } from "mina-attestations/imported";
 import { PublicKey } from "o1js";
 
-const maxMessageLength = 32;
+const maxMessageLength = 3; // not maximum but actual length of the message
 const proofsEnabled = false;
 const Message = DynamicBytes({ maxLength: maxMessageLength });
 
