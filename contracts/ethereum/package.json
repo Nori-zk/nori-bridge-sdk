@@ -6,6 +6,7 @@
   "scripts": {
     "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile",
     "test": "ETH_NETWORK=hardhat hardhat test",
+    "test-ci": "ETH_NETWORK=hardhat hardhat test",
     "clean": "hardhat clean",
     "deploy": "dotenv -e .env -- sh -c 'npx hardhat run bin/deploy.ts --network $ETH_NETWORK'",
     "test:lock": "dotenv -e .env -- sh -c 'npx hardhat run bin/lock.ts --network $ETH_NETWORK'"
