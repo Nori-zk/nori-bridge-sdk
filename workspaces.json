@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "projects": {
+    "o1js-zk-programs": "o1js-zk-programs",
+    "eth-processor": "contracts/mina/eth-processor",
+    "minter": "contracts/mina/minter",
+    "ethereum": "contracts/ethereum"
+  }
+}

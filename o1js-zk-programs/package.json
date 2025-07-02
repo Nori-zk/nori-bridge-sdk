@@ -15,12 +15,10 @@
         "access": "public"
     },
     "type": "module",
-    "main": "build/index.js",
-    "types": "build/index.d.ts",
+    "main": "src/index.js",
+    "types": "src/index.d.ts",
     "scripts": {
         "clean": "rimraf build",
-        "build": "npm run clean && tsc",
-        "buildw": "tsc --watch",
         "coverage": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage --runInBand",
         "format": "prettier --write --ignore-unknown **/*",
         "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --runInBand --forceExit",

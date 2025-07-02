@@ -10,7 +10,7 @@
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noUncheckedIndexedAccess": true,
-    "outDir": "target",
+    "outDir": "build",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strictBindCallApply": true,

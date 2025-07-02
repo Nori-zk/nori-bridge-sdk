@@ -1,5 +1,5 @@
 {
-    "name": "@nori-zk/ethprocessor",
+    "name": "@nori-zk/contracts-mina-ethprocessor",
     "version": "4.0.5",
     "description": "zkApp for verifying SP1 Helios Nori proof and storing latest execution state root on Mina",
     "author": "Nori",
@@ -15,8 +15,8 @@
         "access": "public"
     },
     "type": "module",
-    "main": "build/index.js",
-    "types": "build/index.d.ts",
+    "main": "src/index.js",
+    "types": "src/index.d.ts",
     "scripts": {
         "clean": "rimraf build",
         "build": "npm run clean && tsc",

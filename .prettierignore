@@ -12,3 +12,6 @@ coverage
 
 # Misc
 LICENSE
+
+/.nx/cache
+/.nx/workspace-data

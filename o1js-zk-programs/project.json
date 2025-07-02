@@ -1,0 +1,16 @@
+{
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{projectRoot}/build"],
+      "options": {
+        "main": "o1js-zk-programs/src/index.ts",
+        "tsConfig": "o1js-zk-programs/tsconfig.json",
+        "outputPath": "o1js-zk-programs/build",
+        "assets": [
+          "o1js-zk-programs/README.md"
+        ]
+      }
+    }
+  }
+}

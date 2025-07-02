@@ -1,5 +1,7 @@
 # NodeJS
 build
+build/package.json
+
 node_modules
 coverage
 

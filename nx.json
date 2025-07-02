@@ -1,0 +1,33 @@
+{
+    "$schema": "./node_modules/nx/schemas/nx-schema.json",
+    "targetDefaults": {
+        "build": {
+            "dependsOn": ["^build"],
+            "outputs": ["{projectRoot}/build"],
+            "cache": true
+        },
+        "clean": {
+            "executor": "@nx/workspace:remove",
+            "options": {
+                "path": "{projectRoot}/build"
+            }
+        },
+        "lint": {
+            "cache": true
+        }
+    },
+    "plugins": [
+        {
+            "plugin": "@nx/eslint/plugin",
+            "options": {
+                "targetName": "eslint:lint"
+            }
+        },
+        {
+            "plugin": "@nx/jest/plugin",
+            "options": {
+                "targetName": "jest:test"
+            }
+        }
+    ]
+}

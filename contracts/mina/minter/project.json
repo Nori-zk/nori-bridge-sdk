@@ -1,0 +1,16 @@
+{
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{projectRoot}/build"],
+      "options": {
+        "main": "contracts/mina/minter/src/index.ts",
+        "tsConfig": "contracts/mina/minter/tsconfig.json",
+        "outputPath": "contracts/mina/minter/build",
+        "assets": [
+          "contracts/mina/minter/README.md"
+        ]
+      }
+    }
+  }
+}

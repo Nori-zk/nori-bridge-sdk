@@ -54,7 +54,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         const result = await proofSubmitter.submit(ethProof.proof);
 
         // Wait for finalization
-        await wait(result.txId, process.env.MINA_RPC_NETWORK_URL!);
+        await wait(result.txId, process.env.MINA_RPC_NETWORK_URL as string);
 
         logger.log('Awaited finalization succesfully.');
     });
@@ -139,7 +139,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         logger.log(`txHash: ${result0.txHash}`);
 
         // Wait for finalization
-        await wait(result0.txId, process.env.MINA_RPC_NETWORK_URL!);
+        await wait(result0.txId, process.env.MINA_RPC_NETWORK_URL as string);
 
         logger.log(
             `Running Example 3 -------------------------------------------------------`

@@ -44,7 +44,7 @@ export async function compileAndVerifyContracts(logger: Logger) {
         logger.log('Contracts compiled.');
         return { ethProcessorVerificationKey };
     } catch (err) {
-        console.log((err as any).stack);
+        console.log((err as unknown as Error).stack);
         logger.error(`Error compiling contracts:\n${String(err)}`);
         throw err;
     }

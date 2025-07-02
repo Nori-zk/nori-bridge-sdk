@@ -1,5 +1,5 @@
 {
-  "name": "contracts",
+  "name": "@nori-zk/contracts-mina-minter",
   "version": "0.1.0",
   "description": "",
   "author": "",
@@ -11,9 +11,10 @@
     "zkapp"
   ],
   "type": "module",
-  "main": "target/src/index.js",
-  "types": "target/src/index.d.ts",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
   "scripts": {
+    "clean": "rimraf build",
     "build": "tsc",
     "buildw": "tsc --watch",
     "coverage": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage",
@@ -22,7 +23,7 @@
     "test-ci": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js",
     "testw": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --watch",
     "lint": "npx eslint src/* --fix",
-    "attest": "tsc && node --experimental-vm-modules target/src/attest.js"
+    "attest": "tsc && node --experimental-vm-modules build/src/attest.js"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
@@ -35,7 +36,8 @@
     "jest": "^29.7.0",
     "prettier": "^2.3.2",
     "ts-jest": "^29.2.4",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "rimraf": "^6.0.1"
   },
   "peerDependencies": {
     "o1js": "^2.3.0"

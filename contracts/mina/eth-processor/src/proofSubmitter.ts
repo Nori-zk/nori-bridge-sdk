@@ -13,6 +13,7 @@ import {
     Bytes32FieldPair,
 } from '@nori-zk/o1js-zk-programs';
 import { ethProcessorVkHash } from './integrity/EthProcessor.VKHash.js';
+import { SendZkAppResponse } from 'o1js/dist/node/lib/mina/v1/graphql.js';
 
 const logger = new Logger('EthProcessorSubmitter');
 
@@ -196,8 +197,8 @@ export class MinaEthProcessorSubmitter {
 
             const tx = await updateTx.sign([this.senderPrivateKey]).send();
             logger.log(`Transaction sent to '${this.network}'.`);
-            const txId = tx.data!.sendZkapp.zkapp.id;
-            const txHash = tx.data!.sendZkapp.zkapp.hash;
+            const txId = (tx.data as SendZkAppResponse).sendZkapp.zkapp.id;
+            const txHash = (tx.data as SendZkAppResponse).sendZkapp.zkapp.hash;
             if (!txId) {
                 throw new Error('txId is undefined');
             }

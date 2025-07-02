@@ -1,0 +1,17 @@
+{
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{projectRoot}/build"],
+      "options": {
+        "main": "contracts/mina/eth-processor/src/index.ts",
+        "tsConfig": "contracts/mina/eth-processor/tsconfig.json",
+        "outputPath": "contracts/mina/eth-processor/build",
+        "assets": [
+          "contracts/mina/eth-processor/README.md"
+        ],
+        "generatePackageJson": true
+      }
+    }
+  }
+}
