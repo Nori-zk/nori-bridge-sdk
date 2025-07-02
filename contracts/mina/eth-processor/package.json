@@ -56,7 +56,7 @@
         "node": ">=22.0.0"
     },
     "dependencies": {
-        "@nori-zk/o1js-zk-programs": "file:../../../o1js-zk-programs",
+        "@nori-zk/o1js-zk-programs": "*",
         "@nori-zk/proof-conversion": "^0.5.9",
         "dotenv": "^16.4.7",
         "mina-attestations": "^0.5.2"
