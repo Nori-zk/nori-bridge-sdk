@@ -19,7 +19,11 @@ import {
   UInt8,
   VerificationKey,
 } from 'o1js';
-import { FungibleTokenAdmin, FungibleTokenAdminBase } from './WETHAdmin.js';
+// import { FungibleTokenAdmin, FungibleTokenAdminBase } from './WETHAdmin.js';
+import {
+  FungibleTokenAdminBase,
+  NoriTokenController,
+} from './NoriTokenController.js';
 
 interface FungibleTokenDeployProps extends Exclude<DeployArgs, undefined> {
   /** The token symbol. */
@@ -59,7 +63,7 @@ export class FungibleToken extends TokenContract {
   // If you want to have a custom contract, overwrite this by setting FungibleToken.AdminContract to
   // your own implementation of FungibleTokenAdminBase.
   static AdminContract: new (...args: any) => FungibleTokenAdminBase =
-    FungibleTokenAdmin;
+    NoriTokenController;
 
   readonly events = {
     SetAdmin: SetAdminEvent,
@@ -82,6 +86,7 @@ export class FungibleToken extends TokenContract {
         : Permissions.VerificationKey.impossibleDuringCurrentVersion(),
       setPermissions: Permissions.impossible(),
       access: Permissions.proof(),
+      editState: Permissions.proof(),
     });
   }
 

@@ -1,5 +1,5 @@
-import { Add } from './Add.js';
-import { FungibleToken } from './token/WETH.js';
-import { FungibleTokenAdmin } from './token/WETHAdmin.js';
+import { FungibleToken } from './TokenBase.js';
+import { NoriStorageInterface } from './NoriStorageInterface.js';
+import { NoriTokenController } from './NoriTokenController.js';
 
-export { Add, FungibleToken, FungibleTokenAdmin };
+export { FungibleToken, NoriStorageInterface, NoriTokenController };

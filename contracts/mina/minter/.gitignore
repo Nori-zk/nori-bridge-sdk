@@ -12,3 +12,10 @@ target
 
 # Never commit keys to Git!
 keys
+
+cache
+
+# Autrace generate files
+output.md
+output.svg
+output.png

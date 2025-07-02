@@ -1,27 +1,19 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('@ts-jest/dist/types').InitialOptionsTsJest} */
 export default {
   verbose: true,
   preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   testTimeout: 1_000_000,
-  extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.ts$': [
-      'ts-jest',
-      {
-        useESM: true,
-        tsconfig: 'tsconfig.json',
-      },
-    ],
+    '^.+\\.(t)s$': ['ts-jest', { useESM: true }],
+    '^.+\\.(j)s$': 'babel-jest',
   },
   resolver: '<rootDir>/jest-resolver.cjs',
   transformIgnorePatterns: [
-    '<rootDir>/node_modules/(?!(mina-attestations|tslib|o1js/node_modules/tslib))',
+    '<rootDir>/node_modules/(?!(tslib|o1js/node_modules/tslib))',
   ],
-  modulePathIgnorePatterns: ['<rootDir>/build/', '<rootDir>/target/'],
+  modulePathIgnorePatterns: ['<rootDir>/build/'],
   moduleNameMapper: {
     '^(\\.{1,2}/.+)\\.js$': '$1',
-    '^mina-attestations/imported$':
-      '<rootDir>/node_modules/mina-attestations/dist/imported.js',
   },
 };
