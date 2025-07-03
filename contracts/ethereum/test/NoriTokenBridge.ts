@@ -113,7 +113,7 @@ describe('NoriTokenBridge', function () {
                 .to.emit(tokenBridge, 'TokensLocked')
                 .withArgs(
                     owner.address,
-                    attestationHashBigInt.toString(),
+                    attestationHashHex,
                     sendValue,
                     blockTimestamp
                 );
@@ -160,7 +160,7 @@ describe('NoriTokenBridge', function () {
                 .to.emit(tokenBridge, 'TokensLocked')
                 .withArgs(
                     owner.address,
-                    attestationHashHex,
+                    attestationHashBigInt,
                     sendValue,
                     blockTimestamp
                 );
