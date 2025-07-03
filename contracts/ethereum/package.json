@@ -1,24 +1,24 @@
 {
-  "name": "nori-contracts",
-  "version": "0.1.0",
-  "description": "NoriTokenBridge contract",
-  "main": "index.js",
-  "scripts": {
-    "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile",
-    "test": "ETH_NETWORK=hardhat hardhat test",
-    "test-ci": "ETH_NETWORK=hardhat hardhat test",
-    "clean": "hardhat clean",
-    "deploy": "dotenv -e .env -- sh -c 'npx hardhat run bin/deploy.ts --network $ETH_NETWORK'",
-    "test:lock": "dotenv -e .env -- sh -c 'npx hardhat run bin/lock.ts --network $ETH_NETWORK'"
-  },
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "dotenv-cli": "^8.0.0",
-    "hardhat": "^2.24.0"
-  },
-  "dependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "dotenv": "^16.5.0"
-  }
+    "name": "nori-contracts",
+    "version": "0.1.0",
+    "description": "NoriTokenBridge contract",
+    "main": "index.js",
+    "scripts": {
+        "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile",
+        "test": "ETH_NETWORK=hardhat hardhat test",
+        "test-ci": "ETH_NETWORK=hardhat hardhat test",
+        "clean": "hardhat clean",
+        "deploy": "dotenv -e .env -- sh -c 'npx hardhat run bin/deploy.ts --network $ETH_NETWORK'",
+        "test:lock": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK lockTokens \"$@\"' --"
+    },
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "dotenv-cli": "^8.0.0",
+        "hardhat": "^2.24.0"
+    },
+    "dependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "dotenv": "^16.5.0"
+    }
 }
