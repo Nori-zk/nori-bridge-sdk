@@ -1,4 +1,4 @@
-export { compileAndVerifyContracts, decodeConsensusMptProof } from './utils.js';
+export { compileAndVerifyContracts, decodeConsensusMptProof, fieldToHexBE, fieldToBigIntBE } from './utils.js';
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
 export { EthVerifier, EthProof, EthInput } from './ethVerifier.js';
 export * from './types.js';

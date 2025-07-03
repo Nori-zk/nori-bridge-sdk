@@ -3,19 +3,19 @@ pragma solidity ^0.8.28;
 
 contract NoriTokenBridge {
     address public bridgeOperator;
-    mapping(address => uint256) public lockedTokens;
+    mapping(address => mapping(uint256 => uint256)) public lockedTokens; // address => attestationHash => amount
 
-    event TokensLocked(address indexed user, uint256 amount, uint256 when);
+    event TokensLocked(address indexed user, uint256 attestationHash, uint256 amount, uint256 when);
 
     constructor() {
         bridgeOperator = msg.sender;
     }
 
-    function lockTokens() public payable {
+    function lockTokens(uint256 attestationHash) public payable {
         require(msg.value > 0, "You must send some Ether to lock");
 
-        lockedTokens[msg.sender] += msg.value;
+        lockedTokens[msg.sender][attestationHash] += msg.value;
 
-        emit TokensLocked(msg.sender, msg.value, block.timestamp);
+        emit TokensLocked(msg.sender, attestationHash, msg.value, block.timestamp);
     }
 }

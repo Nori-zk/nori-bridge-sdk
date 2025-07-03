@@ -2,9 +2,19 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Field, SmartContract, UInt64, UInt8 } from 'o1js';
 import { Logger, wordToBytes } from '@nori-zk/proof-conversion';
-import { EthVerifier } from './ethVerifier.js';
 import { PlonkProof, Bytes32, ZkProgram, CompilableZkProgram } from './types.js';
-import { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
+
+export function fieldToHexBE(field: Field) {
+    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesBE = bytesLE.reverse();
+    return `0x${bytesBE.map((byte) => byte.toBigInt().toString(16).padStart(2, '0')).join('')}`
+}
+
+export function fieldToBigIntBE(field: Field) {
+    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesBE = bytesLE.reverse();
+    return bytesBE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n)
+}
 
 // DEPRECATED
 export function padUInt64To32Bytes(num: UInt64): UInt8[] {
