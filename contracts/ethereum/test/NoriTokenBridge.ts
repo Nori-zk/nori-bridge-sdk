@@ -233,5 +233,56 @@ describe('NoriTokenBridge', function () {
             );
             expect(total).to.equal(value1 + value2);
         });
+
+        it('Manual slot calculation matches lockedTokens mapping', async function () {
+            const { tokenBridge, owner } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+
+            const value = hre.ethers.parseEther('1.0');
+            await tokenBridge.connect(owner).lockTokens(attestationHashBigInt, {
+                value,
+            });
+
+            const outerSlot = 1; // lockedTokens mapping is at slot 1
+
+            const paddedAddress = hre.ethers.zeroPadValue(owner.address, 32);
+            const slotAsBytes = hre.ethers.toBeArray(
+                hre.ethers.toQuantity(outerSlot)
+            );
+            const paddedSlot = hre.ethers.zeroPadValue(slotAsBytes, 32);
+            const packedOuter = hre.ethers.concat([paddedAddress, paddedSlot]);
+            const outerHash = hre.ethers.keccak256(packedOuter);
+
+            const attestationBytes = hre.ethers.toBeArray(
+                attestationHashBigInt
+            );
+            const paddedAttestation = hre.ethers.zeroPadValue(
+                attestationBytes,
+                32
+            );
+            const packedInner = hre.ethers.concat([
+                paddedAttestation,
+                outerHash,
+            ]);
+            const finalSlot = hre.ethers.keccak256(packedInner);
+
+            const raw = await hre.network.provider.send('eth_getStorageAt', [
+                tokenBridge.target,
+                finalSlot,
+                'latest',
+            ]);
+            const decoded = hre.ethers.toBigInt(raw);
+
+            const valueFromMapping = await tokenBridge.lockedTokens(
+                owner.address,
+                attestationHashBigInt
+            );
+
+            console.log('decoded', decoded);
+
+            expect(decoded).to.equal(valueFromMapping);
+            expect(decoded).to.equal(value);
+        });
     });
 });

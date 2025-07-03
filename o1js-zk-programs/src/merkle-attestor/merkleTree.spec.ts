@@ -12,16 +12,17 @@ import { Bytes20, Bytes32 } from '../types.js';
 import {
     buildLeavesNonProvable,
     dummyAddress,
+    dummyAttestation,
     dummyValue,
     nonProvableStorageSlotLeafHash,
 } from './testUtils.js';
 
 // Full Merkle lifecycle test using actual hashed leaves and leaf index
 function fullMerkleTest(
-    pairs: Array<[Bytes20, Bytes32]>,
+    triples: Array<[Bytes20, Bytes32, Bytes32]>,
     leafIndex: number
 ): void {
-    const leaves = buildLeavesNonProvable(pairs);
+    const leaves = buildLeavesNonProvable(triples);
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
     const zeros = getMerkleZeros(depth);
 
@@ -46,17 +47,18 @@ function fullMerkleTest(
 describe('Merkle Fixed Tests', () => {
     test('test_large_slots', () => {
         const n = 1000;
-        const pairs: Array<[Bytes20, Bytes32]> = [];
+        const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
         for (let i = 0; i < n; i++) {
-            pairs.push([dummyAddress(i), dummyValue(i)]);
+            triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
         }
-        fullMerkleTest(pairs, 543);
+        fullMerkleTest(triples, 543);
     });
 
     test('test_hash_storage_slot_basic', () => {
         const address = dummyAddress(1);
-        const value = dummyValue(2);
-        const leafHash = nonProvableStorageSlotLeafHash(address, value);
+        const attestation = dummyAttestation(2);
+        const value = dummyValue(3);
+        const leafHash = nonProvableStorageSlotLeafHash(address, attestation, value);
         expect(leafHash.equals(Field(0)).toBoolean()).toBe(false);
     });
 
@@ -76,12 +78,12 @@ describe('Merkle Fixed Tests', () => {
         for (let nLeaves = 0; nLeaves <= maxLeaves; nLeaves++) {
             console.log(`→ Testing with ${nLeaves} leaves`);
 
-            const pairs: Array<[Bytes20, Bytes32]> = [];
+            const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
             for (let i = 0; i < nLeaves; i++) {
-                pairs.push([dummyAddress(i), dummyValue(i)]);
+                triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
             }
 
-            const leaves = buildLeavesNonProvable(pairs);
+            const leaves = buildLeavesNonProvable(triples);
             console.log(
                 `   leaves ${leaves.map((l) =>
                     l.toJSON().split('\n').join(' ,')
@@ -157,15 +159,15 @@ describe('Merkle Fixed Tests', () => {
         const zeros = getMerkleZeros(maxDepth);
         console.timeEnd('01. getMerkleZeros');
 
-        console.time('02. Generate dummy pairs');
-        const pairs: Array<[Bytes20, Bytes32]> = [];
+        console.time('02. Generate dummy triples');
+        const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
         for (let i = 0; i < nLeaves; i++) {
-            pairs.push([dummyAddress(i), dummyValue(i)]);
+            triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
         }
-        console.timeEnd('02. Generate dummy pairs');
+        console.timeEnd('02. Generate dummy triples');
 
         console.time('03. buildLeaves');
-        const leaves = buildLeavesNonProvable(pairs);
+        const leaves = buildLeavesNonProvable(triples);
         console.timeEnd('03. buildLeaves');
 
         console.time('04. compute depth and padded size');

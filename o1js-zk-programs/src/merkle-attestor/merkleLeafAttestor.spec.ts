@@ -10,6 +10,7 @@ import {
 import {
     buildLeavesNonProvable,
     dummyAddress,
+    dummyAttestation,
     dummyValue,
     provableLeafContentsHash,
     ProvableLeafObject,
@@ -66,17 +67,18 @@ describe('Merkle Attestor Test', () => {
         for (let nLeaves = 0; nLeaves <= maxLeaves; nLeaves++) {
             console.log(`→ Testing with ${nLeaves} leaves`);
 
-            const pairs: Array<[Bytes20, Bytes32]> = [];
+            const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
             for (let i = 0; i < nLeaves; i++) {
-                pairs.push([dummyAddress(i), dummyValue(i)]);
+                triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
             }
 
             const leafObjects: ProvableLeafObject[] = [];
             for (let i = 0; i < nLeaves; i++) {
                 leafObjects.push(
                     new ProvableLeafObject({
-                        bytes20: pairs[i][0],
-                        bytes32: pairs[i][1],
+                        address: triples[i][0],
+                        attestation: triples[i][1],
+                        value: triples[i][2],
                     })
                 );
             }
@@ -89,7 +91,7 @@ describe('Merkle Attestor Test', () => {
                 )}`
             );
 
-            const rustLeaves = buildLeavesNonProvable(pairs);
+            const rustLeaves = buildLeavesNonProvable(triples);
 
             const { depth, paddedSize } =
                 computeMerkleTreeDepthAndSize(nLeaves);
