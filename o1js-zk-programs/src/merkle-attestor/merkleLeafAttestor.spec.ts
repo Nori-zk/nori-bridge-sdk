@@ -16,7 +16,6 @@ import {
     provableLeafContentsHash,
     ProvableLeafObject,
 } from './testUtils.js';
-import { bytesToWord } from '@nori-zk/proof-conversion/build/src/sha/utils.js';
 
 const logger = new Logger('TestMerkle');
 new LogPrinter('[TestEthProcessor]', [
@@ -51,7 +50,6 @@ describe('Merkle Attestor Test', () => {
         };
 
         console.log(slot);
-        
 
         const addr = Bytes20.fromHex(slot.slot_key_address.slice(2));
         const attestation = Bytes32.fromHex(
@@ -60,21 +58,15 @@ describe('Merkle Attestor Test', () => {
         const valuePad = slot.value.slice(2).padStart(64, '0');
         console.log('padded value', valuePad);
         const value = Bytes32.fromHex(valuePad);
-        //const value = Bytes32.fromHex(slot.value.slice(2).padStart(64, '0'));
 
         const hash = nonProvableStorageSlotLeafHash(addr, attestation, value);
 
         console.log(`Hash result big int: ${hash.toBigInt()}`);
-        //console.log(`Hash result hex: ${}`);
         console.log(`Hash result bytes: ${wordToBytes(hash, 32).map((byte)=>byte.toNumber())}`);
-        /*console.log('Poseidon leaf hash:', hash, bytesToWord(wordToBytes(hash, 32).reverse()).toBigInt(), hash.toBigInt());
-
-        console.log('arhhh', wordToBytes(hash, 32).map((byte)=>byte.toNumber()));
-        */
 
         const hash2 = provableLeafContentsHash(new ProvableLeafObject({address: addr, attestation, value}));
 
-        console.log('pois hash 2', hash2.toBigInt().toString());
+        console.log('Provable hash result', hash2.toBigInt().toString());
     });
 
     test('test_all_leaf_counts_and_indices_with_pipeline', async () => {

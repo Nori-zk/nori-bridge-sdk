@@ -51,7 +51,7 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
     const secondBytes = Bytes.from(secondFieldBytes);
     const thirdBytes = Bytes.from(thirdFieldBytes);
 
-    // implement little endian here instead...
+    // Little endian
     let firstField = new Field(0);
     let secondField = new Field(0);
     let thirdField = new Field(0);
