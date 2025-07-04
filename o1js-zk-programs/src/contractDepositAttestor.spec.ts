@@ -35,8 +35,16 @@ new LogPrinter('[TestEthProcessor]', [
 ]);
 
 describe('Contract Storage Slot Deposit Attestor Test', () => {
-    test('attestation hash calculation', () => {
+    test('attestation_hash_calculation', () => {
         const dummyAttestationField = new Field(101);
+        // Convert this field into words
+        let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
+        console.log('dummyAttestationHex', dummyAttestationHex);
+    });
+
+
+    test('attestation_hash_calculation_2', () => {
+        const dummyAttestationField = new Field(1000000500000000);
         // Convert this field into words
         let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
         console.log('dummyAttestationHex', dummyAttestationHex);

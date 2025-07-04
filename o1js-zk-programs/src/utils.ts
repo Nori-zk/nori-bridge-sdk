@@ -12,8 +12,6 @@ export function uint8ArrayToBigIntLE(bytes: Uint8Array): bigint {
     return bytes.reduceRight((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
 }
 
-// FIXME think about padding 
-
 export function fieldToHexBE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
