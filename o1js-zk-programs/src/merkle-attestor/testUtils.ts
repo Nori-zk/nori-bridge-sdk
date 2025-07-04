@@ -28,7 +28,7 @@ export function nonProvableStorageSlotLeafHash(
     value: Bytes32
 ): Field {
     const addrBytes = addr.toBytes();
-    const attBytes = attestation.toBytes().reverse();
+    const attBytes = attestation.toBytes();
     const valueBytes = value.toBytes();
 
     const firstFieldBytes = new Uint8Array(32);
@@ -42,17 +42,17 @@ export function nonProvableStorageSlotLeafHash(
     const thirdFieldBytes = new Uint8Array(32);
     thirdFieldBytes.set(valueBytes.slice(1, 32), 0); // remaining 31 bytes from value
 
-    /*console.log('firstFieldBytes', firstFieldBytes);
+    console.log('firstFieldBytes', firstFieldBytes);
     console.log('secondFieldBytes', secondFieldBytes);
-    console.log('thirdFieldBytes', thirdFieldBytes);*/
+    console.log('thirdFieldBytes', thirdFieldBytes);
 
     const firstField = Field.fromBytes(Array.from(firstFieldBytes));
     const secondField = Field.fromBytes(Array.from(secondFieldBytes));
     const thirdField = Field.fromBytes(Array.from(thirdFieldBytes));
 
-    /*console.log('firstField', firstField.toBigInt().toString());
+    console.log('firstField', firstField.toBigInt().toString());
     console.log('secondField', secondField.toBigInt().toString());
-    console.log('thirdField', thirdField.toBigInt().toString());*/
+    console.log('thirdField', thirdField.toBigInt().toString());
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }
@@ -74,7 +74,7 @@ export class ProvableLeafObject extends Struct({
 
 export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
     const addressBytes = leafContents.address.bytes; // UInt8[]
-    const attBytes = leafContents.attestation.bytes.reverse(); // UInt8[]
+    const attBytes = leafContents.attestation.bytes; // UInt8[]
     const valueBytes = leafContents.value.bytes; // UInt8[]
 
     /*Provable.asProver(() => {
@@ -122,10 +122,11 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
     const thirdBytes = Bytes.from(thirdFieldBytes);
 
     // Extract the first field (there should only ever be one here)
-    /*Provable.asProver(() => {
+    Provable.asProver(() => {
         Provable.log('firstBytes.toFields()', firstBytes.toFields());
         Provable.log('secondBytes.toFields()', secondBytes.toFields());
-    });*/
+        Provable.log('thirdBytes.toFields()', thirdBytes.toFields());
+    });
 
     let firstField = new Field(0);
     let secondField = new Field(0);
@@ -138,11 +139,11 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
         thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
     }
 
-    /*Provable.asProver(() => {
+    Provable.asProver(() => {
         Provable.log('(provable)firstField', firstField.toBigInt());
         Provable.log('(provable)secondField', secondField.toBigInt());
         Provable.log('(provable)thirdField', thirdField.toBigInt());
-    });*/
+    });
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }

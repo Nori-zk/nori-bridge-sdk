@@ -45,12 +45,13 @@ describe('Merkle Attestor Test', () => {
         const slot = {
             slot_key_address: '0xc7e910807dd2e3f49b34efe7133cfb684520da69',
             slot_nested_key_attestation_hash:
-                '0x6500000000000000000000000000000000000000000000000000000000000000',
-            value: '0x2ba7def3000',
+                '0x2f000000000000000000000000000000000000000000000000038d7ec293e52f',
+            value: '0xe8d4a51000',
         };
 
         console.log(slot);
 
+        // FIXME probably all need to be padded
         const addr = Bytes20.fromHex(slot.slot_key_address.slice(2));
         const attestation = Bytes32.fromHex(
             slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')
@@ -63,10 +64,14 @@ describe('Merkle Attestor Test', () => {
 
         console.log(`Hash result big int: ${hash.toBigInt()}`);
         console.log(`Hash result bytes: ${wordToBytes(hash, 32).map((byte)=>byte.toNumber())}`);
+        console.log(`Hash result hex: ${wordToBytes(hash, 32).map(byte => byte.toNumber().toString(16).padStart(2, '0')).join('')}`);
+
 
         const hash2 = provableLeafContentsHash(new ProvableLeafObject({address: addr, attestation, value}));
 
         console.log('Provable hash result', hash2.toBigInt().toString());
+        console.log(`Provable hash result hex: ${wordToBytes(hash2, 32).map(byte => byte.toNumber().toString(16).padStart(2, '0')).join('')}`);
+
     });
 
     test('test_all_leaf_counts_and_indices_with_pipeline', async () => {

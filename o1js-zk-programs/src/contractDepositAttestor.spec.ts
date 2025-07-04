@@ -42,12 +42,21 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         console.log('dummyAttestationHex', dummyAttestationHex);
     });
 
-
     test('attestation_hash_calculation_2', () => {
         const dummyAttestationField = new Field(1000000500000000);
         // Convert this field into words
         let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
         console.log('dummyAttestationHex', dummyAttestationHex);
+    });
+
+    test('attestation_hash_calculation_3', () => {
+        const dummyAttestationField = new Field(
+            21664331661517759511819594545016066304824539159186122091565436915814825459759n
+        );
+        // Convert this field into words
+        let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
+        console.log('dummyAttestationHex', dummyAttestationHex);
+        // 0x2f000000000000000000000000000000000000000000000000038d7ec293e52f
     });
 
     test('contract_deposit_pipeline', async () => {
@@ -69,16 +78,32 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         // Build contractStorageSlot from sp1 mpt message.
         const contractStorageSlots =
             sp1ConsensusMPTPlonkProof.contract_storage_slots.map((slot) => {
-                console.log('slot', slot);
+                /*console.log('slot', slot);
                 //const valuePadded = '0x' + ((slot.value+'3f').slice(2).padStart(64, '0'));
-                const valuePadded = '0x' + slot.value.slice(2).padEnd(64, '0');
+                const valuePadded = '0x' + slot.value.slice(2).padStart(64, '0');
                 console.log('valuePadded', valuePadded);
+                // FIXME probably all need to be padded
                 return new ContractDeposit({
                     address: Bytes20.fromHex(slot.slot_key_address.slice(2)),
                     attestationHash: Bytes32.fromHex(
-                        slot.slot_nested_key_attestation_hash.slice(2)
+                        slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')
                     ),
                     value: Bytes32.fromHex(valuePadded.slice(2)),
+                });*/
+
+                const addr = Bytes20.fromHex(slot.slot_key_address.slice(2));
+                const attestation = Bytes32.fromHex(
+                    slot.slot_nested_key_attestation_hash
+                        .slice(2)
+                        .padStart(64, '0')
+                );
+                const valuePad = slot.value.slice(2).padStart(64, '0');
+                console.log('padded value', valuePad);
+                const value = Bytes32.fromHex(valuePad);
+                return new ContractDeposit({
+                    address: addr,
+                    attestationHash: attestation,
+                    value,
                 });
             });
 
@@ -93,11 +118,15 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
 
         if (!slotToFind) throw new Error(`Slot at ${index} not found`);
 
-                console.log('provableStorageSlotLeafHash', provableStorageSlotLeafHash(slotToFind).toBigInt().toString(16));
-
+        console.log(
+            'provableStorageSlotLeafHash',
+            provableStorageSlotLeafHash(slotToFind).toBigInt().toString(16)
+        );
 
         // Compute path
         const path = getContractDepositWitness([...leaves], index);
+
+        console.log('path', path._dummyMask());
 
         // Compute root
         const { depth, paddedSize } = computeMerkleTreeDepthAndSize(
@@ -133,25 +162,16 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         );
         console.log('decodedProof', decodedProof);
         const decodedProofContractDepositRootBigInt = uint8ArrayToBigIntBE(
-            decodedProof.verifiedContractDepositsRoot.toBytes()
+            decodedProof.verifiedContractDepositsRoot.toBytes().reverse()
         );
 
         console.log(
-            'decodedProofContractDepositRootBigInt hex',
-            decodedProofContractDepositRootBigInt.toString(16)
-        );
-        //expect(output.proof.publicOutput.toBigInt()).toBe()
-        console.log(
-            decodedProofContractDepositRootBigInt,
-            output.proof.publicOutput.toBigInt().toString(16),
-            rootHash.toBigInt().toString(16)
+            decodedProofContractDepositRootBigInt,//.toString(16),
+            output.proof.publicOutput.toBigInt(),//.toString(16),
+            rootHash.toBigInt(),//.toString(16)
         );
 
-        console.log(
-            decodedProofContractDepositRootBigInt,
-            output.proof.publicOutput.toBigInt().toString(16),
-            rootHash.toBigInt().toString(16)
-        );
-
+        expect(decodedProofContractDepositRootBigInt).toEqual(output.proof.publicOutput.toBigInt());
+        expect(output.proof.publicOutput.toBigInt()).toEqual(rootHash.toBigInt());
     });
 });

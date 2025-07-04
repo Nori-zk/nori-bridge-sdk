@@ -81,6 +81,12 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
                             );
                         });*/
 
+                        /*Provable.asProver(() => {
+                            Provable.log(
+                                nextHash.toBigInt(), currentHash.toBigInt(), isDummy.toBoolean()
+                            );
+                        });*/
+
                         currentHash = Provable.if(
                             isDummy,
                             Field,

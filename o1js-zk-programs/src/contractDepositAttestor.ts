@@ -1,4 +1,4 @@
-import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
+import { Bytes, Field, Poseidon, Provable, Struct, UInt8 } from 'o1js';
 import { Bytes20, Bytes32 } from './types.js';
 import { merkleLeafAttestorGenerator } from './merkle-attestor/merkleLeafAttestor.js';
 
@@ -10,7 +10,7 @@ export class ContractDeposit extends Struct({
 
 export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
     const addressBytes = contractDeposit.address.bytes; // UInt8[]
-    const attestationHashBytes = contractDeposit.attestationHash.bytes.reverse(); // UInt8[]
+    const attestationHashBytes = contractDeposit.attestationHash.bytes; // UInt8[]
     const valueBytes = contractDeposit.value.bytes; // UInt8[]
 
     // We want 20 bytes from addrBytes (+ 1 byte from attBytes and 1 byte from valueBytes), remaining 31 bytes from attBytes, remaining 31 bytes from valueBytes
@@ -51,6 +51,13 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
     const secondBytes = Bytes.from(secondFieldBytes);
     const thirdBytes = Bytes.from(thirdFieldBytes);
 
+    Provable.asProver(() => {
+        Provable.log('firstBytes.toFields()', firstBytes.toFields());
+        Provable.log('secondBytes.toFields()', secondBytes.toFields());
+        Provable.log('thirdBytes.toFields()', thirdBytes.toFields());
+    });
+
+
     // Little endian
     let firstField = new Field(0);
     let secondField = new Field(0);
@@ -60,6 +67,12 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
         secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
         thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
     }
+
+    Provable.asProver(() => {
+        Provable.log('(provable)firstField', firstField.toBigInt());
+        Provable.log('(provable)secondField', secondField.toBigInt());
+        Provable.log('(provable)thirdField', thirdField.toBigInt());
+    });
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }
