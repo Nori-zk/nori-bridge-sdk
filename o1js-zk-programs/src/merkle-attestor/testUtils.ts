@@ -1,4 +1,4 @@
-import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
+import { Bytes, Field, Poseidon, Provable, Struct, UInt8 } from 'o1js';
 import { Bytes20, Bytes32 } from '../types.js';
 
 export function dummyAddress(i: number): Bytes20 {
@@ -42,13 +42,17 @@ export function nonProvableStorageSlotLeafHash(
     const thirdFieldBytes = new Uint8Array(32);
     thirdFieldBytes.set(valueBytes.slice(1, 32), 0); // remaining 31 bytes from value
 
+    console.log('firstFieldBytes', firstFieldBytes);
+    console.log('secondFieldBytes', secondFieldBytes);
+    console.log('thirdFieldBytes', thirdFieldBytes);
+
     const firstField = Field.fromBytes(Array.from(firstFieldBytes));
     const secondField = Field.fromBytes(Array.from(secondFieldBytes));
     const thirdField = Field.fromBytes(Array.from(thirdFieldBytes));
 
-    console.log("firstField", firstField.toBigInt().toString());
-    console.log("secondField", secondField.toBigInt().toString());
-    console.log("thirdField", thirdField.toBigInt().toString());
+    console.log('firstField', firstField.toBigInt().toString());
+    console.log('secondField', secondField.toBigInt().toString());
+    console.log('thirdField', thirdField.toBigInt().toString());
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }
@@ -75,6 +79,7 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
 
     /*Provable.asProver(() => {
         Provable.log('addressBytes', addressBytes);
+        Provable.log('attBytes', attBytes);
         Provable.log('valueBytes', valueBytes);
     });*/
 
@@ -111,6 +116,21 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
     // already 31 elements; add 1 zero to reach 32
     thirdFieldBytes.push(UInt8.zero);
 
+    Provable.asProver(() => {
+        console.log(
+            'firstFieldBytes',
+            firstFieldBytes.map((byte) => byte.toNumber())
+        );
+        console.log(
+            'secondFieldBytes',
+            secondFieldBytes.map((byte) => byte.toNumber())
+        );
+        console.log(
+            'thirdFieldBytes',
+            thirdFieldBytes.map((byte) => byte.toNumber())
+        );
+    });
+
     // Convert UInt8[] to Bytes (provable bytes)
     const firstBytes = Bytes.from(firstFieldBytes);
     const secondBytes = Bytes.from(secondFieldBytes);
@@ -140,16 +160,23 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
         secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
         thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
     }*/
-    for (let i = 0; i < 32; i++) {
+    /*for (let i = 0; i < 32; i++) {
+        firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
+        secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
+        thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
+    }*/
+    // Little endian version
+    for (let i = 31; i >= 0; i--) {
         firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
         secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
         thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
     }
 
-    /*Provable.asProver(() => {
+    Provable.asProver(() => {
         Provable.log('(provable)firstField', firstField.toBigInt());
         Provable.log('(provable)secondField', secondField.toBigInt());
-    });*/
+        Provable.log('(provable)thirdField', thirdField.toBigInt());
+    });
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }
