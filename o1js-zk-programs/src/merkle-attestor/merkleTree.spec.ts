@@ -21,7 +21,7 @@ import {
 function fullMerkleTest(
     triples: Array<[Bytes20, Bytes32, Bytes32]>,
     leafIndex: number
-): void {
+): Field {
     const leaves = buildLeavesNonProvable(triples);
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
     const zeros = getMerkleZeros(depth);
@@ -42,6 +42,8 @@ function fullMerkleTest(
     const recomputedRoot = computeMerkleRootFromPath(leafHash, leafIndex, path);
 
     expect(recomputedRoot.equals(root).toBoolean()).toBe(true);
+
+    return recomputedRoot;
 }
 
 describe('Merkle Fixed Tests', () => {
@@ -51,7 +53,9 @@ describe('Merkle Fixed Tests', () => {
         for (let i = 0; i < n; i++) {
             triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
         }
-        fullMerkleTest(triples, 543);
+        const root = fullMerkleTest(triples, 543);
+        console.log("root", root.toBigInt());
+
     });
 
     test('test_hash_storage_slot_basic', () => {

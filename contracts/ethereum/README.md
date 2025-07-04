@@ -57,3 +57,11 @@ Make sure your .env is set to deploy to the correct testing network. Copy NORI_T
 `npx hardhat --network $ETH_NETWORK lockTokens <attestationHashHex> <optionalAmountToLock (defaults to 0.000001)>`
 
 **Caution** this is just a test facility, don't lock real ETH using this process.
+
+## Get total deposited
+
+Ensure NORI_TOKEN_BRIDGE_ADDRESS is within your .env file.
+
+`npm run get-deposited <depositorAddressHex> <attestationHashHex>`
+
+e.g. `npm run get-deposited 0xc7e910807dd2e3f49b34efe7133cfb684520da69 0x13cceb5b591e742c13fd7f3894f97139c964606f2928eefdc234e8a3a55c10b1`

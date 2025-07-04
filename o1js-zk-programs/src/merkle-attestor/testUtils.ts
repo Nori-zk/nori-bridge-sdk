@@ -28,7 +28,7 @@ export function nonProvableStorageSlotLeafHash(
     value: Bytes32
 ): Field {
     const addrBytes = addr.toBytes();
-    const attBytes = attestation.toBytes();
+    const attBytes = attestation.toBytes().reverse();
     const valueBytes = value.toBytes();
 
     const firstFieldBytes = new Uint8Array(32);
@@ -45,6 +45,10 @@ export function nonProvableStorageSlotLeafHash(
     const firstField = Field.fromBytes(Array.from(firstFieldBytes));
     const secondField = Field.fromBytes(Array.from(secondFieldBytes));
     const thirdField = Field.fromBytes(Array.from(thirdFieldBytes));
+
+    console.log("firstField", firstField.toBigInt().toString());
+    console.log("secondField", secondField.toBigInt().toString());
+    console.log("thirdField", thirdField.toBigInt().toString());
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }
@@ -66,7 +70,7 @@ export class ProvableLeafObject extends Struct({
 
 export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
     const addressBytes = leafContents.address.bytes; // UInt8[]
-    const attBytes = leafContents.value.bytes; // UInt8[]
+    const attBytes = leafContents.attestation.bytes.reverse(); // UInt8[]
     const valueBytes = leafContents.value.bytes; // UInt8[]
 
     /*Provable.asProver(() => {
@@ -131,7 +135,12 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
     let firstField = new Field(0);
     let secondField = new Field(0);
     let thirdField = new Field(0);
-    for (let i = 31; i >= 0; i--) {
+    /*for (let i = 31; i >= 0; i--) {
+        firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
+        secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
+        thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
+    }*/
+    for (let i = 0; i < 32; i++) {
         firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
         secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
         thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);

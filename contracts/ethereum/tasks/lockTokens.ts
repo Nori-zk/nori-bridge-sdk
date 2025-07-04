@@ -53,10 +53,12 @@ task('lockTokens', 'Lock tokens with attestation hash and optional amount')
         console.log(`NORI_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
 
         const [signer] = await hre.ethers.getSigners();
+        const signerAddress = await signer.getAddress();
         const balance = await hre.ethers.provider.getBalance(
-            await signer.getAddress()
+            signerAddress
         );
         console.log(`Signer balance: ${hre.ethers.formatEther(balance)} ETH`);
+        console.log(`Signer address: ${signerAddress}`);
 
         const tokenBridge = await hre.ethers.getContractAt(
             'NoriTokenBridge',

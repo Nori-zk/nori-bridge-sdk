@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "./tasks/lockTokens";
+import "./tasks/getTotalDeposited";
 
 function assertEnvVar(name: string): string {
   const val = process.env[name];

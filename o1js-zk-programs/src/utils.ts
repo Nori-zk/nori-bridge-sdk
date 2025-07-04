@@ -4,6 +4,16 @@ import { Field, SmartContract, UInt64, UInt8 } from 'o1js';
 import { Logger, wordToBytes } from '@nori-zk/proof-conversion';
 import { PlonkProof, Bytes32, ZkProgram, CompilableZkProgram } from './types.js';
 
+export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
+    return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
+}
+
+export function uint8ArrayToBigIntLE(bytes: Uint8Array): bigint {
+    return bytes.reduceRight((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
+}
+
+// FIXME think about padding 
+
 export function fieldToHexBE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
@@ -14,6 +24,16 @@ export function fieldToBigIntBE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
     return bytesBE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n)
+}
+
+export function fieldToHexLE(field: Field) {
+    const bytesLE = wordToBytes(field, 32); // This is LE
+    return `0x${bytesLE.map((byte) => byte.toBigInt().toString(16).padStart(2, '0')).join('')}`
+}
+
+export function fieldToBigIntLE(field: Field) {
+    const bytesLE = wordToBytes(field, 32); // This is LE
+    return bytesLE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n)
 }
 
 // DEPRECATED

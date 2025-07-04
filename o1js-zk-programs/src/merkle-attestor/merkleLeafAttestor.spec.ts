@@ -1,7 +1,7 @@
 import { UInt64 } from 'o1js';
 import { merkleLeafAttestorGenerator } from './merkleLeafAttestor.js';
 import { Bytes20, Bytes32 } from '../types.js';
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter, wordToBytes } from '@nori-zk/proof-conversion';
 import {
     computeMerkleTreeDepthAndSize,
     foldMerkleLeft,
@@ -12,9 +12,11 @@ import {
     dummyAddress,
     dummyAttestation,
     dummyValue,
+    nonProvableStorageSlotLeafHash,
     provableLeafContentsHash,
     ProvableLeafObject,
 } from './testUtils.js';
+import { bytesToWord } from '@nori-zk/proof-conversion/build/src/sha/utils.js';
 
 const logger = new Logger('TestMerkle');
 new LogPrinter('[TestEthProcessor]', [
@@ -40,6 +42,41 @@ const {
 );
 
 describe('Merkle Attestor Test', () => {
+    test('compute_non_provable_storage_slot_leaf_hash', () => {
+        const slot = {
+            slot_key_address: '0xc7e910807dd2e3f49b34efe7133cfb684520da69',
+            slot_nested_key_attestation_hash:
+                '0x6500000000000000000000000000000000000000000000000000000000000000',
+            value: '0x2ba7def3000',
+        };
+
+        console.log(slot);
+        
+
+        const addr = Bytes20.fromHex(slot.slot_key_address.slice(2));
+        const attestation = Bytes32.fromHex(
+            slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')
+        );
+        const valuePad = slot.value.slice(2).padStart(64, '0');
+        console.log('padded value', valuePad);
+        const value = Bytes32.fromHex(valuePad);
+        //const value = Bytes32.fromHex(slot.value.slice(2).padStart(64, '0'));
+
+        const hash = nonProvableStorageSlotLeafHash(addr, attestation, value);
+
+        console.log(`Hash result big int: ${hash.toBigInt()}`);
+        //console.log(`Hash result hex: ${}`);
+        console.log(`Hash result bytes: ${wordToBytes(hash, 32).map((byte)=>byte.toNumber())}`);
+        /*console.log('Poseidon leaf hash:', hash, bytesToWord(wordToBytes(hash, 32).reverse()).toBigInt(), hash.toBigInt());
+
+        console.log('arhhh', wordToBytes(hash, 32).map((byte)=>byte.toNumber()));
+        */
+
+        const hash2 = provableLeafContentsHash(new ProvableLeafObject({address: addr, attestation, value}));
+
+        console.log('pois hash 2', hash2.toBigInt().toString());
+    });
+
     test('test_all_leaf_counts_and_indices_with_pipeline', async () => {
         // Analyse zk program
         const merkleTreeLeafAttestorAnalysis =
@@ -69,7 +106,11 @@ describe('Merkle Attestor Test', () => {
 
             const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
             for (let i = 0; i < nLeaves; i++) {
-                triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
+                triples.push([
+                    dummyAddress(i),
+                    dummyAttestation(i),
+                    dummyValue(i),
+                ]);
             }
 
             const leafObjects: ProvableLeafObject[] = [];
