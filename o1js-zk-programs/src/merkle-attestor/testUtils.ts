@@ -127,12 +127,11 @@ export function provableLeafContentsHash(leafContents: ProvableLeafObject) {
         Provable.log('secondBytes.toFields()', secondBytes.toFields());
     });*/
 
-    // implement little endian here instead...
     let firstField = new Field(0);
     let secondField = new Field(0);
     let thirdField = new Field(0);
 
-    // Little endian version
+    // Little endian
     for (let i = 31; i >= 0; i--) {
         firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
         secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
