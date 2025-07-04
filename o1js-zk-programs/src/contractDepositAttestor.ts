@@ -51,12 +51,11 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
     const secondBytes = Bytes.from(secondFieldBytes);
     const thirdBytes = Bytes.from(thirdFieldBytes);
 
-    Provable.asProver(() => {
+    /*Provable.asProver(() => {
         Provable.log('firstBytes.toFields()', firstBytes.toFields());
         Provable.log('secondBytes.toFields()', secondBytes.toFields());
         Provable.log('thirdBytes.toFields()', thirdBytes.toFields());
-    });
-
+    });*/
 
     // Little endian
     let firstField = new Field(0);
@@ -68,11 +67,11 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
         thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
     }
 
-    Provable.asProver(() => {
+    /*Provable.asProver(() => {
         Provable.log('(provable)firstField', firstField.toBigInt());
         Provable.log('(provable)secondField', secondField.toBigInt());
         Provable.log('(provable)thirdField', thirdField.toBigInt());
-    });
+    });*/
 
     return Poseidon.hash([firstField, secondField, thirdField]);
 }

@@ -126,7 +126,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         // Compute path
         const path = getContractDepositWitness([...leaves], index);
 
-        console.log('path', path._dummyMask());
+        //console.log('path', path._dummyMask());
 
         // Compute root
         const { depth, paddedSize } = computeMerkleTreeDepthAndSize(
@@ -155,8 +155,6 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         let durationMs = Date.now() - start;
         logger.log(`ContractDepositAttestor.compute took ${durationMs}ms`);
 
-        expect(output.proof.publicOutput.toBigInt()).toBe(rootHash.toBigInt());
-
         const decodedProof = decodeConsensusMptProof(
             sp1ConsensusMPTPlonkProof.proof
         );
@@ -171,6 +169,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
             rootHash.toBigInt(),//.toString(16)
         );
 
+        expect(output.proof.publicOutput.toBigInt()).toBe(rootHash.toBigInt());
         expect(decodedProofContractDepositRootBigInt).toEqual(output.proof.publicOutput.toBigInt());
     });
 });
