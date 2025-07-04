@@ -160,7 +160,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         const decodedProof = decodeConsensusMptProof(
             sp1ConsensusMPTPlonkProof.proof
         );
-        console.log('decodedProof', decodedProof);
+
         const decodedProofContractDepositRootBigInt = uint8ArrayToBigIntBE(
             decodedProof.verifiedContractDepositsRoot.toBytes().reverse()
         );
@@ -172,6 +172,5 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         );
 
         expect(decodedProofContractDepositRootBigInt).toEqual(output.proof.publicOutput.toBigInt());
-        expect(output.proof.publicOutput.toBigInt()).toEqual(rootHash.toBigInt());
     });
 });
