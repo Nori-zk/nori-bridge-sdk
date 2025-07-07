@@ -15,6 +15,9 @@ import {
 import { Logger } from '@nori-zk/proof-conversion';
 import { EthProof, Bytes32, Bytes32FieldPair } from '@nori-zk/test-o1js-zk-programs';
 
+// FIXME [NB-65] this currently is not compatible with front end... logger has nodejs chalk dep and cannot use envs here!
+// Probably need to extract admin public key elsewhere
+
 const logger = new Logger('EthProcessor');
 
 let adminPrivateKeyBase58 = process.env.ADMIN_PRIVATE_KEY;
