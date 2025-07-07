@@ -30,5 +30,10 @@ npm run test-ci  # Test all workspaces with subset of CI tests.
 npm run <command> --workspace=<workspaceName> # Run a specific command in a specific workspace
 ```
 
+## How to publish
+
+- Dry run the mono repo publish command: `npm run publish -- --dry-run`
+- Run the publish command targeting [registry.npm.js](https://registry.npmjs.org/) `npm run publish`
+- Run the publish command targeting a private registry `npm run publish -- --registry https://x.y.com/` (make sure you have an ~/.npmrc file)
 
 
