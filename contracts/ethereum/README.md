@@ -69,3 +69,9 @@ Ensure NORI_TOKEN_BRIDGE_ADDRESS is within your .env file.
 `npm run get-deposited <depositorAddressHex> <attestationHashHex>`
 
 e.g. `npm run get-deposited 0xc7e910807dd2e3f49b34efe7133cfb684520da69 0x13cceb5b591e742c13fd7f3894f97139c964606f2928eefdc234e8a3a55c10b1`
+
+## Package details
+
+This package exports a single variable, `noriTokenBridgeJson`, which is a Hardhat artifact JSON object representing the compiled contract metadata (ABI, bytecode, etc.).
+
+It is provided as an ES module export, allowing you to import it using ES module syntax.

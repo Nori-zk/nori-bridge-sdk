@@ -2,9 +2,9 @@
     "name": "@nori-zk/test-nori-contracts-ethereum",
     "version": "0.1.0",
     "description": "NoriTokenBridge contract",
-    "main": "index.js",
+    "main": "build/index.js",
     "scripts": {
-        "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile",
+        "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
@@ -17,10 +17,10 @@
     "license": "MIT",
     "devDependencies": {
         "dotenv-cli": "^8.0.0",
-        "hardhat": "^2.24.0"
-    },
-    "dependencies": {
+        "hardhat": "^2.24.0",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
         "dotenv": "^16.5.0"
-    }
+    },
+    "dependencies": {},
+    "files": ["build/", "package.json", "README.md"]
 }
