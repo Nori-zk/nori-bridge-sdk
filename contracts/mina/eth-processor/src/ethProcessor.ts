@@ -13,7 +13,7 @@ import {
     Provable,
 } from 'o1js';
 import { Logger } from '@nori-zk/proof-conversion';
-import { EthProof, Bytes32, Bytes32FieldPair } from '@nori-zk/o1js-zk-programs';
+import { EthProof, Bytes32, Bytes32FieldPair } from '@nori-zk/test-o1js-zk-programs';
 
 const logger = new Logger('EthProcessor');
 

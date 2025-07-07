@@ -1,5 +1,5 @@
 {
-    "name": "@nori-zk/ethprocessor",
+    "name": "@nori-zk/test-ethprocessor",
     "version": "4.0.5",
     "description": "zkApp for verifying SP1 Helios Nori proof and storing latest execution state root on Mina",
     "author": "Nori",
@@ -50,13 +50,13 @@
         "typescript": "^5.4.5"
     },
     "peerDependencies": {
-        "o1js": "2.3.0"
+        "o1js": "2.7.0"
     },
     "engines": {
         "node": ">=22.0.0"
     },
     "dependencies": {
-        "@nori-zk/o1js-zk-programs": "*",
+        "@nori-zk/test-o1js-zk-programs": "*",
         "@nori-zk/proof-conversion": "^0.5.9",
         "dotenv": "^16.4.7",
         "mina-attestations": "^0.5.2"

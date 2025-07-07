@@ -1,5 +1,5 @@
 {
-  "name": "contracts",
+  "name": "@nori-zk/test-contracts-mina-minter",
   "version": "0.1.0",
   "description": "",
   "author": "",
@@ -51,6 +51,8 @@
   },
   "dependencies": {
     "autrace": "^0.0.22",
-    "mina-attestations": "^0.4.3"
+    "mina-attestations": "^0.4.3",
+    "@nori-zk/test-o1js-zk-programs": "*",
+    "@nori-zk/test-ethprocessor": "*"
   }
 }

@@ -11,7 +11,7 @@ import {
     decodeConsensusMptProof,
     Bytes32,
     Bytes32FieldPair,
-} from '@nori-zk/o1js-zk-programs';
+} from '@nori-zk/test-o1js-zk-programs';
 import { ethProcessorVkHash } from './integrity/EthProcessor.VKHash.js';
 
 const logger = new Logger('EthProcessorSubmitter');

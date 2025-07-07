@@ -1,5 +1,5 @@
 {
-    "name": "nori-contracts",
+    "name": "@nori-zk/test-nori-contracts-ethereum",
     "version": "0.1.0",
     "description": "NoriTokenBridge contract",
     "main": "index.js",

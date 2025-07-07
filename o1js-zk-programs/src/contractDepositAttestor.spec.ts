@@ -159,7 +159,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
             sp1ConsensusMPTPlonkProof.proof
         );
 
-        const decodedProofContractDepositRootBigInt = uint8ArrayToBigIntBE(
+        const decodedProofContractDepositRootBigInt = uint8ArrayToBigIntBE( // Could do LE without the reverse FIXME
             decodedProof.verifiedContractDepositsRoot.toBytes().reverse()
         );
 

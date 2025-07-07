@@ -1,5 +1,5 @@
 {
-    "name": "@nori-zk/o1js-zk-programs",
+    "name": "@nori-zk/test-o1js-zk-programs",
     "version": "1.0.0",
     "description": "o1js-zk-programs supporting Nori Bridge",
     "author": "Nori",
@@ -47,7 +47,7 @@
         "typescript": "^5.4.5"
     },
     "peerDependencies": {
-        "o1js": "2.3.0"
+        "o1js": "2.7.0"
     },
     "engines": {
         "node": ">=22.0.0"

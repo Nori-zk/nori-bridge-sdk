@@ -11,7 +11,7 @@ import {
 import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
 import { compileAndVerifyContracts } from '../utils.js';
 import { EthProcessor } from '../ethProcessor.js';
-import { Bytes32, Bytes32FieldPair } from '@nori-zk/o1js-zk-programs';
+import { Bytes32, Bytes32FieldPair } from '@nori-zk/test-o1js-zk-programs';
 
 const logger = new Logger('Deploy');
 
