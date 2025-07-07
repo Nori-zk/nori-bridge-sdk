@@ -22,5 +22,9 @@
         "dotenv": "^16.5.0"
     },
     "dependencies": {},
-    "files": ["build/", "package.json", "README.md"]
+    "files": [
+        "build/",
+        "package.json",
+        "README.md"
+    ]
 }
