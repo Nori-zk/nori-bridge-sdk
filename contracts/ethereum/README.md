@@ -56,6 +56,10 @@ Make sure your .env is set to deploy to the correct testing network. Copy NORI_T
 
 `npx hardhat --network $ETH_NETWORK lockTokens <attestationHashHex> <optionalAmountToLock (defaults to 0.000001)>`
 
+One can (again for testing purposes) lock periodically in a loop, every 383 seconds (approximately once every consensus period):
+
+`npm run test:lock-loop <attestationHashHex>`
+
 **Caution** this is just a test facility, don't lock real ETH using this process.
 
 ## Get total deposited
