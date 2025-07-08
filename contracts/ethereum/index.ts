@@ -1,4 +1,4 @@
-import noriTokenBridgeJson from './artifacts/contracts/NoriTokenBridge.sol/NoriTokenBridge.json';
+import noriTokenBridgeRaw from './artifacts/contracts/NoriTokenBridge.sol/NoriTokenBridge.json';
 
 export interface Artifact {
   _format: string;
@@ -27,4 +27,4 @@ export interface Artifact {
   deployedLinkReferences: Record<string, any>;
 }
 
-export { noriTokenBridgeJson as Artifact };
+export const noriTokenBridgeJson: Artifact = noriTokenBridgeRaw as Artifact;
