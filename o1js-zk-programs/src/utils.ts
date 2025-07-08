@@ -139,46 +139,6 @@ export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
 
 // Compile and verify contracts utility
 
-/*export async function compileAndVerifyContractsOld(logger: Logger) {
-    try {
-        logger.log('Compiling EthVerifier contract.');
-        const ethVerifierVerificationKey = (await EthVerifier.compile())
-            .verificationKey;
-
-        const calculatedEthVerifierVkHash =
-            ethVerifierVerificationKey.hash.toString();
-        logger.log(
-            `Verifier contract vk hash compiled: '${calculatedEthVerifierVkHash}'.`
-        );
-
-        // Validation
-        logger.log('Verifying computed Vk hashes.');
-
-        let disagree: string[] = [];
-
-        if (calculatedEthVerifierVkHash !== ethVerifierVkHash) {
-            disagree.push(
-                `Computed ethVerifierVkHash '${calculatedEthVerifierVkHash}' disagrees with the one cached within this repository '${ethVerifierVkHash}'.`
-            );
-        }
-
-        if (disagree.length) {
-            disagree.push(
-                `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' in the eth-processor repository and commit the change?`
-            );
-            const errStr = disagree.join('\n');
-            throw new Error(errStr);
-        }
-
-        logger.log('Contracts compiled.');
-        return { ethVerifierVerificationKey };
-    } catch (err) {
-        console.log((err as any).stack);
-        logger.error(`Error compiling contracts:\n${String(err)}`);
-        throw err;
-    }
-}*/
-
 export async function compileAndVerifyContracts(
     logger: Logger,
     contracts: {
