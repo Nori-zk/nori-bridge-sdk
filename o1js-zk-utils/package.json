@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/o1js-zk-utils",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "o1js-zk-utils supporting Nori Bridge",
     "author": "Nori",
     "license": "Apache-2.0",
