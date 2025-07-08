@@ -1,0 +1,22 @@
+{
+    "name": "@nori-zk/nori-bridge-sdk",
+    "private": true,
+    "version": "0.0.1",
+    "workspaces": [
+        "o1js-zk-utils",
+        "contracts/mina/eth-processor",
+        "contracts/mina/token-bridge",
+        "contracts/ethereum"
+    ],
+    "devDependencies": {
+        "npm-workspaces-publish-tool": "^0.0.8",
+        "typescript": "^5.1.0"
+    },
+    "scripts": {
+        "build": "npm run build --workspaces --if-present",
+        "test": "npm run test --workspaces --if-present",
+        "test-ci": "npm run test-ci --workspaces --if-present",
+        "bake-vk-hashes": "npm run bake-vk-hashes --workspaces --if-present",
+        "publish": "nw-publish"
+    }
+}
