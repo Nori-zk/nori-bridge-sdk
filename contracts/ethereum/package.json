@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/ethereum-token-bridge",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "NoriTokenBridge contract",
     "main": "build/index.js",
     "publishConfig": {
