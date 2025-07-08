@@ -41,9 +41,9 @@ import {
 **Example Usage**
 
 ```typescript
-import { Bytes, Field, Poseidon, Provable, Struct, UInt8 } from 'o1js';
-import { Bytes20, Bytes32 } from './types.js';
-import { merkleAttestorGenerator } from './merkle-attestor/merkleAttestor.js';
+import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
+import { Bytes20, Bytes32 } from '@nori-zk/o1js-zk-programs';
+import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-programs';
 
 export class YourLeafType extends Struct({
     value: Bytes32.provable,
