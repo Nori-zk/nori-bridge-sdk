@@ -1,8 +1,12 @@
 {
     "name": "@nori-zk/ethereum-token-bridge",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "NoriTokenBridge contract",
     "main": "build/index.js",
+    "publishConfig": {
+        "registry": "https://registry.npmjs.org/",
+        "access": "public"
+    },
     "scripts": {
         "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
