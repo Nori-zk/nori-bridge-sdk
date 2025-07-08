@@ -3,9 +3,10 @@
 ## Exports
 
 ```typescript
-import { EthProcessor, MinaEthProcessorSubmitter } from '@nori-zk/ethprocessor';
+import { EthProcessor, MinaEthProcessorSubmitter, wait } from '@nori-zk/ethprocessor';
 // EthProcessor: a Mina smart contract that accepts a verified, converted consensus MPT transition proof and stores state on the Mina blockchain.
 // MinaEthProcessorSubmitter: a tool that facilitates committing state to the EthProcessor contract using a converted consensus MPT transition proof.
+// wait : Polls the Mina RPC for a transaction's status until it's included or a max retry limit is reached.
 ```
 
 ## How to build

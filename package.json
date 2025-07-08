@@ -1,7 +1,7 @@
 {
     "name": "@nori-zk/nori-bridge-sdk",
     "private": true,
-    "version": "1.0.3",
+    "version": "1.0.4",
     "workspaces": [
         "o1js-zk-programs",
         "contracts/mina/eth-processor",
