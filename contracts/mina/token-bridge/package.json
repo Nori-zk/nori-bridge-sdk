@@ -10,6 +10,10 @@
         "mina-dapp",
         "zkapp"
     ],
+    "publishConfig": {
+        "registry": "https://registry.npmjs.org/",
+        "access": "public"
+    },
     "type": "module",
     "main": "target/src/index.js",
     "types": "target/src/index.d.ts",
