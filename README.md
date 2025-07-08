@@ -1,24 +1,24 @@
 # Nori-Bridge-SDK
 
-A collection of smart/zk contracts and o1js programs for Nori Bridge.
+A collection of smart/zk contracts, o1js programs and utilities for Nori Bridge.
 
 ## Workspaces
 
-1. **[o1js-zk-programs](./o1js-zk-programs)**  
-   `workspace: o1js-zk-programs`  
-   Zero-knowledge programs and utilities built with o1js.
+1. **[Ethereum Contracts](./contracts/ethereum)**  
+   `package: @nori-zk/ethereum-token-bridge`  
+   Solidity contracts for the Ethereum side of the bridge.
 
-2. **[Eth Processor](./contracts/mina/eth-processor)**  
-   `workspace: contracts/mina/eth-processor`  
+2. **[Token Bridge](./contracts/mina/token-bridge)**  
+   `package: @nori-zk/mina-token-bridge`  
+   Mina contracts for bridging tokens using Nori stack.
+
+3. **[o1js ZK Utils](./o1js-zk-utils)**  
+   `package: @nori-zk/o1js-zk-utils`  
+   Zero-knowledge programs and helpers built with o1js.
+
+4. **[Eth Processor](./contracts/mina/eth-processor)**  
+   `package: @nori-zk/ethprocessor`  
    Mina contract for Ethereum state commitment to Mina.
-
-3. **[Minter](./contracts/mina/minter)**  
-   `workspace: contracts/mina/minter`  
-   Token minter contracts for Nori Bridge.
-
-4. **[Ethereum Contracts](./contracts/ethereum)**  
-   `workspace: contracts/ethereum`  
-   Solidity contracts for the Ethereum source side of the bridge.
 
 ## Usage
 

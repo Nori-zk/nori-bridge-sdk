@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { EthProcessor } from '../ethProcessor.js';
 import { rootDir } from '../utils.js';
-import { EthVerifier } from '@nori-zk/test-o1js-zk-programs';
+import { EthVerifier } from '../../../../../o1js-zk-utils/build/index.js';
 
 new LogPrinter('[NoriEthProcessor]', [
     'log',

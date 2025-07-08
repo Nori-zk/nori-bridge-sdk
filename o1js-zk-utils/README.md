@@ -1,4 +1,4 @@
-# o1js-zk-programs
+# o1js-zk-utils
 
 A collection of zk-programs and utilities to support **Nori Bridge**.
 
@@ -19,7 +19,7 @@ Whenever any of these change, you must run:
 This updates the integrity files (used to ensure zk compilation is correct and not affected by stale o1js cache). Commit any changes to the `integrity` folder.
 
 ```typescript
-import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-programs';
+import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-utils';
 ```
 
 ## Merkle Leaf Attestor Generator / Utils
@@ -35,15 +35,15 @@ import {
     getMerklePathFromTree,
     computeMerkleRootFromPath,
     merkleLeafAttestorGenerator,
-} from '@nori-zk/o1js-zk-programs';
+} from '@nori-zk/o1js-zk-utils';
 ```
 
 **Example Usage**
 
 ```typescript
 import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
-import { Bytes20, Bytes32 } from '@nori-zk/o1js-zk-programs';
-import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-programs';
+import { Bytes20, Bytes32 } from '@nori-zk/o1js-zk-utils';
+import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils';
 
 export class YourLeafType extends Struct({
     value: Bytes32.provable,
@@ -106,7 +106,7 @@ import {
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
-} from '@nori-zk/o1js-zk-programs';
+} from '@nori-zk/o1js-zk-utils';
 ```
 
 For example usage see the [test](./src/contractDepositAttestor.spec.ts).
@@ -123,7 +123,7 @@ import {
     fieldToBigIntLE,
     decodeConsensusMptProof,
     compileAndVerifyContracts,
-} from '@nori-zk/o1js-zk-programs';
+} from '@nori-zk/o1js-zk-utils';
 ```
 
 ## Types
@@ -131,5 +131,5 @@ import {
 Types for various proof and encoding formats.
 
 ```typescript
-import { PlonkProof, ConvertedProof, EthVerifierComputeOutput, Bytes32, Bytes20 } from '@nori-zk/o1js-zk-programs';
+import { PlonkProof, ConvertedProof, EthVerifierComputeOutput, Bytes32, Bytes20 } from '@nori-zk/o1js-zk-utils';
 ```

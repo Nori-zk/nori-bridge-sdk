@@ -1,4 +1,4 @@
-import { CreateProofArgument } from '@nori-zk/test-o1js-zk-programs';
+import { CreateProofArgument } from '../../../../../o1js-zk-utils/build/index.js';
 import { vkData } from './nodeVk.js';
 import { p0 } from './p0.js';
 import { sp1PlonkProof } from './sp1Proof.js';

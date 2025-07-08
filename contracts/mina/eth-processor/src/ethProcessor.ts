@@ -13,7 +13,7 @@ import {
     Provable,
 } from 'o1js';
 import { Logger } from '@nori-zk/proof-conversion';
-import { EthProof, Bytes32, Bytes32FieldPair } from '@nori-zk/test-o1js-zk-programs';
+import { EthProof, Bytes32, Bytes32FieldPair } from '../../../../o1js-zk-utils/build';
 
 // FIXME [NB-65] this currently is not compatible with front end... logger has nodejs chalk dep and cannot use envs here!
 // Probably need to extract admin public key elsewhere

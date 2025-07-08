@@ -1,4 +1,4 @@
-import { PlonkProof } from '@nori-zk/test-o1js-zk-programs';
+import { PlonkProof } from '../../../../../../o1js-zk-utils/build';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const sp1ConsensusMPTPlonkProof: ProofResultResultMessage = require('./4666560-v5.0.0.json');

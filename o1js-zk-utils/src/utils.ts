@@ -181,7 +181,7 @@ export async function compileAndVerifyContracts(
                 'Verification key hash mismatch detected:',
                 ...mismatches,
                 '',
-                `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' in the eth-processor or o1js-zk-programs nori-bridge-sdk folder and commit the change?`,
+                `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' in the eth-processor or o1js-zk-utils nori-bridge-sdk folder and commit the change?`,
             ].join('\n');
 
             throw new Error(errorMessage);

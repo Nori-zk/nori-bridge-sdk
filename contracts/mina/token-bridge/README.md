@@ -1,4 +1,4 @@
-# Mina zkApp: Token
+# Mina zkApp: Token Bridge
 
 A Mina zk-program contract allowing users to mint tokens on Nori Bridge.
 

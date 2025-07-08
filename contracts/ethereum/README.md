@@ -1,5 +1,11 @@
 # Nori Token Bridge - Source Contract
 
+## Exports
+
+```typescript
+import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+```
+
 ## Installation
 
 `npm install`

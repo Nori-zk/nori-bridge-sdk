@@ -1,7 +1,7 @@
 {
-    "name": "@nori-zk/test-o1js-zk-programs",
-    "version": "1.0.1",
-    "description": "o1js-zk-programs supporting Nori Bridge",
+    "name": "@nori-zk/o1js-zk-utils",
+    "version": "0.0.1",
+    "description": "o1js-zk-utils supporting Nori Bridge",
     "author": "Nori",
     "license": "Apache-2.0",
     "keywords": [

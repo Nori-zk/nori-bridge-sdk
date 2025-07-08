@@ -6,7 +6,7 @@ import {
 import { MinaEthProcessorSubmitter } from './proofSubmitter.js';
 import { wait } from './txWait.js';
 import { PrivateKey } from 'o1js';
-import { decodeConsensusMptProof } from '@nori-zk/test-o1js-zk-programs';
+import { decodeConsensusMptProof } from '@nori-zk/o1js-zk-utils';
 
 new LogPrinter('[TestEthProcessor]', [
     'log',

@@ -1,11 +1,11 @@
 {
     "name": "@nori-zk/nori-bridge-sdk",
     "private": true,
-    "version": "1.0.5",
+    "version": "0.0.1",
     "workspaces": [
-        "o1js-zk-programs",
+        "o1js-zk-utils",
         "contracts/mina/eth-processor",
-        "contracts/mina/minter",
+        "contracts/mina/token-bridge",
         "contracts/ethereum"
     ],
     "devDependencies": {
