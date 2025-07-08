@@ -9,7 +9,7 @@
         "contracts/ethereum"
     ],
     "devDependencies": {
-        "npm-workspaces-publish-tool": "^0.0.7",
+        "npm-workspaces-publish-tool": "^0.0.8",
         "typescript": "^5.1.0"
     },
     "scripts": {
