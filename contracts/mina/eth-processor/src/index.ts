@@ -1,2 +1,2 @@
-import { EthProcessor } from './ethProcessor.js';
-export { EthProcessor };
+export { EthProcessor } from './ethProcessor.js';
+export { MinaEthProcessorSubmitter } from './proofSubmitter';

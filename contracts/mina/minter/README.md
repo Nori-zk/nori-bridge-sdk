@@ -1,6 +1,6 @@
-# Mina zkApp: Contracts
+# Mina zkApp: Token
 
-This template uses TypeScript.
+A Mina zk-program contract allowing users to mint tokens on Nori Bridge.
 
 ## How to build
 

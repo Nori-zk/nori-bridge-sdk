@@ -1,5 +1,13 @@
 # Mina zkApp: Eth-processor
 
+## Exports
+
+```typescript
+import { EthProcessor, MinaEthProcessorSubmitter } from '@nori-zk/ethprocessor';
+// EthProcessor: a Mina smart contract that accepts a verified, converted consensus MPT transition proof and stores state on the Mina blockchain.
+// MinaEthProcessorSubmitter: a tool that facilitates committing state to the EthProcessor contract using a converted consensus MPT transition proof.
+```
+
 ## How to build
 
 ```sh
@@ -51,24 +59,38 @@ src/integrity/<o1js-eth-program-name>.VkHash.json
 These hashes are checked at runtime during:
 
 - `npm run deploy`
+- `npm run update-store-hash`
 - `npm run prove-and-submit`
-- `compileContracts` (API method)
+- `MinaEthProcessorSubmitter.compileContracts` (API method)
 
 If the o1js cache is corrupted or stale — resulting in mismatched verification keys — these commands will deliberately throw an error to prevent invalid or inconsistent program states.
 
 ## How to deploy (launch a new contract)
 
-Make sure to clear your o1js cache, if it exists already.
-Setup your `.env` file in the root directory. Set `MINA_RPC_NETWORK_URL=<url>`, `NETWORK=<mainnet or devnet or litenet>` and your `SENDER_PRIVATE_KEY`.
+Make sure to clear your o1js cache, if it exists already.  
+Set up your `.env` file in the root directory. Set:
 
-Run `npm run deploy <storeHashInHex>`. The `<storeHashInHex>` must match the `input_store_hash` of the first store you expect as a checkpoint. After which `.env.nori-eth-processor` will have been created in the root directory of the project. You can find sensible values by running the bridge head and inspecting the checkpoint you wish the start from the proof output message directory of `sp1-helios-proof-messages/<file-with-slot-height>.json` finding the `input_store_hash` and using that as the `<storeHashInHex>` but ommiting the `0x` prefix.
+- `MINA_RPC_NETWORK_URL=<url>`
+- `NETWORK=<mainnet or devnet or litenet>`
+- `SENDER_PRIVATE_KEY=<your-private-key>`
 
-```
-ZKAPP_PRIVATE_KEY=...
-ZKAPP_ADDRESS=...
-```
+1. Run `npm run deploy`.  
+   After this, a `.env.nori-eth-processor` file will be created in the root directory containing:
+   
+   ZKAPP_PRIVATE_KEY=...  
+   ZKAPP_ADDRESS=...
 
-Copy these to your `.env` file.
+   Copy these values into your `.env` file.
+
+2. Run `npm run update-store-hash <storeHashInHex>`  
+
+   The `<storeHashInHex>` must match the `input_store_hash` of the first store you expect as a checkpoint.
+
+   You can find sensible values by:  
+   - Running the bridge head  
+   - Inspecting the checkpoint you want to start from in the proof output message directory:  
+     `sp1-helios-proof-messages/<file-with-slot-height>.json`  
+   - Locating the `input_store_hash` and using it as the `<storeHashInHex>`, **omitting** the `0x` prefix.
 
 ## How to submit a new converter proof
 

@@ -8,8 +8,8 @@ A zk-program to verify an Ethereum consensus MPT transition proof, made verifiab
 
 It depends on:
 
-- Public input 0 from the SP1 consensus MPT proof (`sp1Proof.proof.Plonk.public_inputs[0]`)
-- Public output 2 from the converted consensus MPT proof (`proofConversionOutput.proofData.publicOutput[2]`)
+- Public input 0 from the SP1 consensus MPT transition proof (`sp1Proof.proof.Plonk.public_inputs[0]`)
+- Public output 2 from the converted consensus MPT transition proof (`proofConversionOutput.proofData.publicOutput[2]`)
 - The verification key data from the `sp1ToPlonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion)
 
 Whenever any of these change, you must run:
