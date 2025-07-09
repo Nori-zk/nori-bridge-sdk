@@ -1,17 +1,17 @@
 // Load environment variables from .env file
 import 'dotenv/config';
 // Other imports
-import {
-    Mina,
-    PrivateKey,
-    NetworkId,
-    fetchAccount,
-    Bytes,
-} from 'o1js';
+import { Mina, PrivateKey, NetworkId, fetchAccount, Bytes } from 'o1js';
 import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
-import { compileAndVerifyContracts } from '../utils.js';
 import { EthProcessor } from '../ethProcessor.js';
-import { Bytes32, Bytes32FieldPair } from '@nori-zk/o1js-zk-utils';
+import {
+    Bytes32,
+    Bytes32FieldPair,
+    compileAndVerifyContracts,
+    EthVerifier,
+    ethVerifierVkHash,
+} from '@nori-zk/o1js-zk-utils';
+import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
 const logger = new Logger('Deploy');
 
@@ -64,11 +64,15 @@ try {
         ? Bytes32.fromHex(storeHashHex)
         : undefined;
     if (possibleStoreHash === undefined)
-        throw new Error('Store hash hex value was not defined. Please provide it as a first argument.');
+        throw new Error(
+            'Store hash hex value was not defined. Please provide it as a first argument.'
+        );
     storeHash = possibleStoreHash;
 } catch (err) {
     logger.fatal(
-        `Store hash was not provided as a first argument or was invalid:\n${(err as Error).stack}`
+        `Store hash was not provided as a first argument or was invalid:\n${
+            (err as Error).stack
+        }`
     );
     process.exit(1);
 }
@@ -92,7 +96,21 @@ async function updateStoreHash() {
     Mina.setActiveInstance(Network);
 
     // Compile and verify
-    await compileAndVerifyContracts(logger);
+    await compileAndVerifyContracts(
+        logger,
+        [
+            {
+                name: 'ethVerifier',
+                program: EthVerifier,
+                integrityHash: ethVerifierVkHash,
+            },
+            {
+                name: 'ethProcessor',
+                program: EthProcessor,
+                integrityHash: ethProcessorVkHash,
+            },
+        ]
+    );
 
     // Initialize contract
     const zkApp = new EthProcessor(zkAppAddress);
