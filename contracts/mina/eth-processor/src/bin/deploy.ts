@@ -5,8 +5,14 @@ import { Mina, PrivateKey, AccountUpdate, NetworkId, fetchAccount } from 'o1js';
 import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
-import { rootDir, compileAndVerifyContracts } from '../utils.js';
+import { rootDir } from '../utils.js';
 import { EthProcessor } from '../ethProcessor.js';
+import {
+    compileAndVerifyContracts,
+    EthVerifier,
+    ethVerifierVkHash,
+} from '@nori-zk/o1js-zk-utils';
+import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
 const logger = new Logger('Deploy');
 
@@ -95,9 +101,19 @@ async function deploy() {
     Mina.setActiveInstance(Network);
 
     // Compile and verify
-    const { ethProcessorVerificationKey } = await compileAndVerifyContracts(
-        logger
-    );
+    const { ethProcessorVerificationKey } =
+        await compileAndVerifyContracts(logger, [
+            {
+                name: 'ethVerifier',
+                program: EthVerifier,
+                integrityHash: ethVerifierVkHash,
+            },
+            {
+                name: 'ethProcessor',
+                program: EthProcessor,
+                integrityHash: ethProcessorVkHash,
+            },
+        ]);
 
     // Initialize contract
     const zkApp = new EthProcessor(zkAppAddress);
