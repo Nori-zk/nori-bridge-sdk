@@ -16,7 +16,6 @@ import {
 } from 'o1js';
 import { FungibleToken } from './TokenBase.js';
 import assert from 'node:assert';
-import { test, describe, before } from 'node:test';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import {
   NoriTokenController,
@@ -31,7 +30,7 @@ type Keypair = {
   publicKey: PublicKey;
   privateKey: PrivateKey;
 };
-describe('NoriTokenController', async () => {
+describe('NoriTokenController', () => {
   // test accounts
   let deployer: Mina.TestPublicKey,
     admin: Mina.TestPublicKey,
@@ -48,7 +47,7 @@ describe('NoriTokenController', async () => {
   let noriTokenControllerKeypair: Keypair;
   let storageInterfaceVK: VerificationKey;
 
-  before(async () => {
+  beforeAll(async () => {
     // compile contracts
     storageInterfaceVK = (
       await NoriStorageInterface.compile({ cache: Cache.FileSystem('./cache') })

@@ -18,7 +18,8 @@
   "main": "target/src/index.js",
   "types": "target/src/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "clean": "rimraf target",
+    "build": "npm run clean && tsc",
     "buildw": "tsc --watch",
     "coverage": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage",
     "format": "prettier --write --ignore-unknown **/*",
@@ -45,7 +46,8 @@
     "prettier": "^2.3.2",
     "ts-jest": "^29.2.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "rimraf": "^6.0.1"
   },
   "peerDependencies": {
     "o1js": "^2.3.0"
