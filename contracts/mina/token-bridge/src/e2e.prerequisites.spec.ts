@@ -17,15 +17,15 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
-import { Field, Struct, UInt64, ZkProgram } from 'o1js';
+import { Field, Struct, UInt64, ZkProgram, Proof } from 'o1js';
 import { NodeProofLeft } from '@nori-zk/proof-conversion';
 
 const mptConsensusProofBundle = proofArgument;
 const bridgeHeadJobSucceededMessage = bridgeHeadJobSucceededExample;
 
 class E2ePrerequisitesInput extends Struct({
-    ethVerifierProof: EthProof,
-    contractDepositAttestorProof: ContractDepositAttestorProof,
+    //ethVerifierProof: EthProof.provable,
+    //contractDepositAttestorProof: ContractDepositAttestorProof.provable,
     credentialAttestationHash: Field,
     // AttestationHash (as temporary input) [this is not no how we will do it but good for test]
     // ...???? CredentialAttestaionProof (private credential ) -> output owner of private (public key.... MINA)
@@ -44,21 +44,27 @@ const E2EPrerequisitesProgram = ZkProgram({
     publicOutput: E2ePrerequisitesOutput,
     methods: {
         compute: {
-            privateInputs: [],
-            async method(input: E2ePrerequisitesInput) {
-                // proof 1 proof 2 /// atteesnation hash
-
+            privateInputs: [EthProof, ContractDepositAttestorProof],
+            async method(
+                input: E2ePrerequisitesInput,
+                ethVerifierProof: InstanceType<typeof EthProof>,
+                contractDepositAttestorProof: InstanceType<
+                    typeof ContractDepositAttestorProof
+                >
+            ) {
+                // proof 1 proof 2 /// attestation credential hashing in future
                 // verify x2
-                input.contractDepositAttestorProof.verify();
-                input.ethVerifierProof.verify();
+
+                ethVerifierProof.verify();
+                contractDepositAttestorProof.verify();
 
                 // Extract roots from public inputs
 
                 const depositAttestationProofRoot =
-                    input.contractDepositAttestorProof.publicOutput;
+                    contractDepositAttestorProof.publicOutput;
                 const ethVerifierStorageProofRootBytes =
-                    input.ethVerifierProof.publicInput
-                        .verifiedContractDepositsRoot.bytes; // I think the is BE
+                    ethVerifierProof.publicInput.verifiedContractDepositsRoot
+                        .bytes; // I think the is BE
 
                 // Convert verifiedContractDepositsRoot from bytes to field
                 let ethVerifierStorageProofRoot = new Field(0);
@@ -75,9 +81,8 @@ const E2EPrerequisitesProgram = ZkProgram({
                 );
 
                 // Mock attestation assert
-                const contractDepositAttestorPublicInputs = input
-                    .contractDepositAttestorProof.publicInput
-                    .value as unknown as ContractDeposit;
+                const contractDepositAttestorPublicInputs =
+                    contractDepositAttestorProof.publicInput.value;
                 // Convert contractDepositAttestorPublicInputs.attestationHash from bytes into a field
                 const contractDepositAttestorProofCredentialBytes =
                     contractDepositAttestorPublicInputs.attestationHash.bytes;
@@ -126,6 +131,7 @@ const E2EPrerequisitesProgram = ZkProgram({
 describe('e2e_prerequisites', () => {
     test('e2e_prerequisites_pipeline', async () => {
         // Compile ZKs
+
         const { verificationKey: contractDepositAttestorVerificationKey } =
             await ContractDepositAttestor.compile({
                 forceRecompile: true,
@@ -141,12 +147,12 @@ describe('e2e_prerequisites', () => {
         );
 
         // Analysing methods for E2EPrerequisitesProgram
-        const e2ePrerequisitesProgramMethods =
+        /*const e2ePrerequisitesProgramMethods =
             await E2EPrerequisitesProgram.analyzeMethods();
         console.log(
             'e2ePrerequisitesProgramMethods',
             e2ePrerequisitesProgramMethods.compute
-        );
+        );*/
 
         // Compile E2EPrerequisitesProgram
         const { verificationKey: e2ePrerequisitesVerificationKey } =
@@ -265,8 +271,8 @@ describe('e2e_prerequisites', () => {
         // Build E2ePrerequisitesInput
 
         const e2ePrerequisitesInput = new E2ePrerequisitesInput({
-            ethVerifierProof: ethVerifierProof.proof,
-            contractDepositAttestorProof: depositAttestationProof.proof,
+            //ethVerifierProof: ethVerifierProof.proof,
+            //contractDepositAttestorProof: depositAttestationProof.proof,
             credentialAttestationHash,
         });
         console.log('Constructed E2ePrerequisitesInput');
@@ -274,7 +280,9 @@ describe('e2e_prerequisites', () => {
         // Compute e2e pre-requisites proof
         start = Date.now();
         const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
-            e2ePrerequisitesInput
+            e2ePrerequisitesInput,
+            ethVerifierProof.proof,
+            depositAttestationProof.proof
         );
         console.log(
             `E2EPrerequisitesProgram.compute took ${Date.now() - start}ms`
@@ -289,12 +297,5 @@ describe('e2e_prerequisites', () => {
         console.log(
             `E2E publicOutput.attestationHash: ${e2ePrerequisitesProof.proof.publicOutput.attestationHash.toString()}`
         );
-
-        // make types for the programs which are the program proofs output from compute....
-        // we have that from eth verifier already EthProof
-        // its absent from contract deposit attestor so add this
-
-        // then these are inputs to E2EPrerequisitesProgram they are private inputs and then become available to the compute method
-        // if we make them public inputs we can access them after doing the proof without outputing them
     });
 });

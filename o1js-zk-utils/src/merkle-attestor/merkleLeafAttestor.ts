@@ -1,6 +1,7 @@
 import {
     Field,
     Poseidon,
+    Proof,
     Provable,
     Struct,
     UInt64,
@@ -126,6 +127,8 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
         return merklePath;
     }
 
+    // Deal with value: TLeaf, type erasure.
+
     type MerkleTreeLeafAttestorInputConstructor = new (arg: {
         rootHash: Field;
         path: InstanceType<typeof MerklePath>;
@@ -135,16 +138,23 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
         rootHash: Field;
         path: InstanceType<typeof MerklePath>;
         index: UInt64;
-        value: typeof provableLeafType;
-    }; // CHECKME is this return type actually accurate?
+        value: TLeaf;
+    };
 
     const inputs =
         MerkleTreeLeafAttestorInput as unknown as MerkleTreeLeafAttestorInputConstructor;
+        
+    class MerkleTreeLeafAttestorProofTyped extends ZkProgram.Proof(
+        MerkleTreeLeafAttestor
+    ) {
+        declare publicInput: InstanceType<typeof inputs>;
+        declare publicOutput: Field;
+    }
 
     return {
         MerkleTreeLeafAttestorInput: inputs,
         MerkleTreeLeafAttestor,
-        MerkleTreeLeafAttestorProof: ZkProgram.Proof(MerkleTreeLeafAttestor),
+        MerkleTreeLeafAttestorProof: MerkleTreeLeafAttestorProofTyped,
         buildLeaves,
         getMerklePathFromLeaves,
     };
