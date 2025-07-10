@@ -41,7 +41,7 @@
     }
   },
   "exclude": ["../../../node_modules", "node_modules", "target"],
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "**/*.json"]
 }
 
 // {

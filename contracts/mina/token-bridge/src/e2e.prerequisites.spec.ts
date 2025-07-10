@@ -103,7 +103,7 @@ const E2EPrerequisitesProgram = ZkProgram({
 });
 
 describe('e2e_prerequisites', () => {
-  test('pipeline', async () => {
+  test('e2e_prerequisites_pipeline', async () => {
     const { verificationKey: contractDepositAttestorVerificationKey } =
       await ContractDepositAttestor.compile({
         forceRecompile: true,
@@ -180,7 +180,7 @@ describe('e2e_prerequisites', () => {
       decodeConsensusMptProof(sp1PlonkProof)
     );
 
-    // ts-ignore this is silly! why!
+    // @ts-ignore this is silly! why!
     const rawProof = await NodeProofLeft.fromJSON(
       conversionOutputProof.proofData
     );
@@ -188,10 +188,10 @@ describe('e2e_prerequisites', () => {
     const ethVerifierProof = await EthVerifier.compute(ethVerifierInput, rawProof);
 
     // MOCK convert attestation bytes into a field
-    let credentialAttestionHash = new Field(0);
+    let credentialAttestationHash = new Field(0);
     // Turn into a LE field??
     for (let i = 31; i >= 0; i--) {
-        credentialAttestionHash = credentialAttestionHash.mul(256).add(slotToFind.attestationHash.bytes[i].value);
+        credentialAttestationHash = credentialAttestationHash.mul(256).add(slotToFind.attestationHash.bytes[i].value);
     }
 
     // Compile E2EPrerequisitesProgram
@@ -203,12 +203,13 @@ describe('e2e_prerequisites', () => {
       `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
     );
 
+
     // Build E2ePrerequisitesInput
 
     const e2ePrerequisitesInput = new E2ePrerequisitesInput({
-        ethVerifierProof: ethVerifierProof,
-        contractDepositAttestorProof: depositAttestationProof,
-        credentialAttestionHash
+        ethVerifierProof: ethVerifierProof.proof,
+        contractDepositAttestorProof: depositAttestationProof.proof,
+        credentialAttestationHash
     });
 
     // Compute e2e pre-requisites proof
