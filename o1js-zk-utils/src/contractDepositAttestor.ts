@@ -79,6 +79,7 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
 const {
     MerkleTreeLeafAttestorInput: ContractDepositAttestorInput,
     MerkleTreeLeafAttestor: ContractDepositAttestor,
+    MerkleTreeLeafAttestorProof: ContractDepositAttestorProof,
     buildLeaves: buildContractDepositLeaves,
     getMerklePathFromLeaves: getContractDepositWitness,
 } = merkleLeafAttestorGenerator(
@@ -91,6 +92,7 @@ const {
 export {
     ContractDepositAttestorInput,
     ContractDepositAttestor,
+    ContractDepositAttestorProof,
     buildContractDepositLeaves,
     getContractDepositWitness,
 };

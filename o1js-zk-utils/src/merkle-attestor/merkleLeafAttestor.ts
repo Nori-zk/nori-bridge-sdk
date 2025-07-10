@@ -144,6 +144,7 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
     return {
         MerkleTreeLeafAttestorInput: inputs,
         MerkleTreeLeafAttestor,
+        MerkleTreeLeafAttestorProof: ZkProgram.Proof(MerkleTreeLeafAttestor),
         buildLeaves,
         getMerklePathFromLeaves,
     };

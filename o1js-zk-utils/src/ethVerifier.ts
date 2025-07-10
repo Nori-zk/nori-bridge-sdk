@@ -98,5 +98,7 @@ const EthVerifier = ZkProgram({
 });
 
 const EthProof = ZkProgram.Proof(EthVerifier);
+/*class EthProof2 extends ZkProgram.Proof(EthVerifier) {
 
+}*/
 export { EthVerifier, EthProof, EthInput };

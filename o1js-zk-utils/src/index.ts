@@ -1,3 +1,5 @@
+export { computeMerkleTreeDepthAndSize, getMerkleZeros } from './merkle-attestor/merkleTree.js';
+
 export { merkleLeafAttestorGenerator } from './merkle-attestor/merkleLeafAttestor.js';
 
 export {
@@ -26,6 +28,7 @@ export * from './types.js';
 export {
     ContractDepositAttestorInput,
     ContractDepositAttestor,
+    ContractDepositAttestorProof,
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
