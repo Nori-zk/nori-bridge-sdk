@@ -14,11 +14,19 @@ import {
     Bytes20,
     Bytes32,
     ContractDepositAttestorProof,
+    fieldToBigIntLE,
+    fieldToBigIntBE,
+    fieldToHexLE,
+    fieldToHexBE,
 } from '@nori-zk/o1js-zk-utils';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
 import { Field, Struct, UInt64, ZkProgram, Proof } from 'o1js';
 import { NodeProofLeft } from '@nori-zk/proof-conversion';
+import {
+    uint8ArrayToBigIntBE,
+    uint8ArrayToBigIntLE,
+} from '@nori-zk/o1js-zk-utils/build/utils.js';
 
 const mptConsensusProofBundle = proofArgument;
 const bridgeHeadJobSucceededMessage = bridgeHeadJobSucceededExample;
@@ -127,6 +135,16 @@ const E2EPrerequisitesProgram = ZkProgram({
         },
     },
 });
+
+function hexStringToUint8Array(hex: string): Uint8Array {
+    if (hex.startsWith('0x')) hex = hex.slice(2);
+    if (hex.length % 2 !== 0) hex = '0' + hex; // pad to full bytes
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    }
+    return bytes;
+}
 
 describe('e2e_prerequisites', () => {
     test('e2e_prerequisites_pipeline', async () => {
@@ -288,14 +306,82 @@ describe('e2e_prerequisites', () => {
             `E2EPrerequisitesProgram.compute took ${Date.now() - start}ms`
         );
         console.log('Computed E2EPrerequisitesProgram proof');
-        console.log(
-            `E2E publicOutput.totalLocked: ${e2ePrerequisitesProof.proof.publicOutput.totalLocked.toString()}`
+
+        const { totalLocked, storageDepositRoot, attestationHash } =
+            e2ePrerequisitesProof.proof.publicOutput;
+
+        /*console.log(
+            `E2E publicOutput.totalLocked: ${totalLocked.toString()}`
         );
         console.log(
-            `E2E publicOutput.storageDepositRoot: ${e2ePrerequisitesProof.proof.publicOutput.storageDepositRoot.toString()}`
+            `E2E publicOutput.storageDepositRoot: ${storageDepositRoot.toString()}`
         );
         console.log(
-            `E2E publicOutput.attestationHash: ${e2ePrerequisitesProof.proof.publicOutput.attestationHash.toString()}`
+            `E2E publicOutput.attestationHash: ${attestationHash.toString()}`
+        );*/
+
+        console.log('--- Decoded public output ---');
+        console.log(
+            `proved   totalLocked (LE bigint): ${fieldToBigIntLE(totalLocked)}`
         );
+        console.log(
+            'original totalLocked (BE bigint)',
+            uint8ArrayToBigIntBE(
+                hexStringToUint8Array(
+                    bridgeHeadJobSucceededMessage.contract_storage_slots[index]
+                        .value
+                )
+            )
+        );
+
+        console.log(
+            `storageDepositRoot (LE hex): ${fieldToHexLE(storageDepositRoot)}`
+        );
+        console.log(
+            `storageDepositRoot (BE hex): ${fieldToHexBE(storageDepositRoot)}`
+        );
+
+        console.log(
+            `attestationHash (LE hex): ${fieldToHexLE(attestationHash)}`
+        );
+        console.log(
+            `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
+        );
+
+        // credentialAttestationHash
+
+        console.log(
+            `credentialAttestationHash (LE hex): ${fieldToHexLE(
+                credentialAttestationHash
+            )}`
+        );
+        console.log(
+            `credentialAttestationHash (BE hex): ${fieldToHexBE(
+                credentialAttestationHash
+            )}`
+        );
+
+        console.log(
+            'original credentialAttestationHash be',
+            uint8ArrayToBigIntBE(
+                hexStringToUint8Array(
+                    bridgeHeadJobSucceededMessage.contract_storage_slots[index]
+                        .slot_nested_key_attestation_hash
+                )
+            )
+        );
+        console.log(
+            'original credentialAttestationHash le',
+            uint8ArrayToBigIntLE(
+                hexStringToUint8Array(
+                    bridgeHeadJobSucceededMessage.contract_storage_slots[index]
+                        .slot_nested_key_attestation_hash
+                )
+            )
+        );
+
+        console.log('--------------------------------compare to....');
+
+        console.log(bridgeHeadJobSucceededMessage.contract_storage_slots);
     });
 });
