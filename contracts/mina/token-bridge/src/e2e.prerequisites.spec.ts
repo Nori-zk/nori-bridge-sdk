@@ -146,6 +146,11 @@ function hexStringToUint8Array(hex: string): Uint8Array {
     return bytes;
 }
 
+function fieldToHexBENonProvable(field: Field) {
+    let hex = field.toBigInt().toString(16);
+    return '0x' + hex.padStart(64, '0');
+}
+
 describe('e2e_prerequisites', () => {
     test('e2e_prerequisites_pipeline', async () => {
         // Compile ZKs
@@ -310,17 +315,8 @@ describe('e2e_prerequisites', () => {
         const { totalLocked, storageDepositRoot, attestationHash } =
             e2ePrerequisitesProof.proof.publicOutput;
 
-        /*console.log(
-            `E2E publicOutput.totalLocked: ${totalLocked.toString()}`
-        );
-        console.log(
-            `E2E publicOutput.storageDepositRoot: ${storageDepositRoot.toString()}`
-        );
-        console.log(
-            `E2E publicOutput.attestationHash: ${attestationHash.toString()}`
-        );*/
-
         console.log('--- Decoded public output ---');
+        // Both of these look fine:
         console.log(
             `proved   totalLocked (LE bigint): ${fieldToBigIntLE(totalLocked)}`
         );
@@ -334,6 +330,7 @@ describe('e2e_prerequisites', () => {
             )
         );
 
+        // Would need to re-extract this
         console.log(
             `storageDepositRoot (LE hex): ${fieldToHexLE(storageDepositRoot)}`
         );
@@ -341,6 +338,8 @@ describe('e2e_prerequisites', () => {
             `storageDepositRoot (BE hex): ${fieldToHexBE(storageDepositRoot)}`
         );
 
+        // These dont have one reconstructing to the original contract_storage_slots but they do atleast match credentialAttestationHash
+        // Think about this...
         console.log(
             `attestationHash (LE hex): ${fieldToHexLE(attestationHash)}`
         );
@@ -359,25 +358,6 @@ describe('e2e_prerequisites', () => {
             `credentialAttestationHash (BE hex): ${fieldToHexBE(
                 credentialAttestationHash
             )}`
-        );
-
-        console.log(
-            'original credentialAttestationHash be',
-            uint8ArrayToBigIntBE(
-                hexStringToUint8Array(
-                    bridgeHeadJobSucceededMessage.contract_storage_slots[index]
-                        .slot_nested_key_attestation_hash
-                )
-            )
-        );
-        console.log(
-            'original credentialAttestationHash le',
-            uint8ArrayToBigIntLE(
-                hexStringToUint8Array(
-                    bridgeHeadJobSucceededMessage.contract_storage_slots[index]
-                        .slot_nested_key_attestation_hash
-                )
-            )
         );
 
         console.log('--------------------------------compare to....');
