@@ -125,12 +125,36 @@ const E2EPrerequisitesProgram = ZkProgram({
 
 describe('e2e_prerequisites', () => {
     test('e2e_prerequisites_pipeline', async () => {
+        // Compile ZKs
         const { verificationKey: contractDepositAttestorVerificationKey } =
             await ContractDepositAttestor.compile({
                 forceRecompile: true,
             });
         console.log(
             `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
+        );
+
+        const { verificationKey: ethVerifierVerificationKey } =
+            await EthVerifier.compile({ forceRecompile: true });
+        console.log(
+            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+        );
+
+        // Analysing methods for E2EPrerequisitesProgram
+        const e2ePrerequisitesProgramMethods =
+            await E2EPrerequisitesProgram.analyzeMethods();
+        console.log(
+            'e2ePrerequisitesProgramMethods',
+            e2ePrerequisitesProgramMethods.compute
+        );
+
+        // Compile E2EPrerequisitesProgram
+        const { verificationKey: e2ePrerequisitesVerificationKey } =
+            await E2EPrerequisitesProgram.compile({
+                forceRecompile: true,
+            });
+        console.log(
+            `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
         );
 
         // Build deposit leave values (to be hashed)
@@ -203,11 +227,6 @@ describe('e2e_prerequisites', () => {
         console.log(`ContractDepositAttestor.compute took ${durationMs}ms`);
 
         // Converted proof verification
-        const { verificationKey: ethVerifierVerificationKey } =
-            await EthVerifier.compile({ forceRecompile: true });
-        console.log(
-            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
-        );
 
         const { sp1PlonkProof, conversionOutputProof } =
             mptConsensusProofBundle;
@@ -241,15 +260,6 @@ describe('e2e_prerequisites', () => {
         }
         console.log(
             `Computed credentialAttestationHash: ${credentialAttestationHash.toString()}`
-        );
-
-        // Compile E2EPrerequisitesProgram
-        const { verificationKey: e2ePrerequisitesVerificationKey } =
-            await E2EPrerequisitesProgram.compile({
-                forceRecompile: true,
-            });
-        console.log(
-            `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
         );
 
         // Build E2ePrerequisitesInput
