@@ -21,8 +21,8 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
-import { Field, Struct, UInt64, ZkProgram, Proof } from 'o1js';
-import { NodeProofLeft } from '@nori-zk/proof-conversion';
+import { Field, Struct, UInt64, ZkProgram, Proof, Bytes } from 'o1js';
+import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
 import {
     uint8ArrayToBigIntBE,
     uint8ArrayToBigIntLE,
@@ -152,6 +152,71 @@ function fieldToHexBENonProvable(field: Field) {
 }
 
 describe('e2e_prerequisites', () => {
+
+    test('hex_field_hex_round_trip', async () => {
+        // Lets start with a field
+        //const field = new Field(25300000000000000000000000000000000000000000000000000000000000000000000000001n);
+        
+        //const field = new Field(21888242871839275222246405745257275088548364400416034343698204186575808495617n);
+        const field = new Field(31888242871839275222246405745257275088548364400416034343698204186575808495618n);
+        // Convert it to a hex value
+        const originalBEHex = `0x${Bytes.from(wordToBytes(field, 32).reverse()).toHex()}`;
+        console.log('OriginalHex', originalBEHex);
+        // Convert back to bytes
+        const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
+
+        // Interpret it as little endian field
+        let leField = new Field(0);
+        for (let i = 31; i >= 0; i--) {
+            leField = leField
+                .mul(256)
+                .add(obeBytes.bytes[i].value);
+        }
+
+        // Convert this back to bytes
+        const leBytes = Bytes.from(wordToBytes(leField, 32));
+        // And back to hex
+        const convertedHex = `0x${leBytes.toHex()}` ;
+        
+        console.log('ConvertedHex', convertedHex);
+
+        expect(convertedHex).toEqual(originalBEHex);
+    });
+
+    test('hex_field_hex_round_trip_preserve"', async () => {
+        // Lets start with a field
+        //const field = new Field(25300000000000000000000000000000000000000000000000000000000000000000000000001n);
+        
+        //const field = new Field(21888242871839275222246405745257275088548364400416034343698204186575808495617n);
+        const field = new Field(31888242871839275222246405745257275088548364400416034343698204186575808495618n);
+        // Convert it to a hex value
+        const originalBEHex = `0x${Bytes.from(wordToBytes(field, 32).reverse()).toHex()}`;
+        console.log('OriginalHex', originalBEHex);
+        // Convert back to bytes
+        const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
+        const oleBytes = obeBytes.bytes.reverse();
+
+        // Interpret it as little endian field
+        let leField = new Field(0);
+        for (let i = 31; i >= 0; i--) {
+            leField = leField
+                .mul(256)
+                .add(oleBytes[i].value);
+        }
+
+        // Convert this back to bytes
+        const leBytes = Bytes.from(wordToBytes(leField, 32));
+        // Convert back to be bytes
+        const beByte = Bytes.from(leBytes.bytes.reverse());
+
+        // And back to hex
+        const convertedHex = `0x${beByte.toHex()}` ;
+        
+        console.log('ConvertedHex', convertedHex);
+
+        expect(convertedHex).toEqual(originalBEHex);
+    });
+
     test('e2e_prerequisites_pipeline', async () => {
         // Compile ZKs
 
@@ -347,6 +412,8 @@ describe('e2e_prerequisites', () => {
             `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
         );
 
+        console.log(Bytes.from(wordToBytes(attestationHash,32)).toHex());
+
         // credentialAttestationHash
 
         console.log(
@@ -357,8 +424,10 @@ describe('e2e_prerequisites', () => {
         console.log(
             `credentialAttestationHash (BE hex): ${fieldToHexBE(
                 credentialAttestationHash
-            )}`
+            )}`,
+            
         );
+        console.log(Bytes.from(wordToBytes(credentialAttestationHash,32)).toHex());
 
         console.log('--------------------------------compare to....');
 
