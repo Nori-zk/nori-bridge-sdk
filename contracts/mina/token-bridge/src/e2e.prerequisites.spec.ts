@@ -76,7 +76,10 @@ const E2EPrerequisitesProgram = ZkProgram({
 
                 // Convert verifiedContractDepositsRoot from bytes to field
                 let ethVerifierStorageProofRoot = new Field(0);
-                // Turn into a LE field??
+                // FIXME
+                // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+                // And here we re-interpret the BE as LE!
+                // But it does pass the test! And otherwise fails.
                 for (let i = 31; i >= 0; i--) {
                     ethVerifierStorageProofRoot = ethVerifierStorageProofRoot
                         .mul(256)
