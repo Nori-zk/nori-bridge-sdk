@@ -152,15 +152,18 @@ function fieldToHexBENonProvable(field: Field) {
 }
 
 describe('e2e_prerequisites', () => {
-
     test('hex_field_hex_round_trip', async () => {
         // Lets start with a field
         //const field = new Field(25300000000000000000000000000000000000000000000000000000000000000000000000001n);
-        
+
         //const field = new Field(21888242871839275222246405745257275088548364400416034343698204186575808495617n);
-        const field = new Field(31888242871839275222246405745257275088548364400416034343698204186575808495618n);
+        const field = new Field(
+            31888242871839275222246405745257275088548364400416034343698204186575808495618n
+        );
         // Convert it to a hex value
-        const originalBEHex = `0x${Bytes.from(wordToBytes(field, 32).reverse()).toHex()}`;
+        const originalBEHex = `0x${Bytes.from(
+            wordToBytes(field, 32).reverse()
+        ).toHex()}`;
         console.log('OriginalHex', originalBEHex);
         // Convert back to bytes
         const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
@@ -168,16 +171,14 @@ describe('e2e_prerequisites', () => {
         // Interpret it as little endian field
         let leField = new Field(0);
         for (let i = 31; i >= 0; i--) {
-            leField = leField
-                .mul(256)
-                .add(obeBytes.bytes[i].value);
+            leField = leField.mul(256).add(obeBytes.bytes[i].value);
         }
 
         // Convert this back to bytes
         const leBytes = Bytes.from(wordToBytes(leField, 32));
         // And back to hex
-        const convertedHex = `0x${leBytes.toHex()}` ;
-        
+        const convertedHex = `0x${leBytes.toHex()}`;
+
         console.log('ConvertedHex', convertedHex);
 
         expect(convertedHex).toEqual(originalBEHex);
@@ -186,11 +187,15 @@ describe('e2e_prerequisites', () => {
     test('hex_field_hex_round_trip_preserve"', async () => {
         // Lets start with a field
         //const field = new Field(25300000000000000000000000000000000000000000000000000000000000000000000000001n);
-        
+
         //const field = new Field(21888242871839275222246405745257275088548364400416034343698204186575808495617n);
-        const field = new Field(31888242871839275222246405745257275088548364400416034343698204186575808495618n);
+        const field = new Field(
+            31888242871839275222246405745257275088548364400416034343698204186575808495618n
+        );
         // Convert it to a hex value
-        const originalBEHex = `0x${Bytes.from(wordToBytes(field, 32).reverse()).toHex()}`;
+        const originalBEHex = `0x${Bytes.from(
+            wordToBytes(field, 32).reverse()
+        ).toHex()}`;
         console.log('OriginalHex', originalBEHex);
         // Convert back to bytes
         const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
@@ -199,9 +204,7 @@ describe('e2e_prerequisites', () => {
         // Interpret it as little endian field
         let leField = new Field(0);
         for (let i = 31; i >= 0; i--) {
-            leField = leField
-                .mul(256)
-                .add(oleBytes[i].value);
+            leField = leField.mul(256).add(oleBytes[i].value);
         }
 
         // Convert this back to bytes
@@ -210,14 +213,70 @@ describe('e2e_prerequisites', () => {
         const beByte = Bytes.from(leBytes.bytes.reverse());
 
         // And back to hex
-        const convertedHex = `0x${beByte.toHex()}` ;
-        
+        const convertedHex = `0x${beByte.toHex()}`;
+
+        console.log('ConvertedHex', convertedHex);
+
+        expect(convertedHex).toEqual(originalBEHex);
+    });
+
+    test('hex_field_hex_round_trip_real_example"', async () => {
+        // Convert it to a hex value
+        const originalBEHex = `0x20cceb5b591e742c13fd7f3894f97139c964606f2928eefdc234e8a3a55c10b2`;
+        console.log('OriginalHex', originalBEHex);
+        // Convert back to bytes
+        const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
+        const oleBytes = obeBytes.bytes.reverse();
+
+        // Interpret it as little endian field
+        let leField = new Field(0);
+        for (let i = 31; i >= 0; i--) {
+            leField = leField.mul(256).add(oleBytes[i].value);
+        }
+
+        // Convert this back to bytes
+        const leBytes = Bytes.from(wordToBytes(leField, 32));
+        // Convert back to be bytes
+        const beByte = Bytes.from(leBytes.bytes.reverse());
+
+        // And back to hex
+        const convertedHex = `0x${beByte.toHex()}`;
+
         console.log('ConvertedHex', convertedHex);
 
         expect(convertedHex).toEqual(originalBEHex);
     });
 
     test('e2e_prerequisites_pipeline', async () => {
+        // Build deposit leave values (to be hashed)
+        const contractStorageSlots =
+            bridgeHeadJobSucceededMessage.contract_storage_slots.map((slot) => {
+                console.log({
+                    add: slot.slot_key_address.slice(2).padStart(40, '0'),
+                    attr: slot.slot_nested_key_attestation_hash
+                        .slice(2)
+                        .padStart(64, '0'),
+                    value: slot.value.slice(2).padStart(64, '0'),
+                });
+                const addr = Bytes20.fromHex(
+                    slot.slot_key_address.slice(2).padStart(40, '0')
+                );
+                const attestation = Bytes32.fromHex(
+                    slot.slot_nested_key_attestation_hash
+                        .slice(2)
+                        .padStart(64, '0')
+                );
+                const value = Bytes32.fromHex(
+                    slot.value.slice(2).padStart(64, '0')
+                );
+                return new ContractDeposit({
+                    address: addr,
+                    attestationHash: attestation,
+                    value,
+                });
+            });
+        console.log('Built contractStorageSlots');
+
         // Compile ZKs
 
         const { verificationKey: contractDepositAttestorVerificationKey } =
@@ -250,28 +309,6 @@ describe('e2e_prerequisites', () => {
         console.log(
             `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
         );
-
-        // Build deposit leave values (to be hashed)
-        const contractStorageSlots =
-            bridgeHeadJobSucceededMessage.contract_storage_slots.map((slot) => {
-                const addr = Bytes20.fromHex(
-                    slot.slot_key_address.slice(2).padStart(40, '0')
-                );
-                const attestation = Bytes32.fromHex(
-                    slot.slot_nested_key_attestation_hash
-                        .slice(2)
-                        .padStart(64, '0')
-                );
-                const value = Bytes32.fromHex(
-                    slot.value.slice(2).padStart(64, '0')
-                );
-                return new ContractDeposit({
-                    address: addr,
-                    attestationHash: attestation,
-                    value,
-                });
-            });
-        console.log('Built contractStorageSlots');
 
         // Build leaves
         const leaves = buildContractDepositLeaves(contractStorageSlots);
@@ -412,7 +449,7 @@ describe('e2e_prerequisites', () => {
             `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
         );
 
-        console.log(Bytes.from(wordToBytes(attestationHash,32)).toHex());
+        console.log(Bytes.from(wordToBytes(attestationHash, 32)).toHex());
 
         // credentialAttestationHash
 
@@ -424,10 +461,11 @@ describe('e2e_prerequisites', () => {
         console.log(
             `credentialAttestationHash (BE hex): ${fieldToHexBE(
                 credentialAttestationHash
-            )}`,
-            
+            )}`
         );
-        console.log(Bytes.from(wordToBytes(credentialAttestationHash,32)).toHex());
+        console.log(
+            Bytes.from(wordToBytes(credentialAttestationHash, 32)).toHex()
+        );
 
         console.log('--------------------------------compare to....');
 
