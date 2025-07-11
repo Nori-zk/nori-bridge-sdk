@@ -95,8 +95,8 @@ const E2EPrerequisitesProgram = ZkProgram({
                 const contractDepositAttestorProofCredentialBytes =
                     contractDepositAttestorPublicInputs.attestationHash.bytes;
                 let contractDepositAttestorProofCredential = new Field(0);
-                // Turn into a LE field??
-                for (let i = 31; i >= 0; i--) {
+                // Turn into field
+                for (let i = 0; i < 32; i++) {
                     contractDepositAttestorProofCredential =
                         contractDepositAttestorProofCredential
                             .mul(256)
@@ -383,8 +383,8 @@ describe('e2e_prerequisites', () => {
 
         // MOCK convert attestation bytes into a field
         let credentialAttestationHash = new Field(0);
-        // Turn into a LE field??
-        for (let i = 31; i >= 0; i--) {
+        // Turn into a field
+        for (let i = 0; i < 32; i++) {
             credentialAttestationHash = credentialAttestationHash
                 .mul(256)
                 .add(slotToFind.attestationHash.bytes[i].value);
@@ -444,6 +444,9 @@ describe('e2e_prerequisites', () => {
         // Think about this...
         console.log(
             `attestationHash (LE hex): ${fieldToHexLE(attestationHash)}`
+        );
+        console.log(
+            `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
         );
         console.log(
             `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
