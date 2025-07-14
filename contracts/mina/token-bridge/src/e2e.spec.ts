@@ -1,3 +1,5 @@
+import { PlonkProofAndConvertedProofBundle } from "./proofTypes.js";
+
 class InvertedPromise<T, E> {
     resolve: (output: T) => void;
     reject: (error: E) => void;
@@ -39,7 +41,7 @@ describe('should perform an end to end pipeline', () => {
         });
     }
 
-    async function proofConversionServiceRequest(inputBlockNumber: number) {
+    async function proofConversionServiceRequest(inputBlockNumber: number): Promise<PlonkProofAndConvertedProofBundle> {
         const fetchResponse = await fetch(`https://pcs.nori.it.com/converted-consensus-mpt-proofs/${inputBlockNumber}`);
         const json = await fetchResponse.json();
         if ('error' in json) throw new Error(json.error);
@@ -73,5 +75,35 @@ describe('should perform an end to end pipeline', () => {
         expect(responseJson).rejects.toThrow('Invalid block number \'hello\'');
     });
 
-    test('e2e_pipeline_with_services', async () => {}, 1000000000);
+    test('e2e_pipeline_with_services', async () => {
+        // So what does this test look like?
+
+        // We need to lock tokens
+
+        // We need to inspect the status of the transition notifications stream to know where we are
+
+        // We need to maintain a state (waiting for finalization etc)
+
+        enum State {
+            WaitingForFinalization = 'WaitingForFinalization',
+            WaitingForMPTConsensusProof = 'WaitingForMPTConsensusProof',
+            WaitingForProofConversion = 'WaitingForProofConversion',
+            WaitingForMinaFinalization = 'WaitingForMinaFinalization'
+        }
+
+        // But we need more substate than this would be nice to know the overall progress, and perhaps an estimated time 
+        // for some of the stages.
+
+        // For finalization we could look at the last finalization emission from bridge head.... and know how many blocks left to go
+        // and use estimates for this time.
+
+        // TransitionNoticeExtensionBridgeHeadFinalityTransitionDetected only has the slot
+        // so we would need more information than this..... we would need to know our current slot from the block number.....
+
+        // For proof conversion we could look at the last time (aka look at the stream for data while we await finalisation) and get an estimate of each stage
+        // Need to have a complete track of everything for this....
+
+
+
+    }, 1000000000);
 });
