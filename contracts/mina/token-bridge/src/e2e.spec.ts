@@ -1,4 +1,4 @@
-class InvertedPromise<T,E> {
+class InvertedPromise<T, E> {
     resolve: (output: T) => void;
     reject: (error: E) => void;
     promise: Promise<T>;
@@ -10,7 +10,6 @@ class InvertedPromise<T,E> {
     }
 }
 
-
 describe('should perform an end to end pipeline', () => {
     async function connectWebsocket(
         onData: (event: MessageEvent) => void,
@@ -20,7 +19,12 @@ describe('should perform an end to end pipeline', () => {
             const webSocket = new WebSocket('wss://wss.nori.it.com');
             webSocket.addEventListener('open', (event) => {
                 console.log('WebSocket is opened', event);
-                webSocket.send(JSON.stringify({method: 'subscribe', topic: 'notices.transition.*'}))
+                webSocket.send(
+                    JSON.stringify({
+                        method: 'subscribe',
+                        topic: 'notices.transition.*',
+                    })
+                );
                 resolve(webSocket);
             });
 
@@ -35,6 +39,13 @@ describe('should perform an end to end pipeline', () => {
         });
     }
 
+    async function proofConversionServiceRequest(inputBlockNumber: number) {
+        const fetchResponse = await fetch(`https://pcs.nori.it.com/converted-consensus-mpt-proofs/${inputBlockNumber}`);
+        const json = await fetchResponse.json();
+        if ('error' in json) throw new Error(json.error);
+        return json;
+    }
+
     beforeAll(() => {});
 
     test('connect_to_wss_and_await_message', async () => {
@@ -42,11 +53,10 @@ describe('should perform an end to end pipeline', () => {
         function onData(event: MessageEvent) {
             console.log('Got first message', event.data);
             invertedPromise.resolve(event);
-            
         }
         function onClose(event: CloseEvent) {
             console.error('Connection closed', event);
-            invertedPromise.reject(event)
+            invertedPromise.reject(event);
         }
 
         const websocket = await connectWebsocket(onData, onClose);
@@ -54,7 +64,14 @@ describe('should perform an end to end pipeline', () => {
         websocket.close();
     }, 1000000000);
 
-    test('e2e_pipeline_with_services', async () => {
+    test('fetch_proof_from_block_number', async() => {
+        await proofConversionServiceRequest(4162671);
+    });
 
-    }, 1000000000);
+    test('fetch_proof_from_block_number_handle_error', async() => {
+        const responseJson = proofConversionServiceRequest('hello' as unknown as number);
+        expect(responseJson).rejects.toThrow('Invalid block number \'hello\'');
+    });
+
+    test('e2e_pipeline_with_services', async () => {}, 1000000000);
 });
