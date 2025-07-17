@@ -127,7 +127,7 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
         return merklePath;
     }
 
-    // Deal with value: TLeaf, type erasure.
+    // Deal with value: TLeaf, type inference fails, so need to retype everything.
 
     type MerkleTreeLeafAttestorInputConstructor = new (arg: {
         rootHash: Field;

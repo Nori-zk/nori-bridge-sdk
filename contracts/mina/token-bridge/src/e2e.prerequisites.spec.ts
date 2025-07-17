@@ -19,19 +19,21 @@ import {
     fieldToHexLE,
     fieldToHexBE,
 } from '@nori-zk/o1js-zk-utils';
+
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
-import { Field, Struct, UInt64, ZkProgram, Proof, Bytes } from 'o1js';
+import { Field, Struct, UInt64, ZkProgram, Proof, Bytes, PrivateKey, EcdsaSignature } from 'o1js';
 import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
 import {
     uint8ArrayToBigIntBE,
     uint8ArrayToBigIntLE,
 } from '@nori-zk/o1js-zk-utils/build/utils.js';
+import { E2ePrerequisitesInput, E2EPrerequisitesProgram } from './e2ePrerequisites.js';
 
 const mptConsensusProofBundle = proofArgument;
 const bridgeHeadJobSucceededMessage = bridgeHeadJobSucceededExample;
 
-class E2ePrerequisitesInput extends Struct({
+/*class E2ePrerequisitesInput extends Struct({
     //ethVerifierProof: EthProof.provable,
     //contractDepositAttestorProof: ContractDepositAttestorProof.provable,
     credentialAttestationHash: Field,
@@ -137,7 +139,7 @@ const E2EPrerequisitesProgram = ZkProgram({
             },
         },
     },
-});
+});*/
 
 function hexStringToUint8Array(hex: string): Uint8Array {
     if (hex.startsWith('0x')) hex = hex.slice(2);
@@ -251,6 +253,7 @@ describe('e2e_prerequisites', () => {
     });
 
     test('e2e_prerequisites_pipeline', async () => {
+        console.log('bridgeHeadJobSucceededMessage.contract_storage_slots', bridgeHeadJobSucceededMessage.contract_storage_slots);
         // Build deposit leave values (to be hashed)
         const contractStorageSlots =
             bridgeHeadJobSucceededMessage.contract_storage_slots.map((slot) => {

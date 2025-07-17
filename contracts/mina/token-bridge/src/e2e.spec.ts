@@ -1,4 +1,4 @@
-import { Field, Bytes } from 'o1js';
+import { Field, Bytes, PublicKey, PrivateKey, UInt64, Proof } from 'o1js';
 import {
     BridgeEthFinalizationStatus,
     BridgeLastStageState,
@@ -6,10 +6,42 @@ import {
     KeyTransitionStageMessageTypes,
     Sp1ProofAndConvertedProofBundle,
     TransitionNoticeMessageType,
+    VerifiedContractStorageSlot,
     WebSocketServiceTopicSubscriptionMessage,
 } from '@nori-zk/pts-types';
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
 import { clearInterval } from 'node:timers';
+import {
+    EthVerifier,
+    ContractDepositAttestor,
+    Bytes20,
+    Bytes32,
+    ContractDeposit,
+    buildContractDepositLeaves,
+    getContractDepositWitness,
+    computeMerkleTreeDepthAndSize,
+    foldMerkleLeft,
+    getMerkleZeros,
+    ContractDepositAttestorInput,
+    EthInput,
+    decodeConsensusMptProof,
+    EthProof,
+    ContractDepositAttestorProof,
+    fieldToBigIntLE,
+    fieldToHexLE,
+} from '@nori-zk/o1js-zk-utils';
+import { Credential, DynamicBytes } from 'mina-attestations';
+import { EcdsaEthereum } from 'mina-attestations/imported';
+import { Wallet } from 'ethers/wallet';
+import { id } from 'ethers/hash';
+import {
+    E2ePrerequisitesInput,
+    E2EPrerequisitesProgram,
+} from './e2ePrerequisites.js';
+import {
+    fieldToHexBE,
+    uint8ArrayToBigIntBE,
+} from '@nori-zk/o1js-zk-utils/build/utils.js';
 
 class InvertedPromise<T, E> {
     resolve: (output: T) => void;
@@ -23,24 +55,42 @@ class InvertedPromise<T, E> {
     }
 }
 
+function hexStringToUint8Array(hex: string): Uint8Array {
+    if (hex.startsWith('0x')) hex = hex.slice(2);
+    if (hex.length % 2 !== 0) hex = '0' + hex; // pad to full bytes
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    }
+    return bytes;
+}
+
 describe('should perform an end to end pipeline', () => {
     async function connectWebsocket(
         onData: (event: MessageEvent<string>) => void,
         onClose: (event: CloseEvent) => void
     ): Promise<WebSocket> {
         return new Promise((resolve, reject) => {
+            let timeout: NodeJS.Timeout;
             const webSocket = new WebSocket('wss://wss.nori.it.com');
             webSocket.addEventListener('open', (event) => {
                 console.log('WebSocket is opened', event);
+                timeout = setInterval(() => {
+                    webSocket.send(JSON.stringify({method: 'ping'})); // Keep the connection alive
+                }, 3000);
                 resolve(webSocket);
             });
 
             webSocket.addEventListener('error', (event) => {
                 console.error('Websocket Error', event);
+                if (timeout) clearInterval(timeout);
                 reject(webSocket);
             });
 
-            webSocket.addEventListener('message', (event) => onData(event));
+            webSocket.addEventListener('message', (event) => {
+                if (event.data === '{"data":"pong"}') return; // Ignore pong results
+                onData(event);
+            });
 
             webSocket.addEventListener('close', (event) => onClose(event));
         });
@@ -52,7 +102,9 @@ describe('should perform an end to end pipeline', () => {
         const fetchResponse = await fetch(
             `https://pcs.nori.it.com/converted-consensus-mpt-proofs/${inputBlockNumber}`
         );
+        console.log('fetchResponse GET', fetchResponse);
         const json = await fetchResponse.json();
+        console.log('parsedjson', json, typeof json);
         if ('error' in json) throw new Error(json.error as string);
         return json;
     }
@@ -64,6 +116,7 @@ describe('should perform an end to end pipeline', () => {
         // Ensure we can do the field -> hex -> field round trip
         const beBytes = Bytes.from(wordToBytes(attestationHash, 32).reverse());
         const attestationHex = beBytes.toHex();
+        console.log('attestationHex', attestationHex);
         const bytesFromHex = Bytes.fromHex(attestationHex); // this is be
         let fieldFromHex = new Field(0);
         for (let i = 0; i < 32; i++) {
@@ -114,7 +167,98 @@ describe('should perform an end to end pipeline', () => {
         return parseInt(match[1]);
     }
 
+    async function getEthereumEnvPrivateKey() {
+        const { fileURLToPath } = await import('url');
+        const { resolve, dirname } = await import('node:path');
+        const __filename = fileURLToPath(import.meta.url);
+        const rootDir = dirname(__filename);
+
+        const fs = await import('fs');
+        const dotenv = await import('dotenv');
+
+        const envBuffer = fs.readFileSync(
+            resolve(rootDir, '..', '..', '..', 'ethereum', '.env')
+        );
+        const parsed = dotenv.parse(envBuffer);
+        //console.log(parsed);
+        return parsed.ETH_PRIVATE_KEY as string;
+    }
+
+    async function getEthWallet() {
+        const privateKey = await getEthereumEnvPrivateKey();
+        const { ethers } = await import('ethers');
+        return new ethers.Wallet(privateKey);
+    }
+
+    async function getCredential(ethWallet: Wallet, minaPubKey: PublicKey) {
+        const maxMessageLength = 32;
+        const proofsEnabled = true;
+        const Message = DynamicBytes({ maxLength: maxMessageLength });
+
+        // prepare ecdsa credential
+        await EcdsaEthereum.compileDependencies({
+            maxMessageLength,
+            proofsEnabled,
+        });
+        const EcdsaCredential = await EcdsaEthereum.Credential({
+            maxMessageLength,
+        });
+        await EcdsaCredential.compile({ proofsEnabled });
+
+        // signature
+        let message = 'abc';
+        const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
+        const hashMessage = (msg: string) => parseHex(id(msg));
+        let sig = await ethWallet.signMessage(hashMessage(message));
+
+        // create credential (which verifies the signature)
+        let { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
+
+        let credential = await EcdsaCredential.create({
+            owner: minaPubKey,
+            publicInput: {
+                signerAddress: EcdsaEthereum.parseAddress(ethWallet.address),
+            },
+            privateInput: {
+                message: Message.fromString(message),
+                signature,
+                parityBit,
+            },
+        });
+
+        return credential;
+    }
+
     beforeAll(() => {});
+
+    test('get_eth_address', async () => {
+        console.log((await getEthWallet()).address);
+    });
+
+    test('websockets_heartbeat', async () => {
+        const webSocket = await connectWebsocket((event)=>{
+            console.log(event.data);
+        }, console.error);
+        
+        const invertedPromise = new InvertedPromise();
+        await invertedPromise.promise;
+    });
+
+    test('should_get_credential', async () => {
+        const ethWallet = await getEthWallet();
+        let { publicKey: minaPubKey } = PrivateKey.randomKeypair();
+        const credential = await getCredential(ethWallet, minaPubKey);
+        console.log(
+            '✅ created credential',
+            Credential.toJSON(credential).slice(0, 1000) + '...'
+        );
+        console.log('--------------------');
+        console.log(JSON.stringify(credential.witness.proof, null, 2));
+        console.log('--------------------');
+        console.log(JSON.stringify(credential.witness.proof.proof, null, 2));
+        credential.witness.type;
+        credential.witness.vk;
+    });
 
     test('connect_to_wss_and_await_message', async () => {
         const invertedPromise = new InvertedPromise();
@@ -135,6 +279,23 @@ describe('should perform an end to end pipeline', () => {
     test('fetch_proof_from_block_number', async () => {
         await proofConversionServiceRequest(4162671);
     });
+
+    /*test('fetch_proof_bundle_and_construct', async () => {
+        //console.log('NodeProofLeft', NodeProofLeft);
+        const {
+            consensusMPTProof: {
+                proof: consensusMPTProofProof,
+                contract_storage_slots: consensusMPTProofContractStorageSlots,
+            },
+            consensusMPTProofVerification: consensusMPTProofVerification,
+        } = await proofConversionServiceRequest(4180478);
+
+        // Watch out because the ts ignore prevent you seeing if NodeProofLeft has been imported!
+        //@ts-ignore
+        const rawProof = await NodeProofLeft.fromJSON(
+            consensusMPTProofVerification.proofData
+        );
+    });*/
 
     test('fetch_proof_from_block_number_handle_error', async () => {
         const responseJson = proofConversionServiceRequest(
@@ -184,10 +345,33 @@ describe('should perform an end to end pipeline', () => {
     }, 1000000000);*/
 
     test('e2e_pipeline_with_services', async () => {
+        // Before we start we need access to a wallet and an attested credential....
+
+        // Get eth wallet -----------------------------------------------------------
+        const ethWallet = await getEthWallet();
+        const ethAddressLowerHex = ethWallet.address.toLowerCase();
+        console.log('ethAddressLowerHex', ethAddressLowerHex);
+
+        // Get attestation properly TODO
+        // const bytes = Bytes.from(<bigInt credintial.witness.proof.proof>)
+        // bytes.toFields()
+        // then poseidon hash these fields together
+
+        const credentialAttestationHash = Field.random(); // For now random mock
+        const beAttestationHashBytes = Bytes.from(
+            wordToBytes(credentialAttestationHash, 32).reverse()
+        );
+        const attestationBEHex = `0x${beAttestationHashBytes.toHex()}`; // this does not have the 0x....
+        console.log('attestationBEHex', attestationBEHex);
+
+        // Now we can start thinking about the bridge's status and the locking.
+
+        // Setup first the bridge head state machine...
+
         const initPromise = new InvertedPromise<void, void>();
         const exitPromise = new InvertedPromise();
 
-        let timings: KeyTransitionStageEstimatedTransitionTime;
+        let bridgeStageTimings: KeyTransitionStageEstimatedTransitionTime;
         let bridgeState: BridgeLastStageState;
         let ethState: BridgeEthFinalizationStatus;
 
@@ -200,6 +384,7 @@ describe('should perform an end to end pipeline', () => {
         let ethFinalityTickerHandler: NodeJS.Timeout;
         let stageElapsedSecIncrementorTimeout: NodeJS.Timeout;
 
+        // Utility to calculate the slot -> block delta
         function getBlockToSlotDelta(): number | undefined {
             if (
                 ethState == null &&
@@ -213,8 +398,9 @@ describe('should perform an end to end pipeline', () => {
             );
         }
 
+        // Estimator for eth finality transitions
         // TODO how to improve this estimate?
-        // Perhaps inspect how far we are from finality but if we exceed it by some margin assume we wait for the next finality before 
+        // Perhaps inspect how far we are from finality but if we exceed it by some margin assume we wait for the next finality before
         // the bridge head accepts this new state.... due to low vote counts being rejected.
         function setEthFinalityEstimatorTicker(depositBlockNumber: number) {
             const delta = getBlockToSlotDelta();
@@ -240,8 +426,9 @@ describe('should perform an end to end pipeline', () => {
             }, 1000);
         }
 
+        // Utility to track compared to our deposit do we need to wait for finality.
         let previousFinalityBlockNumber: number | null = null;
-        function trackEthFinality() {
+        function determineDepositMintReadyness() {
             if (ethState.latest_finality_block_number === 'unknown') return;
 
             const hasChanged =
@@ -286,36 +473,248 @@ describe('should perform an end to end pipeline', () => {
             }
         }
 
-        function onData(event: MessageEvent<string>) {
-            const data = JSON.parse(
-                event.data
-            ) as WebSocketServiceTopicSubscriptionMessage;
-            if (data.topic === 'state.eth') {
-                console.log('state.eth', data);
-                ethState = data.extension;
-                trackEthFinality();
-            } else if (data.topic === 'state.bridge') {
-                console.log('state.bridge', data);
-                bridgeState = data.extension;
-                clearInterval(stageElapsedSecIncrementorTimeout);
-                stageElapsedSecIncrementorTimeout = setTimeout(() => {
-                    (bridgeState.elapsed_sec as number) += 1;
-                }, 1000);
-                trackJobCompletion();
-            } else if (data.topic === 'timings.notices.transition') {
-                //console.log('timings.notices.transition', data);
-                timings = data.extension;
-            }
-            if (
-                ethState &&
-                ethState.latest_finality_block_number !== 'unknown' &&
-                bridgeState &&
-                timings
-            )
-                initPromise.resolve();
+        let ethVerifierProof: InstanceType<typeof EthProof>;
+        let depositAttestationProof: InstanceType<
+            typeof ContractDepositAttestorProof
+        >;
+        let despositSlotRaw: VerifiedContractStorageSlot;
+
+        let proofsBuilt = false;
+        let invokedCompute = false;
+        // When subStage === TransitionNoticeMessageType.ProofConversionJobSucceeded && highLevelState === 'waiting_for_current_job_completion'
+        // Occurs the proof conversion will have finished and a proof bundle + the window's contract deposits will be store and ready to be served by pcs.nori.it.com
+        // Fetch the bundle... Compute the deposit attestation and verify the proof. Set proofsBuilt=true when all done....
+        async function fetchContractWindowProofsSlotsAndCompute() {
+            if (invokedCompute === true) return;
+            invokedCompute = true;
+            console.log(
+                `Fetching proof bundle for deposit with block number: ${depositBlockNumber}`
+            );
+
+            console.time('proofConversionServiceRequest');
+            const {
+                consensusMPTProof: {
+                    proof: consensusMPTProofProof,
+                    contract_storage_slots:
+                        consensusMPTProofContractStorageSlots,
+                },
+                consensusMPTProofVerification: consensusMPTProofVerification,
+            } = await proofConversionServiceRequest(depositBlockNumber);
+            console.timeEnd('proofConversionServiceRequest');
+
+            console.log(
+                'consensusMPTProofVerification, consensusMPTProofProof, consensusMPTProofContractStorageSlots',
+                consensusMPTProofVerification,
+                consensusMPTProofProof,
+                consensusMPTProofContractStorageSlots
+            );
+
+            // Find deposit
+            console.log(
+                `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
+            );
+            const depositIndex =
+                consensusMPTProofContractStorageSlots.findIndex(
+                    (slot) =>
+                        slot.slot_key_address === ethAddressLowerHex &&
+                        slot.slot_nested_key_attestation_hash ===
+                            attestationBEHex
+                );
+            if (depositIndex === -1)
+                throw new Error(
+                    `Could not find deposit index with attestationBEHex: ${attestationBEHex}, ethAddressLowerHex:${ethAddressLowerHex} in slots ${JSON.stringify(
+                        consensusMPTProofContractStorageSlots,
+                        null,
+                        4
+                    )}`
+                );
+            console.log(
+                `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
+            );
+            despositSlotRaw =
+                consensusMPTProofContractStorageSlots[depositIndex];
+            const totalDespositedValue = despositSlotRaw.value; // this is a hex // would be nice here to print a bigint
+            console.log(
+                `Total deposited to date (hex): ${totalDespositedValue}`
+            );
+
+            // Build contract storage slots (to be hashed)
+            const contractStorageSlots =
+                consensusMPTProofContractStorageSlots.map((slot) => {
+                    console.log({
+                        add: slot.slot_key_address.slice(2).padStart(40, '0'),
+                        attr: slot.slot_nested_key_attestation_hash
+                            .slice(2)
+                            .padStart(64, '0'),
+                        value: slot.value.slice(2).padStart(64, '0'),
+                    });
+                    const addr = Bytes20.fromHex(
+                        slot.slot_key_address.slice(2).padStart(40, '0')
+                    );
+                    const attestation = Bytes32.fromHex(
+                        slot.slot_nested_key_attestation_hash
+                            .slice(2)
+                            .padStart(64, '0')
+                    );
+                    const value = Bytes32.fromHex(
+                        slot.value.slice(2).padStart(64, '0')
+                    );
+                    return new ContractDeposit({
+                        address: addr,
+                        attestationHash: attestation,
+                        value,
+                    });
+                });
+            // Select our deposit
+            const depositSlot = contractStorageSlots[depositIndex];
+
+            // Build deposit witness
+
+            // Build leaves
+            console.time('buildContractDepositLeaves');
+            const leaves = buildContractDepositLeaves(contractStorageSlots);
+            console.timeEnd('buildContractDepositLeaves');
+
+            // Compute path
+            console.time('getContractDepositWitness');
+            const path = getContractDepositWitness([...leaves], depositIndex);
+            console.timeEnd('getContractDepositWitness');
+
+            // Compute root
+            const { depth, paddedSize } = computeMerkleTreeDepthAndSize(
+                leaves.length
+            );
+            console.time('foldMerkleLeft');
+            const rootHash = foldMerkleLeft(
+                leaves,
+                paddedSize,
+                depth,
+                getMerkleZeros(depth)
+            );
+            console.timeEnd('foldMerkleLeft');
+            console.log(`Computed Merkle root: ${rootHash.toString()}`);
+
+            // Build ZK input
+            const depositProofInput = new ContractDepositAttestorInput({
+                rootHash,
+                path,
+                index: UInt64.from(depositIndex),
+                value: depositSlot,
+            });
+            console.log('Prepared ContractDepositAttestorInput');
+
+            // Prove deposit
+            console.time('ContractDepositAttestor.compute');
+            // Retype because of erasure at package level :(
+            depositAttestationProof = (
+                await ContractDepositAttestor.compute(depositProofInput)
+            ).proof as InstanceType<typeof ContractDepositAttestorProof>;
+
+            console.timeEnd('ContractDepositAttestor.compute');
+
+            // Verify consensus mpt proof
+            console.log('Loaded sp1PlonkProof and conversionOutputProof');
+            const ethVerifierInput = new EthInput(
+                decodeConsensusMptProof(consensusMPTProofProof)
+            );
+            console.log('Decoded EthInput from MPT proof');
+
+            console.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
+            // Watch out because the ts ignore prevent you seeing if NodeProofLeft has been imported!
+            // @ts-ignore this is silly! why!
+            const rawProof = await NodeProofLeft.fromJSON(
+                consensusMPTProofVerification.proofData
+            );
+            console.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
+
+            console.log('Computing EthVerifier');
+            console.time('EthVerifier.compute');
+            ethVerifierProof = (
+                await EthVerifier.compute(ethVerifierInput, rawProof)
+            ).proof;
+            console.timeEnd('EthVerifier.compute');
+
+            console.log(`All proofs built needed to mint!`);
+            proofsBuilt = true;
         }
 
-        function trackJobCompletion() {
+        // A mock program which mostly demonstraights the pre-requisites needed to actually mint.
+        let invokedMintMock = false;
+        async function performMintMock() {
+            if (highLevelState !== 'can_mint') return;
+            if (invokedMintMock === true) return;
+            if (proofsBuilt === false) {
+                console.warn(
+                    'warning proofsBuilt is can_mint but proofsBuilt === false'
+                );
+                return;
+            }
+            invokedMintMock = true;
+            highLevelState = 'minting';
+            const e2ePrerequisitesInput = new E2ePrerequisitesInput({
+                credentialAttestationHash,
+            });
+
+            console.time('E2EPrerequisitesProgram.compute');
+            const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
+                e2ePrerequisitesInput,
+                ethVerifierProof,
+                depositAttestationProof
+            );
+            console.timeEnd('E2EPrerequisitesProgram.compute');
+
+            console.log('Computed E2EPrerequisitesProgram proof');
+
+            const { totalLocked, storageDepositRoot, attestationHash } =
+                e2ePrerequisitesProof.proof.publicOutput;
+
+            // Change these to asserts in future
+
+            console.log('--- Decoded public output ---');
+            console.log(
+                `proved [totalLocked] (LE bigint): ${fieldToBigIntLE(
+                    totalLocked
+                )}`
+            );
+            console.log(
+                'bridge head [totalLocked] (BE bigint):',
+                uint8ArrayToBigIntBE(
+                    hexStringToUint8Array(despositSlotRaw.value)
+                )
+            );
+
+            console.log(
+                `proved [attestationHash] (BE hex): ${fieldToHexBE(
+                    attestationHash
+                )}`
+            );
+            console.log(
+                `bridge head [attestationHash] (BE hex):`,
+                despositSlotRaw.slot_nested_key_attestation_hash
+            );
+            console.log(
+                `original [attestationHash] (BE Hex):`,
+                attestationBEHex
+            );
+
+            // Address
+
+            console.log('original [address]:', ethAddressLowerHex);
+            console.log(
+                'bridge head [address]:',
+                despositSlotRaw.slot_key_address
+            );
+            // what about checking depositAttestationProof depositAttestationProof.publicInput.value.address
+
+            // todo print something to show storageDepositRoot
+
+            highLevelState = 'minted';
+
+            exitPromise.resolve(true);
+        }
+
+        // When the bridge state changes check whether or not we can mint
+        async function trackJobCompletion() {
             if (
                 ![
                     'waiting_for_previous_job_completion',
@@ -324,7 +723,17 @@ describe('should perform an end to end pipeline', () => {
             )
                 return;
             if (subStage === bridgeState.stageName) return;
-            if (subStage === 'EthProcessorTransactionFinalizationSucceeded') {
+
+            if (
+                subStage ===
+                    TransitionNoticeMessageType.ProofConversionJobSucceeded &&
+                highLevelState === 'waiting_for_current_job_completion'
+            ) {
+                await fetchContractWindowProofsSlotsAndCompute();
+            } else if (
+                subStage ===
+                TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded
+            ) {
                 // but here we need to detect if our finalized eth status is beyond the last block number because otherwise we are again waiting for finalization before the job will
                 // resume FIXME
                 if (highLevelState === 'waiting_for_previous_job_completion') {
@@ -332,7 +741,7 @@ describe('should perform an end to end pipeline', () => {
                 } else if (
                     highLevelState === 'waiting_for_current_job_completion'
                 ) {
-                    highLevelState = 'minting';
+                    highLevelState = 'can_mint';
                 }
                 clearInterval(timeTrackInterval);
                 stageWaitTime = 0;
@@ -340,7 +749,7 @@ describe('should perform an end to end pipeline', () => {
             subStage = bridgeState.stageName;
             let timeEstimate =
                 Number(
-                    timings[
+                    bridgeStageTimings[
                         bridgeState.stageName as KeyTransitionStageMessageTypes
                     ]
                 ) || 15;
@@ -353,7 +762,7 @@ describe('should perform an end to end pipeline', () => {
                 stageWaitTime = timeEstimate;
                 if (
                     subStage ===
-                        'EthProcessorTransactionFinalizationSucceeded' &&
+                        TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded &&
                     timeEstimate === -1
                 ) {
                     // if we go negative then here we can assume that
@@ -364,12 +773,61 @@ describe('should perform an end to end pipeline', () => {
             }, 1000);
         }
 
+        // Websocket server wss.nori.it.com event handlers.
+
+        // Callback method for subscribed events from wss.nori.it.com
+        async function onData(event: MessageEvent<string>) {
+            try {
+                const data = JSON.parse(
+                    event.data
+                ) as WebSocketServiceTopicSubscriptionMessage;
+                // Eth finalization status has changes
+                if (data.topic === 'state.eth') {
+                    console.log('state.eth', data);
+                    ethState = data.extension;
+                    determineDepositMintReadyness();
+                }
+                // The bridge has progressed with its jobs
+                else if (data.topic === 'state.bridge') {
+                    console.log('state.bridge', data);
+                    bridgeState = data.extension;
+                    clearInterval(stageElapsedSecIncrementorTimeout);
+                    stageElapsedSecIncrementorTimeout = setTimeout(() => {
+                        (bridgeState.elapsed_sec as number) += 1;
+                    }, 1000);
+                    await trackJobCompletion();
+                    await performMintMock();
+                }
+                // We have an update to timing estimates for the various bridge stages
+                else if (data.topic === 'timings.notices.transition') {
+                    //console.log('timings.notices.transition', data);
+                    bridgeStageTimings = data.extension;
+                }
+                // If we have enough of a picture of the bridge head stage allow the user to lock tokens.
+                if (
+                    ethState &&
+                    ethState.latest_finality_block_number !== 'unknown' &&
+                    bridgeState &&
+                    bridgeState.stageName !== 'unknown' &&
+                    bridgeStageTimings
+                )
+                    initPromise.resolve();
+            } catch (e) {
+                console.error((e as Error).stack);
+                exitPromise.reject(e);
+            }
+        }
+
+        // On wss.nori.it.com websocket close handler.
         function onClose(event: CloseEvent) {
             console.error('Connection closed', event);
             exitPromise.reject(event);
         }
 
+        // Create a websocket connect to wss.nori.it.com
         const webSocket = await connectWebsocket(onData, onClose);
+
+        // Subscribe to relevant topics needed to facilitate bridging.
         webSocket.send(
             JSON.stringify({
                 method: 'subscribe',
@@ -420,15 +878,55 @@ describe('should perform an end to end pipeline', () => {
         }
         printStageWaitTime();
 
+        // Pre compile programs -----------------------------------------------------------
+
+        console.time('ContractDepositAttestor compile');
+        const { verificationKey: contractDepositAttestorVerificationKey } =
+            await ContractDepositAttestor.compile({ forceRecompile: true });
+        console.timeEnd('ContractDepositAttestor compile');
+        console.log(
+            `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
+        );
+
+        console.time('EthVerifier compile');
+        const { verificationKey: ethVerifierVerificationKey } =
+            await EthVerifier.compile({ forceRecompile: true });
+        console.timeEnd('EthVerifier compile');
+        console.log(
+            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+        );
+
+        console.time('E2EPrerequisitesProgram compile');
+        const { verificationKey: e2ePrerequisitesVerificationKey } =
+            await E2EPrerequisitesProgram.compile({ forceRecompile: true });
+        console.timeEnd('E2EPrerequisitesProgram compile');
+        console.log(
+            `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
+        );
+
+        // We have a good enough picture of the bridges state to allow the user to mint.
         await initPromise.promise;
 
+        // Lock user tokens
         highLevelState = 'locking_tokens';
-        depositBlockNumber = 4175324; // await lockTokens(new Field(10111011), 0.000001); //hard code this for now....
-        //highLevelState = 'waiting_for_eth_finality';
-        console.log('deposit_block_number', depositBlockNumber);
-        trackEthFinality();
+        console.log('locking tokens...');
+        depositBlockNumber = await lockTokens(
+            credentialAttestationHash,
+            0.000001
+        ); // 4175324; // hard code this for now for testing....
+        console.log(
+            'locked tokens .... deposit_block_number',
+            depositBlockNumber
+        );
 
+        // Start the process of determining when we can mint.
+        determineDepositMintReadyness();
+
+        // Block exit until the mint has occured
         await exitPromise.promise;
+        console.log('Minted successfully!');
+
+        // Cleanup
         clearInterval(stageWaitPrinterHandler);
         webSocket.close();
 
@@ -440,6 +938,5 @@ describe('should perform an end to end pipeline', () => {
         // Compute a merkle proof / witness of our inclusion of our deposit.
 
         // Post window when we are allowed to mint but before the window is exceeded.... do the mint
-
     }, 1000000000);
 });

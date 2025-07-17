@@ -1,0 +1,110 @@
+import { EthProof, ContractDepositAttestorProof } from "@nori-zk/o1js-zk-utils";
+import { Field, Struct, ZkProgram } from "o1js";
+
+export class E2ePrerequisitesInput extends Struct({
+    //ethVerifierProof: EthProof.provable,
+    //contractDepositAttestorProof: ContractDepositAttestorProof.provable,
+    credentialAttestationHash: Field,
+    // AttestationHash (as temporary input) [this is not no how we will do it but good for test]
+    // ...???? CredentialAttestaionProof (private credential ) -> output owner of private (public key.... MINA)
+    // COULD BE HASH OF THIS PROOF..... IGNORE THIS FOR THIS TEST
+}) {}
+
+export class E2ePrerequisitesOutput extends Struct({
+    totalLocked: Field,
+    storageDepositRoot: Field,
+    attestationHash: Field,
+}) {}
+
+export const E2EPrerequisitesProgram = ZkProgram({
+    name: 'E2EPrerequisites',
+    publicInput: E2ePrerequisitesInput,
+    publicOutput: E2ePrerequisitesOutput,
+    methods: {
+        compute: {
+            privateInputs: [EthProof, ContractDepositAttestorProof],
+            async method(
+                input: E2ePrerequisitesInput,
+                ethVerifierProof: InstanceType<typeof EthProof>,
+                contractDepositAttestorProof: InstanceType<
+                    typeof ContractDepositAttestorProof
+                >
+            ) {
+                // proof 1 proof 2 /// attestation credential hashing in future
+                // verify x2
+
+                ethVerifierProof.verify();
+                contractDepositAttestorProof.verify();
+
+                // Extract roots from public inputs
+
+                const depositAttestationProofRoot =
+                    contractDepositAttestorProof.publicOutput;
+                const ethVerifierStorageProofRootBytes =
+                    ethVerifierProof.publicInput.verifiedContractDepositsRoot
+                        .bytes; // I think the is BE
+
+                // Convert verifiedContractDepositsRoot from bytes to field
+                let ethVerifierStorageProofRoot = new Field(0);
+                // FIXME
+                // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+                // And here we re-interpret the BE as LE!
+                // But it does pass the test! And otherwise fails.
+                for (let i = 31; i >= 0; i--) {
+                    ethVerifierStorageProofRoot = ethVerifierStorageProofRoot
+                        .mul(256)
+                        .add(ethVerifierStorageProofRootBytes[i].value);
+                }
+
+                // Assert roots
+                depositAttestationProofRoot.assertEquals(
+                    ethVerifierStorageProofRoot
+                );
+
+                // Mock attestation assert
+                const contractDepositAttestorPublicInputs =
+                    contractDepositAttestorProof.publicInput.value;
+                // Convert contractDepositAttestorPublicInputs.attestationHash from bytes into a field
+                const contractDepositAttestorProofCredentialBytes =
+                    contractDepositAttestorPublicInputs.attestationHash.bytes;
+                let contractDepositAttestorProofCredential = new Field(0);
+                // Turn into field
+                for (let i = 0; i < 32; i++) {
+                    contractDepositAttestorProofCredential =
+                        contractDepositAttestorProofCredential
+                            .mul(256)
+                            .add(
+                                contractDepositAttestorProofCredentialBytes[i]
+                                    .value
+                            );
+                }
+                input.credentialAttestationHash.assertEquals(
+                    contractDepositAttestorProofCredential
+                );
+
+                // Turn totalLocked into a field
+                const totalLockedBytes =
+                    contractDepositAttestorPublicInputs.value.bytes;
+                let totalLocked = new Field(0);
+                for (let i = 31; i >= 0; i--) {
+                    totalLocked = totalLocked
+                        .mul(256)
+                        .add(totalLockedBytes[i].value);
+                }
+
+                // value (amount), execution root, storage desposit root, attestation hash
+
+                const storageDepositRoot = ethVerifierStorageProofRoot;
+                const attestationHash = contractDepositAttestorProofCredential;
+
+                return {
+                    publicOutput: new E2ePrerequisitesOutput({
+                        totalLocked,
+                        storageDepositRoot,
+                        attestationHash,
+                    }),
+                };
+            },
+        },
+    },
+});
