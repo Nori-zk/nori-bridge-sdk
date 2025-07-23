@@ -121,7 +121,8 @@ async function getCredential<FixedString extends string>(
     });
 
     const credentialJson = Credential.toJSON(credential);
-    return credentialJson;
+    // TODO get message hash from credential somehow
+    return { credentialJson };
 }
 
 async function getPresentationRequest(
@@ -153,7 +154,10 @@ async function getPresentationRequest(
     return requestJson;
 }
 
-async function verifyPresentation(serializedPresentationRequest: string, zkAppAddress: PublicKey) {
+async function verifyPresentation(
+    serializedPresentationRequest: string,
+    zkAppAddress: PublicKey
+) {
     let presentation = Presentation.fromJSON(serializedPresentationRequest);
     return new PresentationVerifier(zkAppAddress).verifyPresentation(
         ProvablePresentation.from(presentation)
