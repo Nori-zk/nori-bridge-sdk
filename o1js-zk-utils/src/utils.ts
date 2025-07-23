@@ -166,7 +166,8 @@ export async function compileAndVerifyContracts(
             logger.log(
                 `${name} contract vk hash compiled: '${calculatedHash}'`
             );
-            results[name] = verificationKey;
+
+            results[`${name}VerificationKey`] = verificationKey;
 
             if (calculatedHash !== integrityHash) {
                 mismatches.push(

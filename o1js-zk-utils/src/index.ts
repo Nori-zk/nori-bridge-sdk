@@ -33,3 +33,5 @@ export {
     getContractDepositWitness,
     ContractDeposit,
 } from './contractDepositAttestor.js';
+
+export * from './nodeProofLeft.patch.js';

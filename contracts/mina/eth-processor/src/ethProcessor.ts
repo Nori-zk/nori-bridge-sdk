@@ -1,7 +1,5 @@
-import 'dotenv/config';
 import {
     Field,
-    PrivateKey,
     SmartContract,
     State,
     method,
@@ -11,43 +9,13 @@ import {
     PublicKey,
     Permissions,
     Provable,
+    VerificationKey,
+    assert,
+    AccountUpdate,
 } from 'o1js';
-import { Logger } from '@nori-zk/proof-conversion';
 import { EthProof, Bytes32, Bytes32FieldPair } from '@nori-zk/o1js-zk-utils';
 
-// FIXME [NB-65] this currently is not compatible with front end... logger has nodejs chalk dep and cannot use envs here!
-// Probably need to extract admin public key elsewhere
-
-const logger = new Logger('EthProcessor');
-
-let adminPrivateKeyBase58 = process.env.ADMIN_PRIVATE_KEY;
-if (!adminPrivateKeyBase58) {
-    logger.warn('ADMIN_PRIVATE_KEY not set, using random key');
-    adminPrivateKeyBase58 = PrivateKey.random().toBase58();
-}
-export const adminPrivateKey = PrivateKey.fromBase58(adminPrivateKeyBase58);
-
-export const adminPublicKey = adminPrivateKey.toPublicKey();
-
 export class EthProofType extends EthProof {}
-
-/*class VerificationKey extends Struct({
-    data: String,
-    hash: Field,
-}) {}
-
-class DeployArgsWithStoreHash extends Struct({
-    verificationKey: VerificationKey,
-    storeHash: Bytes32FieldPair,
-}) {}
-
-class DeployArgsWithoutStoreHash extends Struct({
-    verificationKey: VerificationKey,
-}) {}
-
-export type EthProcessorDeployArgs =
-    | DeployArgsWithStoreHash
-    | DeployArgsWithoutStoreHash;*/
 
 export class EthProcessor extends SmartContract {
     @state(PublicKey) admin = State<PublicKey>();
@@ -60,49 +28,65 @@ export class EthProcessor extends SmartContract {
 
     //todo
     // events = { 'executionStateRoot-set': Bytes32.provable };//todo change type, if events even possible
-    init() {
-        super.init();
-        this.admin.set(adminPublicKey);
-        this.latestHead.set(UInt64.from(0));
-        this.verifiedStateRoot.set(Field(1));
 
+    init(): void {
+        // Init smart contract state (all zeros)
+        super.init();
+        // Set account permissions
         this.account.permissions.set({
             ...Permissions.default(),
+            // Allow VK updates
+            setVerificationKey:
+                Permissions.VerificationKey.proofDuringCurrentVersion(),
         });
     }
 
-    /*async deploy(args: EthProcessorDeployArgs) {
-        // Could we deploy with a proof?
+    private async ensureAdminSignature() {
+        const admin = await Provable.witnessAsync(PublicKey, async () => {
+            let pk = await this.admin.fetch();
+            assert(pk !== undefined, 'could not fetch admin public key');
+            return pk;
+        });
+        Provable.asProver(() => {
+            Provable.log('ensureAdminSignature', this.admin.get().toBase58(), admin.toBase58());
+        });
+        this.admin.requireEquals(admin);
+        return AccountUpdate.createSigned(admin);
+    }
 
-        const { verificationKey } = args;
-        super.deploy({ verificationKey });
-        if ('storeHash' in args) {
-            this.latestHeliusStoreInputHashHighByte.set(
-                args.storeHash.highByteField
-            );
-            this.latestHeliusStoreInputHashLowerBytes.set(
-                args.storeHash.lowerBytesField
-            );
-        }
+    @method async setVerificationKey(vk: VerificationKey) {
+        await this.ensureAdminSignature();
+        this.account.verificationKey.set(vk);
+    }
 
-        //this.verifiedStateRoot.set(Field(2)); // Need to prove this otherwise its bootstrapped in an invalid state
-    }*/
+    @method async initialize(
+        adminPublicKey: PublicKey,
+        newStoreHash: Bytes32FieldPair
+    ) {
+        const isInitialized = this.account.provedState.getAndRequireEquals();
+        isInitialized.assertFalse('EthProcessor has already been initialized!');
 
-    @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
+        this.admin.set(adminPublicKey);
+
+        // Set initial state (TODO set these to real values!)
+        this.latestHead.set(UInt64.from(0));
+        this.verifiedStateRoot.set(Field(1));
+        // Set inital state of store hash.
+        // await this.updateStoreHash(newStoreHash); // Reintroduce this instead of the immediate below when we can
+        // verify that this.admin.getAndRequireEquals() == adminPublicKey immediately after this.admin.set(adminPublicKey);
         this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
         this.latestHeliusStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
     }
 
-    // define a method for replacing the storeHash here.
-
-    // @method async init() {
-    //   this.account.provedState.getAndRequireEquals();
-    //   this.account.provedState.get().assertFalse();
-
-    //   super.init();
-    // }
+    @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
+        await this.ensureAdminSignature();
+        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
+        this.latestHeliusStoreInputHashLowerBytes.set(
+            newStoreHash.lowerBytesField
+        );
+    }
 
     @method async update(ethProof: EthProofType) {
         const proofHead = ethProof.publicInput.outputSlot;

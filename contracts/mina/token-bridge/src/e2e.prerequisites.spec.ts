@@ -5,7 +5,6 @@ import {
     ContractDepositAttestorInput,
     getContractDepositWitness,
     EthInput,
-    EthProof,
     EthVerifier,
     computeMerkleTreeDepthAndSize,
     foldMerkleLeft,
@@ -13,133 +12,23 @@ import {
     decodeConsensusMptProof,
     Bytes20,
     Bytes32,
-    ContractDepositAttestorProof,
     fieldToBigIntLE,
-    fieldToBigIntBE,
     fieldToHexLE,
     fieldToHexBE,
 } from '@nori-zk/o1js-zk-utils';
-
+import { EthProcessor } from '@nori-zk/ethprocessor/browser';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
-import { Field, Struct, UInt64, ZkProgram, Proof, Bytes, PrivateKey, EcdsaSignature } from 'o1js';
+import { Field, UInt64, Bytes } from 'o1js';
 import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
+import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils/build/utils.js';
 import {
-    uint8ArrayToBigIntBE,
-    uint8ArrayToBigIntLE,
-} from '@nori-zk/o1js-zk-utils/build/utils.js';
-import { E2ePrerequisitesInput, E2EPrerequisitesProgram } from './e2ePrerequisites.js';
+    E2ePrerequisitesInput,
+    E2EPrerequisitesProgram,
+} from './e2ePrerequisites.js';
 
 const mptConsensusProofBundle = proofArgument;
 const bridgeHeadJobSucceededMessage = bridgeHeadJobSucceededExample;
-
-/*class E2ePrerequisitesInput extends Struct({
-    //ethVerifierProof: EthProof.provable,
-    //contractDepositAttestorProof: ContractDepositAttestorProof.provable,
-    credentialAttestationHash: Field,
-    // AttestationHash (as temporary input) [this is not no how we will do it but good for test]
-    // ...???? CredentialAttestaionProof (private credential ) -> output owner of private (public key.... MINA)
-    // COULD BE HASH OF THIS PROOF..... IGNORE THIS FOR THIS TEST
-}) {}
-
-class E2ePrerequisitesOutput extends Struct({
-    totalLocked: Field,
-    storageDepositRoot: Field,
-    attestationHash: Field,
-}) {}
-
-const E2EPrerequisitesProgram = ZkProgram({
-    name: 'E2EPrerequisites',
-    publicInput: E2ePrerequisitesInput,
-    publicOutput: E2ePrerequisitesOutput,
-    methods: {
-        compute: {
-            privateInputs: [EthProof, ContractDepositAttestorProof],
-            async method(
-                input: E2ePrerequisitesInput,
-                ethVerifierProof: InstanceType<typeof EthProof>,
-                contractDepositAttestorProof: InstanceType<
-                    typeof ContractDepositAttestorProof
-                >
-            ) {
-                // proof 1 proof 2 /// attestation credential hashing in future
-                // verify x2
-
-                ethVerifierProof.verify();
-                contractDepositAttestorProof.verify();
-
-                // Extract roots from public inputs
-
-                const depositAttestationProofRoot =
-                    contractDepositAttestorProof.publicOutput;
-                const ethVerifierStorageProofRootBytes =
-                    ethVerifierProof.publicInput.verifiedContractDepositsRoot
-                        .bytes; // I think the is BE
-
-                // Convert verifiedContractDepositsRoot from bytes to field
-                let ethVerifierStorageProofRoot = new Field(0);
-                // FIXME
-                // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
-                // And here we re-interpret the BE as LE!
-                // But it does pass the test! And otherwise fails.
-                for (let i = 31; i >= 0; i--) {
-                    ethVerifierStorageProofRoot = ethVerifierStorageProofRoot
-                        .mul(256)
-                        .add(ethVerifierStorageProofRootBytes[i].value);
-                }
-
-                // Assert roots
-                depositAttestationProofRoot.assertEquals(
-                    ethVerifierStorageProofRoot
-                );
-
-                // Mock attestation assert
-                const contractDepositAttestorPublicInputs =
-                    contractDepositAttestorProof.publicInput.value;
-                // Convert contractDepositAttestorPublicInputs.attestationHash from bytes into a field
-                const contractDepositAttestorProofCredentialBytes =
-                    contractDepositAttestorPublicInputs.attestationHash.bytes;
-                let contractDepositAttestorProofCredential = new Field(0);
-                // Turn into field
-                for (let i = 0; i < 32; i++) {
-                    contractDepositAttestorProofCredential =
-                        contractDepositAttestorProofCredential
-                            .mul(256)
-                            .add(
-                                contractDepositAttestorProofCredentialBytes[i]
-                                    .value
-                            );
-                }
-                input.credentialAttestationHash.assertEquals(
-                    contractDepositAttestorProofCredential
-                );
-
-                // Turn totalLocked into a field
-                const totalLockedBytes =
-                    contractDepositAttestorPublicInputs.value.bytes;
-                let totalLocked = new Field(0);
-                for (let i = 31; i >= 0; i--) {
-                    totalLocked = totalLocked
-                        .mul(256)
-                        .add(totalLockedBytes[i].value);
-                }
-
-                // value (amount), execution root, storage desposit root, attestation hash
-
-                const storageDepositRoot = ethVerifierStorageProofRoot;
-                const attestationHash = contractDepositAttestorProofCredential;
-
-                return {
-                    publicOutput: new E2ePrerequisitesOutput({
-                        totalLocked,
-                        storageDepositRoot,
-                        attestationHash,
-                    }),
-                };
-            },
-        },
-    },
-});*/
 
 function hexStringToUint8Array(hex: string): Uint8Array {
     if (hex.startsWith('0x')) hex = hex.slice(2);
@@ -151,12 +40,10 @@ function hexStringToUint8Array(hex: string): Uint8Array {
     return bytes;
 }
 
-function fieldToHexBENonProvable(field: Field) {
-    let hex = field.toBigInt().toString(16);
-    return '0x' + hex.padStart(64, '0');
-}
-
 describe('e2e_prerequisites', () => {
+    test('import_eth_processor', async () => {
+        console.log(EthProcessor);
+    });
     test('hex_field_hex_round_trip', async () => {
         // Lets start with a field
         //const field = new Field(25300000000000000000000000000000000000000000000000000000000000000000000000001n);
@@ -253,7 +140,10 @@ describe('e2e_prerequisites', () => {
     });
 
     test('e2e_prerequisites_pipeline', async () => {
-        console.log('bridgeHeadJobSucceededMessage.contract_storage_slots', bridgeHeadJobSucceededMessage.contract_storage_slots);
+        console.log(
+            'bridgeHeadJobSucceededMessage.contract_storage_slots',
+            bridgeHeadJobSucceededMessage.contract_storage_slots
+        );
         // Build deposit leave values (to be hashed)
         const contractStorageSlots =
             bridgeHeadJobSucceededMessage.contract_storage_slots.map((slot) => {

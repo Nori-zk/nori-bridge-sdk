@@ -148,15 +148,20 @@ export class NoriTokenController
     const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
     const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
     await ethConsensusProof.verify();
-    await depositAttesterProof.verify();
-    await minaAttestationProof.verify();
+    await depositAttesterProof.verify(); // Eth address is defo here its a public input! + attestationHash
+    await minaAttestationProof.verify(); // Eth address kina here ? output claim from presentation.verify() => {claim: OpType({owner: Byte})}
+    // from here we get issuer, and message
+    
+    // minaAttestationProof presentation gives us message which is 
+
+    // on the mina attestation re verify attestationHash (deposit matches the  presentation.verify() => {claim: OpType({owner: Byte})})
     //TODO when add ethProcessor
     // ethConsensusProof.storeHash.assertEquals(ethProcessor.storeHash);
     depositAttesterProof.attesterRoot.assertEquals(
       ethConsensusProof.attesterRoot
     );
     depositAttesterProof.minaAttestHash.assertEquals(
-      await minaAttestationProof.hash()
+      await minaAttestationProof.hash() // minaAttestationProof.message.value (hash(secret)) This would really be a presentation
     );
     const controllerTokenId = this.deriveTokenId();
     let storage = new NoriStorageInterface(userAddress, controllerTokenId);
@@ -166,11 +171,16 @@ export class NoriTokenController
       .getAndRequireEquals()
       .assertEquals(Poseidon.hash(userAddress.toFields()));
 
+    // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
+
+    // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
+
     const amountToMint = await storage.increaseMintedAmount(
       depositAttesterProof.lockedSoFar
     );
     // Provable.log(amountToMint, 'amount to mint');
 
+    // Here we have only one destination there is only m1.....
     let token = new FungibleToken(tokenAddress);
     this.mintLock.set(Bool(false));
     await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));

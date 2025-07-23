@@ -15,8 +15,16 @@
         "access": "public"
     },
     "type": "module",
-    "main": "build/index.js",
-    "types": "build/index.d.ts",
+    "main": "build/index.node.js",
+    "types": "build/index.node.d.ts",
+    "exports": {
+        "./node": {
+            "import": "./build/index.node.js"
+        },
+        "./browser": {
+            "import": "./build/index.browser.js"
+        }
+    },
     "scripts": {
         "clean": "rimraf build",
         "build": "npm run clean && tsc",
@@ -30,7 +38,7 @@
         "deploy": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
         "update-store-hash": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateStoreHash.js",
         "prove-and-submit": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/proveAndSubmit.js",
-        "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js"
+        "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js && npm run build"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.16.4",
@@ -47,7 +55,8 @@
         "prettier": "^2.3.2",
         "rimraf": "^6.0.1",
         "ts-jest": "^29.2.4",
-        "typescript": "^5.4.5"
+        "typescript": "^5.4.5",
+        "npm-workspaces-publish-tool": "^0.0.8"
     },
     "peerDependencies": {
         "o1js": "2.3.0"

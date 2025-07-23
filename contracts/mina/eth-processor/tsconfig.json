@@ -1,8 +1,17 @@
 {
-  "extends": "../../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": "build",
-    "rootDir": "src"
-  },
-  "include": ["./src", "./src/proofs/*.json", "src/integrity/*.json"],
+    "extends": "../../../tsconfig.json",
+    "compilerOptions": {
+        "outDir": "build",
+        "rootDir": "src",
+        "target": "es2021", // goal: ship *the most modern syntax* that is supported by *all* browsers that support our Wasm
+        "module": "nodenext", // allow top-level await
+        "moduleResolution": "nodenext", // comply with node + "type": "module"
+        "baseUrl": ".",
+        "paths": {
+            "o1js": ["../../../node_modules/o1js"],
+            "*": ["*", "src/*", "../../../node_modules/*"]
+        },
+        "isolatedModules": true
+    },
+    "include": ["./src", "./src/proofs/*.json", "src/integrity/*.json", "../token-bridge/src/dynamicStringHash.spec.ts"]
 }

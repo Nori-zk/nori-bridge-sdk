@@ -1,4 +1,12 @@
-import { Field, Bytes, PublicKey, PrivateKey, UInt64, Proof } from 'o1js';
+import {
+    Field,
+    Bytes,
+    PublicKey,
+    PrivateKey,
+    UInt64,
+    SmartContract,
+    declareMethods,
+} from 'o1js';
 import {
     BridgeEthFinalizationStatus,
     BridgeLastStageState,
@@ -30,7 +38,14 @@ import {
     fieldToBigIntLE,
     fieldToHexLE,
 } from '@nori-zk/o1js-zk-utils';
-import { Credential, DynamicBytes } from 'mina-attestations';
+import {
+    Credential,
+    DynamicBytes,
+    Operation,
+    Presentation,
+    PresentationRequest,
+    PresentationSpec,
+} from 'mina-attestations';
 import { EcdsaEthereum } from 'mina-attestations/imported';
 import { Wallet } from 'ethers/wallet';
 import { id } from 'ethers/hash';
@@ -43,7 +58,7 @@ import {
     uint8ArrayToBigIntBE,
 } from '@nori-zk/o1js-zk-utils/build/utils.js';
 
-class InvertedPromise<T, E> {
+class InvertedPromise<T = void, E = void> {
     resolve: (output: T) => void;
     reject: (error: E) => void;
     promise: Promise<T>;
@@ -76,7 +91,7 @@ describe('should perform an end to end pipeline', () => {
             webSocket.addEventListener('open', (event) => {
                 console.log('WebSocket is opened', event);
                 timeout = setInterval(() => {
-                    webSocket.send(JSON.stringify({method: 'ping'})); // Keep the connection alive
+                    webSocket.send(JSON.stringify({ method: 'ping' })); // Keep the connection alive
                 }, 3000);
                 resolve(webSocket);
             });
@@ -196,17 +211,18 @@ describe('should perform an end to end pipeline', () => {
         const Message = DynamicBytes({ maxLength: maxMessageLength });
 
         // prepare ecdsa credential
+        const actualMessageLength = 3;
         await EcdsaEthereum.compileDependencies({
-            maxMessageLength,
+            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
             proofsEnabled,
         });
         const EcdsaCredential = await EcdsaEthereum.Credential({
-            maxMessageLength,
+            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
         });
         await EcdsaCredential.compile({ proofsEnabled });
 
         // signature
-        let message = 'abc';
+        let message = 'abc'; // claim address minaPubKey
         const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
         const hashMessage = (msg: string) => parseHex(id(msg));
         let sig = await ethWallet.signMessage(hashMessage(message));
@@ -229,6 +245,119 @@ describe('should perform an end to end pipeline', () => {
         return credential;
     }
 
+    async function getCredentialPresentationRequest(
+        ethWallet: Wallet,
+        minaPubKey: PublicKey,
+        zkAppAddress: PublicKey
+    ) {
+        const maxMessageLength = 32;
+        const proofsEnabled = true;
+        const Message = DynamicBytes({ maxLength: maxMessageLength });
+
+        // prepare ecdsa credential
+        const actualMessageLength = 3;
+        await EcdsaEthereum.compileDependencies({
+            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
+            proofsEnabled,
+        });
+        const EcdsaCredential = await EcdsaEthereum.Credential({
+            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
+        });
+        await EcdsaCredential.compile({ proofsEnabled });
+
+        // signature
+        let message = 'abc'; // claim address minaPubKey
+        const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
+        const hashMessage = (msg: string) => parseHex(id(msg));
+        let sig = await ethWallet.signMessage(hashMessage(message));
+
+        // create credential (which verifies the signature)
+        let { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
+
+        let credential = await EcdsaCredential.create({
+            owner: minaPubKey,
+            publicInput: {
+                signerAddress: EcdsaEthereum.parseAddress(ethWallet.address),
+            },
+            privateInput: {
+                message: Message.fromString(message),
+                signature,
+                parityBit,
+            },
+        });
+
+        const credentialJson = Credential.toJSON(credential);
+        let storedCredential = await Credential.fromJSON(credentialJson);
+
+        await Credential.validate(credential);
+
+        let sp = PresentationSpec(
+            { credential: EcdsaCredential.spec },
+            ({ credential }) => ({
+                outputClaim: Operation.record({
+                    owner: Operation.owner, // Mina
+                    issuer: Operation.issuerPublicKey({
+                        credentialType: credential.credentialType,
+                        credentialKey: credential.credentialKey,
+                        type: credential.type,
+                    }), // Eth
+                    messageHash: Operation.hash(
+                        Operation.property(credential, 'message')
+                    ),
+                }),
+            })
+        );
+        // let precompiled = await ProvablePresentation()
+        let precompiled = await Presentation.precompile(sp);
+
+        // this class defines the zkApp input type
+        // using this class in a zkApp will hard-code the particular presentation spec that it verifies
+        class ProvablePresentation extends precompiled.ProvablePresentation {}
+
+        class PresentationVerifier extends SmartContract {
+            async verifyPresentation(presentation: ProvablePresentation) {
+                // verify the presentation, and receive its claims for further validation and usage
+                let { claims, outputClaim } = presentation.verify({
+                    publicKey: this.address,
+                    tokenId: this.tokenId,
+                    methodName: 'verifyPresentation',
+                });
+            }
+        }
+
+        declareMethods(PresentationVerifier, {
+            verifyPresentation: [ProvablePresentation as any], // TODO bad TS interface
+        });
+
+        await PresentationVerifier.compile();
+        let cs = await PresentationVerifier.analyzeMethods();
+        console.log('zkApp rows', cs.verifyPresentation?.rows);
+        console.log(
+            '✅ VERIFIER: compiled zkapp that verifies the presentation'
+        );
+
+        // ZKAPP VERIFIER, outside circuit: request a presentation
+
+        let request = PresentationRequest.zkAppFromCompiled(
+            precompiled,
+            {  }, // createdAt: UInt64.from(Date.now())
+            {
+                // this added context ensures that the presentation can't be used outside the target zkApp
+                publicKey: zkAppAddress,
+                tokenId: new Field(0),
+                methodName: 'verifyPresentation',
+            }
+        );
+        let requestJson = PresentationRequest.toJSON(request);
+
+        console.log(
+            '✅ VERIFIER: created presentation request:',
+            requestJson.slice(0, 500) + '...'
+        );
+
+        return requestJson;
+    }
+
     beforeAll(() => {});
 
     test('get_eth_address', async () => {
@@ -236,10 +365,10 @@ describe('should perform an end to end pipeline', () => {
     });
 
     test('websockets_heartbeat', async () => {
-        const webSocket = await connectWebsocket((event)=>{
+        const webSocket = await connectWebsocket((event) => {
             console.log(event.data);
         }, console.error);
-        
+
         const invertedPromise = new InvertedPromise();
         await invertedPromise.promise;
     });
@@ -255,13 +384,19 @@ describe('should perform an end to end pipeline', () => {
         console.log('--------------------');
         console.log(JSON.stringify(credential.witness.proof, null, 2));
         console.log('--------------------');
-        console.log(JSON.stringify(credential.witness.proof.proof, null, 2));
+        //console.log(JSON.stringify(credential.witness.proof.proof, null, 2)); // this is a big int
         credential.witness.type;
         credential.witness.vk;
+        await Credential.validate(credential);
+
+        // Todo credential presentation
     });
 
     test('connect_to_wss_and_await_message', async () => {
-        const invertedPromise = new InvertedPromise();
+        const invertedPromise = new InvertedPromise<
+            MessageEvent<string>,
+            CloseEvent
+        >();
         function onData(event: MessageEvent<string>) {
             console.log('Got first message', event.data);
             invertedPromise.resolve(event);
@@ -279,23 +414,6 @@ describe('should perform an end to end pipeline', () => {
     test('fetch_proof_from_block_number', async () => {
         await proofConversionServiceRequest(4162671);
     });
-
-    /*test('fetch_proof_bundle_and_construct', async () => {
-        //console.log('NodeProofLeft', NodeProofLeft);
-        const {
-            consensusMPTProof: {
-                proof: consensusMPTProofProof,
-                contract_storage_slots: consensusMPTProofContractStorageSlots,
-            },
-            consensusMPTProofVerification: consensusMPTProofVerification,
-        } = await proofConversionServiceRequest(4180478);
-
-        // Watch out because the ts ignore prevent you seeing if NodeProofLeft has been imported!
-        //@ts-ignore
-        const rawProof = await NodeProofLeft.fromJSON(
-            consensusMPTProofVerification.proofData
-        );
-    });*/
 
     test('fetch_proof_from_block_number_handle_error', async () => {
         const responseJson = proofConversionServiceRequest(
@@ -355,7 +473,7 @@ describe('should perform an end to end pipeline', () => {
         // Get attestation properly TODO
         // const bytes = Bytes.from(<bigInt credintial.witness.proof.proof>)
         // bytes.toFields()
-        // then poseidon hash these fields together
+        // then poseidon hash these fields together (might this be to expensive as proofs are like 100k?)
 
         const credentialAttestationHash = Field.random(); // For now random mock
         const beAttestationHashBytes = Bytes.from(
@@ -368,8 +486,8 @@ describe('should perform an end to end pipeline', () => {
 
         // Setup first the bridge head state machine...
 
-        const initPromise = new InvertedPromise<void, void>();
-        const exitPromise = new InvertedPromise();
+        const initPromise = new InvertedPromise<void, Error>();
+        const exitPromise = new InvertedPromise<void, Error | CloseEvent>();
 
         let bridgeStageTimings: KeyTransitionStageEstimatedTransitionTime;
         let bridgeState: BridgeLastStageState;
@@ -710,7 +828,7 @@ describe('should perform an end to end pipeline', () => {
 
             highLevelState = 'minted';
 
-            exitPromise.resolve(true);
+            exitPromise.resolve();
         }
 
         // When the bridge state changes check whether or not we can mint
@@ -813,8 +931,10 @@ describe('should perform an end to end pipeline', () => {
                 )
                     initPromise.resolve();
             } catch (e) {
-                console.error((e as Error).stack);
-                exitPromise.reject(e);
+                const error = e as unknown as Error;
+                console.error(error.stack);
+                exitPromise.reject(error);
+                initPromise.reject(error);
             }
         }
 
