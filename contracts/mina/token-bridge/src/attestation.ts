@@ -27,6 +27,8 @@ type EnforceLength<S extends string, N extends number> = CountChars<S> extends N
 const secretLength = 20 as const;
 type SecretLength = typeof secretLength;
 
+// FIXME probably should have variable length no more than 20 rather than fixed length 20 but need to test it works like that .... wait for the unit tests
+
 // Fixed length secret credential.
 
 export const EcdsaCredential = await EcdsaEthereum.Credential({
@@ -93,7 +95,6 @@ async function getCredential<FixedString extends string>(
     secret: EnforceLength<FixedString, SecretLength>
 ) {
     const maxMessageLength = 32;
-    const proofsEnabled = true;
     const Message = DynamicBytes({ maxLength: maxMessageLength });
 
     // Create signature
