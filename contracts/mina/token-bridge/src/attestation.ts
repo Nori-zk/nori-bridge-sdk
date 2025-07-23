@@ -91,7 +91,7 @@ export async function compilePresentationVerifier() {
 
 // Methods
 
-async function getCredential<FixedString extends string>(
+export async function getCredential<FixedString extends string>(
     ethWallet: Wallet,
     minaPubKey: PublicKey,
     secret: EnforceLength<FixedString, SecretLength>
@@ -125,7 +125,7 @@ async function getCredential<FixedString extends string>(
     return { credentialJson };
 }
 
-async function getPresentationRequest(
+export async function getPresentationRequest(
     credentialJson: string,
     zkAppAddress: PublicKey
 ) {
@@ -154,7 +154,7 @@ async function getPresentationRequest(
     return requestJson;
 }
 
-async function verifyPresentation(
+export async function verifyPresentation(
     serializedPresentationRequest: string,
     zkAppAddress: PublicKey
 ) {
