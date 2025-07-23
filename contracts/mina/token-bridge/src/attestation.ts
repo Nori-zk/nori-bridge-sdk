@@ -65,6 +65,8 @@ class PresentationVerifier extends SmartContract {
             tokenId: this.tokenId,
             methodName: 'verifyPresentation',
         });
+
+        return outputClaim;
     }
 }
 
@@ -153,7 +155,7 @@ async function getPresentationRequest(
 
 async function verifyPresentation(serializedPresentationRequest: string, zkAppAddress: PublicKey) {
     let presentation = Presentation.fromJSON(serializedPresentationRequest);
-    new PresentationVerifier(zkAppAddress).verifyPresentation(
+    return new PresentationVerifier(zkAppAddress).verifyPresentation(
         ProvablePresentation.from(presentation)
     );
 }
