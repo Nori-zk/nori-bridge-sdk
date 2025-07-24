@@ -17,7 +17,7 @@ import {
     VerifiedContractStorageSlot,
     WebSocketServiceTopicSubscriptionMessage,
 } from '@nori-zk/pts-types';
-import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
+import { InvertedPromise, NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
 import { clearInterval } from 'node:timers';
 import {
     EthVerifier,
@@ -39,17 +39,6 @@ import {
     fieldToHexLE,
 } from '@nori-zk/o1js-zk-utils';
 import {
-    Credential,
-    DynamicBytes,
-    Operation,
-    Presentation,
-    PresentationRequest,
-    PresentationSpec,
-} from 'mina-attestations';
-import { EcdsaEthereum } from 'mina-attestations/imported';
-import { Wallet } from 'ethers/wallet';
-import { id } from 'ethers/hash';
-import {
     E2ePrerequisitesInput,
     E2EPrerequisitesProgram,
 } from './e2ePrerequisites.js';
@@ -57,28 +46,9 @@ import {
     fieldToHexBE,
     uint8ArrayToBigIntBE,
 } from '@nori-zk/o1js-zk-utils/build/utils.js';
+import { hexStringToUint8Array } from './testUtils.js';
 
-class InvertedPromise<T = void, E = void> {
-    resolve: (output: T) => void;
-    reject: (error: E) => void;
-    promise: Promise<T>;
-    constructor() {
-        this.promise = new Promise((resolve, reject) => {
-            this.resolve = resolve;
-            this.reject = reject;
-        });
-    }
-}
 
-function hexStringToUint8Array(hex: string): Uint8Array {
-    if (hex.startsWith('0x')) hex = hex.slice(2);
-    if (hex.length % 2 !== 0) hex = '0' + hex; // pad to full bytes
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) {
-        bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-    }
-    return bytes;
-}
 
 describe('should perform an end to end pipeline', () => {
     async function connectWebsocket(
@@ -112,10 +82,10 @@ describe('should perform an end to end pipeline', () => {
     }
 
     async function proofConversionServiceRequest(
-        inputBlockNumber: number
+        depositBlockNumber: number
     ): Promise<Sp1ProofAndConvertedProofBundle> {
         const fetchResponse = await fetch(
-            `https://pcs.nori.it.com/converted-consensus-mpt-proofs/${inputBlockNumber}`
+            `https://pcs.nori.it.com/converted-consensus-mpt-proofs/${depositBlockNumber}`
         );
         console.log('fetchResponse GET', fetchResponse);
         const json = await fetchResponse.json();
@@ -205,175 +175,42 @@ describe('should perform an end to end pipeline', () => {
         return new ethers.Wallet(privateKey);
     }
 
-    async function getCredential(ethWallet: Wallet, minaPubKey: PublicKey) {
-        const maxMessageLength = 32;
-        const proofsEnabled = true;
-        const Message = DynamicBytes({ maxLength: maxMessageLength });
-
-        // prepare ecdsa credential
-        const actualMessageLength = 3;
-        await EcdsaEthereum.compileDependencies({
-            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
-            proofsEnabled,
-        });
-        const EcdsaCredential = await EcdsaEthereum.Credential({
-            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
-        });
-        await EcdsaCredential.compile({ proofsEnabled });
-
-        // signature
-        let message = 'abc'; // claim address minaPubKey
-        const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
-        const hashMessage = (msg: string) => parseHex(id(msg));
-        let sig = await ethWallet.signMessage(hashMessage(message));
-
-        // create credential (which verifies the signature)
-        let { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
-
-        let credential = await EcdsaCredential.create({
-            owner: minaPubKey,
-            publicInput: {
-                signerAddress: EcdsaEthereum.parseAddress(ethWallet.address),
-            },
-            privateInput: {
-                message: Message.fromString(message),
-                signature,
-                parityBit,
-            },
-        });
-
-        return credential;
-    }
-
-    async function getCredentialPresentationRequest(
-        ethWallet: Wallet,
-        minaPubKey: PublicKey,
-        zkAppAddress: PublicKey
-    ) {
-        const maxMessageLength = 32;
-        const proofsEnabled = true;
-        const Message = DynamicBytes({ maxLength: maxMessageLength });
-
-        // prepare ecdsa credential
-        const actualMessageLength = 3;
-        await EcdsaEthereum.compileDependencies({
-            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
-            proofsEnabled,
-        });
-        const EcdsaCredential = await EcdsaEthereum.Credential({
-            maxMessageLength: actualMessageLength, // maxMessageLength is a misnomer by mina-attestations
-        });
-        await EcdsaCredential.compile({ proofsEnabled });
-
-        // signature
-        let message = 'abc'; // claim address minaPubKey
-        const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
-        const hashMessage = (msg: string) => parseHex(id(msg));
-        let sig = await ethWallet.signMessage(hashMessage(message));
-
-        // create credential (which verifies the signature)
-        let { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
-
-        let credential = await EcdsaCredential.create({
-            owner: minaPubKey,
-            publicInput: {
-                signerAddress: EcdsaEthereum.parseAddress(ethWallet.address),
-            },
-            privateInput: {
-                message: Message.fromString(message),
-                signature,
-                parityBit,
-            },
-        });
-
-        const credentialJson = Credential.toJSON(credential);
-        let storedCredential = await Credential.fromJSON(credentialJson);
-
-        await Credential.validate(credential);
-
-        let sp = PresentationSpec(
-            { credential: EcdsaCredential.spec },
-            ({ credential }) => ({
-                outputClaim: Operation.record({
-                    owner: Operation.owner, // Mina
-                    issuer: Operation.issuerPublicKey({
-                        credentialType: credential.credentialType,
-                        credentialKey: credential.credentialKey,
-                        type: credential.type,
-                    }), // Eth
-                    messageHash: Operation.hash(
-                        Operation.property(credential, 'message')
-                    ),
-                }),
-            })
-        );
-        // let precompiled = await ProvablePresentation()
-        let precompiled = await Presentation.precompile(sp);
-
-        // this class defines the zkApp input type
-        // using this class in a zkApp will hard-code the particular presentation spec that it verifies
-        class ProvablePresentation extends precompiled.ProvablePresentation {}
-
-        class PresentationVerifier extends SmartContract {
-            async verifyPresentation(presentation: ProvablePresentation) {
-                // verify the presentation, and receive its claims for further validation and usage
-                let { claims, outputClaim } = presentation.verify({
-                    publicKey: this.address,
-                    tokenId: this.tokenId,
-                    methodName: 'verifyPresentation',
-                });
-            }
-        }
-
-        declareMethods(PresentationVerifier, {
-            verifyPresentation: [ProvablePresentation as any], // TODO bad TS interface
-        });
-
-        await PresentationVerifier.compile();
-        let cs = await PresentationVerifier.analyzeMethods();
-        console.log('zkApp rows', cs.verifyPresentation?.rows);
-        console.log(
-            '✅ VERIFIER: compiled zkapp that verifies the presentation'
-        );
-
-        // ZKAPP VERIFIER, outside circuit: request a presentation
-
-        let request = PresentationRequest.zkAppFromCompiled(
-            precompiled,
-            {  }, // createdAt: UInt64.from(Date.now())
-            {
-                // this added context ensures that the presentation can't be used outside the target zkApp
-                publicKey: zkAppAddress,
-                tokenId: new Field(0),
-                methodName: 'verifyPresentation',
-            }
-        );
-        let requestJson = PresentationRequest.toJSON(request);
-
-        console.log(
-            '✅ VERIFIER: created presentation request:',
-            requestJson.slice(0, 500) + '...'
-        );
-
-        return requestJson;
-    }
-
     beforeAll(() => {});
 
     test('get_eth_address', async () => {
         console.log((await getEthWallet()).address);
     });
 
-    test('websockets_heartbeat', async () => {
+    /*test('websockets_test', async () => {
         const webSocket = await connectWebsocket((event) => {
-            console.log(event.data);
+            console.log(JSON.stringify(JSON.parse(event.data),null,2));
         }, console.error);
+
+        // Subscribe to relevant topics needed to facilitate bridging.
+        webSocket.send(
+            JSON.stringify({
+                method: 'subscribe',
+                topic: 'state.eth',
+            })
+        );
+        webSocket.send(
+            JSON.stringify({
+                method: 'subscribe',
+                topic: 'state.bridge',
+            })
+        );
+        webSocket.send(
+            JSON.stringify({
+                method: 'subscribe',
+                topic: 'timings.notices.transition',
+            })
+        );
 
         const invertedPromise = new InvertedPromise();
         await invertedPromise.promise;
-    });
+    });*/
 
-    test('should_get_credential', async () => {
+    /*test('should_get_credential', async () => {
         const ethWallet = await getEthWallet();
         let { publicKey: minaPubKey } = PrivateKey.randomKeypair();
         const credential = await getCredential(ethWallet, minaPubKey);
@@ -390,7 +227,7 @@ describe('should perform an end to end pipeline', () => {
         await Credential.validate(credential);
 
         // Todo credential presentation
-    });
+    });*/
 
     test('connect_to_wss_and_await_message', async () => {
         const invertedPromise = new InvertedPromise<
@@ -406,9 +243,17 @@ describe('should perform an end to end pipeline', () => {
             invertedPromise.reject(event);
         }
 
-        const websocket = await connectWebsocket(onData, onClose);
+        const webSocket = await connectWebsocket(onData, onClose);
+
+        webSocket.send(
+            JSON.stringify({
+                method: 'subscribe',
+                topic: 'timings.notices.transition',
+            })
+        );
+
         await invertedPromise.promise;
-        websocket.close();
+        webSocket.close();
     }, 1000000000);
 
     test('fetch_proof_from_block_number', async () => {
@@ -423,8 +268,8 @@ describe('should perform an end to end pipeline', () => {
     });
 
     test('lock_token', async () => {
-        const block_number = await lockTokens(new Field(10111011), 0.000001);
-        console.log('block_number', block_number);
+        const blockNumber = await lockTokens(new Field(10111011), 0.000001);
+        console.log('block_number', blockNumber);
     });
 
     /*test('timing_service', async () => {

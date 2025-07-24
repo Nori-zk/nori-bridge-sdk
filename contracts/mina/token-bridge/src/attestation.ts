@@ -1,14 +1,25 @@
 import { id, Wallet } from 'ethers';
 import { EcdsaEthereum } from 'mina-attestations/imported';
-import { Bytes, declareMethods, Field, PublicKey, SmartContract } from 'o1js';
+import {
+    Bytes,
+    declareMethods,
+    Field,
+    PrivateKey,
+    PublicKey,
+    SmartContract,
+} from 'o1js';
 import {
     Credential,
     DynamicBytes,
+    DynamicString,
     Operation,
     Presentation,
     PresentationRequest,
     PresentationSpec,
+    StoredCredential,
 } from 'mina-attestations';
+
+// Secret type utils
 
 type CharArray<S extends string> = S extends `${infer First}${infer Rest}`
     ? [First, ...CharArray<Rest>]
@@ -16,49 +27,77 @@ type CharArray<S extends string> = S extends `${infer First}${infer Rest}`
 
 type CountChars<S extends string> = CharArray<S>['length'];
 
+type ArrayOfLength<
+    Length extends number,
+    Collected extends unknown[] = []
+> = Collected['length'] extends Length
+    ? Collected
+    : ArrayOfLength<Length, [unknown, ...Collected]>;
+
+type IsAtMost<
+    S extends string,
+    Max extends number
+> = ArrayOfLength<Max> extends [...ArrayOfLength<CountChars<S>>, ...unknown[]]
+    ? true
+    : false;
+
 type LengthMismatchError<Expected extends number> = {
     expectedLength: Expected;
 };
 
+// String length enforcement types.
+
+// Fixed length string enforcement type.
 type EnforceLength<S extends string, N extends number> = CountChars<S> extends N
     ? S
     : LengthMismatchError<N>;
 
-const secretLength = 20 as const;
-type SecretLength = typeof secretLength;
+// Max length string enforcement type.
+type EnforceMaxLength<S extends string, Max extends number> = IsAtMost<
+    S,
+    Max
+> extends true
+    ? S
+    : LengthMismatchError<Max>;
 
-// FIXME probably should have variable length no more than 20 rather than fixed length 20 but need to test it works like that .... wait for the unit tests
+// Define the max secret length that we can support.
+const secretMaxLength = 20 as const;
+type SecretMaxLength = typeof secretMaxLength;
 
-// Fixed length secret credential.
+// Define secret string type
+const SecretString = DynamicString({ maxLength: secretMaxLength });
 
+// Define EcdsaCredential type
 export const EcdsaCredential = await EcdsaEthereum.Credential({
-    maxMessageLength: secretLength, // maxMessageLength is a misnomer by mina-attestations
+    maxMessageLength: secretMaxLength, // maxMessageLength is a misnomer by mina-attestations
 });
 
-let credentialPresentationSpec = PresentationSpec(
+// Define EcdsaCredentialPresentation Spec
+let ecdsaCredentialPresentationSpec = PresentationSpec(
+    // This does credential.verify() (we know its a valid credential, a wrapper around it)
     { credential: EcdsaCredential.spec },
     ({ credential }) => ({
         outputClaim: Operation.record({
             owner: Operation.owner, // Mina
-            issuer: Operation.issuerPublicKey({
-                credentialType: credential.credentialType,
-                credentialKey: credential.credentialKey,
-                type: credential.type,
-            }), // Eth
+            issuer: Operation.publicInput(credential), // Eth
             messageHash: Operation.hash(
                 Operation.property(credential, 'message')
             ),
         }),
     })
 );
-let PresentationSpectPreCompile = await Presentation.precompile(
-    credentialPresentationSpec
+
+// Precompile ecdsaCredentialPresentationSpec
+let EcdsaSigPresentationSpecPreCompile = await Presentation.precompile(
+    ecdsaCredentialPresentationSpec
 );
 
-class ProvablePresentation extends PresentationSpectPreCompile.ProvablePresentation {}
+// Define ProvableEcdsaSigPresentation
+export class ProvableEcdsaSigPresentation extends EcdsaSigPresentationSpecPreCompile.ProvablePresentation {}
 
-class PresentationVerifier extends SmartContract {
-    async verifyPresentation(presentation: ProvablePresentation) {
+// Define ProvableEcdsaSigPresentation verifier smart contract
+export class EcdsaSigPresentationVerifier extends SmartContract {
+    async verifyPresentation(presentation: ProvableEcdsaSigPresentation) {
         // verify the presentation, and receive its claims for further validation and usage
         let { claims, outputClaim } = presentation.verify({
             publicKey: this.address,
@@ -70,34 +109,42 @@ class PresentationVerifier extends SmartContract {
     }
 }
 
-declareMethods(PresentationVerifier, {
-    verifyPresentation: [ProvablePresentation as any], // TODO bad TS interface
+// o1js hackery
+declareMethods(EcdsaSigPresentationVerifier, {
+    verifyPresentation: [ProvableEcdsaSigPresentation as any], // TODO bad TS interface
 });
 
-// Compile functions
+// Compile util functions
 
+// Compile EcdsaEthereum
 export async function compileEcdsaEthereum() {
     await EcdsaEthereum.compileDependencies({
-        maxMessageLength: secretLength, // maxMessageLength is a misnomer by mina-attestations
+        maxMessageLength: secretMaxLength, // maxMessageLength is a misnomer by mina-attestations
         proofsEnabled: true,
     });
 
     await EcdsaCredential.compile({ proofsEnabled: true });
 }
 
-export async function compilePresentationVerifier() {
-    await PresentationVerifier.compile();
+// Compile EcdsaSigPresentationVerifier
+export async function compileEcdsaSigPresentationVerifier() {
+    await EcdsaSigPresentationVerifier.compile();
 }
 
 // Methods
 
-export async function getCredential<FixedString extends string>(
+// Create EcdsaMinaCredential
+export async function createEcdsaMinaCredential<FixedString extends string>(
     ethWallet: Wallet,
     minaPubKey: PublicKey,
-    secret: EnforceLength<FixedString, SecretLength>
+    secret: EnforceMaxLength<FixedString, SecretMaxLength>
 ) {
-    const maxMessageLength = 32;
-    const Message = DynamicBytes({ maxLength: maxMessageLength });
+    if ((secret as string).length > secretMaxLength)
+        throw new Error(
+            `Secret provided has length '${secret.valueOf}' which is greater than the max supported secret length '${secretMaxLength}'.`
+        );
+
+    const Message = DynamicBytes({ maxLength: secretMaxLength });
 
     // Create signature
     let message = secret as string;
@@ -120,46 +167,81 @@ export async function getCredential<FixedString extends string>(
         },
     });
 
+    await Credential.validate(credential);
+
     const credentialJson = Credential.toJSON(credential);
+
+    console.log('✅ Created credential:', credentialJson);
+
     // TODO get message hash from credential somehow
     return { credentialJson };
 }
 
-export async function getPresentationRequest(
-    credentialJson: string,
+// Create EcdsaSigPresentationRequest
+export async function createEcdsaSigPresentationRequest(
     zkAppAddress: PublicKey
 ) {
-    let credential = await Credential.fromJSON(credentialJson);
-    await Credential.validate(credential);
-
     // ZKAPP VERIFIER, outside circuit: request a presentation
 
     let request = PresentationRequest.zkAppFromCompiled(
-        PresentationSpectPreCompile,
+        EcdsaSigPresentationSpecPreCompile,
         {}, // createdAt: UInt64.from(Date.now())
+        // TODO
         {
             // this added context ensures that the presentation can't be used outside the target zkApp
             publicKey: zkAppAddress,
-            tokenId: new Field(0),
             methodName: 'verifyPresentation',
+            //tokenId: new Field(0), // Or TokenId.default() from o1js // Will need to be derived from the instance of the ZKApps we have TokenController contract
+            //network // mainnet devnet
         }
     );
-    let requestJson = PresentationRequest.toJSON(request);
+    let presentationRequestJson = PresentationRequest.toJSON(request);
 
-    console.log(
-        '✅ VERIFIER: created presentation request:',
-        requestJson.slice(0, 500) + '...'
-    );
+    console.log('✅ Created presentation request:', presentationRequestJson);
 
-    return requestJson;
+    return presentationRequestJson;
 }
 
-export async function verifyPresentation(
-    serializedPresentationRequest: string,
+// Create EcdsaSigPresentation
+export async function createEcdsaSigPresentation(
+    presentationRequestJson: string,
+    credentialJson: string,
+    owner: PrivateKey
+) {
+    const presentationRequest = PresentationRequest.fromJSON(
+        'zk-app',
+        presentationRequestJson
+    );
+    const credential = await Credential.fromJSON(credentialJson);
+    // Context is a WalletContext which is an R extends PresentationContext.
+    // not sure what its value should be here.
+    const presentation = await Presentation.create(owner, {
+        request: presentationRequest,
+        credentials: [credential],
+        context: undefined,
+    });
+    const presentationJson = Presentation.toJSON(presentation);
+
+    console.log('✅ Created presentation:', presentationJson);
+
+    return presentationJson;
+}
+
+// Verify EcdsaSigPresentation
+export async function verifyEcdsaSigPresentation(
+    presentationJson: string,
     zkAppAddress: PublicKey
 ) {
-    let presentation = Presentation.fromJSON(serializedPresentationRequest);
-    return new PresentationVerifier(zkAppAddress).verifyPresentation(
-        ProvablePresentation.from(presentation)
+    let presentation = Presentation.fromJSON(presentationJson);
+    return new EcdsaSigPresentationVerifier(zkAppAddress).verifyPresentation(
+        ProvableEcdsaSigPresentation.from(presentation)
     );
+}
+
+// Hash secret
+export function hashSecret<FixedString extends string>(
+    secret: EnforceMaxLength<FixedString, SecretMaxLength>
+): Field {
+    const secretString = SecretString.from(secret as string);
+    return secretString.hash();
 }
