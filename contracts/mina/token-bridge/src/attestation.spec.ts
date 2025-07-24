@@ -112,7 +112,7 @@ describe('attestation', () => {
             minaPublicKey,
             secret
         );
-        console.timeEnd('createCredential');
+        console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
         // CLIENT *******************
         // Create a presentation request
@@ -121,7 +121,7 @@ describe('attestation', () => {
         const presentationRequestJson = await createEcdsaSigPresentationRequest(
             zkAppPublicKey
         );
-        console.timeEnd('getPresentationRequest');
+        console.timeEnd('getPresentationRequest'); // 1.348ms
 
         // WALLET ********************
         // WALLET takes a presentation request and the WALLET can retrieve the stored credential
@@ -132,7 +132,7 @@ describe('attestation', () => {
             credentialJson,
             minaPrivateKey
         );
-        console.timeEnd('getPresentation');
+        console.timeEnd('getPresentation'); // 46.801s
 
         // CLIENT *******************
         // Then the ZKApp verifies the presentation
