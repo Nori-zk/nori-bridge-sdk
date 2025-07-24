@@ -12,3 +12,6 @@ coverage
 
 # Never reveal your keys!
 keys
+
+# Ignore cache
+cache
