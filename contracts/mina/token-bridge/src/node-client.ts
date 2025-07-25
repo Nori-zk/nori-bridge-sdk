@@ -24,7 +24,6 @@ import {
     tap,
 } from 'rxjs';
 import { NodeJsClientState } from './rx/node-client/state.js';
-import { waitForDepositFinalization$ } from './rx/eth/waitForDepositFinalization.js';
 
 class NodeClient {
     bridgeSocket$ = getBridgeSocket$();
@@ -57,7 +56,7 @@ class NodeClient {
     );
     depositBlockNumber$ = this.depositBlockNumberSubject.asObservable();
 
-    depositPastFinality = this.depositBlockNumber$.pipe(
+    /*depositPastFinality = this.depositBlockNumber$.pipe(
         switchMap((depositNumber) => {
             console.log('Deposit detected', depositNumber);
             this.subject.next(NodeJsClientState.WaitingForEthFinality);
@@ -69,7 +68,7 @@ class NodeClient {
             );
         }),
         //finalize(() => this.subject.next(NodeJsClientState.))
-    )
+    )*/
 
 
 

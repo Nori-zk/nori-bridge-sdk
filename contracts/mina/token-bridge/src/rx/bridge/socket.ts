@@ -3,7 +3,6 @@ import { filter, interval, map, shareReplay, Subscription } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
 // Pong response.
-
 const pongReply = '{"data":"pong"}';
 
 // Subscription requests.
