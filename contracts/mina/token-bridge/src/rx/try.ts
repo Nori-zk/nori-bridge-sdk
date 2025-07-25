@@ -1,4 +1,12 @@
-import { first, Observable, switchMap, take } from 'rxjs';
+import {
+    concatMap,
+    finalize,
+    first,
+    map,
+    Observable,
+    switchMap,
+    take,
+} from 'rxjs';
 import { getBridgeSocket$ } from './bridge/socket.js';
 import { getEthStateTopic$ } from './eth/topic.js';
 import {
@@ -7,6 +15,7 @@ import {
 } from './bridge/topics.js';
 import { getBridgeStateWithTimings$ } from './bridge/state.js';
 import { waitForDepositFinalization$ } from './eth/waitForDepositFinalization.js';
+import { depositProcessingStatus$ } from './bridge/deposit.js';
 
 function testSub($: Observable<any>) {
     $.subscribe({
@@ -29,15 +38,35 @@ const depositFinalization$ = waitForDepositFinalization$(
     ethStateTopic$
 );
 
-const nextFinalization$ = ethStateTopic$.pipe(
+const nextFinalizationTarget$ = ethStateTopic$.pipe(take(1));
+
+const awaitNextFinalization$ = nextFinalizationTarget$.pipe(
     take(1),
     switchMap(({ latest_finality_block_number }) => {
-        console.log('in final', latest_finality_block_number - 63);
         return waitForDepositFinalization$(
             latest_finality_block_number + 10,
             ethStateTopic$
         );
     })
+);
+
+const awaitProcessing$ = nextFinalizationTarget$.pipe(
+    take(1),
+    map(
+        ({ latest_finality_block_number }) => latest_finality_block_number + 10
+    ),
+    switchMap((target) =>
+        waitForDepositFinalization$(target, ethStateTopic$).pipe(
+            // After the previous stream has ended
+            concatMap(() =>
+                depositProcessingStatus$(
+                    target,
+                    bridgeStateTopic$,
+                    bridgeTimingsTopic$
+                )
+            )
+        )
+    )
 );
 
 /*;*/
@@ -48,5 +77,6 @@ testSub(ethStateTopic$);
 testSub(bridgeTimingsTopic$);
 testSub(bridgeStateWithTimings$)*/
 
-testSub(nextFinalization$);
-testSub(ethStateTopic$);
+testSub(awaitNextFinalization$);
+//testSub(ethStateTopic$);
+testSub(awaitProcessing$);
