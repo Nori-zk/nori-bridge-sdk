@@ -41,12 +41,12 @@ export const waitForDepositFinalization$ = (
                     true
                 ),
                 map((elapsedSec) => {
-                    console.log(
+                    /*console.log(
                         'hmmmmmmmm ',
                         latest_finality_block_number,
                         depositBlockNumber,
                         latest_finality_block_number < depositBlockNumber
-                    );
+                    );*/
                     return timeToWait - (elapsedSec % 384);
                 }) // The modulo here is to make it start again at 384 if it hits zero
             );

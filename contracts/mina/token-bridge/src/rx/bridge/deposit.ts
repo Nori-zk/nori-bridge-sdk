@@ -91,6 +91,7 @@ export const depositProcessingStatus$ = (
                         time_remaining_sec: adjustedTimeRemaining,
                         elapsed_sec: elapsedSeconds,
                         deposit_processing_status: depositProcessingStatus,
+                        deposit_block_number: depositBlockNumber,
                     };
                 })
             );
