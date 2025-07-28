@@ -6,7 +6,7 @@ import {
     getBridgeTimingsTopic$,
 } from './bridge/topics.js';
 import { getBridgeStateWithTimings$ } from './bridge/state.js';
-import { depositProcessingStatus$ } from './bridge/deposit.js';
+import { getDepositProcessingStatus$ } from './bridge/deposit.js';
 
 // Util for testing Obserables
 function testSub($: Observable<any>) {
@@ -36,7 +36,7 @@ const awaitDepositProcessing$ = nextFinalizationTarget$.pipe(
         ({ latest_finality_block_number }) => latest_finality_block_number + 10
     ),
     switchMap((target) =>
-        depositProcessingStatus$(
+        getDepositProcessingStatus$(
             target,
             ethStateTopic$,
             bridgeStateTopic$,

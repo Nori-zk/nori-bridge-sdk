@@ -4,6 +4,8 @@ import {
     interval,
     map,
     switchMap,
+    takeUntil,
+    takeWhile,
 } from 'rxjs';
 import { getEthStateTopic$ } from '../eth/topic.js';
 import { getBridgeStateTopic$, getBridgeTimingsTopic$ } from './topics.js';
@@ -17,9 +19,7 @@ export enum BridgeDepositProcessingStatus {
     MissedMintingOpportunity = 'MissedMintingOpportunity',
 }
 
-//last stage is complete when EthProcessorTransactionFinalizationSucceeded is finished
-
-export const depositProcessingStatus$ = (
+export const getDepositProcessingStatus$ = (
     depositBlockNumber: number,
     ethStateTopic$: ReturnType<typeof getEthStateTopic$>,
     bridgeStateTopic$: ReturnType<typeof getBridgeStateTopic$>,
@@ -59,30 +59,23 @@ export const depositProcessingStatus$ = (
         })
     );
 
-    // On each trigger, do one compute and then switch to a single interval:
-    return trigger$.pipe(
-        switchMap(([ethState, [bridgeState, bridgeTimings]]) => {
-            let timeToWait: number;
+    // On each trigger, do one time / status computation and then switch to a single interval:
+    const status$ = trigger$.pipe(
+        map(([ethState, [bridgeState, bridgeTimings]]) => {
+            // Determine status
             let status: BridgeDepositProcessingStatus;
 
+            // Extract bridgeState properties
+            const {
+                stageName,
+                elapsed_sec,
+                input_block_number,
+                output_block_number,
+            } = bridgeState;
+
             if (ethState.latest_finality_block_number < depositBlockNumber) {
-                const delta =
-                    ethState.latest_finality_slot -
-                    ethState.latest_finality_block_number;
-                const depositSlot = depositBlockNumber + delta;
-                const rounded = Math.ceil(depositSlot / 32) * 32;
-                const blocksRemaining =
-                    rounded - delta - ethState.latest_finality_block_number;
-                timeToWait = Math.max(0, blocksRemaining * 12);
                 status = BridgeDepositProcessingStatus.WaitingForEthFinality;
             } else {
-                const {
-                    stageName,
-                    elapsed_sec,
-                    input_block_number,
-                    output_block_number,
-                } = bridgeState;
-
                 if (
                     input_block_number <= depositBlockNumber &&
                     depositBlockNumber <= output_block_number
@@ -96,12 +89,51 @@ export const depositProcessingStatus$ = (
                     status =
                         BridgeDepositProcessingStatus.MissedMintingOpportunity;
                 }
+            }
 
+            // Do time estimate computation
+            let timeToWait: number;
+
+            if (ethState.latest_finality_block_number < depositBlockNumber) {
+                const delta =
+                    ethState.latest_finality_slot -
+                    ethState.latest_finality_block_number;
+                const depositSlot = depositBlockNumber + delta;
+                const rounded = Math.ceil(depositSlot / 32) * 32;
+                const blocksRemaining =
+                    rounded - delta - ethState.latest_finality_block_number;
+                timeToWait = Math.max(0, blocksRemaining * 12);
+            } else {
                 const expected = bridgeTimings.extension[stageName] ?? 15;
                 timeToWait = expected - elapsed_sec;
             }
 
+            return { status, bridgeState, timeToWait };
+        }),
+        takeWhile(({ status, bridgeState, timeToWait }) => {
+            // Cancel when we reach EthProcessorTransactionFinalizationSucceeded for our job
+            return !(
+                bridgeState.stageName ===
+                    TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded &&
+                status ===
+                    BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion
+            );
+        }, true)
+    );
+
+    return status$.pipe(
+        switchMap(({ status, bridgeState, timeToWait }) => {
             return interval(1000).pipe(
+                // Cancel when we reach EthProcessorTransactionFinalizationSucceeded for our job
+                takeWhile(() => {
+                    return !(
+                        bridgeState.stageName ===
+                            TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded &&
+                        status ===
+                            BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion
+                    );
+                }, true),
+                // Calculate timeRemaining
                 map((tick) => {
                     let timeRemaining = timeToWait - tick;
                     if (
@@ -112,7 +144,6 @@ export const depositProcessingStatus$ = (
                     ) {
                         timeRemaining = ((timeRemaining % 384) + 384) % 384;
                     }
-
                     return {
                         ...bridgeState,
                         time_remaining_sec: timeRemaining,

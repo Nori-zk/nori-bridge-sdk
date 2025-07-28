@@ -1,5 +1,24 @@
-import { EthProof, ContractDepositAttestorProof } from "@nori-zk/o1js-zk-utils";
-import { Field, Struct, ZkProgram } from "o1js";
+import {
+    EthProof,
+    ContractDepositAttestorProof,
+    ContractDepositAttestor,
+    EthVerifier,
+} from '@nori-zk/o1js-zk-utils';
+import {
+    AccountUpdate,
+    Field,
+    Mina,
+    PrivateKey,
+    Struct,
+    ZkProgram,
+} from 'o1js';
+import {
+    compileEcdsaEthereum,
+    compileEcdsaSigPresentationVerifier,
+    EcdsaSigPresentationVerifier,
+    ProvableEcdsaSigPresentation,
+} from './attestation.js';
+import { Presentation } from 'mina-attestations';
 
 export class E2ePrerequisitesInput extends Struct({
     //ethVerifierProof: EthProof.provable,
@@ -108,3 +127,64 @@ export const E2EPrerequisitesProgram = ZkProgram({
         },
     },
 });
+
+export async function compilePreRequisites() {
+    // TODO optimise not all of these need to be compiled immediately
+
+    console.time('ContractDepositAttestor compile');
+    const { verificationKey: contractDepositAttestorVerificationKey } =
+        await ContractDepositAttestor.compile({ forceRecompile: true });
+    console.timeEnd('ContractDepositAttestor compile');
+    console.log(
+        `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
+    );
+
+    console.time('EthVerifier compile');
+    const { verificationKey: ethVerifierVerificationKey } =
+        await EthVerifier.compile({ forceRecompile: true });
+    console.timeEnd('EthVerifier compile');
+    console.log(
+        `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+    );
+
+    console.time('E2EPrerequisitesProgram compile');
+    const { verificationKey: e2ePrerequisitesVerificationKey } =
+        await E2EPrerequisitesProgram.compile({ forceRecompile: true });
+    console.timeEnd('E2EPrerequisitesProgram compile');
+    console.log(
+        `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
+    );
+}
+
+export async function deployAndVerifyEcdsaSigPresentationVerifier(
+    zkAppPrivateKey: PrivateKey,
+    senderPrivateKey: PrivateKey,
+    presentationJSON: string
+) {
+    const senderPublicKey = senderPrivateKey.toPublicKey();
+    const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
+    const zkApp = new EcdsaSigPresentationVerifier(zkAppPublicKey);
+    const deployTx = await Mina.transaction(
+        { sender: senderPublicKey, fee: 0.01 * 1e9 },
+        async () => {
+            AccountUpdate.fundNewAccount(senderPublicKey);
+            await zkApp.deploy();
+            const presentation = Presentation.fromJSON(presentationJSON);
+            const provablePresentation =
+                ProvableEcdsaSigPresentation.from(presentation);
+            const claims = await zkApp.verifyPresentation(provablePresentation);
+            console.log('✅ ProvablePresentation verified!');
+            console.log('ProvableEcdsaSigPresentation claims:', claims);
+        }
+    );
+
+    console.log('Deploy transaction created successfully. Proving...');
+    await deployTx.prove();
+    console.log('Transaction proved. Signing and sending the transaction...');
+    await deployTx.sign([senderPrivateKey, zkAppPrivateKey]).send().wait();
+    console.log(
+        '✅ EcdsaSigPresentationVerifier deployed and verified successfully.'
+    );
+
+    // May have to verifiy presentation in 2nd tx... Seems like its not necessary.
+}
