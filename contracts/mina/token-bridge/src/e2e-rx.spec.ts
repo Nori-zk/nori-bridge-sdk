@@ -30,6 +30,7 @@ import {
     firstValueFrom,
     lastValueFrom,
     map,
+    switchMap,
     take,
     tap,
 } from 'rxjs';
@@ -39,7 +40,7 @@ import {
 } from './rx/bridge/deposit.js';
 import { fetchContractWindowProofsSlotsAndCompute } from './computeProofs.js';
 import { fieldToBigIntLE, fieldToHexBE } from '@nori-zk/o1js-zk-utils';
-import { TransitionNoticeMessageType } from '@nori-zk/pts-types/build/public/src/index.js';
+import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 
 describe('e2e-rx', () => {
     test('e2e_rx_pipeline', async () => {
@@ -158,9 +159,11 @@ describe('e2e-rx', () => {
             bridgeTimingsTopic$
         );
 
-        const depositProcessingSub = depositProcessingStatus$.subscribe(
-            console.log
-        );
+        const depositProcessingSub = depositProcessingStatus$.subscribe({
+            next: console.log,
+            error: console.error,
+            complete: () => console.log('Deposit processing completed'),
+        });
 
         // Compute proof
         const { depositAttestationProof, ethVerifierProof, despositSlotRaw } =
@@ -174,7 +177,7 @@ describe('e2e-rx', () => {
                                 TransitionNoticeMessageType.ProofConversionJobSucceeded
                     ),
                     take(1),
-                    map(async () => {
+                    switchMap(async () => {
                         return await fetchContractWindowProofsSlotsAndCompute(
                             depositBlockNumber,
                             ethAddressLowerHex,
