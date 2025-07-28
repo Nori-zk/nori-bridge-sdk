@@ -18,7 +18,19 @@
     "main": "target/src/index.js",
     "types": "target/src/index.d.ts",
     "exports": {
-        ".": "./target/src/index.js"
+        ".": "./target/src/index.js",
+        "./node/worker/parent": {
+            "import": "./target/src/worker/parent/index.node.js"
+        },
+        "./node/worker/child": {
+            "import": "./target/src/worker/child/index.node.js"
+        },
+        "./browser/worker/parent": {
+            "import": "./target/src/worker/parent/index.browser.js"
+        },
+        "./browser/worker/child": {
+            "import": "./target/src/worker/child/index.browser.js"
+        }
     },
     "scripts": {
         "clean": "rimraf target",

@@ -1,12 +1,16 @@
 import {
     combineLatest,
+    concat,
     distinctUntilChanged,
+    exhaustMap,
     interval,
     map,
+    of,
     shareReplay,
     switchMap,
     takeWhile,
     tap,
+    timer,
 } from 'rxjs';
 import { getEthStateTopic$ } from '../eth/topic.js';
 import { getBridgeStateTopic$, getBridgeTimingsTopic$ } from './topics.js';
@@ -77,12 +81,12 @@ export const getDepositProcessingStatus$ = (
                 depositBlockNumber,
                 bridgeStageName: bridgeState.stageName,
             });
-        }),
+        })
     );
 
     // On each trigger, do one time / status computation and then switch to a single interval:
     const status$ = trigger$.pipe(
-          tap(([ethState, [bridgeState, bridgeTimings]]) => {
+        tap(([ethState, [bridgeState, bridgeTimings]]) => {
             console.log('status$ emitted:');
         }),
         map(([ethState, [bridgeState, bridgeTimings]]) => {
@@ -149,16 +153,30 @@ export const getDepositProcessingStatus$ = (
             );
         }, true),
         tap(({ status, bridgeState, timeToWait }) => {
-            console.log('status$ after take while:');
-        }),
+            console.log('status$ after take while:', bridgeState.stageName);
+        })
     );
 
     return status$.pipe(
         tap(({ status, bridgeState, timeToWait }) => {
-            console.log('status$ before switch map');
+            console.log('status$ before switch map', bridgeState.stageName);
         }),
         switchMap(({ status, bridgeState, timeToWait }) => {
-            return interval(1000).pipe(
+            console.log(
+                'DO WE EVEN GET TO THE SWTICH MAP',
+                bridgeState.stageName
+            );
+            return concat(
+                of(0), // emit immediately
+                interval(1000) // then every 1s
+            ).pipe(
+                tap((tick) => {
+                    console.log(
+                        'status$ in switch map before take while',
+                        bridgeState.stageName,
+                        tick
+                    );
+                }),
                 // Cancel when we reach EthProcessorTransactionFinalizationSucceeded for our job
                 takeWhile(() => {
                     return !(
@@ -168,8 +186,16 @@ export const getDepositProcessingStatus$ = (
                             BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion
                     );
                 }, true),
+                tap((tick) => {
+                    console.log(
+                        'status$ in switch map after take while',
+                        bridgeState.stageName,
+                        tick
+                    );
+                }),
                 // Calculate timeRemaining
                 map((tick) => {
+                    console.log('in switch map with map with tick', bridgeState.stageName);
                     let timeRemaining = timeToWait - tick;
                     if (
                         bridgeState.stageName ===
@@ -189,12 +215,12 @@ export const getDepositProcessingStatus$ = (
                 })
             );
         }),
-         tap(() => {
+        tap(() => {
             console.log('status$ after switch map... before share replay');
         }),
         shareReplay(1),
         tap(() => {
             console.log('status$ after switch map... after share replay');
-        }),
+        })
     );
 };

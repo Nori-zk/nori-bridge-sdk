@@ -1,15 +1,78 @@
-import { InvertedPromise } from '../utils.js';
+import { InvertedPromise } from './utils.js';
 
-export interface WorkerParentLike {
-    send(data: string): void;
+export interface BaseWorkerEndpoint {
     onMessageHandler(callback: (response: string) => void): void;
     onErrorHandler(callback: (error: any) => void): void;
     terminate(): void;
 }
 
+export interface WorkerParentLike extends BaseWorkerEndpoint {
+    send(data: string): void;
+}
+
+export interface WorkerChildLike extends BaseWorkerEndpoint {
+    call(data: string): void;
+}
+
 type MethodNames<T> = {
     [K in keyof T]: T[K] extends (...args: any) => Promise<any> ? K : never;
 }[keyof T];
+
+export abstract class WorkerParentBase {
+    #child: WorkerChildLike;
+    #pendingRequests = new Map<number, InvertedPromise<any, any>>();
+    #requestId = 0;
+
+    constructor(child: WorkerChildLike) {
+        this.#child = child;
+        this.#child.onMessageHandler(this.#onMessage.bind(this));
+        this.#child.onErrorHandler(this.#onError.bind(this));
+    }
+
+    protected call<Req, Res>(methodName: string, data: Req): Promise<Res> {
+        const id = ++this.#requestId;
+        const message = { id, methodName, data };
+        const messageStr = JSON.stringify(message);
+
+        const deferred = new InvertedPromise<Res, Error>();
+        this.#pendingRequests.set(id, deferred);
+        this.#child.call(messageStr);
+
+        return deferred.promise;
+    }
+
+    #onMessage(messageStr: string) {
+        let response: {
+            id: number;
+            methodName: string;
+            data?: any;
+            error?: string;
+        };
+        try {
+            response = JSON.parse(messageStr);
+        } catch {
+            return;
+        }
+
+        const { id, data, error } = response;
+        const deferred = this.#pendingRequests.get(id);
+        if (!deferred) return;
+
+        if (error) deferred.reject(new Error(error));
+        else deferred.resolve(data);
+
+        this.#pendingRequests.delete(id);
+    }
+
+    #onError(error: any) {
+        this.#pendingRequests.forEach((deferred) => deferred.reject(error));
+        this.#pendingRequests.clear();
+    }
+
+    terminate() {
+        this.#child.terminate();
+    }
+}
 
 export type WorkerChildInfer<T> = {
     [K in MethodNames<T>]: T[K] extends (req: infer Req) => Promise<infer Res>
@@ -28,7 +91,6 @@ export abstract class WorkerChildBase {
         this.#parent.onErrorHandler(this.#onError.bind(this));
     }
 
-    // Child calling parent method
     protected call<Req, Res>(methodName: string, data: Req): Promise<Res> {
         const id = ++this.#requestId;
         const message = { id, methodName, data };
@@ -41,7 +103,6 @@ export abstract class WorkerChildBase {
         return deferred.promise;
     }
 
-    // Internal raw message handler
     async #onRawMessage(messageStr: string) {
         let message: {
             id: number;
@@ -53,11 +114,9 @@ export abstract class WorkerChildBase {
         try {
             message = JSON.parse(messageStr);
         } catch {
-            // Malformed message ignored or optionally send error back?
             return;
         }
 
-        // If this is a response to a call initiated by child
         if (this.#pendingRequests.has(message.id)) {
             const deferred = this.#pendingRequests.get(message.id)!;
             if (message.error) deferred.reject(new Error(message.error));
@@ -66,7 +125,6 @@ export abstract class WorkerChildBase {
             return;
         }
 
-        // Otherwise this is a request from parent — dispatch to concrete method
         await this.#handleRequest(message);
     }
 
@@ -105,16 +163,3 @@ export abstract class WorkerChildBase {
         this.#pendingRequests.clear();
     }
 }
-
-/*export class EchoWorkerChild
-    extends WorkerChildBase
-    implements WorkerChildInfer<EchoWorkerChild>
-{
-    async echo(req: { msg: string }): Promise<{ echoed: string }> {
-        return { echoed: `Echo: ${req.msg}` };
-    }
-
-    async shout(req: { msg: string }): Promise<{ upper: string }> {
-        return { upper: req.msg.toUpperCase() };
-    }
-}*/

@@ -1,6 +1,6 @@
-import type { WorkerParentLike } from './types.js';
+import type { WorkerParentLike } from '../types.js';
 
-export class WorkerChildBrowser implements WorkerParentLike {
+export class WorkerChild implements WorkerParentLike {
     private messageCallback?: (response: string) => void;
     private errorCallback?: (error: any) => void;
 

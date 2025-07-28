@@ -1,7 +1,7 @@
 import { parentPort } from 'worker_threads';
-import type { WorkerParentLike } from './types.js';
+import type { WorkerParentLike } from '../types.js';
 
-export class WorkerChildNode implements WorkerParentLike {
+export class WorkerChild implements WorkerParentLike {
     private messageCallback?: (response: string) => void;
     private errorCallback?: (error: any) => void;
 
