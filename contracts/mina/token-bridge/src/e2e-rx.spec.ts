@@ -46,6 +46,13 @@ describe('e2e-rx', () => {
     test('e2e_rx_pipeline', async () => {
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
+        // COMPILE E2E **************************************************
+
+        // Compile what we need for E2E program (if we do this later it crashes???)
+        console.log('compile e2e ................');
+        await compilePreRequisites();
+        console.log('compiledddd e2e ................');
+
         // COMPILE ECDSA **************************************************
         console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
@@ -103,6 +110,8 @@ describe('e2e-rx', () => {
         );
         console.timeEnd('getPresentation'); // 46.801s
 
+        console.log('Extracting 111111111111111111');
+
         // Extract hashed secret
         const presentation = JSON.parse(presentationJson);
         const messageHashString =
@@ -118,6 +127,7 @@ describe('e2e-rx', () => {
 
         // CONNECT TO BRIDGE **************************************************
 
+        console.log('connecting 111111111111111111');
         // Establish a connection to the bridge.
         const bridgeSocket$ = getBridgeSocket$();
         const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
@@ -125,20 +135,15 @@ describe('e2e-rx', () => {
         const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
         // Wait for bridge topics to be ready.
-        const topicsReady$ = combineLatest([
-            ethStateTopic$,
-            bridgeStateTopic$,
-            bridgeTimingsTopic$,
-        ]).pipe(
-            take(1),
-            map(() => true)
+        await firstValueFrom(
+            combineLatest([
+                ethStateTopic$,
+                bridgeStateTopic$,
+                bridgeTimingsTopic$,
+            ])
         );
-        await firstValueFrom(topicsReady$);
 
-        // COMPILE E2E **************************************************
-
-        // Compile what we need for E2E program
-        await compilePreRequisites();
+        console.log('connecting all ready');
 
         // LOCK TOKENS **************************************************
 
@@ -178,6 +183,8 @@ describe('e2e-rx', () => {
                     ),
                     take(1),
                     switchMap(async () => {
+                        console.log("''computtttinggggggggg prooooooooffffff");
+
                         return await fetchContractWindowProofsSlotsAndCompute(
                             depositBlockNumber,
                             ethAddressLowerHex,
@@ -242,11 +249,13 @@ describe('e2e-rx', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
 
+        console.time('deployAndVerifyEcdsaSigPresentationVerifier');
         await deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKey,
             minaPrivateKey,
             presentationJson
         );
+        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');
 
         console.log('Minted!');
     }, 1000000000);

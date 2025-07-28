@@ -4,7 +4,6 @@ import {
     interval,
     map,
     switchMap,
-    takeUntil,
     takeWhile,
 } from 'rxjs';
 import { getEthStateTopic$ } from '../eth/topic.js';
@@ -94,7 +93,7 @@ export const getDepositProcessingStatus$ = (
             // Do time estimate computation
             let timeToWait: number;
 
-            if (ethState.latest_finality_block_number < depositBlockNumber) {
+            if (status === BridgeDepositProcessingStatus.WaitingForEthFinality) {
                 const delta =
                     ethState.latest_finality_slot -
                     ethState.latest_finality_block_number;
@@ -110,7 +109,7 @@ export const getDepositProcessingStatus$ = (
 
             return { status, bridgeState, timeToWait };
         }),
-        takeWhile(({ status, bridgeState, timeToWait }) => {
+        takeWhile(({ status, bridgeState }) => {
             // Cancel when we reach EthProcessorTransactionFinalizationSucceeded for our job
             return !(
                 bridgeState.stageName ===

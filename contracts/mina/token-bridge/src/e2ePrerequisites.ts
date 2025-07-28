@@ -185,6 +185,4 @@ export async function deployAndVerifyEcdsaSigPresentationVerifier(
     console.log(
         '✅ EcdsaSigPresentationVerifier deployed and verified successfully.'
     );
-
-    // May have to verifiy presentation in 2nd tx... Seems like its not necessary.
 }
