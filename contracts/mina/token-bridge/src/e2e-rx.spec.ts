@@ -211,7 +211,8 @@ describe('e2e-rx', () => {
                             deposit_processing_status ===
                                 BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
                             stageName ===
-                                TransitionNoticeMessageType.EthProcessorProofRequest
+                                TransitionNoticeMessageType.ProofConversionJobSucceeded
+                        //TransitionNoticeMessageType.EthProcessorProofRequest
                         //TransitionNoticeMessageType.ProofConversionJobSucceeded
                     ),
                     take(1),
