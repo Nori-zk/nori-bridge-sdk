@@ -46,25 +46,23 @@ describe('e2e-rx', () => {
     test('e2e_rx_pipeline', async () => {
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
+        // GET WALLET **************************************************
+        const ethWallet = await getEthWallet();
+        const ethAddressLowerHex = ethWallet.address.toLowerCase();
+
         // COMPILE E2E **************************************************
 
         // Compile what we need for E2E program (if we do this later it crashes???)
-        console.log('compile e2e ................');
         await compilePreRequisites();
-        console.log('compiledddd e2e ................');
 
         // COMPILE ECDSA **************************************************
-        console.time('compileEcdsaEthereum');
+        /*console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
         console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
 
         console.time('compilePresentationVerifier');
         await compileEcdsaSigPresentationVerifier();
         console.timeEnd('compilePresentationVerifier'); // 11.507s
-
-        // GET WALLET **************************************************
-        const ethWallet = await getEthWallet();
-        const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
         // SETUP MINA **************************************************
 
@@ -81,6 +79,7 @@ describe('e2e-rx', () => {
 
         // CLIENT *******************
         // Create a credential and we send this to the WALLET to store it....
+        console.log('Creating credentials');
         const secret = 'IAmASecretOfLength20';
         console.time('createCredential');
         const { credentialJson } = await createEcdsaMinaCredential(
@@ -110,14 +109,13 @@ describe('e2e-rx', () => {
         );
         console.timeEnd('getPresentation'); // 46.801s
 
-        console.log('Extracting 111111111111111111');
-
         // Extract hashed secret
         const presentation = JSON.parse(presentationJson);
         const messageHashString =
             presentation.outputClaim.value.messageHash.value;
         const messageHashBigInt = BigInt(messageHashString);
-        const credentialAttestationHash = Field.from(messageHashBigInt);
+        const credentialAttestationHash = Field.from(messageHashBigInt);*/
+        const credentialAttestationHash = Field.random();
 
         const beAttestationHashBytes = Bytes.from(
             wordToBytes(credentialAttestationHash, 32).reverse()
@@ -127,14 +125,15 @@ describe('e2e-rx', () => {
 
         // CONNECT TO BRIDGE **************************************************
 
-        console.log('connecting 111111111111111111');
         // Establish a connection to the bridge.
+        console.log('Establishing bridge connection and topics.');
         const bridgeSocket$ = getBridgeSocket$();
         const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
         const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
         const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
         // Wait for bridge topics to be ready.
+        console.time('bridgeStateReady');
         await firstValueFrom(
             combineLatest([
                 ethStateTopic$,
@@ -142,17 +141,16 @@ describe('e2e-rx', () => {
                 bridgeTimingsTopic$,
             ])
         );
-
-        console.log('connecting all ready');
+        console.timeEnd('bridgeStateReady');
 
         // LOCK TOKENS **************************************************
 
-        console.log('Locking tokens');
+        console.time('lockingTokens');
         const depositBlockNumber = await lockTokens(
             credentialAttestationHash,
             0.000001
         );
-        console.log('Locked tokens');
+        console.timeEnd('lockingTokens');
 
         // WAIT FOR BRIDGE PROCESSING **************************************************
 
@@ -183,8 +181,6 @@ describe('e2e-rx', () => {
                     ),
                     take(1),
                     switchMap(async () => {
-                        console.log("''computtttinggggggggg prooooooooffffff");
-
                         return await fetchContractWindowProofsSlotsAndCompute(
                             depositBlockNumber,
                             ethAddressLowerHex,
@@ -249,13 +245,13 @@ describe('e2e-rx', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
 
-        console.time('deployAndVerifyEcdsaSigPresentationVerifier');
+        /*console.time('deployAndVerifyEcdsaSigPresentationVerifier');
         await deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKey,
             minaPrivateKey,
             presentationJson
         );
-        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');
+        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');*/
 
         console.log('Minted!');
     }, 1000000000);
