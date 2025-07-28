@@ -5,6 +5,7 @@ import {
     ContractDepositAttestorInput,
     ContractDepositAttestorProof,
     getContractDepositWitness,
+    NodeProofLeft,
 } from '@nori-zk/o1js-zk-utils';
 import {
     computeMerkleTreeDepthAndSize,
@@ -161,8 +162,7 @@ export async function fetchContractWindowProofsSlotsAndCompute(
     console.log('Decoded EthInput from MPT proof');
 
     console.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
-    // Watch out because the ts ignore prevent you seeing if NodeProofLeft has been imported!
-    // @ts-ignore this is silly! why!
+
     const rawProof = await NodeProofLeft.fromJSON(
         consensusMPTProofVerification.proofData
     );
