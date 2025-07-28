@@ -4,9 +4,12 @@ import {
 } from '@nori-zk/pts-types';
 import { filter, map, Observable, shareReplay } from 'rxjs';
 import { WebSocketSubject } from 'rxjs/webSocket';
+import { ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
 export const getBridgeStateTopic$ = (
-    bridgeSocket$: WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+    bridgeSocket$:
+        | WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+        | ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
 ) =>
     (
         bridgeSocket$.asObservable().pipe(
@@ -28,9 +31,14 @@ export const getBridgeStateTopic$ = (
     ).pipe(shareReplay(1));
 
 export const getBridgeTimingsTopic$ = (
-    bridgeSocket$: WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+    bridgeSocket$:
+        | WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+        | ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
 ) =>
-    bridgeSocket$.asObservable().pipe(
-        // Filter by topic and suppress events when the state is 'unknown'
-        filter((message) => message.topic === 'timings.notices.transition')
-    ).pipe(shareReplay(1));
+    bridgeSocket$
+        .asObservable()
+        .pipe(
+            // Filter by topic and suppress events when the state is 'unknown'
+            filter((message) => message.topic === 'timings.notices.transition')
+        )
+        .pipe(shareReplay(1));

@@ -1,9 +1,12 @@
 import { WebSocketServiceTopicSubscriptionMessage } from '@nori-zk/pts-types';
 import { filter, map, Observable, shareReplay } from 'rxjs';
 import { WebSocketSubject } from 'rxjs/webSocket';
+import { ReconnectingWebSocketSubject } from '../bridge/reconnectingSocket.js';
 
 export const getEthStateTopic$ = (
-    bridgeSocket$: WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+    bridgeSocket$:
+            | WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+            | ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
 ) =>
     (bridgeSocket$.asObservable().pipe(
         // Filter by topic and suppress events when the state is 'unknown'

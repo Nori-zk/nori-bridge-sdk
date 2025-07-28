@@ -18,7 +18,10 @@ import {
     E2ePrerequisitesInput,
     E2EPrerequisitesProgram,
 } from './e2ePrerequisites.js';
-import { getBridgeSocket$ } from './rx/bridge/socket.js';
+import {
+    getBridgeSocket$,
+    getReconnectingBridgeSocket$,
+} from './rx/bridge/socket.js';
 import { getEthStateTopic$ } from './rx/eth/topic.js';
 import {
     getBridgeStateTopic$,
@@ -125,9 +128,18 @@ describe('e2e-rx', () => {
 
         // CONNECT TO BRIDGE **************************************************
 
-        // Establish a connection to the bridge.
+        // Establish a connection to the bridge and listen to topics.
         console.log('Establishing bridge connection and topics.');
-        const bridgeSocket$ = getBridgeSocket$();
+        const { bridgeSocket$, bridgeSocketConnectionState$ } =
+            getReconnectingBridgeSocket$();
+
+        bridgeSocketConnectionState$.subscribe({
+            next: (state) => console.log(`[WS] ${state}`),
+            error: (state) => console.error(`[WS] ${state}`),
+            complete: () =>
+                console.log('[WS] Bridge socket connection completed.'),
+        });
+
         const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
         const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
         const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
@@ -162,13 +174,35 @@ describe('e2e-rx', () => {
             bridgeTimingsTopic$
         );
 
-        const depositProcessingSub = depositProcessingStatus$.subscribe({
+        depositProcessingStatus$.subscribe({
             next: console.log,
             error: console.error,
             complete: () => console.log('Deposit processing completed'),
         });
 
         // Compute proof
+        console.log(
+            'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
+        );
+
+        /*
+{
+  stageName: 'ProofConversionJobReceived',
+  input_slot: 4817024,
+  input_block_number: 4241469,
+  output_slot: 4817088,
+  output_block_number: 4241518,
+  elapsed_sec: 328,
+  time_remaining_sec: -6.846000000000004,
+  deposit_processing_status: 'WaitingForCurrentJobCompletion',
+  deposit_block_number: 4241490
+}
+{
+  stageName: 'EthProcessorProofRequest',
+  input_slot: 4817024,
+
+
+        */
         const { depositAttestationProof, ethVerifierProof, despositSlotRaw } =
             await firstValueFrom(
                 depositProcessingStatus$.pipe(
@@ -177,10 +211,12 @@ describe('e2e-rx', () => {
                             deposit_processing_status ===
                                 BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
                             stageName ===
-                                TransitionNoticeMessageType.ProofConversionJobSucceeded
+                                TransitionNoticeMessageType.EthProcessorProofRequest
+                        //TransitionNoticeMessageType.ProofConversionJobSucceeded
                     ),
                     take(1),
                     switchMap(async () => {
+                        console.log('Computing proofs...');
                         return await fetchContractWindowProofsSlotsAndCompute(
                             depositBlockNumber,
                             ethAddressLowerHex,
@@ -191,18 +227,21 @@ describe('e2e-rx', () => {
             );
 
         // Block until deposit has been processed
+        console.log(
+            'Waiting for deposit processing completion before we can complete the minting process.'
+        );
         await lastValueFrom(depositProcessingStatus$);
-
-        // End depositProcessingStatus$ printing subscription
-        depositProcessingSub.unsubscribe();
+        console.log('Deposit is processed unblocking mint process.');
 
         // COMPUTE E2E **************************************************
 
+        console.log('Building e2e input');
         // Now the deposit has been processed we are free to compute the e2e proof.
         const e2ePrerequisitesInput = new E2ePrerequisitesInput({
             credentialAttestationHash,
         });
 
+        console.log('Computing e2e');
         console.time('E2EPrerequisitesProgram.compute');
         const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
             e2ePrerequisitesInput,

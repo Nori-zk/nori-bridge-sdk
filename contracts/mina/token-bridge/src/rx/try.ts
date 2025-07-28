@@ -1,5 +1,5 @@
 import { map, Observable, switchMap, take } from 'rxjs';
-import { getBridgeSocket$ } from './bridge/socket.js';
+import { getReconnectingBridgeSocket$ } from './bridge/socket.js';
 import { getEthStateTopic$ } from './eth/topic.js';
 import {
     getBridgeStateTopic$,
@@ -7,6 +7,7 @@ import {
 } from './bridge/topics.js';
 import { getBridgeStateWithTimings$ } from './bridge/state.js';
 import { getDepositProcessingStatus$ } from './bridge/deposit.js';
+import { ReconnectingWebSocketSubject } from './bridge/reconnectingSocket.js';
 
 // Util for testing Obserables
 function testSub($: Observable<any>) {
@@ -17,7 +18,7 @@ function testSub($: Observable<any>) {
     });
 }
 
-const bridgeSocket$ = getBridgeSocket$();
+const { bridgeSocket$, bridgeSocketConnectionState$ } = getReconnectingBridgeSocket$();
 
 const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
 const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
@@ -30,7 +31,7 @@ const bridgeStateWithTimings$ = getBridgeStateWithTimings$(
 
 const nextFinalizationTarget$ = ethStateTopic$.pipe(take(1));
 
-const awaitDepositProcessing$ = nextFinalizationTarget$.pipe(
+const depositProcessingStatus$ = nextFinalizationTarget$.pipe(
     take(1),
     map(
         ({ latest_finality_block_number }) => latest_finality_block_number + 10
@@ -50,6 +51,9 @@ testSub(ethStateTopic$);
 testSub(bridgeTimingsTopic$);
 testSub(bridgeStateWithTimings$)*/
 
-testSub(ethStateTopic$);
+//testSub(ethStateTopic$);
 testSub(bridgeStateTopic$);
-testSub(awaitDepositProcessing$);
+
+//testSub(bridgeSocketConnectionState$);
+testSub(depositProcessingStatus$);
+

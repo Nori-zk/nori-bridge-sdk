@@ -1,9 +1,10 @@
 import { WebSocketServiceTopicSubscriptionMessage } from '@nori-zk/pts-types';
 import { filter, interval, map, shareReplay, Subscription } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
+import { reconnectingWebSocket, ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
 // Pong response.
-const pongReply = '{"data":"pong"}';
+const pongReplyStr = '{"data":"pong"}';
 
 // Subscription requests.
 const subscribeStateEth = {
@@ -47,7 +48,7 @@ export function getBridgeSocket$(
         deserializer: (e) => e.data,
     });
     return bridgeSocket$.pipe(
-        filter((messageStr) => messageStr !== pongReply),
+        filter((messageStr) => messageStr !== pongReplyStr),
         map(
             (message) =>
                 JSON.parse(
@@ -55,4 +56,70 @@ export function getBridgeSocket$(
                 ) as WebSocketServiceTopicSubscriptionMessage
         ),
     ) as WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>;
+}
+
+export function getReconnectingBridgeSocket$(
+    url: string = 'wss://wss.nori.it.com',
+    heartBeatInterval: number = 3000,
+    pongTimeoutMultiplier: number = 2
+) {
+    const { webSocket$: bridgeSocket$, webSocketConnectionState$ } = reconnectingWebSocket<string | object>({
+        url,
+        openObserver: {
+            next: () => {
+                lastPongReceived = Date.now();
+                if (heartBeatInterval) {
+                    heartbeatPingSub = heartBeatPing.subscribe();
+                    pongTimeoutCheckSub = pongTimeoutCheck.subscribe();
+                }
+                bridgeSocket$.next(subscribeStateEth);
+                bridgeSocket$.next(subscribeStateBridge);
+                bridgeSocket$.next(subscribeTimingsTransition);
+            },
+        },
+        closeObserver: {
+            next: () => {
+                heartbeatPingSub?.unsubscribe();
+                pongTimeoutCheckSub?.unsubscribe();
+            },
+        },
+        deserializer: (e) => e.data,
+    });
+
+    let lastPongReceived = Date.now();
+    let heartbeatPingSub: Subscription;
+    let pongTimeoutCheckSub: Subscription;
+
+    // Heartbeat
+    const heartBeatPing = interval(heartBeatInterval).pipe(
+        map(() => bridgeSocket$.next({ method: 'ping' }))
+    );
+
+    // Detect bad connecions
+    const pongTimeoutThreshold = heartBeatInterval * pongTimeoutMultiplier;
+    const pongTimeoutCheck = interval(heartBeatInterval).pipe(
+        map(() => {
+            const now = Date.now();
+            if (now - lastPongReceived > pongTimeoutThreshold) {
+                bridgeSocket$.forceReconnect();
+            }
+        })
+    );
+
+    // Listen for pong replies and update timestamp
+    const finalSocket$ = bridgeSocket$.pipe(
+        map((messageStr) => {
+            if (messageStr === pongReplyStr) {
+                lastPongReceived = Date.now();
+                return null;
+            }
+            return JSON.parse(messageStr as string) as WebSocketServiceTopicSubscriptionMessage;
+        }),
+        filter((msg): msg is WebSocketServiceTopicSubscriptionMessage => msg !== null)
+    ) as ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>;
+
+    return {
+        bridgeSocket$: finalSocket$,
+        bridgeSocketConnectionState$: webSocketConnectionState$,
+    };
 }
