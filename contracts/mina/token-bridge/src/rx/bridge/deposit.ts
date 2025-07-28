@@ -19,7 +19,7 @@ export enum BridgeDepositProcessingStatus {
 
 //last stage is complete when EthProcessorTransactionFinalizationSucceeded is finished
 
-export const awaitDepositProcessingStatus$ = (
+export const depositProcessingStatus$ = (
     depositBlockNumber: number,
     ethStateTopic$: ReturnType<typeof getEthStateTopic$>,
     bridgeStateTopic$: ReturnType<typeof getBridgeStateTopic$>,
