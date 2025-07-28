@@ -26,15 +26,20 @@ import {
 } from './rx/bridge/topics.js';
 import {
     combineLatest,
+    filter,
     firstValueFrom,
     lastValueFrom,
     map,
     take,
     tap,
 } from 'rxjs';
-import { getDepositProcessingStatus$ } from './rx/bridge/deposit.js';
+import {
+    BridgeDepositProcessingStatus,
+    getDepositProcessingStatus$,
+} from './rx/bridge/deposit.js';
 import { fetchContractWindowProofsSlotsAndCompute } from './computeProofs.js';
 import { fieldToBigIntLE, fieldToHexBE } from '@nori-zk/o1js-zk-utils';
+import { TransitionNoticeMessageType } from '@nori-zk/pts-types/build/public/src/index.js';
 
 describe('e2e-rx', () => {
     test('e2e_rx_pipeline', async () => {
@@ -161,8 +166,15 @@ describe('e2e-rx', () => {
         const { depositAttestationProof, ethVerifierProof, despositSlotRaw } =
             await firstValueFrom(
                 depositProcessingStatus$.pipe(
+                    filter(
+                        ({ deposit_processing_status, stageName }) =>
+                            deposit_processing_status ===
+                                BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
+                            stageName ===
+                                TransitionNoticeMessageType.ProofConversionJobSucceeded
+                    ),
                     take(1),
-                    map(async ({ deposit_processing_status, stageName }) => {
+                    map(async () => {
                         return await fetchContractWindowProofsSlotsAndCompute(
                             depositBlockNumber,
                             ethAddressLowerHex,
@@ -227,7 +239,11 @@ describe('e2e-rx', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
 
-        await deployAndVerifyEcdsaSigPresentationVerifier(zkAppPrivateKey, minaPrivateKey, presentationJson);
+        await deployAndVerifyEcdsaSigPresentationVerifier(
+            zkAppPrivateKey,
+            minaPrivateKey,
+            presentationJson
+        );
 
         console.log('Minted!');
     }, 1000000000);
