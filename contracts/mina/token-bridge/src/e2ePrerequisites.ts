@@ -101,6 +101,8 @@ export const E2EPrerequisitesProgram = ZkProgram({
                     contractDepositAttestorProofCredential
                 );
 
+                
+
                 // Turn totalLocked into a field
                 const totalLockedBytes =
                     contractDepositAttestorPublicInputs.value.bytes;
@@ -127,6 +129,11 @@ export const E2EPrerequisitesProgram = ZkProgram({
         },
     },
 });
+
+// E2EPrerequisitesProgram
+export const E2EPrerequisitesProgramProof = ZkProgram.Proof(E2EPrerequisitesProgram);
+export class E2EPrerequisitesProgramProofType extends E2EPrerequisitesProgramProof {}
+
 
 export async function compilePreRequisites() {
     // TODO optimise not all of these need to be compiled immediately

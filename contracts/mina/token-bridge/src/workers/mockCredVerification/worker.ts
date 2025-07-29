@@ -21,6 +21,11 @@ import {
 } from '../../credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 import { minaSetup } from '../../testUtils.js';
+import {
+    E2ePrerequisitesInput,
+    E2EPrerequisitesProgram,
+    E2EPrerequisitesProgramProofType,
+} from '../../e2ePrerequisites.js';
 
 export class EthProofType extends EthProof {}
 export class ContractDepositAttestorProofType extends ContractDepositAttestorProof {}
@@ -31,15 +36,19 @@ export class ContractDepositAttestorProofType extends ContractDepositAttestorPro
 
 export class MockVerifier extends SmartContract {
     @method.returns(Field) async verifyPresentation(
-        ethVerifierProof: EthProofType,
-        contractDepositAttestorProof: ContractDepositAttestorProofType,
+        //ethVerifierProof: EthProofType,
+        //contractDepositAttestorProof: ContractDepositAttestorProofType,
+        e2eProof: E2EPrerequisitesProgramProofType,
         presentation: ProvableEcdsaSigPresentation
     ): Promise<Field> {
         // proof 1 proof 2 /// attestation credential hashing in future
         // verify x2
 
-        ethVerifierProof.verify();
-        contractDepositAttestorProof.verify();
+        e2eProof.verify();
+
+        //e2eProof.publicOutput.attestationHash;
+        //e2eProof.publicOutput.totalLocked
+        //e2eProof.publicOutput.storageDepositRoot; // eth processor
 
         let { claims, outputClaim } = presentation.verify({
             publicKey: this.address,
@@ -47,68 +56,11 @@ export class MockVerifier extends SmartContract {
             methodName: 'verifyPresentation',
         });
 
-        // Extract roots from public inputs
-
-        const depositAttestationProofRoot =
-            contractDepositAttestorProof.publicOutput;
-        const ethVerifierStorageProofRootBytes =
-            ethVerifierProof.publicInput.verifiedContractDepositsRoot.bytes; // I think the is BE
-
-        // Convert verifiedContractDepositsRoot from bytes to field
-        let ethVerifierStorageProofRoot = new Field(0);
-        // FIXME
-        // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
-        // And here we re-interpret the BE as LE!
-        // But it does pass the test! And otherwise fails.
-        for (let i = 31; i >= 0; i--) {
-            ethVerifierStorageProofRoot = ethVerifierStorageProofRoot
-                .mul(256)
-                .add(ethVerifierStorageProofRootBytes[i].value);
-        }
-
-        // Assert roots
-        depositAttestationProofRoot.assertEquals(ethVerifierStorageProofRoot);
-
-        // Mock attestation assert
-        const contractDepositAttestorPublicInputs =
-            contractDepositAttestorProof.publicInput.value;
-        // Convert contractDepositAttestorPublicInputs.attestationHash from bytes into a field
-        const contractDepositAttestorProofCredentialBytes =
-            contractDepositAttestorPublicInputs.attestationHash.bytes;
-        let contractDepositAttestorProofCredential = new Field(0);
-        // Turn into field
-        for (let i = 0; i < 32; i++) {
-            contractDepositAttestorProofCredential =
-                contractDepositAttestorProofCredential
-                    .mul(256)
-                    .add(contractDepositAttestorProofCredentialBytes[i].value);
-        }
-
-        outputClaim.messageHash.assertEquals(
-            contractDepositAttestorProofCredential
+        e2eProof.publicOutput.attestationHash.assertEquals(
+            outputClaim.messageHash
         );
 
-        // Turn totalLocked into a field
-        const totalLockedBytes =
-            contractDepositAttestorPublicInputs.value.bytes;
-        let totalLocked = new Field(0);
-        for (let i = 31; i >= 0; i--) {
-            totalLocked = totalLocked.mul(256).add(totalLockedBytes[i].value);
-        }
-
-        // value (amount), execution root, storage desposit root, attestation hash
-
-        // @jk CHECKME
-        const depositBytes =
-            contractDepositAttestorProof.publicInput.value.value;
-        let depositField = new Field(0);
-        for (let i = 0; i >= 31; i++) {
-            depositField = depositField
-                .mul(256)
-                .add(depositBytes.bytes[i].value);
-        }
-
-        return depositField;
+        return e2eProof.publicOutput.totalLocked;
     }
 }
 
@@ -139,6 +91,14 @@ export class MockVerificationWorker {
             `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
         );
 
+        console.time('E2EPrerequisitesProgram compile');
+        const { verificationKey: mockE2EPrerequisitesProgram } =
+            await E2EPrerequisitesProgram.compile({ forceRecompile: true });
+        console.timeEnd('E2EPrerequisitesProgram compile');
+        console.log(
+            `E2EPrerequisitesProgram compiled vk: '${mockE2EPrerequisitesProgram.hash}'.`
+        );
+
         console.time('MockCredVerifier compile');
         const { verificationKey: mockCredVerifierVerificationKey } =
             await MockVerifier.compile({ forceRecompile: true });
@@ -154,13 +114,46 @@ export class MockVerificationWorker {
         senderPrivateKeyBase58: string,
         presentationJsonStr: string
     ) {
-        const ethVerifierProof = await EthProofType.fromJSON(ethVerifierProofJson);
-        const depositAttestionProof = await ContractDepositAttestorProofType.fromJSON(
-            depositAttestationProofJson
+        const presentationObj = JSON.parse(presentationJsonStr);
+        const messageHashString =
+            presentationObj.outputClaim.value.messageHash.value;
+        const messageHashBigInt = BigInt(messageHashString);
+        const messageHash = Field.from(messageHashBigInt);
+
+        const ethVerifierProof = await EthProofType.fromJSON(
+            ethVerifierProofJson
         );
+        const depositAttestationProof =
+            await ContractDepositAttestorProofType.fromJSON(
+                depositAttestationProofJson
+            );
+
+        // COMPUTE E2E **************************************************
+
+        console.log('Building e2e input');
+        // Now the deposit has been processed we are free to compute the e2e proof.
+        const e2ePrerequisitesInput = new E2ePrerequisitesInput({
+            credentialAttestationHash: messageHash,
+        });
+
+        console.log('Computing e2e');
+        console.time('E2EPrerequisitesProgram.compute');
+        const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
+            e2ePrerequisitesInput,
+            ethVerifierProof,
+            depositAttestationProof
+        );
+        console.timeEnd('E2EPrerequisitesProgram.compute');
+
+        console.log('Computed E2EPrerequisitesProgram proof');
+
+        // Other stuff
+
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         const presentation = Presentation.fromJSON(presentationJsonStr);
-        const provableEcdsaSigPresentation = ProvableEcdsaSigPresentation.from(presentation);
+
+        const provableEcdsaSigPresentation =
+            ProvableEcdsaSigPresentation.from(presentation);
         const senderPublicKey = senderPrivateKey.toPublicKey();
 
         const zkAppPrivateKey = PrivateKey.random();
@@ -171,16 +164,25 @@ export class MockVerificationWorker {
 
         const mockCredVerifierInst = new MockVerifier(zkAppPublicKey);
 
-                const deployTx = await Mina.transaction(
+        const deployTx = await Mina.transaction(
             { sender: senderPublicKey, fee: 0.01 * 1e9 },
             async () => {
                 AccountUpdate.fundNewAccount(senderPublicKey);
                 await mockCredVerifierInst.deploy();
-                
-                const depositValue = await mockCredVerifierInst.verifyPresentation(ethVerifierProof, depositAttestionProof, provableEcdsaSigPresentation);
 
-                console.log('✅ mockCredVerifierInst.verifyPresentation verified!');
-                console.log('ProvableEcdsaSigPresentation depositValue:', depositValue);
+                const depositValue =
+                    await mockCredVerifierInst.verifyPresentation(
+                        e2ePrerequisitesProof.proof,
+                        provableEcdsaSigPresentation
+                    );
+
+                console.log(
+                    '✅ mockCredVerifierInst.verifyPresentation verified!'
+                );
+                console.log(
+                    'ProvableEcdsaSigPresentation depositValue:',
+                    depositValue
+                );
             }
         );
 
