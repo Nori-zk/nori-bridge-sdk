@@ -39,7 +39,13 @@ import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 import { signSecret } from './ethSignature.js';
 import { depositAttestation } from './workers/depositAttestation/node/parent.js';
 import { credentialAttestation } from './workers/credentialAttestation/node/parent.js';
-import { compileEcdsaEthereum, compileEcdsaSigPresentationVerifier } from './credentialAttestation.js';
+import {
+    compileEcdsaEthereum,
+    compileEcdsaSigPresentationVerifier,
+    createEcdsaMinaCredential,
+    createEcdsaSigPresentation,
+    createEcdsaSigPresentationRequest,
+} from './credentialAttestation.js';
 
 describe('e2e-rx', () => {
     test('e2e_rx_with_workers_pipeline', async () => {
@@ -50,9 +56,7 @@ describe('e2e-rx', () => {
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
         // Start workers
-        const depositAttestationWorkerReady = depositAttestation.compile();
-        const credentialAttestationWorkerReady =
-            credentialAttestation.compile();
+        //const depositAttestationWorkerReady =
 
         // COMPILE ECDSA
 
@@ -86,35 +90,40 @@ describe('e2e-rx', () => {
         // CLIENT *******************
         const secret = 'IAmASecretOfLength20';
         // Get signature
+        console.time('ethSecretSignature');
         const ethSecretSignature = await signSecret(secret, ethWallet);
+        console.timeEnd('ethSecretSignature');
 
         // WALLET *******************
         // Create credential
-        await credentialAttestationWorkerReady;
-        const credentialJson = await credentialAttestation.computeCredential(
-            secret,
+        console.time('createCredential');
+        const credentialJson = await createEcdsaMinaCredential(
             ethSecretSignature,
             ethWallet.address,
-            minaPublicKey.toBase58()
+            minaPublicKey,
+            secret
         );
+        console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
         // CLIENT *******************
         // Create a presentation request
         // This is sent from the client to the WALLET
-        const presentationRequestJson =
-            await credentialAttestation.computeEcdsaSigPresentationRequest(
-                zkAppPublicKey.toBase58()
-            );
+        console.time('getPresentationRequest');
+        const presentationRequestJson = await createEcdsaSigPresentationRequest(
+            zkAppPublicKey
+        );
+        console.timeEnd('getPresentationRequest'); // 1.348ms
 
         // WALLET ********************
         // WALLET takes a presentation request and the WALLET can retrieve the stored credential
         // From this it creates a presentation.
-        const presentationJson =
-            await credentialAttestation.computeEcdsaSigPresentation(
-                presentationRequestJson,
-                credentialJson,
-                minaPrivateKey.toBase58()
-            );
+        console.time('getPresentation');
+        const presentationJson = await createEcdsaSigPresentation(
+            presentationRequestJson,
+            credentialJson,
+            minaPrivateKey
+        );
+        console.timeEnd('getPresentation'); // 46.801s
 
         // Extract hashed secret
         const presentation = JSON.parse(presentationJson);
@@ -203,13 +212,24 @@ describe('e2e-rx', () => {
                 ),
                 take(1),
                 switchMap(async () => {
-                    await depositAttestationWorkerReady;
+                    await depositAttestation.compile();
+                    //await depositAttestationWorkerReady;
                     console.log('Computing proofs...');
-                    return await depositAttestation.compute(
+                    const {
+                        depositAttestationProofJson,
+                        ethVerifierProofJson,
+                        despositSlotRaw,
+                    } = await depositAttestation.compute(
                         depositBlockNumber,
                         ethAddressLowerHex,
                         attestationBEHex
                     );
+                    depositAttestation.terminate();
+                    return {
+                        depositAttestationProofJson,
+                        ethVerifierProofJson,
+                        despositSlotRaw,
+                    };
                 })
             )
         );
