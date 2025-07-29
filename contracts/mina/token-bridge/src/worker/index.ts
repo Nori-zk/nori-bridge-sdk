@@ -23,7 +23,7 @@ export interface BaseWorkerEndpoint {
 /**
  * Interface representing the parent side of the worker communication.
  */
-export interface WorkerParentLike extends BaseWorkerEndpoint {
+export interface WorkerChildParentInterface extends BaseWorkerEndpoint {
     /**
      * Sends a message to the child.
      * @param args - The message arguments.
@@ -39,7 +39,7 @@ export interface WorkerParentLike extends BaseWorkerEndpoint {
 /**
  * Interface representing the child side of the worker communication.
  */
-export interface WorkerChildLike extends BaseWorkerEndpoint {
+export interface WorkerParentChildInterface extends BaseWorkerEndpoint {
     /**
      * Sends a message to the parent.
      * @param args - The message arguments.
@@ -50,6 +50,11 @@ export interface WorkerChildLike extends BaseWorkerEndpoint {
      * Terminates the child endpoint.
      */
     terminate: () => void;
+
+    /**
+     * Worker is ready
+     */
+    ready: () => Promise<void>;
 }
 
 /**
@@ -90,7 +95,7 @@ export class DeferredPromise<T = void, E = void> {
  * Parent-side base handler for managing requests sent to the child.
  */
 export class WorkerParentBase {
-    #child: WorkerChildLike;
+    #child: WorkerParentChildInterface;
     #pendingRequests = new Map<number, DeferredPromise<any, any>>();
     #requestId = 0;
 
@@ -98,7 +103,7 @@ export class WorkerParentBase {
      * Constructs the WorkerParentBase and attaches communication handlers.
      * @param child - The child endpoint to communicate with.
      */
-    constructor(child: WorkerChildLike) {
+    constructor(child: WorkerParentChildInterface) {
         this.#child = child;
         this.#child.onMessageHandler(this.#onMessage.bind(this));
         this.#child.onErrorHandler(this.#onError.bind(this));
@@ -111,7 +116,10 @@ export class WorkerParentBase {
      * @param args - Arguments to pass to the child method.
      * @returns A promise that resolves with the result of the child method call.
      */
-    call<Res>(methodName: string, ...args: any[]): Promise<Res> {
+    async call<Res>(methodName: string, ...args: any[]): Promise<Res> {
+        // Await child readyness
+        await this.#child.ready();
+
         // Generate a unique ID for this request
         const id = ++this.#requestId;
 
@@ -194,13 +202,13 @@ export class WorkerParentBase {
  */
 export class WorkerChildBase {
     #pendingRequests = new Map<number, DeferredPromise<any, any>>();
-    #parent: WorkerParentLike;
+    #parent: WorkerChildParentInterface;
 
     /**
      * Constructs the WorkerChildBase and attaches communication handlers.
      * @param parent - The parent endpoint to respond to.
      */
-    constructor(parent: WorkerParentLike) {
+    constructor(parent: WorkerChildParentInterface) {
         this.#parent = parent;
         this.#parent.onMessageHandler(this.#onMessage.bind(this));
         this.#parent.onErrorHandler(this.#onError.bind(this));
@@ -294,7 +302,7 @@ export class WorkerChildBase {
  * @returns An object with a terminate method
  */
 export function createWorker<T>(
-    parent: WorkerParentLike,
+    parent: WorkerChildParentInterface,
     ChildClass: new (...args: any[]) => T,
     ...args: any[]
 ) {
@@ -330,7 +338,7 @@ export function createWorker<T>(
  * @returns A proxy object with async methods and a terminate method
  */
 export function createParent<T>(
-    child: WorkerChildLike,
+    child: WorkerParentChildInterface,
     ChildClass: new (...args: any[]) => T,
     ...args: any[]
 ) {

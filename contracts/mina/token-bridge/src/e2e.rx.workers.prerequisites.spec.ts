@@ -47,9 +47,7 @@ import {
     createEcdsaSigPresentationRequest,
 } from './credentialAttestation.js';
 
-const depositAttestation = getDepositAttestation();
-const credentialAttestation = getCredentialAttestation();
-describe('e2e-rx', () => {
+describe('e2e-rx-workers', () => {
     test('e2e_rx_with_workers_pipeline', async () => {
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
@@ -57,26 +55,24 @@ describe('e2e-rx', () => {
         const ethWallet = await getEthWallet();
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
-        // Start workers
-        //const depositAttestationWorkerReady =
-        console.log('desposit attestion compiling');
-        await depositAttestation.compile();
-        console.log('desposit attestion done');
+        // Init workers
+        const depositAttestation = getDepositAttestation();
+        const credentialAttestation = getCredentialAttestation();
+        
+        const depositAttestationWorkerReady = depositAttestation.compile();
 
-        console.log('credential attestion compiling');
-        await credentialAttestation.compile();
-        console.log('credential attestion done');
+        const credentialAttestationReady = credentialAttestation.compile();
 
         // COMPILE ECDSA
 
         // Compile programs / contracts
-        /*console.time('compileEcdsaEthereum');
+        console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
         console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
 
         console.time('compilePresentationVerifier');
         await compileEcdsaSigPresentationVerifier();
-        console.timeEnd('compilePresentationVerifier'); // 11.507s*/
+        console.timeEnd('compilePresentationVerifier'); // 11.507s
 
         // COMPILE E2E **************************************************
 
@@ -103,14 +99,18 @@ describe('e2e-rx', () => {
         const ethSecretSignature = await signSecret(secret, ethWallet);
         console.timeEnd('ethSecretSignature');
 
+        console.log('ethSecretSignature', ethSecretSignature);
+        console.log('minaPublicKey.toBase58()', minaPublicKey.toBase58());
+
         // WALLET *******************
+        await credentialAttestationReady;
         // Create credential
         console.time('createCredential');
         const credentialJson = await credentialAttestation.computeCredential(
+            secret,
             ethSecretSignature,
             ethWallet.address,
             minaPublicKey.toBase58(),
-            secret
         ); /*createEcdsaMinaCredential(
             ethSecretSignature,
             ethWallet.address,
@@ -146,6 +146,9 @@ describe('e2e-rx', () => {
             minaPrivateKey
         );*/
         console.timeEnd('getPresentation'); // 46.801s
+
+        // Kill credentialAttestation worker
+        credentialAttestation.terminate();
 
         // Extract hashed secret
         const presentation = JSON.parse(presentationJson);
@@ -235,7 +238,7 @@ describe('e2e-rx', () => {
                 take(1),
                 switchMap(async () => {
                     //await depositAttestation.compile();
-                    //await depositAttestationWorkerReady;
+                    await depositAttestationWorkerReady;
                     console.log('Computing proofs...');
                     const {
                         depositAttestationProofJson,

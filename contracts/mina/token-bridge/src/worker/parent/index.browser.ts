@@ -1,10 +1,15 @@
-import { WorkerChildLike } from '../index.js';
+import { DeferredPromise, WorkerParentChildInterface } from '../index.js';
 
-export class WorkerParent implements WorkerChildLike {
+export class WorkerParent implements WorkerParentChildInterface {
     private worker: Worker;
+    private deferedReady = new DeferredPromise();
 
     constructor(workerUrl: URL) {
         this.worker = new Worker(workerUrl.href);
+    }
+
+    async ready() {
+        return this.deferedReady.promise;
     }
 
     call(data: string): void {
@@ -13,7 +18,8 @@ export class WorkerParent implements WorkerChildLike {
 
     onMessageHandler(callback: (response: string) => void): void {
         this.worker.addEventListener('message', (event) => {
-            callback(event.data);
+            if (event.data === 'ready') this.deferedReady.resolve();
+            else callback(event.data);
         });
     }
 

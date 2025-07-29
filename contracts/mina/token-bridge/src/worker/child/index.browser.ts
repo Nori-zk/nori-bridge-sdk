@@ -1,6 +1,6 @@
-import type { WorkerParentLike } from '../index.js';
+import type { WorkerChildParentInterface } from '../index.js';
 
-export class WorkerChild implements WorkerParentLike {
+export class WorkerChild implements WorkerChildParentInterface {
     private messageCallback?: (response: string) => void;
     private errorCallback?: (error: any) => void;
 
@@ -17,6 +17,8 @@ export class WorkerChild implements WorkerParentLike {
         self.addEventListener('error', (ev: ErrorEvent) => {
             if (this.errorCallback) this.errorCallback(ev.error);
         });
+
+        self.postMessage('ready');
     }
 
     send(data: string): void {

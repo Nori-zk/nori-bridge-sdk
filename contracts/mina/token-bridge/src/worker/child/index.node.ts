@@ -1,6 +1,6 @@
-import type { WorkerParentLike } from '../index.js';
+import type { WorkerChildParentInterface } from '../index.js';
 
-export class WorkerChild implements WorkerParentLike {
+export class WorkerChild implements WorkerChildParentInterface {
     private messageCallback?: (response: string) => void;
     private errorCallback?: (error: any) => void;
     private proc: NodeJS.Process;
@@ -19,6 +19,8 @@ export class WorkerChild implements WorkerParentLike {
         this.proc.on('error', (err) => {
             if (this.errorCallback) this.errorCallback(err);
         });
+
+        this.proc.send('ready');
     }
 
     send(data: string): void {

@@ -1,5 +1,5 @@
 import { fork, ChildProcess } from 'child_process';
-import type { WorkerChildLike } from '../index.js';
+import { DeferredPromise, type WorkerParentChildInterface } from '../index.js';
 import path from 'path';
 
 export function getWorkerUrl(url: URL): string {
@@ -40,40 +40,29 @@ export function getWorkerUrl(url: URL): string {
     return path.join(root, ...parts);
 }
 
-export class WorkerParent implements WorkerChildLike {
+export class WorkerParent implements WorkerParentChildInterface {
     private child: ChildProcess;
-    private isSpawned = false;
-    private messageQueue: string[] = [];
-
+    private deferedReady = new DeferredPromise();
     constructor(scriptPath: URL) {
         const resolvedPath = getWorkerUrl(scriptPath);
         this.child = fork(resolvedPath, [], {
             stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
         });
-
-        this.child.on('spawn', () => {
-            this.isSpawned = true;
-
-            for (const msg of this.messageQueue) {
-                this.child.send?.(msg);
-            }
-
-            this.messageQueue = [];
-        });
     }
 
+    async ready() {
+        return this.deferedReady.promise;
+    }
+    
     call(data: string): void {
-        console.log('calling call', data);
-        if (this.isSpawned) {
-            this.child.send?.(data);
-        } else {
-            this.messageQueue.push(data);
-        }
+        this.child.send?.(data);
     }
 
     onMessageHandler(callback: (response: string) => void): void {
         this.child.on('message', (msg) => {
-            if (typeof msg === 'string') {
+            if (msg === 'ready') {
+                this.deferedReady.resolve();
+            } else if (typeof msg === 'string') {
                 callback(msg);
             } else {
                 callback(JSON.stringify(msg));

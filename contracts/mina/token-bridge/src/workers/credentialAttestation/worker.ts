@@ -37,6 +37,7 @@ export class CredentialAttestationWorker {
         ethWalletAddress: string,
         minaPublicKeyBase58: string
     ) {
+        console.log('minaPublicKeyBase58', minaPublicKeyBase58);
         const minaPublicKey = PublicKey.fromBase58(minaPublicKeyBase58);
         console.time('createCredential');
         const credentialJson = await createEcdsaMinaCredential(
