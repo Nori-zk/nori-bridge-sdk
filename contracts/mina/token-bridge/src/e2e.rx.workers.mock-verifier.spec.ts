@@ -239,12 +239,6 @@ describe('e2e-rx-workers-mock', () => {
                 })
             )
         );
-        // Convert these: depositAttestationProofJson & ethVerifierProofJson back into proof objects
-        const depositAttestationProof =
-            await ContractDepositAttestorProof.fromJSON(
-                depositAttestationProofJson
-            );
-        const ethVerifierProof = await EthProof.fromJSON(ethVerifierProofJson);
 
         // Block until deposit has been processed
         console.log(
@@ -252,55 +246,6 @@ describe('e2e-rx-workers-mock', () => {
         );
         await lastValueFrom(depositProcessingStatus$);
         console.log('Deposit is processed unblocking mint process.');
-
-        // COMPUTE E2E **************************************************
-
-        console.log('Building e2e input');
-        // Now the deposit has been processed we are free to compute the e2e proof.
-        const e2ePrerequisitesInput = new E2ePrerequisitesInput({
-            credentialAttestationHash,
-        });
-
-        console.log('Computing e2e');
-        console.time('E2EPrerequisitesProgram.compute');
-        const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
-            e2ePrerequisitesInput,
-            ethVerifierProof,
-            depositAttestationProof
-        );
-        console.timeEnd('E2EPrerequisitesProgram.compute');
-
-        console.log('Computed E2EPrerequisitesProgram proof');
-
-        const { totalLocked, storageDepositRoot, attestationHash } =
-            e2ePrerequisitesProof.proof.publicOutput;
-
-        // Change these to asserts in future
-
-        console.log('--- Decoded public output ---');
-        console.log(
-            `proved [totalLocked] (LE bigint): ${fieldToBigIntLE(totalLocked)}`
-        );
-        /*console.log(
-            'bridge head [totalLocked] (BE bigint):',
-            uint8ArrayToBigIntBE(hexStringToUint8Array(despositSlotRaw.value))
-        );*/ // FIXME EXPORT THIS
-
-        console.log(
-            `proved [attestationHash] (BE hex): ${fieldToHexBE(
-                attestationHash
-            )}`
-        );
-        console.log(
-            `bridge head [attestationHash] (BE hex):`,
-            despositSlotRaw.slot_nested_key_attestation_hash
-        );
-        console.log(`original [attestationHash] (BE Hex):`, attestationBEHex);
-
-        // Address
-
-        console.log('original [address]:', ethAddressLowerHex);
-        console.log('bridge head [address]:', despositSlotRaw.slot_key_address);
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
         await minaSetup();
