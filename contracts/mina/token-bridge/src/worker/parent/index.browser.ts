@@ -1,10 +1,10 @@
-import { WorkerChildLike } from '../types.js';
+import { WorkerChildLike } from '../index.js';
 
 export class WorkerParent implements WorkerChildLike {
     private worker: Worker;
 
-    constructor(workerUrl: string) {
-        this.worker = new Worker(workerUrl);
+    constructor(workerUrl: URL) {
+        this.worker = new Worker(workerUrl.href);
     }
 
     call(data: string): void {

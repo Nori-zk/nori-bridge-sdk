@@ -1,4 +1,4 @@
-import type { WorkerParentLike } from '../types.js';
+import type { WorkerParentLike } from '../index.js';
 
 export class WorkerChild implements WorkerParentLike {
     private messageCallback?: (response: string) => void;

@@ -1,30 +1,6 @@
 import { Worker } from 'worker_threads';
-import type { WorkerChildLike } from '../types.js';
+import type { WorkerChildLike } from '../index.js';
 import path from 'path';
-
-export class WorkerParent implements WorkerChildLike {
-    private worker: Worker;
-
-    constructor(workerScriptPath: string | URL) {
-        this.worker = new Worker(workerScriptPath);
-    }
-
-    call(data: string): void {
-        this.worker.postMessage(data);
-    }
-
-    onMessageHandler(callback: (response: string) => void): void {
-        this.worker.on('message', callback);
-    }
-
-    onErrorHandler(callback: (error: any) => void): void {
-        this.worker.on('error', callback);
-    }
-
-    terminate(): void {
-        this.worker.terminate();
-    }
-}
 
 export function getWorkerUrl(url: URL): string {
   let filePath = url.pathname;
@@ -60,4 +36,28 @@ export function getWorkerUrl(url: URL): string {
   const root = isAbsolute ? path.parse(filePath).root : '';
 
   return path.join(root, ...parts);
+}
+
+export class WorkerParent implements WorkerChildLike {
+    private worker: Worker;
+
+    constructor(workerScriptPath: URL) {
+        this.worker = new Worker(getWorkerUrl(workerScriptPath));
+    }
+
+    call(data: string): void {
+        this.worker.postMessage(data);
+    }
+
+    onMessageHandler(callback: (response: string) => void): void {
+        this.worker.on('message', callback);
+    }
+
+    onErrorHandler(callback: (error: any) => void): void {
+        this.worker.on('error', callback);
+    }
+
+    terminate(): void {
+        this.worker.terminate();
+    }
 }
