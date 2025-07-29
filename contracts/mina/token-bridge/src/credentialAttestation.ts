@@ -53,7 +53,7 @@ type EnforceLength<S extends string, N extends number> = CountChars<S> extends N
     : LengthMismatchError<N>;
 
 // Max length string enforcement type.
-type EnforceMaxLength<S extends string, Max extends number> = IsAtMost<
+export type EnforceMaxLength<S extends string, Max extends number> = IsAtMost<
     S,
     Max
 > extends true
@@ -62,7 +62,7 @@ type EnforceMaxLength<S extends string, Max extends number> = IsAtMost<
 
 // Define the max secret length that we can support.
 const secretMaxLength = 20 as const;
-type SecretMaxLength = typeof secretMaxLength;
+export type SecretMaxLength = typeof secretMaxLength;
 
 // Define secret string type
 const SecretString = DynamicString({ maxLength: secretMaxLength });
@@ -135,7 +135,8 @@ export async function compileEcdsaSigPresentationVerifier() {
 
 // Create EcdsaMinaCredential
 export async function createEcdsaMinaCredential<FixedString extends string>(
-    ethWallet: Wallet,
+    ethSignature: string,
+    ethWalletAddress: string,
     minaPubKey: PublicKey,
     secret: EnforceMaxLength<FixedString, SecretMaxLength>
 ) {
@@ -146,19 +147,15 @@ export async function createEcdsaMinaCredential<FixedString extends string>(
 
     const Message = DynamicBytes({ maxLength: secretMaxLength });
 
-    // Create signature
-    let message = secret as string;
-    const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
-    const hashMessage = (msg: string) => parseHex(id(msg));
-    let sig = await ethWallet.signMessage(hashMessage(message));
+    const message = secret as string;
 
     // create credential (which verifies the signature)
-    let { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
+    let { signature, parityBit } = EcdsaEthereum.parseSignature(ethSignature);
 
     let credential = await EcdsaCredential.create({
         owner: minaPubKey,
         publicInput: {
-            signerAddress: EcdsaEthereum.parseAddress(ethWallet.address),
+            signerAddress: EcdsaEthereum.parseAddress(ethWalletAddress),
         },
         privateInput: {
             message: Message.fromString(message),
@@ -173,8 +170,7 @@ export async function createEcdsaMinaCredential<FixedString extends string>(
 
     console.log('✅ Created credential:', credentialJson);
 
-    // TODO get message hash from credential somehow
-    return { credentialJson };
+    return credentialJson;
 }
 
 // Create EcdsaSigPresentationRequest

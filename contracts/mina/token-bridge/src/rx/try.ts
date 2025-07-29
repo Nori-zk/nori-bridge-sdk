@@ -1,13 +1,13 @@
 import { map, Observable, switchMap, take } from 'rxjs';
-import { getReconnectingBridgeSocket$ } from './bridge/socket.js';
-import { getEthStateTopic$ } from './eth/topic.js';
+import { getReconnectingBridgeSocket$ } from './socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
-} from './bridge/topics.js';
-import { getBridgeStateWithTimings$ } from './bridge/state.js';
-import { getDepositProcessingStatus$ } from './bridge/deposit.js';
-import { ReconnectingWebSocketSubject } from './bridge/reconnectingSocket.js';
+    getEthStateTopic$
+} from './topics.js';
+import { getBridgeStateWithTimings$ } from './state.js';
+import { getDepositProcessingStatus$ } from './deposit.js';
+import { ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
 // Util for testing Obserables
 function testSub($: Observable<any>) {

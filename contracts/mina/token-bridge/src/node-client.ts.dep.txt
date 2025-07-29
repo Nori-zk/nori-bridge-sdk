@@ -1,11 +1,11 @@
 import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils/build/contractDepositAttestor.js';
-import { getBridgeSocket$ } from './rx/bridge/socket.js';
-import { getBridgeStateWithTimings$ } from './rx/bridge/state.js';
+import { getBridgeSocket$ } from './rx/socket.js';
+import { getBridgeStateWithTimings$ } from './rx/state.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
-} from './rx/bridge/topics.js';
-import { getEthStateTopic$ } from './rx/eth/topic.js';
+    getEthStateTopic$,
+} from './rx/topics.js';
 import { EthVerifier } from '@nori-zk/o1js-zk-utils/build/ethVerifier.js';
 import { E2EPrerequisitesProgram } from './e2ePrerequisites.js';
 import {
@@ -23,7 +23,6 @@ import {
     take,
     tap,
 } from 'rxjs';
-import { NodeJsClientState } from './rx/node-client/state.js';
 
 class NodeClient {
     bridgeSocket$ = getBridgeSocket$();

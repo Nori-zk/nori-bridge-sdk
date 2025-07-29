@@ -9,9 +9,10 @@ import {
     hashSecret,
     ProvableEcdsaSigPresentation,
     verifyEcdsaSigPresentation,
-} from './attestation.js';
+} from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';
+import { signSecret } from './ethSignature.js';
 
 describe('attestation', () => {
     // Get a private key from .env located within <projectRoot>/contracts/ethereum/.env
@@ -64,7 +65,9 @@ describe('attestation', () => {
                 const presentation = Presentation.fromJSON(presentationJSON);
                 const provablePresentation =
                     ProvableEcdsaSigPresentation.from(presentation);
-                const claims = await zkApp.verifyPresentation(provablePresentation);
+                const claims = await zkApp.verifyPresentation(
+                    provablePresentation
+                );
                 console.log('✅ ProvablePresentation verified!');
                 console.log('ProvableEcdsaSigPresentation claims:', claims);
             }
@@ -76,12 +79,14 @@ describe('attestation', () => {
             'Transaction proved. Signing and sending the transaction...'
         );
         await deployTx.sign([senderPrivateKey, zkAppPrivateKey]).send().wait();
-        console.log('✅ EcdsaSigPresentationVerifier deployed and verified successfully.');
+        console.log(
+            '✅ EcdsaSigPresentationVerifier deployed and verified successfully.'
+        );
 
         // May have to verifiy presentation in 2nd tx... Seems like its not necessary.
     }
 
-    test('should_perform_attestation_pipeline', async () => {
+    test('should_perform_credential_attestation_pipeline', async () => {
         // Compile programs / contracts
         console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
@@ -104,11 +109,16 @@ describe('attestation', () => {
         const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
 
         // CLIENT *******************
-        // Create a credential and we send this to the WALLET to store it....
-        const secret = "IAmASecretOfLength20";
+        const secret = 'IAmASecretOfLength20';
+        // Get signature
+        const ethSignature = await signSecret(secret, ethWallet);
+
+        // WALLET *******************
+        // Create credential
         console.time('createCredential');
-        const { credentialJson } = await createEcdsaMinaCredential(
-            ethWallet,
+        const credentialJson = await createEcdsaMinaCredential(
+            ethSignature,
+            ethWallet.address,
             minaPublicKey,
             secret
         );
@@ -148,7 +158,8 @@ describe('attestation', () => {
         // Validate compute hashedSecret locally and compare it to the tx claims value.
         const hashedSecret = hashSecret(secret);
         const presentation = JSON.parse(presentationJson);
-        const messageHashString = presentation.outputClaim.value.messageHash.value;
+        const messageHashString =
+            presentation.outputClaim.value.messageHash.value;
         const messageHashBigInt = BigInt(messageHashString);
         expect(messageHashBigInt).toEqual(hashedSecret.toBigInt());
     }, 1000000000);

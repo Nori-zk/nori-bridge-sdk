@@ -19,6 +19,24 @@ import { Bytes20, Bytes32 } from '@nori-zk/o1js-zk-utils';
 import { Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { UInt64 } from 'o1js';
 
+export async function compileDepositAttestationPreRequisites() {
+    console.time('ContractDepositAttestor compile');
+    const { verificationKey: contractDepositAttestorVerificationKey } =
+        await ContractDepositAttestor.compile({ forceRecompile: true });
+    console.timeEnd('ContractDepositAttestor compile');
+    console.log(
+        `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
+    );
+
+    console.time('EthVerifier compile');
+    const { verificationKey: ethVerifierVerificationKey } =
+        await EthVerifier.compile({ forceRecompile: true });
+    console.timeEnd('EthVerifier compile');
+    console.log(
+        `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+    );
+}
+
 async function proofConversionServiceRequest(
     depositBlockNumber: number,
     domain = 'https://pcs.nori.it.com'
@@ -33,11 +51,7 @@ async function proofConversionServiceRequest(
     return json;
 }
 
-export async function fetchContractWindowProofsSlotsAndCompute(
-    depositBlockNumber: number,
-    ethAddressLowerHex: string,
-    attestationBEHex: string
-) {
+async function fetchContractWindowSlotProofs(depositBlockNumber: number) {
     console.log(
         `Fetching proof bundle for deposit with block number: ${depositBlockNumber}`
     );
@@ -58,6 +72,24 @@ export async function fetchContractWindowProofsSlotsAndCompute(
         consensusMPTProofProof,
         consensusMPTProofContractStorageSlots
     );
+
+    return {
+        consensusMPTProofProof,
+        consensusMPTProofContractStorageSlots,
+        consensusMPTProofVerification,
+    };
+}
+
+export async function computeDepositAttestation(
+    depositBlockNumber: number,
+    ethAddressLowerHex: string,
+    attestationBEHex: string
+) {
+    const {
+        consensusMPTProofProof,
+        consensusMPTProofContractStorageSlots,
+        consensusMPTProofVerification,
+    } = await fetchContractWindowSlotProofs(depositBlockNumber);
 
     // Find deposit
     console.log(

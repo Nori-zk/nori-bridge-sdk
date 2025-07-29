@@ -1,12 +1,5 @@
 import { Bytes, Field, PrivateKey } from 'o1js';
 import {
-    compileEcdsaEthereum,
-    compileEcdsaSigPresentationVerifier,
-    createEcdsaMinaCredential,
-    createEcdsaSigPresentation,
-    createEcdsaSigPresentationRequest,
-} from './attestation.js';
-import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
     lockTokens,
@@ -18,54 +11,64 @@ import {
     E2ePrerequisitesInput,
     E2EPrerequisitesProgram,
 } from './e2ePrerequisites.js';
-import {
-    getBridgeSocket$,
-    getReconnectingBridgeSocket$,
-} from './rx/bridge/socket.js';
-import { getEthStateTopic$ } from './rx/eth/topic.js';
+import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
-} from './rx/bridge/topics.js';
+    getEthStateTopic$,
+} from './rx/topics.js';
 import {
     combineLatest,
     filter,
     firstValueFrom,
     lastValueFrom,
-    map,
     switchMap,
     take,
-    tap,
 } from 'rxjs';
 import {
     BridgeDepositProcessingStatus,
     getDepositProcessingStatus$,
-} from './rx/bridge/deposit.js';
-import { fetchContractWindowProofsSlotsAndCompute } from './computeProofs.js';
-import { fieldToBigIntLE, fieldToHexBE } from '@nori-zk/o1js-zk-utils';
+} from './rx/deposit.js';
+import {
+    ContractDepositAttestorProof,
+    EthProof,
+    fieldToBigIntLE,
+    fieldToHexBE,
+} from '@nori-zk/o1js-zk-utils';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
+import { signSecret } from './ethSignature.js';
+import { depositAttestation } from './workers/depositAttestation/node/parent.js';
+import { credentialAttestation } from './workers/credentialAttestation/node/parent.js';
+import { compileEcdsaEthereum, compileEcdsaSigPresentationVerifier } from './credentialAttestation.js';
 
 describe('e2e-rx', () => {
-    test('e2e_rx_pipeline', async () => {
+    test('e2e_rx_with_workers_pipeline', async () => {
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
         // GET WALLET **************************************************
         const ethWallet = await getEthWallet();
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
-        // COMPILE E2E **************************************************
+        // Start workers
+        const depositAttestationWorkerReady = depositAttestation.compile();
+        const credentialAttestationWorkerReady =
+            credentialAttestation.compile();
 
-        // Compile what we need for E2E program (if we do this later it crashes???)
-        await compilePreRequisites();
+        // COMPILE ECDSA
 
-        // COMPILE ECDSA **************************************************
-        /*console.time('compileEcdsaEthereum');
+        // Compile programs / contracts
+        console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
         console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
 
         console.time('compilePresentationVerifier');
         await compileEcdsaSigPresentationVerifier();
         console.timeEnd('compilePresentationVerifier'); // 11.507s
+
+        // COMPILE E2E **************************************************
+
+        // Compile what we need for E2E program
+        await compilePreRequisites();
 
         // SETUP MINA **************************************************
 
@@ -81,44 +84,44 @@ describe('e2e-rx', () => {
         // OBTAIN CREDENTIAL **************************************************
 
         // CLIENT *******************
-        // Create a credential and we send this to the WALLET to store it....
-        console.log('Creating credentials');
         const secret = 'IAmASecretOfLength20';
-        console.time('createCredential');
-        const { credentialJson } = await createEcdsaMinaCredential(
-            ethWallet,
-            minaPublicKey,
-            secret
+        // Get signature
+        const ethSecretSignature = await signSecret(secret, ethWallet);
+
+        // WALLET *******************
+        // Create credential
+        await credentialAttestationWorkerReady;
+        const credentialJson = await credentialAttestation.computeCredential(
+            secret,
+            ethSecretSignature,
+            ethWallet.address,
+            minaPublicKey.toBase58()
         );
-        console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
         // CLIENT *******************
         // Create a presentation request
         // This is sent from the client to the WALLET
-        console.time('getPresentationRequest');
-        const presentationRequestJson = await createEcdsaSigPresentationRequest(
-            zkAppPublicKey
-        );
-        console.timeEnd('getPresentationRequest'); // 1.348ms
+        const presentationRequestJson =
+            await credentialAttestation.computeEcdsaSigPresentationRequest(
+                zkAppPublicKey.toBase58()
+            );
 
         // WALLET ********************
         // WALLET takes a presentation request and the WALLET can retrieve the stored credential
         // From this it creates a presentation.
-        console.time('getPresentation');
-        const presentationJson = await createEcdsaSigPresentation(
-            presentationRequestJson,
-            credentialJson,
-            minaPrivateKey
-        );
-        console.timeEnd('getPresentation'); // 46.801s
+        const presentationJson =
+            await credentialAttestation.computeEcdsaSigPresentation(
+                presentationRequestJson,
+                credentialJson,
+                minaPrivateKey.toBase58()
+            );
 
         // Extract hashed secret
         const presentation = JSON.parse(presentationJson);
         const messageHashString =
             presentation.outputClaim.value.messageHash.value;
         const messageHashBigInt = BigInt(messageHashString);
-        const credentialAttestationHash = Field.from(messageHashBigInt);*/
-        const credentialAttestationHash = Field.random();
+        const credentialAttestationHash = Field.from(messageHashBigInt);
 
         const beAttestationHashBytes = Bytes.from(
             wordToBytes(credentialAttestationHash, 32).reverse()
@@ -185,47 +188,37 @@ describe('e2e-rx', () => {
             'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
         );
 
-        /*
-{
-  stageName: 'ProofConversionJobReceived',
-  input_slot: 4817024,
-  input_block_number: 4241469,
-  output_slot: 4817088,
-  output_block_number: 4241518,
-  elapsed_sec: 328,
-  time_remaining_sec: -6.846000000000004,
-  deposit_processing_status: 'WaitingForCurrentJobCompletion',
-  deposit_block_number: 4241490
-}
-{
-  stageName: 'EthProcessorProofRequest',
-  input_slot: 4817024,
-
-
-        */
-        const { depositAttestationProof, ethVerifierProof, despositSlotRaw } =
-            await firstValueFrom(
-                depositProcessingStatus$.pipe(
-                    filter(
-                        ({ deposit_processing_status, stageName }) =>
-                            deposit_processing_status ===
-                                BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                            stageName ===
-                                TransitionNoticeMessageType.ProofConversionJobSucceeded
-                        //TransitionNoticeMessageType.EthProcessorProofRequest
-                        //TransitionNoticeMessageType.ProofConversionJobSucceeded
-                    ),
-                    take(1),
-                    switchMap(async () => {
-                        console.log('Computing proofs...');
-                        return await fetchContractWindowProofsSlotsAndCompute(
-                            depositBlockNumber,
-                            ethAddressLowerHex,
-                            attestationBEHex
-                        );
-                    })
-                )
+        const {
+            depositAttestationProofJson,
+            ethVerifierProofJson,
+            despositSlotRaw,
+        } = await firstValueFrom(
+            depositProcessingStatus$.pipe(
+                filter(
+                    ({ deposit_processing_status, stageName }) =>
+                        deposit_processing_status ===
+                            BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
+                        stageName ===
+                            TransitionNoticeMessageType.ProofConversionJobSucceeded
+                ),
+                take(1),
+                switchMap(async () => {
+                    await depositAttestationWorkerReady;
+                    console.log('Computing proofs...');
+                    return await depositAttestation.compute(
+                        depositBlockNumber,
+                        ethAddressLowerHex,
+                        attestationBEHex
+                    );
+                })
+            )
+        );
+        // Convert these: depositAttestationProofJson & ethVerifierProofJson back into proof objects
+        const depositAttestationProof =
+            await ContractDepositAttestorProof.fromJSON(
+                depositAttestationProofJson
             );
+        const ethVerifierProof = await EthProof.fromJSON(ethVerifierProofJson);
 
         // Block until deposit has been processed
         console.log(
@@ -285,13 +278,13 @@ describe('e2e-rx', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
 
-        /*console.time('deployAndVerifyEcdsaSigPresentationVerifier');
+        console.time('deployAndVerifyEcdsaSigPresentationVerifier');
         await deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKey,
             minaPrivateKey,
             presentationJson
         );
-        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');*/
+        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');
 
         console.log('Minted!');
     }, 1000000000);

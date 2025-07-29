@@ -20,7 +20,7 @@ import {
 } from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 
-export class E2ePrerequisitesInput extends Struct({
+export class E2eWithCredsPrerequisitesInput extends Struct({
     //ethVerifierProof: EthProof.provable,
     //contractDepositAttestorProof: ContractDepositAttestorProof.provable,
     credentialAttestationHash: Field,
@@ -29,21 +29,21 @@ export class E2ePrerequisitesInput extends Struct({
     // COULD BE HASH OF THIS PROOF..... IGNORE THIS FOR THIS TEST
 }) {}
 
-export class E2ePrerequisitesOutput extends Struct({
+export class E2eWithCredsPrerequisitesOutput extends Struct({
     totalLocked: Field,
     storageDepositRoot: Field,
     attestationHash: Field,
 }) {}
 
-export const E2EPrerequisitesProgram = ZkProgram({
-    name: 'E2EPrerequisites',
-    publicInput: E2ePrerequisitesInput,
-    publicOutput: E2ePrerequisitesOutput,
+export const E2eWithCredsPrerequisitesProgram = ZkProgram({
+    name: 'E2eWithCredsPrerequisites',
+    publicInput: E2eWithCredsPrerequisitesInput,
+    publicOutput: E2eWithCredsPrerequisitesOutput,
     methods: {
         compute: {
             privateInputs: [EthProof, ContractDepositAttestorProof],
             async method(
-                input: E2ePrerequisitesInput,
+                input: E2eWithCredsPrerequisitesInput,
                 ethVerifierProof: InstanceType<typeof EthProof>,
                 contractDepositAttestorProof: InstanceType<
                     typeof ContractDepositAttestorProof
@@ -117,7 +117,7 @@ export const E2EPrerequisitesProgram = ZkProgram({
                 const attestationHash = contractDepositAttestorProofCredential;
 
                 return {
-                    publicOutput: new E2ePrerequisitesOutput({
+                    publicOutput: new E2eWithCredsPrerequisitesOutput({
                         totalLocked,
                         storageDepositRoot,
                         attestationHash,
@@ -127,62 +127,3 @@ export const E2EPrerequisitesProgram = ZkProgram({
         },
     },
 });
-
-export async function compilePreRequisites() {
-    // TODO optimise not all of these need to be compiled immediately
-
-    console.time('ContractDepositAttestor compile');
-    const { verificationKey: contractDepositAttestorVerificationKey } =
-        await ContractDepositAttestor.compile({ forceRecompile: true });
-    console.timeEnd('ContractDepositAttestor compile');
-    console.log(
-        `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
-    );
-
-    console.time('EthVerifier compile');
-    const { verificationKey: ethVerifierVerificationKey } =
-        await EthVerifier.compile({ forceRecompile: true });
-    console.timeEnd('EthVerifier compile');
-    console.log(
-        `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
-    );
-
-    console.time('E2EPrerequisitesProgram compile');
-    const { verificationKey: e2ePrerequisitesVerificationKey } =
-        await E2EPrerequisitesProgram.compile({ forceRecompile: true });
-    console.timeEnd('E2EPrerequisitesProgram compile');
-    console.log(
-        `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
-    );
-}
-
-export async function deployAndVerifyEcdsaSigPresentationVerifier(
-    zkAppPrivateKey: PrivateKey,
-    senderPrivateKey: PrivateKey,
-    presentationJSON: string
-) {
-    const senderPublicKey = senderPrivateKey.toPublicKey();
-    const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
-    const zkApp = new EcdsaSigPresentationVerifier(zkAppPublicKey);
-    const deployTx = await Mina.transaction(
-        { sender: senderPublicKey, fee: 0.01 * 1e9 },
-        async () => {
-            AccountUpdate.fundNewAccount(senderPublicKey);
-            await zkApp.deploy();
-            const presentation = Presentation.fromJSON(presentationJSON);
-            const provablePresentation =
-                ProvableEcdsaSigPresentation.from(presentation);
-            const claims = await zkApp.verifyPresentation(provablePresentation);
-            console.log('✅ ProvablePresentation verified!');
-            console.log('ProvableEcdsaSigPresentation claims:', claims);
-        }
-    );
-
-    console.log('Deploy transaction created successfully. Proving...');
-    await deployTx.prove();
-    console.log('Transaction proved. Signing and sending the transaction...');
-    await deployTx.sign([senderPrivateKey, zkAppPrivateKey]).send().wait();
-    console.log(
-        '✅ EcdsaSigPresentationVerifier deployed and verified successfully.'
-    );
-}

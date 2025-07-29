@@ -42,3 +42,21 @@ export const getBridgeTimingsTopic$ = (
             filter((message) => message.topic === 'timings.notices.transition')
         )
         .pipe(shareReplay(1));
+
+export const getEthStateTopic$ = (
+    bridgeSocket$:
+            | WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+            | ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+) =>
+    (bridgeSocket$.asObservable().pipe(
+        // Filter by topic and suppress events when the state is 'unknown'
+        filter(
+            (message) =>
+                message.topic === 'state.eth' &&
+                message.extension.latest_finality_block_number !== 'unknown'
+        ),
+        map((message) => message.extension),
+    ) as Observable<{
+        latest_finality_block_number: number;
+        latest_finality_slot: number;
+    }>).pipe(shareReplay(1));;

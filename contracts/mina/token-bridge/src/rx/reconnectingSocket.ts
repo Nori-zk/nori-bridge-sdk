@@ -20,16 +20,6 @@ type WebSocketwebSocketConnectionState =
     | 'reconnecting'
     | 'permanently-closed';
 
-/*export interface ReconnectingWebSocketSubject<T> extends Subject<T> {
-    webSocketConnectionState$: Observable<WebSocketwebSocketConnectionState>;
-
-    multiplex<R>(
-        subMsg: () => T,
-        unsubMsg: () => T,
-        messageFilter: (value: T) => boolean
-    ): Observable<R>;
-}*/
-
 interface ReconnectingWebSocketConfig<T> extends WebSocketSubjectConfig<T> {
     reconnect?: {
         initialDelayMs?: number;

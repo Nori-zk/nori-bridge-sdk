@@ -4,4 +4,4 @@ import { NoriTokenController } from './NoriTokenController.js';
 
 export { FungibleToken, NoriStorageInterface, NoriTokenController };
 
-export * from './attestation.js';
+export * from './credentialAttestation.js';
