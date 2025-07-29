@@ -248,6 +248,7 @@ export class WorkerChildBase {
             const result = await (this as any)[methodName](...args);
             this.#sendResponse(id, methodName, result);
         } catch (error: any) {
+            console.error(error);
             this.#sendError(id, methodName, error?.message ?? String(error));
         }
     }

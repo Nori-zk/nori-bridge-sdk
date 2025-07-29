@@ -5,7 +5,12 @@ import {
 
 export class DepositAttestationWorker {
     async compile() {
-        return compileDepositAttestationPreRequisites();
+        try {
+            console.log('inside the worker');
+            await compileDepositAttestationPreRequisites();
+        } catch (e) {
+            console.log('e', e);
+        }
     }
     async compute(
         depositBlockNumber: number,

@@ -1,12 +1,14 @@
-import { parentPort } from 'worker_threads';
 import type { WorkerParentLike } from '../index.js';
 
 export class WorkerChild implements WorkerParentLike {
     private messageCallback?: (response: string) => void;
     private errorCallback?: (error: any) => void;
+    private proc: NodeJS.Process;
 
-    constructor() {
-        parentPort?.on('message', (msg) => {
+    constructor(proc: NodeJS.Process = process) {
+        this.proc = proc;
+
+        this.proc.on('message', (msg) => {
             if (typeof msg === 'string' && this.messageCallback) {
                 this.messageCallback(msg);
             } else if (this.messageCallback) {
@@ -14,13 +16,13 @@ export class WorkerChild implements WorkerParentLike {
             }
         });
 
-        parentPort?.on('error', (err) => {
+        this.proc.on('error', (err) => {
             if (this.errorCallback) this.errorCallback(err);
         });
     }
 
     send(data: string): void {
-        parentPort?.postMessage(data);
+        this.proc.send?.(data);
     }
 
     onMessageHandler(callback: (response: string) => void): void {
@@ -32,6 +34,6 @@ export class WorkerChild implements WorkerParentLike {
     }
 
     terminate(): void {
-        parentPort?.removeAllListeners();
+        this.proc.removeAllListeners();
     }
 }
