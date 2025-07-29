@@ -18,14 +18,11 @@ import {
     E2ePrerequisitesInput,
     E2EPrerequisitesProgram,
 } from './e2ePrerequisites.js';
-import {
-    getBridgeSocket$,
-    getReconnectingBridgeSocket$,
-} from './rx/socket.js';
+import { getBridgeSocket$, getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
-    getEthStateTopic$
+    getEthStateTopic$,
 } from './rx/topics.js';
 import {
     combineLatest,
@@ -44,9 +41,10 @@ import {
 import { computeDepositAttestation } from './depositAttestation.js';
 import { fieldToBigIntLE, fieldToHexBE } from '@nori-zk/o1js-zk-utils';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
+import { signSecret } from './ethSignature.js';
 
-describe('e2e-rx', () => {
-    test('e2e_rx_pipeline', async () => {
+describe('iamstupid', () => {
+    test('help_e2e_rx_pipeline', async () => {
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
         // GET WALLET **************************************************
@@ -59,7 +57,7 @@ describe('e2e-rx', () => {
         await compilePreRequisites();
 
         // COMPILE ECDSA **************************************************
-        /*console.time('compileEcdsaEthereum');
+        console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
         console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
 
@@ -81,12 +79,18 @@ describe('e2e-rx', () => {
         // OBTAIN CREDENTIAL **************************************************
 
         // CLIENT *******************
-        // Create a credential and we send this to the WALLET to store it....
-        console.log('Creating credentials');
         const secret = 'IAmASecretOfLength20';
+        // Get signature
+        console.time('ethSecretSignature');
+        const ethSecretSignature = await signSecret(secret, ethWallet);
+        console.timeEnd('ethSecretSignature');
+
+        // WALLET *******************
+        // Create credential
         console.time('createCredential');
-        const { credentialJson } = await createEcdsaMinaCredential(
-            ethWallet,
+        const credentialJson = await createEcdsaMinaCredential(
+            ethSecretSignature,
+            ethWallet.address,
             minaPublicKey,
             secret
         );
@@ -117,8 +121,8 @@ describe('e2e-rx', () => {
         const messageHashString =
             presentation.outputClaim.value.messageHash.value;
         const messageHashBigInt = BigInt(messageHashString);
-        const credentialAttestationHash = Field.from(messageHashBigInt);*/
-        const credentialAttestationHash = Field.random();
+        const credentialAttestationHash = Field.from(messageHashBigInt);
+        //const credentialAttestationHash = Field.random();
 
         const beAttestationHashBytes = Bytes.from(
             wordToBytes(credentialAttestationHash, 32).reverse()
@@ -285,13 +289,13 @@ describe('e2e-rx', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
 
-        /*console.time('deployAndVerifyEcdsaSigPresentationVerifier');
+        console.time('deployAndVerifyEcdsaSigPresentationVerifier');
         await deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKey,
             minaPrivateKey,
             presentationJson
         );
-        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');*/
+        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');
 
         console.log('Minted!');
     }, 1000000000);
