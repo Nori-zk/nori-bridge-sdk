@@ -1,5 +1,5 @@
 import { wordToBytes } from '@nori-zk/proof-conversion';
-import { Bytes, Field } from 'o1js';
+import { Bytes, Field, Mina } from 'o1js';
 
 export async function getNewMinaLiteNetAccountSK(): Promise<string> {
     const { request } = await import('http');
@@ -134,4 +134,12 @@ export async function getEthWallet() {
     const privateKey = await getEthereumEnvPrivateKey();
     const { ethers } = await import('ethers');
     return new ethers.Wallet(privateKey);
+}
+
+export async function minaSetup() {
+    const Network = Mina.Network({
+        networkId: 'devnet',
+        mina: 'http://localhost:8080/graphql',
+    });
+    Mina.setActiveInstance(Network);
 }

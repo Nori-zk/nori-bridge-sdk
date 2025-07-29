@@ -40,16 +40,10 @@ import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 import { signSecret } from './ethSignature.js';
 import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
 import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
-import {
-    compileEcdsaEthereum,
-    compileEcdsaSigPresentationVerifier,
-    createEcdsaMinaCredential,
-    createEcdsaSigPresentation,
-    createEcdsaSigPresentationRequest,
-} from './credentialAttestation.js';
+import { getMockVerification } from './workers/mockCredVerification/node/parent.js';
 
-describe('e2e-rx-workers', () => {
-    test('e2e_rx_with_workers_pipeline', async () => {
+describe('e2e-rx-workers-mock', () => {
+    test('mock_e2e_rx_with_workers_pipeline', async () => {
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
         // GET WALLET **************************************************
@@ -59,26 +53,12 @@ describe('e2e-rx-workers', () => {
         // Init workers
         const depositAttestation = getDepositAttestation();
         const credentialAttestation = getCredentialAttestation();
+        const mockVerifier = getMockVerification();
         
         const depositAttestationWorkerReady = depositAttestation.compile();
-
         const credentialAttestationReady = credentialAttestation.compile();
-
-        // COMPILE ECDSA
-
-        // Compile programs / contracts
-        console.time('compileEcdsaEthereum');
-        await compileEcdsaEthereum();
-        console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
-
-        console.time('compilePresentationVerifier');
-        await compileEcdsaSigPresentationVerifier();
-        console.timeEnd('compilePresentationVerifier'); // 11.507s
-
-        // COMPILE E2E **************************************************
-
-        // Compile what we need for E2E program
-        await compilePreRequisites();
+        const mockVerifierReady = mockVerifier.compile();
+        await mockVerifierReady;
 
         // SETUP MINA **************************************************
 
@@ -324,14 +304,11 @@ describe('e2e-rx-workers', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
         await minaSetup();
-        
-        console.time('deployAndVerifyEcdsaSigPresentationVerifier');
-        await deployAndVerifyEcdsaSigPresentationVerifier(
-            zkAppPrivateKey,
-            minaPrivateKey,
-            presentationJson
-        );
-        console.timeEnd('deployAndVerifyEcdsaSigPresentationVerifier');
+        await mockVerifierReady;
+
+        console.time('mockVerifier');
+        await mockVerifier.verify(ethVerifierProofJson, depositAttestationProofJson, minaPrivateKey.toBase58(), presentationJson);
+        console.timeEnd('mockVerifier');
 
         console.log('Minted!');
     }, 1000000000);
