@@ -6,6 +6,7 @@ import {
     method,
     Mina,
     PrivateKey,
+    Provable,
     SmartContract,
     Struct,
 } from 'o1js';
@@ -56,6 +57,14 @@ export class MockVerifier extends SmartContract {
             methodName: 'verifyPresentation',
         });
 
+        Provable.asProver(() => {
+            Provable.log(
+                'e2eProof.publicOutput.attestationHash',
+                'outputClaim.messageHash',
+                e2eProof.publicOutput.attestationHash,
+                outputClaim.messageHash
+            );
+        });
         e2eProof.publicOutput.attestationHash.assertEquals(
             outputClaim.messageHash
         );
@@ -108,17 +117,55 @@ export class MockVerificationWorker {
         );
     }
 
+    async computeE2EPrerequisites(
+        credentialAttestationHashBigIntStr: string,
+        ethVerifierProofJson: JsonProof,
+        depositAttestationProofJson: JsonProof
+    ) {
+        const credentialAttestationHashBigInt = BigInt(
+            credentialAttestationHashBigIntStr
+        );
+        const credentialAttestationHash = Field.from(
+            credentialAttestationHashBigInt
+        );
+
+        const ethVerifierProof = await EthProofType.fromJSON(
+            ethVerifierProofJson
+        );
+        const depositAttestationProof =
+            await ContractDepositAttestorProofType.fromJSON(
+                depositAttestationProofJson
+            );
+
+        const e2ePrerequisitesInput = new E2ePrerequisitesInput({
+            credentialAttestationHash,
+        });
+
+        console.log('Computing e2e');
+        console.time('E2EPrerequisitesProgram.compute');
+        const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
+            e2ePrerequisitesInput,
+            ethVerifierProof,
+            depositAttestationProof
+        );
+        console.timeEnd('E2EPrerequisitesProgram.compute');
+
+        return e2ePrerequisitesProof.proof.toJSON();
+    }
+
     async verify(
         ethVerifierProofJson: JsonProof,
         depositAttestationProofJson: JsonProof,
+        presentationJsonStr: string,
         senderPrivateKeyBase58: string,
-        presentationJsonStr: string
+        zkAppPrivateKeyBase58: string,
     ) {
         const presentationObj = JSON.parse(presentationJsonStr);
         const messageHashString =
             presentationObj.outputClaim.value.messageHash.value;
         const messageHashBigInt = BigInt(messageHashString);
         const messageHash = Field.from(messageHashBigInt);
+        console.log('messageHash', messageHash);
 
         const ethVerifierProof = await EthProofType.fromJSON(
             ethVerifierProofJson
@@ -149,14 +196,15 @@ export class MockVerificationWorker {
 
         // Other stuff
 
-        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         const presentation = Presentation.fromJSON(presentationJsonStr);
 
         const provableEcdsaSigPresentation =
             ProvableEcdsaSigPresentation.from(presentation);
+
+        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         const senderPublicKey = senderPrivateKey.toPublicKey();
 
-        const zkAppPrivateKey = PrivateKey.random();
+        const zkAppPrivateKey = PrivateKey.fromBase58(zkAppPrivateKeyBase58);
         const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
 
         // Setup mina

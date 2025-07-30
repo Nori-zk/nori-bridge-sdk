@@ -19,12 +19,17 @@ import {
     getEthStateTopic$,
 } from './rx/topics.js';
 import {
+    audit,
     combineLatest,
+    distinctUntilChanged,
     filter,
     firstValueFrom,
+    interval,
     lastValueFrom,
+    merge,
     switchMap,
     take,
+    timer,
 } from 'rxjs';
 import {
     BridgeDepositProcessingStatus,
@@ -59,7 +64,7 @@ describe('e2e-rx-workers', () => {
         // Init workers
         const depositAttestation = getDepositAttestation();
         const credentialAttestation = getCredentialAttestation();
-        
+
         const depositAttestationWorkerReady = depositAttestation.compile();
 
         const credentialAttestationReady = credentialAttestation.compile();
@@ -111,7 +116,7 @@ describe('e2e-rx-workers', () => {
             secret,
             ethSecretSignature,
             ethWallet.address,
-            minaPublicKey.toBase58(),
+            minaPublicKey.toBase58()
         ); /*createEcdsaMinaCredential(
             ethSecretSignature,
             ethWallet.address,
@@ -157,6 +162,7 @@ describe('e2e-rx-workers', () => {
             presentation.outputClaim.value.messageHash.value;
         const messageHashBigInt = BigInt(messageHashString);
         const credentialAttestationHash = Field.from(messageHashBigInt);
+        console.log('credentialAttestationHash from presentation.outputClaim.value.messageHash.value', credentialAttestationHash);
 
         const beAttestationHashBytes = Bytes.from(
             wordToBytes(credentialAttestationHash, 32).reverse()
@@ -212,7 +218,16 @@ describe('e2e-rx-workers', () => {
             bridgeTimingsTopic$
         );
 
-        depositProcessingStatus$.subscribe({
+        merge(
+            depositProcessingStatus$.pipe(
+                distinctUntilChanged(
+                    (a, b) =>
+                        JSON.stringify(a.deposit_processing_status) ===
+                        JSON.stringify(b.deposit_processing_status)
+                )
+            ),
+            depositProcessingStatus$.pipe(audit(() => interval(60000)))
+        ).subscribe({
             next: console.log,
             error: console.error,
             complete: () => console.log('Deposit processing completed'),
@@ -295,6 +310,8 @@ describe('e2e-rx-workers', () => {
         const { totalLocked, storageDepositRoot, attestationHash } =
             e2ePrerequisitesProof.proof.publicOutput;
 
+        console.log('attestationHash Field from e2ePrerequisitesProof.proof.publicOutput;', attestationHash);
+
         // Change these to asserts in future
 
         console.log('--- Decoded public output ---');
@@ -324,7 +341,7 @@ describe('e2e-rx-workers', () => {
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
         await minaSetup();
-        
+
         console.time('deployAndVerifyEcdsaSigPresentationVerifier');
         await deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKey,

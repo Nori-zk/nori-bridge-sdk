@@ -23,6 +23,10 @@ export class DepositAttestationWorker {
                 ethAddressLowerHex,
                 attestationBEHex
             );
+        console.log('depositAttestationProof.publicInput.rootHash', depositAttestationProof.publicInput.rootHash);
+        console.log('depositAttestationProof.publicInput.value.attestationHash', depositAttestationProof.publicInput.value.attestationHash.toHex());
+        console.log('ethVerifierProof.publicInput.verifiedContractDepositsRoot', ethVerifierProof.publicInput.verifiedContractDepositsRoot.toHex())
+
         const depositAttestationProofJson = depositAttestationProof.toJSON();
         const ethVerifierProofJson = ethVerifierProof.toJSON();
         return {

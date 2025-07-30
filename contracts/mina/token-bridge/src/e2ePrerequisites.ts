@@ -9,6 +9,7 @@ import {
     Field,
     Mina,
     PrivateKey,
+    Provable,
     Struct,
     ZkProgram,
 } from 'o1js';
@@ -76,6 +77,14 @@ export const E2EPrerequisitesProgram = ZkProgram({
                 }
 
                 // Assert roots
+                Provable.asProver(() => {
+                    Provable.log(
+                        'depositAttestationProofRoot',
+                        'ethVerifierStorageProofRoot',
+                        depositAttestationProofRoot,
+                        ethVerifierStorageProofRoot
+                    );
+                });
                 depositAttestationProofRoot.assertEquals(
                     ethVerifierStorageProofRoot
                 );
@@ -97,11 +106,14 @@ export const E2EPrerequisitesProgram = ZkProgram({
                                     .value
                             );
                 }
+
+                Provable.asProver(() => {
+                    Provable.log('input.credentialAttestationHash', 'contractDepositAttestorProofCredential', input.credentialAttestationHash, contractDepositAttestorProofCredential)
+                });
+
                 input.credentialAttestationHash.assertEquals(
                     contractDepositAttestorProofCredential
                 );
-
-                
 
                 // Turn totalLocked into a field
                 const totalLockedBytes =
@@ -131,9 +143,10 @@ export const E2EPrerequisitesProgram = ZkProgram({
 });
 
 // E2EPrerequisitesProgram
-export const E2EPrerequisitesProgramProof = ZkProgram.Proof(E2EPrerequisitesProgram);
+export const E2EPrerequisitesProgramProof = ZkProgram.Proof(
+    E2EPrerequisitesProgram
+);
 export class E2EPrerequisitesProgramProofType extends E2EPrerequisitesProgramProof {}
-
 
 export async function compilePreRequisites() {
     // TODO optimise not all of these need to be compiled immediately

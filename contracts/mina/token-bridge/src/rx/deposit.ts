@@ -145,10 +145,6 @@ export const getDepositProcessingStatus$ = (
                 }, true),
                 // Calculate timeRemaining
                 map((tick) => {
-                    console.log(
-                        'in switch map with map with tick',
-                        bridgeState.stageName
-                    );
                     let timeRemaining = timeToWait - tick + 1;
                     if (
                         bridgeState.stageName ===
