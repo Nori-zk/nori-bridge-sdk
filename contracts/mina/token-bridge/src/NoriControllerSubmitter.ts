@@ -17,12 +17,16 @@ import { Logger } from '@nori-zk/proof-conversion';
 import { FungibleToken } from './TokenBase.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import {
-    NoriTokenController,
+    MockNoriTokenController,
     MockConsenusProof,
     MockDepositAttesterProof,
     MockMinaAttestationProof,
-    NoriTokenControllerDeployProps,
-} from './NoriTokenController.js';
+    MockMintProofData,
+} from './NoriTokenControllerMock.js';
+import { compileEcdsaEthereum, compileEcdsaSigPresentationVerifier, NoriTokenController } from './index.js';
+import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils/build/contractDepositAttestor.js';
+import { EthVerifier } from '@nori-zk/o1js-zk-utils/build/ethVerifier.js';
+import { EthDepositProgram } from './e2ePrerequisites.js';
 
 export interface NoriTokenControllerConfig {
     senderPrivateKey: string; //TODO make client side version
@@ -37,12 +41,7 @@ export interface NoriTokenControllerConfig {
     tokenBasePrivateKey?: string;
     adminPublicKey?: string;
     ethProcessorAddress?: string;
-}
-
-export interface MintProofData {
-    ethConsensusProof: MockConsenusProof;
-    depositAttesterProof: MockDepositAttesterProof;
-    minaAttestationProof: MockMinaAttestationProof;
+    mock?: boolean;
 }
 
 export interface DeploymentResult {
@@ -64,7 +63,7 @@ export class NoriTokenControllerSubmitter {
     protected readonly minaRPCNetworkUrl: string;
 
     // Contract instances
-    #noriTokenController: NoriTokenController;
+    #noriTokenController: MockNoriTokenController | NoriTokenController;
     #tokenBase: FungibleToken;
 
     // Optional private keys for deployment
@@ -77,6 +76,9 @@ export class NoriTokenControllerSubmitter {
     noriTokenControllerVerificationKey!: VerificationKey;
     tokenBaseVerificationKey!: VerificationKey;
     storageInterfaceVerificationKey!: VerificationKey;
+
+    readonly #mock: boolean;
+    readonly #cache = Cache.FileSystem('./cache');
 
     constructor(config: NoriTokenControllerConfig) {
         console.log(`🛠 NoriTokenControllerSubmitter constructor called!`);
@@ -153,7 +155,12 @@ export class NoriTokenControllerSubmitter {
             ? PublicKey.fromBase58(config.tokenBaseAddress)
             : this.#tokenBasePrivateKey!.toPublicKey();
 
-        this.#noriTokenController = new NoriTokenController(noriAddress);
+        this.#mock = !!config.mock || false;
+
+        this.#noriTokenController = this.#mock
+            ? new MockNoriTokenController(noriAddress)
+            : new NoriTokenController(noriAddress);
+
         this.#tokenBase = new FungibleToken(tokenAddress);
 
         console.log('NoriTokenControllerSubmitter initialized successfully');
@@ -166,7 +173,6 @@ export class NoriTokenControllerSubmitter {
             }'.`
         );
 
-        const networkId = this.#network === 'mainnet' ? 'mainnet' : 'testnet';
         const Network = Mina.Network({
             networkId: this.#network,
             mina: this.minaRPCNetworkUrl,
@@ -179,19 +185,63 @@ export class NoriTokenControllerSubmitter {
         console.log('Finished Mina network setup.');
     }
 
-    async compileContracts(): Promise<void> {
-        console.log('Compiling contracts...');
+    async #compilePrerequisites() {
+        if (this.#mock) return;
 
-        const cache = Cache.FileSystem('./cache');
+        // Compile programs / contracts
+        console.time('compileEcdsaEthereum');
+        await compileEcdsaEthereum(this.#cache);
+        console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
+
+        console.time('compilePresentationVerifier');
+        await compileEcdsaSigPresentationVerifier(this.#cache);
+        console.timeEnd('compilePresentationVerifier'); // 11.507s
+
+        console.time('ContractDepositAttestor compile');
+        const { verificationKey: contractDepositAttestorVerificationKey } =
+            await ContractDepositAttestor.compile({ cache: this.#cache, forceRecompile: true });
+        console.timeEnd('ContractDepositAttestor compile');
+        console.log(
+            `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
+        );
+
+        console.time('EthVerifier compile');
+        const { verificationKey: ethVerifierVerificationKey } =
+            await EthVerifier.compile({ cache: this.#cache, forceRecompile: true });
+        console.timeEnd('EthVerifier compile');
+        console.log(
+            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+        );
+
+        console.time('EthDepositProgram compile');
+        const { verificationKey: EthDepositProgramVerificationKey } =
+            await EthDepositProgram.compile({ cache: this.#cache, forceRecompile: true });
+        console.timeEnd('EthDepositProgram compile');
+        console.log(
+            `EthDepositProgram compiled vk: '${EthDepositProgramVerificationKey.hash}'.`
+        );
+    }
+
+    async compileContracts(): Promise<void> {
+        console.log('Compiling prerequisites...');
+        this.#compilePrerequisites();
+    
+        console.log('Compiling contracts...');
         // Compile all required contracts
         console.log('Compiling NoriStorageInterface...');
-        const storageResult = await NoriStorageInterface.compile({ cache });
+        const storageResult = await NoriStorageInterface.compile({
+            cache: this.#cache,
+        });
 
         console.log('Compiling FungibleToken...');
-        const tokenBaseResult = await FungibleToken.compile({ cache });
+        const tokenBaseResult = await FungibleToken.compile({
+            cache: this.#cache,
+        });
 
         console.log('Compiling NoriTokenController...');
-        const controllerResult = await NoriTokenController.compile({ cache });
+        const controllerResult = await MockNoriTokenController.compile({
+            cache: this.#cache,
+        });
         //TODO replace with compileAndVerifyContracts
 
         this.storageInterfaceVerificationKey = storageResult.verificationKey;
@@ -309,7 +359,7 @@ export class NoriTokenControllerSubmitter {
     //TODO make one that returns unsigned transaction to be passed to the wallet
     async mint(
         userPublicKey: PublicKey,
-        proofData: MintProofData,
+        proofData: MockMintProofData,
         userPrivateKey: PrivateKey,
         fundNewAccount = true
     ): Promise<MintResult> {

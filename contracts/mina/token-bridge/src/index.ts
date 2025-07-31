@@ -1,7 +1,7 @@
 import { FungibleToken } from './TokenBase.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { NoriTokenController } from './NoriTokenController.js';
+import { MockNoriTokenController } from './NoriTokenControllerMock.js';
 
-export { FungibleToken, NoriStorageInterface, NoriTokenController };
+export { FungibleToken, NoriStorageInterface, MockNoriTokenController as NoriTokenController };
 
 export * from './credentialAttestation.js';

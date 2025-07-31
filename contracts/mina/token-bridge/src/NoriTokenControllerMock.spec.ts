@@ -19,11 +19,11 @@ import { FungibleToken } from './TokenBase.js';
 import assert from 'node:assert';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import {
-    NoriTokenController,
+    MockNoriTokenController,
     MockConsenusProof,
     MockDepositAttesterProof,
     MockMinaAttestationProof,
-} from './NoriTokenController.js';
+} from './NoriTokenControllerMock.js';
 
 const FEE = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
 type Keypair = {
@@ -37,7 +37,7 @@ describe('NoriTokenController', () => {
     let tokenBase: FungibleToken;
     let tokenBaseVK: VerificationKey;
     let tokenBaseKeypair: Keypair;
-    let noriTokenController: NoriTokenController;
+    let noriTokenController: MockNoriTokenController;
     let noriTokenControllerVK: VerificationKey;
     let noriTokenControllerKeypair: Keypair;
     let storageInterfaceVK: VerificationKey;
@@ -58,7 +58,7 @@ describe('NoriTokenController', () => {
         ).verificationKey;
 
         noriTokenControllerVK = (
-            await NoriTokenController.compile({
+            await MockNoriTokenController.compile({
                 cache: Cache.FileSystem('./cache'),
             })
         ).verificationKey;
@@ -79,7 +79,7 @@ describe('NoriTokenController', () => {
         tokenBaseKeypair = PrivateKey.randomKeypair();
         tokenBase = new FungibleToken(tokenBaseKeypair.publicKey);
         noriTokenControllerKeypair = PrivateKey.randomKeypair();
-        noriTokenController = new NoriTokenController(
+        noriTokenController = new MockNoriTokenController(
             noriTokenControllerKeypair.publicKey
         );
         console.log(`

@@ -2,6 +2,7 @@ import { id, Wallet } from 'ethers';
 import { EcdsaEthereum } from 'mina-attestations/imported';
 import {
     Bytes,
+    Cache,
     declareMethods,
     Field,
     PrivateKey,
@@ -117,67 +118,39 @@ declareMethods(EcdsaSigPresentationVerifier, {
 // Compile util functions
 
 // Compile EcdsaEthereum
-export async function compileEcdsaEthereum() {
+export async function compileEcdsaEthereum(cache?: Cache) {
+    const ecdsaEthereumOptions = {
+        maxMessageLength: secretMaxLength, // maxMessageLength is a misnomer by mina-attestations
+        proofsEnabled: true,
+    } as {
+        proofsEnabled: boolean;
+        maxMessageLength: SecretMaxLength;
+        cache?: Cache;
+    }; // Note that cache does not really exist here FIXME!
+    
+    const ecdsaCredentialOptions = { proofsEnabled: true } as {
+        proofsEnabled: boolean;
+        cache?: Cache;
+    };
+
+    if (cache) {
+        ecdsaCredentialOptions.cache = cache;
+    }
+
     await EcdsaEthereum.compileDependencies({
         maxMessageLength: secretMaxLength, // maxMessageLength is a misnomer by mina-attestations
         proofsEnabled: true,
     });
 
-    await EcdsaCredential.compile({ proofsEnabled: true });
+    await EcdsaCredential.compile(ecdsaCredentialOptions);
 }
 
 // Compile EcdsaSigPresentationVerifier
-export async function compileEcdsaSigPresentationVerifier() {
-    await EcdsaSigPresentationVerifier.compile();
+export async function compileEcdsaSigPresentationVerifier(cache?: Cache) {
+    await EcdsaSigPresentationVerifier.compile({cache: cache});
 }
 
 // Methods
-
-
-// Create EcdsaMinaCredential
-export async function createEcdsaMinaCredentialOld<FixedString extends string>(
-    ethWallet: Wallet,
-    minaPubKey: PublicKey,
-    secret: EnforceMaxLength<FixedString, SecretMaxLength>
-) {
-    if ((secret as string).length > secretMaxLength)
-        throw new Error(
-            `Secret provided has length '${secret.valueOf}' which is greater than the max supported secret length '${secretMaxLength}'.`
-        );
-
-    const Message = DynamicBytes({ maxLength: secretMaxLength });
-
-    // Create signature
-    let message = secret as string;
-    const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
-    const hashMessage = (msg: string) => parseHex(id(msg));
-    let sig = await ethWallet.signMessage(hashMessage(message));
-
-    // create credential (which verifies the signature)
-    let { signature, parityBit } = EcdsaEthereum.parseSignature(sig);
-
-    let credential = await EcdsaCredential.create({
-        owner: minaPubKey,
-        publicInput: {
-            signerAddress: EcdsaEthereum.parseAddress(ethWallet.address),
-        },
-        privateInput: {
-            message: Message.fromString(message),
-            signature,
-            parityBit,
-        },
-    });
-
-    await Credential.validate(credential);
-
-    const credentialJson = Credential.toJSON(credential);
-
-    console.log('✅ Created credential:', credentialJson);
-
-    // TODO get message hash from credential somehow
-    return { credentialJson };
-}
-
 
 // Create EcdsaMinaCredential
 export async function createEcdsaMinaCredential<FixedString extends string>(

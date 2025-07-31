@@ -19,25 +19,25 @@ import {
 } from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 
-export class MintPrerequisitesInput extends Struct({
+export class EthDepositProgramInput extends Struct({
     credentialAttestationHash: Field,
 }) {}
 
-export class MintPrerequisitesOutput extends Struct({
+export class EthDepositProgramOutput extends Struct({
     totalLocked: Field,
     storageDepositRoot: Field,
     attestationHash: Field,
 }) {}
 
-export const MintPrerequisitesProgram = ZkProgram({
-    name: 'MintPrerequisites',
-    publicInput: MintPrerequisitesInput,
-    publicOutput: MintPrerequisitesOutput,
+export const EthDepositProgram = ZkProgram({
+    name: 'EthDepositProgram',
+    publicInput: EthDepositProgramInput,
+    publicOutput: EthDepositProgramOutput,
     methods: {
         compute: {
             privateInputs: [EthProof, ContractDepositAttestorProof],
             async method(
-                input: MintPrerequisitesInput,
+                input: EthDepositProgramInput,
                 ethVerifierProof: InstanceType<typeof EthProof>,
                 contractDepositAttestorProof: InstanceType<
                     typeof ContractDepositAttestorProof
@@ -119,7 +119,7 @@ export const MintPrerequisitesProgram = ZkProgram({
                 const attestationHash = contractDepositAttestorProofCredential;
 
                 return {
-                    publicOutput: new MintPrerequisitesOutput({
+                    publicOutput: new EthDepositProgramOutput({
                         totalLocked,
                         storageDepositRoot,
                         attestationHash,
@@ -131,10 +131,10 @@ export const MintPrerequisitesProgram = ZkProgram({
 });
 
 // E2EPrerequisitesProgram
-export const MintPrerequisitesProgramProof = ZkProgram.Proof(
-    MintPrerequisitesProgram
+export const EthDepositProgramProof = ZkProgram.Proof(
+    EthDepositProgram
 );
-export class MintPrerequisitesProgramProofType extends MintPrerequisitesProgramProof {}
+export class EthDepositProgramProofType extends EthDepositProgramProof {}
 
 export async function compilePreRequisites() {
     // TODO optimise not all of these need to be compiled immediately
@@ -157,7 +157,7 @@ export async function compilePreRequisites() {
 
     console.time('E2EPrerequisitesProgram compile');
     const { verificationKey: e2ePrerequisitesVerificationKey } =
-        await MintPrerequisitesProgram.compile({ forceRecompile: true });
+        await EthDepositProgram.compile({ forceRecompile: true });
     console.timeEnd('E2EPrerequisitesProgram compile');
     console.log(
         `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`

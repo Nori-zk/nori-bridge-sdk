@@ -5,7 +5,7 @@ import {
     NoriTokenControllerConfig,
 } from './NoriControllerSubmitter.js';
 
-async function main() {
+export async function main() {
     console.log('Deploying Nori Token Controller...');
     const defaultLightnetUrl = 'http://localhost:8080/graphql';
     const networkUrl = process.env.MINA_RPC_NETWORK_URL || defaultLightnetUrl;
@@ -38,6 +38,10 @@ async function main() {
     const tokenBasePrivateKey =
         process.env.TOKEN_BASE_PRIVATE_KEY || PrivateKey.random().toBase58();
 
+
+    // Determine if we are a mock
+    const mock = !!process.env.MOCK;
+    
     // Create the config with the saved variables
     const config: NoriTokenControllerConfig = {
         senderPrivateKey,
@@ -50,6 +54,7 @@ async function main() {
             PrivateKey.fromBase58(senderPrivateKey).toPublicKey().toBase58(),
         ethProcessorAddress: process.env.ETH_PROCESSOR_ADDRESS,
         txFee: Number(process.env.TX_FEE || 0.1),
+        mock: mock
     };
 
     // // Network variable for deployment info
@@ -102,10 +107,3 @@ async function main() {
     console.log(`TOKEN_BASE_ADDRESS=${deployResult.tokenBaseAddress}`);
     console.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
 }
-
-main()
-    .then(console.log)
-    .catch((error) => {
-        console.error(`Deployment failed: ${error}`);
-        process.exit(1);
-    });

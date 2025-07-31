@@ -347,9 +347,9 @@ import { ContractDepositAttestorProofType } from './workers/mockCredVerification
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';
 import {
     compilePreRequisites,
-    MintPrerequisitesInput,
-    MintPrerequisitesProgram,
-    MintPrerequisitesProgramProofType,
+    EthDepositProgramInput,
+    EthDepositProgram,
+    EthDepositProgramProofType,
 } from './e2ePrerequisites.js';
 
 export class EthProofType extends EthProof {}
@@ -469,7 +469,7 @@ describe('failing_e2e', () => {
         await mockVerifierReady;
         console.log('Computing e2e');
         const e2ePrerequisitesProofJson = await mockVerifier.computeE2EPrerequisites(presentationJson.outputClaim.value.messageHash.value, ethVerifierProofJson, depositAttestationProofJson);
-        const e2ePrerequisitesProof = await MintPrerequisitesProgramProofType.fromJSON(e2ePrerequisitesProofJson);
+        const e2ePrerequisitesProof = await EthDepositProgramProofType.fromJSON(e2ePrerequisitesProofJson);
         console.log('Verifying e2e');
         e2ePrerequisitesProof.verify();
 

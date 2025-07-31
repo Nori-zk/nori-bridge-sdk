@@ -20,12 +20,43 @@ import {
 } from 'o1js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-import {
-    FungibleTokenAdminBase,
-    NoriTokenControllerDeployProps,
-} from './types.js';
-import { EthDepositProgramProofType } from './e2ePrerequisites.js';
-import { ProvableEcdsaSigPresentation } from './credentialAttestation.js';
+import { FungibleTokenAdminBase, NoriTokenControllerDeployProps } from './types.js';
+
+export interface MockMintProofData {
+    ethConsensusProof: MockConsenusProof;
+    depositAttesterProof: MockDepositAttesterProof;
+    minaAttestationProof: MockMinaAttestationProof;
+}
+
+export class MockConsenusProof extends Struct({
+    storeHash: Field,
+    attesterRoot: Field,
+}) {
+    async verify() {
+        return Bool(true);
+    }
+}
+
+export class MockDepositAttesterProof extends Struct({
+    attesterRoot: Field,
+    minaAttestHash: Field,
+    lockedSoFar: Field,
+}) {
+    async verify() {
+        return Bool(true);
+    }
+}
+export class MockMinaAttestationProof extends Struct({
+    proof: Field,
+}) {
+    async verify() {
+        return Bool(true);
+    }
+    async hash() {
+        return Poseidon.hash([this.proof]);
+    }
+}
+
 
 export class MockNoriTokenController
     extends TokenContract
@@ -111,59 +142,49 @@ export class MockNoriTokenController
         return AccountUpdate.createSigned(admin);
     }
     @method public async noriMint(
-        ethDepositProof: EthDepositProgramProofType,
-        presentationProof: ProvableEcdsaSigPresentation
+        ethConsensusProof: MockConsenusProof,
+        depositAttesterProof: MockDepositAttesterProof,
+        minaAttestationProof: MockMinaAttestationProof
     ) {
         const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
+        await ethConsensusProof.verify();
+        await depositAttesterProof.verify(); // Eth address is defo here its a public input! + attestationHash
+        await minaAttestationProof.verify(); // Eth address kina here ? output claim from presentation.verify() => {claim: OpType({owner: Byte})}
+        // from here we get issuer, and message
 
-        let { claims, outputClaim } = presentationProof.verify({
-            publicKey: this.address,
-            tokenId: this.tokenId,
-            methodName: 'verifyPresentation', // TODO RENAME
-        });
+        // minaAttestationProof presentation gives us message which is
 
-        Provable.asProver(() => {
-            Provable.log(
-                'ethDepositProof.publicOutput.attestationHash',
-                'outputClaim.messageHash',
-                ethDepositProof.publicOutput.attestationHash,
-                outputClaim.messageHash
-            );
-        });
-        ethDepositProof.publicOutput.attestationHash.assertEquals(
-            outputClaim.messageHash
-        );
-
+        // on the mina attestation re verify attestationHash (deposit matches the  presentation.verify() => {claim: OpType({owner: Byte})})
         //TODO when add ethProcessor
-        // assert ethDepositProof.publicOutput.storageDepositRoot;
-
+        // ethConsensusProof.storeHash.assertEquals(ethProcessor.storeHash);
+        depositAttesterProof.attesterRoot.assertEquals(
+            ethConsensusProof.attesterRoot
+        );
+        depositAttesterProof.minaAttestHash.assertEquals(
+            await minaAttestationProof.hash() // minaAttestationProof.message.value (hash(secret)) This would really be a presentation
+        );
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
 
         storage.account.isNew.requireEquals(Bool(false)); // that somehow allows to getState without index out of bounds
         storage.userKeyHash
             .getAndRequireEquals()
-            .assertEquals(
-                Poseidon.hash(userAddress.toFields()),
-                ' userKeyHash mismatch'
-            );
+            .assertEquals(Poseidon.hash(userAddress.toFields()));
 
         // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
         const amountToMint = await storage.increaseMintedAmount(
-            ethDepositProof.publicOutput.totalLocked
-        ); // TODO test mint amount is sane.
-        Provable.log(amountToMint, 'amount to mint');
+            depositAttesterProof.lockedSoFar
+        );
+        // Provable.log(amountToMint, 'amount to mint');
 
         // Here we have only one destination there is only m1.....
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
-
-        // Mint!
-        await token.mint(
+        const mintAccountUpdate = await token.mint(
             userAddress,
             UInt64.Unsafe.fromField(amountToMint)
         );

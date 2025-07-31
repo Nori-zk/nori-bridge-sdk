@@ -21,9 +21,9 @@ import {
 import { Presentation } from 'mina-attestations';
 import { minaSetup } from '../../testUtils.js';
 import {
-    MintPrerequisitesInput,
-    MintPrerequisitesProgram,
-    MintPrerequisitesProgramProofType,
+    EthDepositProgramInput,
+    EthDepositProgram,
+    EthDepositProgramProofType,
 } from '../../e2ePrerequisites.js';
 
 export class EthProofType extends EthProof {}
@@ -32,7 +32,7 @@ export class ContractDepositAttestorProofType extends ContractDepositAttestorPro
 
 export class MockVerifier extends SmartContract {
     @method.returns(Field) async verifyPresentation(
-        e2eProof: MintPrerequisitesProgramProofType,
+        e2eProof: EthDepositProgramProofType,
         presentation: ProvableEcdsaSigPresentation
     ): Promise<Field> {
         e2eProof.verify();
@@ -92,7 +92,7 @@ export class MockVerificationWorker {
 
         console.time('E2EPrerequisitesProgram compile');
         const { verificationKey: mockE2EPrerequisitesProgram } =
-            await MintPrerequisitesProgram.compile({ forceRecompile: true });
+            await EthDepositProgram.compile({ forceRecompile: true });
         console.timeEnd('E2EPrerequisitesProgram compile');
         console.log(
             `E2EPrerequisitesProgram compiled vk: '${mockE2EPrerequisitesProgram.hash}'.`
@@ -127,13 +127,13 @@ export class MockVerificationWorker {
                 depositAttestationProofJson
             );
 
-        const e2ePrerequisitesInput = new MintPrerequisitesInput({
+        const e2ePrerequisitesInput = new EthDepositProgramInput({
             credentialAttestationHash,
         });
 
         console.log('Computing e2e');
         console.time('E2EPrerequisitesProgram.compute');
-        const e2ePrerequisitesProof = await MintPrerequisitesProgram.compute(
+        const e2ePrerequisitesProof = await EthDepositProgram.compute(
             e2ePrerequisitesInput,
             ethVerifierProof,
             depositAttestationProof
@@ -169,13 +169,13 @@ export class MockVerificationWorker {
 
         console.log('Building e2e input');
         // Now the deposit has been processed we are free to compute the e2e proof.
-        const e2ePrerequisitesInput = new MintPrerequisitesInput({
+        const e2ePrerequisitesInput = new EthDepositProgramInput({
             credentialAttestationHash: messageHash,
         });
 
         console.log('Computing e2e');
         console.time('E2EPrerequisitesProgram.compute');
-        const e2ePrerequisitesProof = await MintPrerequisitesProgram.compute(
+        const e2ePrerequisitesProof = await EthDepositProgram.compute(
             e2ePrerequisitesInput,
             ethVerifierProof,
             depositAttestationProof
