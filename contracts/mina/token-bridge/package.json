@@ -45,7 +45,8 @@
         "testOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm",
         "controller": "tsc && NODE_NO_WARNINGS=1 node --test ./target/src/NoriTokenController.test.js --loader ts-node/esm",
         "nori": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm --test-name-pattern='NoriCore' ",
-        "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' "
+        "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' ",
+        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/NoriTokenControllerDeploy.js"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.16.4",
