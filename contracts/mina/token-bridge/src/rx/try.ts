@@ -7,7 +7,6 @@ import {
 } from './topics.js';
 import { getBridgeStateWithTimings$ } from './state.js';
 import { getDepositProcessingStatus$ } from './deposit.js';
-import { ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
 // Util for testing Obserables
 function testSub($: Observable<any>) {
