@@ -19,6 +19,7 @@ import {
     PresentationSpec,
     StoredCredential,
 } from 'mina-attestations';
+import { wordToBytes } from '@nori-zk/proof-conversion';
 
 // Secret type utils
 
@@ -127,7 +128,7 @@ export async function compileEcdsaEthereum(cache?: Cache) {
         maxMessageLength: SecretMaxLength;
         cache?: Cache;
     }; // Note that cache does not really exist here FIXME!
-    
+
     const ecdsaCredentialOptions = { proofsEnabled: true } as {
         proofsEnabled: boolean;
         cache?: Cache;
@@ -147,7 +148,7 @@ export async function compileEcdsaEthereum(cache?: Cache) {
 
 // Compile EcdsaSigPresentationVerifier
 export async function compileEcdsaSigPresentationVerifier(cache?: Cache) {
-    await EcdsaSigPresentationVerifier.compile({cache: cache});
+    await EcdsaSigPresentationVerifier.compile({ cache: cache });
 }
 
 // Methods
@@ -259,4 +260,16 @@ export function hashSecret<FixedString extends string>(
 ): Field {
     const secretString = SecretString.from(secret as string);
     return secretString.hash();
+}
+
+export function getSecretHashFromPresentationJson(presentationJson: string) {
+    const presentation = JSON.parse(presentationJson);
+    const messageHashString = presentation.outputClaim.value.messageHash.value;
+    const messageHashBigInt = BigInt(messageHashString);
+    const credentialAttestationHashField = Field.from(messageHashBigInt);
+    const beAttestationHashBytes = Bytes.from(
+        wordToBytes(credentialAttestationHashField, 32).reverse()
+    );
+    const credentialAttestationBEHex = `0x${beAttestationHashBytes.toHex()}`;
+    return { credentialAttestationBEHex, credentialAttestationHashField };
 }

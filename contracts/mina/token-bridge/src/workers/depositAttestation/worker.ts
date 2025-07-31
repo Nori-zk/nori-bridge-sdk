@@ -6,7 +6,8 @@ import {
     compileDepositAttestationPreRequisites,
     computeDepositAttestation,
 } from '../../depositAttestation.js';
-import { Field } from 'o1js/dist/node/index.js';
+import { Bytes, Field } from 'o1js/dist/node/index.js';
+import { wordToBytes } from '@nori-zk/proof-conversion/build/src/index.js';
 
 export class DepositAttestationWorker {
     async compileAttestation() {
@@ -65,11 +66,19 @@ export class DepositAttestationWorker {
     }
 
     async compute(
-        attestationBEHex: string,
+        presentationJson: string,
         depositBlockNumber: number,
         ethAddressLowerHex: string
     ) {
-
+        const presentation = JSON.parse(presentationJson);
+        const messageHashString =
+            presentation.outputClaim.value.messageHash.value;
+        const messageHashBigInt = BigInt(messageHashString);
+        const credentialAttestationHash = Field.from(messageHashBigInt);
+        const beAttestationHashBytes = Bytes.from(
+            wordToBytes(credentialAttestationHash, 32).reverse()
+        );
+        const attestationBEHex = `0x${beAttestationHashBytes.toHex()}`; // this does not have the 0x....
         const { depositAttestationProof, ethVerifierProof, despositSlotRaw } =
             await computeDepositAttestation(
                 depositBlockNumber,
@@ -77,20 +86,19 @@ export class DepositAttestationWorker {
                 attestationBEHex
             );
 
-
-        /*const e2ePrerequisitesInput = new EthDepositProgramInput({
-            credentialAttestationHash: messageHash,
+        const e2ePrerequisitesInput = new EthDepositProgramInput({
+            credentialAttestationHash,
         });
 
         console.log('Computing e2e');
         console.time('E2EPrerequisitesProgram.compute');
-        const e2ePrerequisitesProof = await EthDepositProgram.compute(
+        const ethDepositProof = await EthDepositProgram.compute(
             e2ePrerequisitesInput,
             ethVerifierProof,
             depositAttestationProof
         );
         console.timeEnd('E2EPrerequisitesProgram.compute');
 
-        return e2ePrerequisitesProof.proof.toJSON();*/
+        return { despositSlotRaw, ethDepositProofJson: ethDepositProof.proof.toJSON() };
     }
 }

@@ -30,6 +30,7 @@ import { getCredentialAttestation } from './workers/credentialAttestation/node/p
 import { getMockVerification } from './workers/mockCredVerification/node/parent.js';
 import { getE2e } from './workers/e2eWorker/node/parent.js';
 import { deployTokenController } from './NoriTokenControllerDeploy.js';
+import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
 
 describe('e2e', () => {
     test('e2e', async () => {
@@ -59,12 +60,15 @@ describe('e2e', () => {
         // Generate a funded test private key for mina litenet
         const litenetSk = await getNewMinaLiteNetAccountSK();
         const minaPrivateKey = PrivateKey.fromBase58(litenetSk);
+        const minaPrivateKeyBase58 = minaPrivateKey.toBase58();
         const minaPublicKey = minaPrivateKey.toPublicKey();
+        const minaPublicKeyBase58 = minaPublicKey.toBase58();
+        
 
         // Deploy needs to done already
         console.log('Readying minter');
         const noriMinterReady = noriMinter.ready({
-            senderPrivateKey: minaPrivateKey.toBase58(),
+            senderPrivateKey: minaPrivateKeyBase58,
             network: 'devnet',
             networkUrl: 'http://localhost:3000/graphql',
             txFee: 0.1 * 1e9,
@@ -96,8 +100,8 @@ describe('e2e', () => {
         console.timeEnd('ethSecretSignature');
 
         console.log('ethSecretSignature', ethSecretSignature);
-        console.log('minaPrivateKey.toBase58()', minaPrivateKey.toBase58());
-        console.log('minaPublicKey.toBase58()', minaPublicKey.toBase58());
+        console.log('minaPrivateKey.toBase58()', minaPrivateKeyBase58);
+        console.log('minaPublicKey.toBase58()', minaPublicKeyBase58);
         //console.log('zkAppPrivateKey.toBase58()', zkAppPrivateKey.toBase58());
         //console.log('zkAppPublicKey.toBase58()', zkAppPublicKey.toBase58());
 
@@ -109,7 +113,7 @@ describe('e2e', () => {
             secret,
             ethSecretSignature,
             ethWallet.address,
-            minaPublicKey.toBase58()
+            minaPublicKeyBase58
         );
         console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
@@ -127,11 +131,11 @@ describe('e2e', () => {
         // WALLET takes a presentation request and the WALLET can retrieve the stored credential
         // From this it creates a presentation.
         console.time('getPresentation');
-        const presentationJson =
+        const presentationJsonStr =
             await credentialAttestation.computeEcdsaSigPresentation(
                 presentationRequestJson,
                 credentialJson,
-                minaPrivateKey.toBase58()
+                minaPrivateKeyBase58
             );
         console.timeEnd('getPresentation'); // 46.801s
 
@@ -139,21 +143,9 @@ describe('e2e', () => {
         credentialAttestation.terminate();
 
         // Extract hashed secret
-        const presentation = JSON.parse(presentationJson);
-        const messageHashString =
-            presentation.outputClaim.value.messageHash.value;
-        const messageHashBigInt = BigInt(messageHashString);
-        const credentialAttestationHash = Field.from(messageHashBigInt);
-        console.log(
-            'credentialAttestationHash from presentation.outputClaim.value.messageHash.value',
-            credentialAttestationHash
-        );
 
-        const beAttestationHashBytes = Bytes.from(
-            wordToBytes(credentialAttestationHash, 32).reverse()
-        );
-        const attestationBEHex = `0x${beAttestationHashBytes.toHex()}`; // this does not have the 0x....
-        console.log('attestationBEHex', attestationBEHex);
+        const { credentialAttestationBEHex, credentialAttestationHashField } = getSecretHashFromPresentationJson(presentationJsonStr);
+        console.log('attestationBEHex', credentialAttestationBEHex);
 
         // CONNECT TO BRIDGE **************************************************
 
@@ -188,7 +180,7 @@ describe('e2e', () => {
 
         console.time('lockingTokens');
         const depositBlockNumber = await lockTokens(
-            credentialAttestationHash,
+            credentialAttestationHashField,
             0.000001
         );
         console.timeEnd('lockingTokens');
@@ -215,8 +207,7 @@ describe('e2e', () => {
         );
 
         const {
-            depositAttestationProofJson,
-            ethVerifierProofJson,
+            ethDepositProofJson,
             despositSlotRaw,
         } = await firstValueFrom(
             depositProcessingStatus$.pipe(
@@ -232,18 +223,16 @@ describe('e2e', () => {
                     await depositAttestationWorkerReady;
                     console.log('Computing proofs...');
                     const {
-                        depositAttestationProofJson,
-                        ethVerifierProofJson,
+                        ethDepositProofJson,
                         despositSlotRaw,
-                    } = await depositAttestation.computeAttestation(
+                    } = await depositAttestation.compute(
+                        presentationJsonStr,
                         depositBlockNumber,
                         ethAddressLowerHex,
-                        attestationBEHex
                     );
                     depositAttestation.terminate();
                     return {
-                        depositAttestationProofJson,
-                        ethVerifierProofJson,
+                        ethDepositProofJson,
                         despositSlotRaw,
                     };
                 })
@@ -266,23 +255,11 @@ describe('e2e', () => {
 
         await noriMinterReady;
         console.time('noriMinter.setupStorage');
-        await noriMinter.setupStorage(minaPublicKey.toBase58());
+        await noriMinter.setupStorage(minaPublicKeyBase58);
         console.timeEnd('noriMinter.setupStorage');
 
-        /*await mockVerifierReady;
-
-        console.time('mockVerifier');
-        await mockVerifier.verify(
-            ethVerifierProofJson,
-            depositAttestationProofJson,
-            presentationJson,
-            minaPrivateKey.toBase58(),
-            zkAppPrivateKey.toBase58()
-        );
-        console.timeEnd('mockVerifier');*/
-
         console.time('Minting');
-        //await noriMinter.mint(minaPublicKey.toBase58(), {ethDepositProofJson: })
+        await noriMinter.mint(minaPublicKeyBase58, {ethDepositProofJson: ethDepositProofJson, presentationProofStr: presentationJsonStr}, minaPrivateKey.toBase58())
         console.timeEnd('Minted');
         
 
