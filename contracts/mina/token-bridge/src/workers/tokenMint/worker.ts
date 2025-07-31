@@ -188,7 +188,9 @@ export class TokenMintWorker {
 
         console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
-        await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        // FIXME do we need 
+        await this.fetchAccounts([userPublicKey, noriAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(noriAddress);
@@ -284,7 +286,8 @@ export class TokenMintWorker {
 
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
-        await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        await this.fetchAccounts([userPublicKey, noriAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(noriAddress);
@@ -341,12 +344,12 @@ export class TokenMintWorker {
     }
 
     // Not sure if the wallet should do this.... or the worker FIXME
-    async send(signedAndProvedTxJsonStr: string) {
+    /*async send(signedAndProvedTxJsonStr: string) {
         const tx = Transaction.fromJSON(
             JSON.parse(signedAndProvedTxJsonStr) as any
-        ) as unknown as Mina.Transaction<true, false>;
-        throw new Error('theres not fucking way this is gonna work lol');
+        ) as unknown as Mina.Transaction<true, true>;
+        //throw new Error('theres not fucking way this is gonna work lol');
         const result = await tx.send().wait();
         return { txHash: result.hash };
-    }
+    }*/
 }

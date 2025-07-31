@@ -1,4 +1,11 @@
-import { fetchAccount, Mina, NetworkId, PrivateKey, PublicKey, Transaction } from 'o1js';
+import {
+    fetchAccount,
+    Mina,
+    NetworkId,
+    PrivateKey,
+    PublicKey,
+    Transaction,
+} from 'o1js';
 import {
     compileEcdsaEthereum,
     compileEcdsaSigPresentationVerifier,
@@ -67,30 +74,15 @@ export class MockWalletWorker {
     }
 
     // Sign and send transaction
-
-    async sign(provedTxJsonStr: string) {
-        // FIXME this is a crazy interface....
-        
-        //Mina.Transaction
-        const tx = Transaction.fromJSON(provedTxJsonStr as any) as unknown as Mina.Transaction<true, false>;
-        throw new Error('sign is not gonna work as implemented here');
-
-        const signedTx = tx.sign([this.#minaPrivateKey]);
-
-        // Do we need to send also?? not sure if we return it to the client to do that
-
-        return signedTx.toJSON();
-
-
-        //Mina.Transaction<false,false>.fromJSON() ;//.fromJSON(); //txJsonStr as unknown as ZkappCommand);
-    }
-
-    // Not sure if the wallet should do this.... or the worker FIXME
-    async send(signedAndProvedTxJsonStr: string) {
-        const tx = Transaction.fromJSON(signedAndProvedTxJsonStr as any) as unknown as Mina.Transaction<true, false>;
-        throw new Error('send is not gonna work as implemented here');
-        const result = await tx.send().wait();
+    async signAndSend(provedTxJsonStr: string) {
+        if (!this.#minaPrivateKey)
+            throw new Error(
+                '#minaPrivateKey is undefined please call setMinaPrivateKey first'
+            );
+        const tx = Transaction.fromJSON(
+            JSON.parse(provedTxJsonStr) as any
+        ) as unknown as Mina.Transaction<true, false>;
+        const result = await tx.sign([this.#minaPrivateKey]).send().wait();
         return { txHash: result.hash };
     }
-
 }

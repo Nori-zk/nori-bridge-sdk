@@ -38,10 +38,6 @@ describe('e2e', () => {
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
         } = await deployTokenController();
 
-        const noriTokenControllerAddress = PublicKey.fromBase58(
-            noriTokenControllerAddressBase58
-        );
-
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
         // GET WALLET **************************************************
@@ -75,18 +71,6 @@ describe('e2e', () => {
         // Configure wallet
         // In reality we would not pass this from the main thread.
         mockWalletWorker.setMinaPrivateKey(senderPrivateKeyBase58);
-
-        // Deploy needs to done already
-        /*console.log('Readying minter');
-        const noriMinterReady = noriMinter.ready({
-            senderPrivateKey: senderPrivateKeyBase58,
-            network: 'devnet',
-            networkUrl: 'http://localhost:3000/graphql',
-            txFee: 0.1 * 1e9,
-            noriTokenControllerAddress: noriTokenControllerAddressBase58,
-            tokenBaseAddress: tokenBaseAddressBase58,
-            // ethProcessorAddress
-        });*/
 
         // OBTAIN CREDENTIAL **************************************************
 
@@ -256,10 +240,7 @@ describe('e2e', () => {
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
         );
-        const setupTxSignedStr = await mockWalletWorker.sign(provedSetupTxStr);
-        const { txHash: setupTxHash } = await tokenMintWorker.send(
-            setupTxSignedStr
-        ); // Not sure who should be sending but guessing this.
+        const { txHash: setupTxHash } = await mockWalletWorker.signAndSend(provedSetupTxStr);
         console.log('setupTxHash', setupTxHash);
         console.timeEnd('noriMinter.setupStorage');
 
@@ -274,11 +255,8 @@ describe('e2e', () => {
             1e9 * 0.1,
             true
         );
-        const signedProvedMintTxStr = await mockWalletWorker.sign(
+        const { txHash: mintTxHash } = await mockWalletWorker.signAndSend(
             provedMintTxStr
-        );
-        const { txHash: mintTxHash } = await tokenMintWorker.send(
-            signedProvedMintTxStr
         );
         console.log('mintTxHash', mintTxHash);
         console.timeEnd('Minted');
