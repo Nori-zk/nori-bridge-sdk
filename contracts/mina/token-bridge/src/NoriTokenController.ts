@@ -5,6 +5,7 @@ import {
     Bool,
     DeployArgs,
     Field,
+    JsonProof,
     method,
     Permissions,
     Poseidon,
@@ -30,6 +31,11 @@ import { ProvableEcdsaSigPresentation } from './credentialAttestation.js';
 export interface MintProofData {
     ethDepositProof: EthDepositProgramProofType,
     presentationProof: ProvableEcdsaSigPresentation
+}
+
+export interface MintProofDataJson {
+    ethDepositProofJson: JsonProof,
+    presentationProofStr: string
 }
 
 export class NoriTokenController
