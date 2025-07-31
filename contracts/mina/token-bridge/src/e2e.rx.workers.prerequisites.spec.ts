@@ -65,7 +65,7 @@ describe('e2e-rx-workers', () => {
         const depositAttestation = getDepositAttestation();
         const credentialAttestation = getCredentialAttestation();
 
-        const depositAttestationWorkerReady = depositAttestation.compile();
+        const depositAttestationWorkerReady = depositAttestation.compileAttestation();
 
         const credentialAttestationReady = credentialAttestation.compile();
 
@@ -260,7 +260,7 @@ describe('e2e-rx-workers', () => {
                         depositAttestationProofJson,
                         ethVerifierProofJson,
                         despositSlotRaw,
-                    } = await depositAttestation.compute(
+                    } = await depositAttestation.computeAttestation(
                         depositBlockNumber,
                         ethAddressLowerHex,
                         attestationBEHex

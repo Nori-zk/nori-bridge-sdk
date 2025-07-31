@@ -235,7 +235,7 @@ describe('e2e', () => {
                         depositAttestationProofJson,
                         ethVerifierProofJson,
                         despositSlotRaw,
-                    } = await depositAttestation.compute(
+                    } = await depositAttestation.computeAttestation(
                         depositBlockNumber,
                         ethAddressLowerHex,
                         attestationBEHex
@@ -282,7 +282,7 @@ describe('e2e', () => {
         console.timeEnd('mockVerifier');*/
 
         console.time('Minting');
-        await noriMinter.mint(minaPublicKey.toBase58(), {ethDepositProofJson: })
+        //await noriMinter.mint(minaPublicKey.toBase58(), {ethDepositProofJson: })
         console.timeEnd('Minted');
         
 

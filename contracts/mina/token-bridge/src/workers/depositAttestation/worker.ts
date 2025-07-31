@@ -78,7 +78,7 @@ export class DepositAttestationWorker {
             );
 
 
-        const e2ePrerequisitesInput = new EthDepositProgramInput({
+        /*const e2ePrerequisitesInput = new EthDepositProgramInput({
             credentialAttestationHash: messageHash,
         });
 
@@ -91,6 +91,6 @@ export class DepositAttestationWorker {
         );
         console.timeEnd('E2EPrerequisitesProgram.compute');
 
-        return e2ePrerequisitesProof.proof.toJSON();
+        return e2ePrerequisitesProof.proof.toJSON();*/
     }
 }

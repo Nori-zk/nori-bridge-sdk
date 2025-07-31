@@ -439,7 +439,7 @@ describe('failing_e2e', () => {
             depositAttestationProofJson,
             ethVerifierProofJson,
             despositSlotRaw,
-        } = await depositAttestation.compute(
+        } = await depositAttestation.computeAttestation(
             depositBlockNumber,
             ethAddressLowerHex,
             attestationBEHex
