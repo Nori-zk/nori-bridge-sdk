@@ -23,7 +23,7 @@ import {
     MockMinaAttestationProof,
     MockMintProofData,
 } from './NoriTokenControllerMock.js';
-import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils/build/contractDepositAttestor.js';
+import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils';
 import { EthVerifier } from '@nori-zk/o1js-zk-utils';
 import { EthDepositProgram } from './e2ePrerequisites.js';
 import { MintProofData, NoriTokenController } from './NoriTokenController.js';
@@ -237,7 +237,7 @@ export class NoriTokenControllerSubmitter {
 
     async compileContracts(): Promise<void> {
         console.log('Compiling prerequisites...');
-        this.#compilePrerequisites();
+        await this.#compilePrerequisites();
 
         console.log('Compiling contracts...');
         // Compile all required contracts

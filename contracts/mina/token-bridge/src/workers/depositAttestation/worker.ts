@@ -1,13 +1,13 @@
 import {
     EthDepositProgram,
     EthDepositProgramInput,
-} from 'src/e2ePrerequisites.js';
+} from '../../e2ePrerequisites.js';
 import {
     compileDepositAttestationPreRequisites,
     computeDepositAttestation,
 } from '../../depositAttestation.js';
-import { Bytes, Field } from 'o1js/dist/node/index.js';
-import { wordToBytes } from '@nori-zk/proof-conversion/build/src/index.js';
+import { Bytes, Field } from 'o1js';
+import { wordToBytes } from '@nori-zk/proof-conversion';
 
 export class DepositAttestationWorker {
     async compileAttestation() {
