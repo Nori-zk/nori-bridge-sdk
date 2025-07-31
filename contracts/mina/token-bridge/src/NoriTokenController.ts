@@ -27,7 +27,12 @@ import {
 import { EthDepositProgramProofType } from './e2ePrerequisites.js';
 import { ProvableEcdsaSigPresentation } from './credentialAttestation.js';
 
-export class MockNoriTokenController
+export interface MintProofData {
+    ethDepositProof: EthDepositProgramProofType,
+    presentationProof: ProvableEcdsaSigPresentation
+}
+
+export class NoriTokenController
     extends TokenContract
     implements FungibleTokenAdminBase
 {

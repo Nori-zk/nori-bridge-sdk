@@ -42,7 +42,7 @@ describe('e2e-rx-workers-mock', () => {
         const credentialAttestation = getCredentialAttestation();
         const mockVerifier = getMockVerification();
 
-        const depositAttestationWorkerReady = depositAttestation.compile();
+        const depositAttestationWorkerReady = depositAttestation.compileAttestation();
         const credentialAttestationReady = credentialAttestation.compile();
         const mockVerifierReady = mockVerifier.compile();
 
@@ -206,7 +206,7 @@ describe('e2e-rx-workers-mock', () => {
                         depositAttestationProofJson,
                         ethVerifierProofJson,
                         despositSlotRaw,
-                    } = await depositAttestation.compute(
+                    } = await depositAttestation.computeAttestation(
                         depositBlockNumber,
                         ethAddressLowerHex,
                         attestationBEHex

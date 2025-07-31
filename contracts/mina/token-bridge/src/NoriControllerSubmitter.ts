@@ -23,10 +23,14 @@ import {
     MockMinaAttestationProof,
     MockMintProofData,
 } from './NoriTokenControllerMock.js';
-import { compileEcdsaEthereum, compileEcdsaSigPresentationVerifier, NoriTokenController } from './index.js';
 import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils/build/contractDepositAttestor.js';
-import { EthVerifier } from '@nori-zk/o1js-zk-utils/build/ethVerifier.js';
+import { EthVerifier } from '@nori-zk/o1js-zk-utils';
 import { EthDepositProgram } from './e2ePrerequisites.js';
+import { MintProofData, NoriTokenController } from './NoriTokenController.js';
+import {
+    compileEcdsaEthereum,
+    compileEcdsaSigPresentationVerifier,
+} from './credentialAttestation.js';
 
 export interface NoriTokenControllerConfig {
     senderPrivateKey: string; //TODO make client side version
@@ -199,7 +203,10 @@ export class NoriTokenControllerSubmitter {
 
         console.time('ContractDepositAttestor compile');
         const { verificationKey: contractDepositAttestorVerificationKey } =
-            await ContractDepositAttestor.compile({ cache: this.#cache, forceRecompile: true });
+            await ContractDepositAttestor.compile({
+                cache: this.#cache,
+                forceRecompile: true,
+            });
         console.timeEnd('ContractDepositAttestor compile');
         console.log(
             `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
@@ -207,7 +214,10 @@ export class NoriTokenControllerSubmitter {
 
         console.time('EthVerifier compile');
         const { verificationKey: ethVerifierVerificationKey } =
-            await EthVerifier.compile({ cache: this.#cache, forceRecompile: true });
+            await EthVerifier.compile({
+                cache: this.#cache,
+                forceRecompile: true,
+            });
         console.timeEnd('EthVerifier compile');
         console.log(
             `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
@@ -215,7 +225,10 @@ export class NoriTokenControllerSubmitter {
 
         console.time('EthDepositProgram compile');
         const { verificationKey: EthDepositProgramVerificationKey } =
-            await EthDepositProgram.compile({ cache: this.#cache, forceRecompile: true });
+            await EthDepositProgram.compile({
+                cache: this.#cache,
+                forceRecompile: true,
+            });
         console.timeEnd('EthDepositProgram compile');
         console.log(
             `EthDepositProgram compiled vk: '${EthDepositProgramVerificationKey.hash}'.`
@@ -225,7 +238,7 @@ export class NoriTokenControllerSubmitter {
     async compileContracts(): Promise<void> {
         console.log('Compiling prerequisites...');
         this.#compilePrerequisites();
-    
+
         console.log('Compiling contracts...');
         // Compile all required contracts
         console.log('Compiling NoriStorageInterface...');
@@ -356,10 +369,14 @@ export class NoriTokenControllerSubmitter {
         return { txHash: result.hash };
     }
 
+    #isMintProofData(obj: any): obj is MintProofData {
+        return 'ethDepositProof' in obj && 'presentationProof' in obj;
+    }
+
     //TODO make one that returns unsigned transaction to be passed to the wallet
     async mint(
         userPublicKey: PublicKey,
-        proofData: MockMintProofData,
+        proofData: MockMintProofData | MintProofData,
         userPrivateKey: PrivateKey,
         fundNewAccount = true
     ): Promise<MintResult> {
@@ -373,11 +390,25 @@ export class NoriTokenControllerSubmitter {
                 if (fundNewAccount) {
                     AccountUpdate.fundNewAccount(userPublicKey, 1);
                 }
-                await this.#noriTokenController.noriMint(
-                    proofData.ethConsensusProof,
-                    proofData.depositAttesterProof,
-                    proofData.minaAttestationProof
-                );
+
+                if (this.#mock) {
+                    const mockNoriTokenController = this
+                        .#noriTokenController as MockNoriTokenController;
+                    const mockProofData = proofData as MockMintProofData;
+                    await mockNoriTokenController.noriMint(
+                        mockProofData.ethConsensusProof,
+                        mockProofData.depositAttesterProof,
+                        mockProofData.minaAttestationProof
+                    );
+                } else {
+                    const noriTokenController = this
+                        .#noriTokenController as NoriTokenController;
+                    const realProofData = proofData as MintProofData;
+                    await noriTokenController.noriMint(
+                        realProofData.ethDepositProof,
+                        realProofData.presentationProof
+                    );
+                }
             }
         );
 
@@ -396,11 +427,22 @@ export class NoriTokenControllerSubmitter {
         const balance = await this.#tokenBase.getBalanceOf(userPublicKey);
 
         console.log('Minting completed successfully');
-        return {
-            txHash: result.hash,
-            mintedAmount: proofData.depositAttesterProof.lockedSoFar.toString(),
-            userBalance: balance.toString(),
-        };
+
+        if (this.#isMintProofData(proofData)) {
+            return {
+                txHash: result.hash,
+                mintedAmount:
+                    proofData.ethDepositProof.publicOutput.totalLocked.toString(),
+                userBalance: balance.toString(),
+            };
+        } else {
+            return {
+                txHash: result.hash,
+                mintedAmount:
+                    proofData.depositAttesterProof?.lockedSoFar.toString(),
+                userBalance: balance.toString(),
+            };
+        }
     }
 
     async getUserBalance(userPublicKey: PublicKey): Promise<UInt64> {

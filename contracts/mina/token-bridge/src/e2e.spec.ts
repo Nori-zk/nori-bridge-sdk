@@ -1,4 +1,4 @@
-import { Bytes, Field, PrivateKey } from 'o1js';
+import { Bytes, Field, PrivateKey, PublicKey } from 'o1js';
 import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
@@ -28,9 +28,17 @@ import { signSecret } from './ethSignature.js';
 import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
 import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
 import { getMockVerification } from './workers/mockCredVerification/node/parent.js';
+import { getE2e } from './workers/e2eWorker/node/parent.js';
+import { deployTokenController } from './NoriTokenControllerDeploy.js';
 
-describe('e2e-rx-workers-mock', () => {
-    test('mock_e2e_rx_with_workers_pipeline', async () => {
+describe('e2e', () => {
+    test('e2e', async () => {
+        // Deploy token minter contracts
+        const { tokenBaseAddress: tokenBaseAddressBase58, noriTokenControllerAddress: noriTokenControllerAddressBase58 } =
+            await deployTokenController();
+
+        const noriTokenControllerAddress = PublicKey.fromBase58(noriTokenControllerAddressBase58);
+
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
         // GET WALLET **************************************************
@@ -40,11 +48,11 @@ describe('e2e-rx-workers-mock', () => {
         // Init workers
         const depositAttestation = getDepositAttestation();
         const credentialAttestation = getCredentialAttestation();
-        const mockVerifier = getMockVerification();
+        const noriMinter = getE2e();
 
         const depositAttestationWorkerReady = depositAttestation.compile();
         const credentialAttestationReady = credentialAttestation.compile();
-        const mockVerifierReady = mockVerifier.compile();
+        
 
         // SETUP MINA **************************************************
 
@@ -53,9 +61,30 @@ describe('e2e-rx-workers-mock', () => {
         const minaPrivateKey = PrivateKey.fromBase58(litenetSk);
         const minaPublicKey = minaPrivateKey.toPublicKey();
 
+        // Deploy needs to done already
+        console.log('Readying minter');
+        const noriMinterReady = noriMinter.ready({
+            senderPrivateKey: minaPrivateKey.toBase58(),
+            network: 'devnet',
+            networkUrl: 'http://localhost:3000/graphql',
+            txFee: 0.1 * 1e9,
+            noriTokenControllerAddress: noriTokenControllerAddressBase58,
+            tokenBaseAddress: tokenBaseAddressBase58,
+            // ethProcessorAddress
+        });
+
+        /*
+
+  host: 'localhost',
+                port: 8181,
+                path: '/acquire-account',
+                method: 'GET',
+        */
+
+
         // Generate a random zkAppAddress
-        const zkAppPrivateKey = PrivateKey.random();
-        const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
+        /*const zkAppPrivateKey = PrivateKey.random();
+        const zkAppPublicKey = zkAppPrivateKey.toPublicKey();*/
 
         // OBTAIN CREDENTIAL **************************************************
 
@@ -69,8 +98,8 @@ describe('e2e-rx-workers-mock', () => {
         console.log('ethSecretSignature', ethSecretSignature);
         console.log('minaPrivateKey.toBase58()', minaPrivateKey.toBase58());
         console.log('minaPublicKey.toBase58()', minaPublicKey.toBase58());
-        console.log('zkAppPrivateKey.toBase58()', zkAppPrivateKey.toBase58());
-        console.log('zkAppPublicKey.toBase58()', zkAppPublicKey.toBase58());
+        //console.log('zkAppPrivateKey.toBase58()', zkAppPrivateKey.toBase58());
+        //console.log('zkAppPublicKey.toBase58()', zkAppPublicKey.toBase58());
 
         // WALLET *******************
         await credentialAttestationReady;
@@ -90,7 +119,7 @@ describe('e2e-rx-workers-mock', () => {
         console.time('getPresentationRequest');
         const presentationRequestJson =
             await credentialAttestation.computeEcdsaSigPresentationRequest(
-                zkAppPublicKey.toBase58()
+                noriTokenControllerAddressBase58
             );
         console.timeEnd('getPresentationRequest'); // 1.348ms
 
@@ -234,7 +263,13 @@ describe('e2e-rx-workers-mock', () => {
         console.log('Deposit is processed unblocking mint process.');
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
-        await mockVerifierReady;
+
+        await noriMinterReady;
+        console.time('noriMinter.setupStorage');
+        await noriMinter.setupStorage(minaPublicKey.toBase58());
+        console.timeEnd('noriMinter.setupStorage');
+
+        /*await mockVerifierReady;
 
         console.time('mockVerifier');
         await mockVerifier.verify(
@@ -244,7 +279,12 @@ describe('e2e-rx-workers-mock', () => {
             minaPrivateKey.toBase58(),
             zkAppPrivateKey.toBase58()
         );
-        console.timeEnd('mockVerifier');
+        console.timeEnd('mockVerifier');*/
+
+        console.time('Minting');
+        await noriMinter.mint(minaPublicKey.toBase58(), {ethDepositProofJson: })
+        console.timeEnd('Minted');
+        
 
         console.log('Minted!');
     }, 1000000000);

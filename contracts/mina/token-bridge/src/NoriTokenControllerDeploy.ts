@@ -5,7 +5,7 @@ import {
     NoriTokenControllerConfig,
 } from './NoriControllerSubmitter.js';
 
-export async function main() {
+export async function deployTokenController() {
     console.log('Deploying Nori Token Controller...');
     const defaultLightnetUrl = 'http://localhost:8080/graphql';
     const networkUrl = process.env.MINA_RPC_NETWORK_URL || defaultLightnetUrl;
@@ -106,4 +106,11 @@ export async function main() {
     );
     console.log(`TOKEN_BASE_ADDRESS=${deployResult.tokenBaseAddress}`);
     console.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
+
+    const { tokenBaseAddress, noriTokenControllerAddress} = deployResult;
+
+    return {
+        tokenBaseAddress,
+        noriTokenControllerAddress
+    }
 }

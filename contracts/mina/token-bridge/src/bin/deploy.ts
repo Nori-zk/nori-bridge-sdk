@@ -1,6 +1,6 @@
-import { main } from '../NoriTokenControllerDeploy.js';
+import { deployTokenController } from '../NoriTokenControllerDeploy.js';
 
-main()
+deployTokenController()
     .then(console.log)
     .catch((error) => {
         console.error(`Deployment failed: ${error}`);
