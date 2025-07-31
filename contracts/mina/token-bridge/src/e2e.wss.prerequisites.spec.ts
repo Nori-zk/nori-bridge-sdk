@@ -39,8 +39,8 @@ import {
     fieldToHexLE,
 } from '@nori-zk/o1js-zk-utils';
 import {
-    E2ePrerequisitesInput,
-    E2EPrerequisitesProgram,
+    MintPrerequisitesInput,
+    MintPrerequisitesProgram,
 } from './e2ePrerequisites.js';
 import {
     fieldToHexBE,
@@ -614,12 +614,12 @@ describe('should perform an end to end pipeline', () => {
             }
             invokedMintMock = true;
             highLevelState = 'minting';
-            const e2ePrerequisitesInput = new E2ePrerequisitesInput({
+            const e2ePrerequisitesInput = new MintPrerequisitesInput({
                 credentialAttestationHash,
             });
 
             console.time('E2EPrerequisitesProgram.compute');
-            const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
+            const e2ePrerequisitesProof = await MintPrerequisitesProgram.compute(
                 e2ePrerequisitesInput,
                 ethVerifierProof,
                 depositAttestationProof
@@ -863,7 +863,7 @@ describe('should perform an end to end pipeline', () => {
 
         console.time('E2EPrerequisitesProgram compile');
         const { verificationKey: e2ePrerequisitesVerificationKey } =
-            await E2EPrerequisitesProgram.compile({ forceRecompile: true });
+            await MintPrerequisitesProgram.compile({ forceRecompile: true });
         console.timeEnd('E2EPrerequisitesProgram compile');
         console.log(
             `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`

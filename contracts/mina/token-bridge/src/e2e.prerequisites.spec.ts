@@ -23,8 +23,8 @@ import { Field, UInt64, Bytes } from 'o1js';
 import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
 import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils/build/utils.js';
 import {
-    E2ePrerequisitesInput,
-    E2EPrerequisitesProgram,
+    MintPrerequisitesInput,
+    MintPrerequisitesProgram,
 } from './e2ePrerequisites.js';
 
 const mptConsensusProofBundle = proofArgument;
@@ -199,7 +199,7 @@ describe('e2e_prerequisites', () => {
 
         // Compile E2EPrerequisitesProgram
         const { verificationKey: e2ePrerequisitesVerificationKey } =
-            await E2EPrerequisitesProgram.compile({
+            await MintPrerequisitesProgram.compile({
                 forceRecompile: true,
             });
         console.log(
@@ -291,7 +291,7 @@ describe('e2e_prerequisites', () => {
 
         // Build E2ePrerequisitesInput
 
-        const e2ePrerequisitesInput = new E2ePrerequisitesInput({
+        const e2ePrerequisitesInput = new MintPrerequisitesInput({
             //ethVerifierProof: ethVerifierProof.proof,
             //contractDepositAttestorProof: depositAttestationProof.proof,
             credentialAttestationHash,
@@ -300,7 +300,7 @@ describe('e2e_prerequisites', () => {
 
         // Compute e2e pre-requisites proof
         start = Date.now();
-        const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
+        const e2ePrerequisitesProof = await MintPrerequisitesProgram.compute(
             e2ePrerequisitesInput,
             ethVerifierProof.proof,
             depositAttestationProof.proof

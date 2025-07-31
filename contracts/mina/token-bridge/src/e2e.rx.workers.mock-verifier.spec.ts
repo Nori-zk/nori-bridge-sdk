@@ -3,15 +3,8 @@ import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
     lockTokens,
-    minaSetup,
 } from './testUtils.js';
 import { wordToBytes } from '@nori-zk/proof-conversion';
-import {
-    compilePreRequisites,
-    deployAndVerifyEcdsaSigPresentationVerifier,
-    E2ePrerequisitesInput,
-    E2EPrerequisitesProgram,
-} from './e2ePrerequisites.js';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,
@@ -19,14 +12,10 @@ import {
     getEthStateTopic$,
 } from './rx/topics.js';
 import {
-    audit,
     combineLatest,
-    distinctUntilChanged,
     filter,
     firstValueFrom,
-    interval,
     lastValueFrom,
-    merge,
     switchMap,
     take,
 } from 'rxjs';
@@ -34,12 +23,6 @@ import {
     BridgeDepositProcessingStatus,
     getDepositProcessingStatus$,
 } from './rx/deposit.js';
-import {
-    ContractDepositAttestorProof,
-    EthProof,
-    fieldToBigIntLE,
-    fieldToHexBE,
-} from '@nori-zk/o1js-zk-utils';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 import { signSecret } from './ethSignature.js';
 import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
@@ -98,12 +81,7 @@ describe('e2e-rx-workers-mock', () => {
             ethSecretSignature,
             ethWallet.address,
             minaPublicKey.toBase58()
-        ); /*createEcdsaMinaCredential(
-            ethSecretSignature,
-            ethWallet.address,
-            minaPublicKey,
-            secret
-        );*/
+        );
         console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
         // CLIENT *******************
@@ -113,9 +91,7 @@ describe('e2e-rx-workers-mock', () => {
         const presentationRequestJson =
             await credentialAttestation.computeEcdsaSigPresentationRequest(
                 zkAppPublicKey.toBase58()
-            ); /* createEcdsaSigPresentationRequest(
-            zkAppPublicKey
-        );*/
+            );
         console.timeEnd('getPresentationRequest'); // 1.348ms
 
         // WALLET ********************
@@ -127,11 +103,7 @@ describe('e2e-rx-workers-mock', () => {
                 presentationRequestJson,
                 credentialJson,
                 minaPrivateKey.toBase58()
-            ); /*createEcdsaSigPresentation(
-            presentationRequestJson,
-            credentialJson,
-            minaPrivateKey
-        );*/
+            );
         console.timeEnd('getPresentation'); // 46.801s
 
         // Kill credentialAttestation worker
@@ -202,16 +174,7 @@ describe('e2e-rx-workers-mock', () => {
             bridgeTimingsTopic$
         );
 
-        merge(
-            depositProcessingStatus$.pipe(
-                distinctUntilChanged(
-                    (a, b) =>
-                        JSON.stringify(a.deposit_processing_status) ===
-                        JSON.stringify(b.deposit_processing_status)
-                )
-            ),
-            depositProcessingStatus$.pipe(audit(() => interval(60000)))
-        ).subscribe({
+        depositProcessingStatus$.subscribe({
             next: console.log,
             error: console.error,
             complete: () => console.log('Deposit processing completed'),
@@ -237,7 +200,6 @@ describe('e2e-rx-workers-mock', () => {
                 ),
                 take(1),
                 switchMap(async () => {
-                    //await depositAttestation.compile();
                     await depositAttestationWorkerReady;
                     console.log('Computing proofs...');
                     const {
@@ -272,7 +234,6 @@ describe('e2e-rx-workers-mock', () => {
         console.log('Deposit is processed unblocking mint process.');
 
         // COMPUTE PRESENTATION VERIFIER **************************************************
-        //await minaSetup();
         await mockVerifierReady;
 
         console.time('mockVerifier');
@@ -281,7 +242,7 @@ describe('e2e-rx-workers-mock', () => {
             depositAttestationProofJson,
             presentationJson,
             minaPrivateKey.toBase58(),
-            zkAppPrivateKey.toBase58(),
+            zkAppPrivateKey.toBase58()
         );
         console.timeEnd('mockVerifier');
 

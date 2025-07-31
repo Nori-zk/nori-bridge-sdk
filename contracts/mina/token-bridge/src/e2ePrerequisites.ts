@@ -14,45 +14,35 @@ import {
     ZkProgram,
 } from 'o1js';
 import {
-    compileEcdsaEthereum,
-    compileEcdsaSigPresentationVerifier,
     EcdsaSigPresentationVerifier,
     ProvableEcdsaSigPresentation,
 } from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 
-export class E2ePrerequisitesInput extends Struct({
-    //ethVerifierProof: EthProof.provable,
-    //contractDepositAttestorProof: ContractDepositAttestorProof.provable,
+export class MintPrerequisitesInput extends Struct({
     credentialAttestationHash: Field,
-    // AttestationHash (as temporary input) [this is not no how we will do it but good for test]
-    // ...???? CredentialAttestaionProof (private credential ) -> output owner of private (public key.... MINA)
-    // COULD BE HASH OF THIS PROOF..... IGNORE THIS FOR THIS TEST
 }) {}
 
-export class E2ePrerequisitesOutput extends Struct({
+export class MintPrerequisitesOutput extends Struct({
     totalLocked: Field,
     storageDepositRoot: Field,
     attestationHash: Field,
 }) {}
 
-export const E2EPrerequisitesProgram = ZkProgram({
-    name: 'E2EPrerequisites',
-    publicInput: E2ePrerequisitesInput,
-    publicOutput: E2ePrerequisitesOutput,
+export const MintPrerequisitesProgram = ZkProgram({
+    name: 'MintPrerequisites',
+    publicInput: MintPrerequisitesInput,
+    publicOutput: MintPrerequisitesOutput,
     methods: {
         compute: {
             privateInputs: [EthProof, ContractDepositAttestorProof],
             async method(
-                input: E2ePrerequisitesInput,
+                input: MintPrerequisitesInput,
                 ethVerifierProof: InstanceType<typeof EthProof>,
                 contractDepositAttestorProof: InstanceType<
                     typeof ContractDepositAttestorProof
                 >
             ) {
-                // proof 1 proof 2 /// attestation credential hashing in future
-                // verify x2
-
                 ethVerifierProof.verify();
                 contractDepositAttestorProof.verify();
 
@@ -125,13 +115,11 @@ export const E2EPrerequisitesProgram = ZkProgram({
                         .add(totalLockedBytes[i].value);
                 }
 
-                // value (amount), execution root, storage desposit root, attestation hash
-
                 const storageDepositRoot = ethVerifierStorageProofRoot;
                 const attestationHash = contractDepositAttestorProofCredential;
 
                 return {
-                    publicOutput: new E2ePrerequisitesOutput({
+                    publicOutput: new MintPrerequisitesOutput({
                         totalLocked,
                         storageDepositRoot,
                         attestationHash,
@@ -143,10 +131,10 @@ export const E2EPrerequisitesProgram = ZkProgram({
 });
 
 // E2EPrerequisitesProgram
-export const E2EPrerequisitesProgramProof = ZkProgram.Proof(
-    E2EPrerequisitesProgram
+export const MintPrerequisitesProgramProof = ZkProgram.Proof(
+    MintPrerequisitesProgram
 );
-export class E2EPrerequisitesProgramProofType extends E2EPrerequisitesProgramProof {}
+export class MintPrerequisitesProgramProofType extends MintPrerequisitesProgramProof {}
 
 export async function compilePreRequisites() {
     // TODO optimise not all of these need to be compiled immediately
@@ -169,7 +157,7 @@ export async function compilePreRequisites() {
 
     console.time('E2EPrerequisitesProgram compile');
     const { verificationKey: e2ePrerequisitesVerificationKey } =
-        await E2EPrerequisitesProgram.compile({ forceRecompile: true });
+        await MintPrerequisitesProgram.compile({ forceRecompile: true });
     console.timeEnd('E2EPrerequisitesProgram compile');
     console.log(
         `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`

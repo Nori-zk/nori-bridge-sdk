@@ -15,8 +15,8 @@ import { wordToBytes } from '@nori-zk/proof-conversion';
 import {
     compilePreRequisites,
     deployAndVerifyEcdsaSigPresentationVerifier,
-    E2ePrerequisitesInput,
-    E2EPrerequisitesProgram,
+    MintPrerequisitesInput,
+    MintPrerequisitesProgram,
 } from './e2ePrerequisites.js';
 import { getBridgeSocket$, getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
@@ -242,13 +242,13 @@ describe('e2e_rx_prerequisites', () => {
 
         console.log('Building e2e input');
         // Now the deposit has been processed we are free to compute the e2e proof.
-        const e2ePrerequisitesInput = new E2ePrerequisitesInput({
+        const e2ePrerequisitesInput = new MintPrerequisitesInput({
             credentialAttestationHash,
         });
 
         console.log('Computing e2e');
         console.time('E2EPrerequisitesProgram.compute');
-        const e2ePrerequisitesProof = await E2EPrerequisitesProgram.compute(
+        const e2ePrerequisitesProof = await MintPrerequisitesProgram.compute(
             e2ePrerequisitesInput,
             ethVerifierProof,
             depositAttestationProof
