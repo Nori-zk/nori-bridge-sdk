@@ -252,9 +252,13 @@ export class NoriTokenControllerSubmitter {
         });
 
         console.log('Compiling NoriTokenController...');
-        const controllerResult = await MockNoriTokenController.compile({
-            cache: this.#cache,
-        });
+        const controllerResult = this.#mock
+            ? await MockNoriTokenController.compile({
+                  cache: this.#cache,
+              })
+            : await NoriTokenController.compile({
+                  cache: this.#cache,
+              });
         //TODO replace with compileAndVerifyContracts
 
         this.storageInterfaceVerificationKey = storageResult.verificationKey;

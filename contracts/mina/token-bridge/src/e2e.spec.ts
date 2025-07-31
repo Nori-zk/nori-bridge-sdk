@@ -35,10 +35,14 @@ import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
 describe('e2e', () => {
     test('e2e', async () => {
         // Deploy token minter contracts
-        const { tokenBaseAddress: tokenBaseAddressBase58, noriTokenControllerAddress: noriTokenControllerAddressBase58 } =
-            await deployTokenController();
+        const {
+            tokenBaseAddress: tokenBaseAddressBase58,
+            noriTokenControllerAddress: noriTokenControllerAddressBase58,
+        } = await deployTokenController();
 
-        const noriTokenControllerAddress = PublicKey.fromBase58(noriTokenControllerAddressBase58);
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
 
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
@@ -53,7 +57,6 @@ describe('e2e', () => {
 
         const depositAttestationWorkerReady = depositAttestation.compile();
         const credentialAttestationReady = credentialAttestation.compile();
-        
 
         // SETUP MINA **************************************************
 
@@ -63,7 +66,6 @@ describe('e2e', () => {
         const minaPrivateKeyBase58 = minaPrivateKey.toBase58();
         const minaPublicKey = minaPrivateKey.toPublicKey();
         const minaPublicKeyBase58 = minaPublicKey.toBase58();
-        
 
         // Deploy needs to done already
         console.log('Readying minter');
@@ -77,6 +79,7 @@ describe('e2e', () => {
             // ethProcessorAddress
         });
 
+        await noriMinterReady;
         /*
 
   host: 'localhost',
@@ -84,7 +87,6 @@ describe('e2e', () => {
                 path: '/acquire-account',
                 method: 'GET',
         */
-
 
         // Generate a random zkAppAddress
         /*const zkAppPrivateKey = PrivateKey.random();
@@ -144,7 +146,8 @@ describe('e2e', () => {
 
         // Extract hashed secret
 
-        const { credentialAttestationBEHex, credentialAttestationHashField } = getSecretHashFromPresentationJson(presentationJsonStr);
+        const { credentialAttestationBEHex, credentialAttestationHashField } =
+            getSecretHashFromPresentationJson(presentationJsonStr);
         console.log('attestationBEHex', credentialAttestationBEHex);
 
         // CONNECT TO BRIDGE **************************************************
@@ -206,10 +209,7 @@ describe('e2e', () => {
             'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
         );
 
-        const {
-            ethDepositProofJson,
-            despositSlotRaw,
-        } = await firstValueFrom(
+        const { ethDepositProofJson, despositSlotRaw } = await firstValueFrom(
             depositProcessingStatus$.pipe(
                 filter(
                     ({ deposit_processing_status, stageName }) =>
@@ -222,14 +222,12 @@ describe('e2e', () => {
                 switchMap(async () => {
                     await depositAttestationWorkerReady;
                     console.log('Computing proofs...');
-                    const {
-                        ethDepositProofJson,
-                        despositSlotRaw,
-                    } = await depositAttestation.compute(
-                        presentationJsonStr,
-                        depositBlockNumber,
-                        ethAddressLowerHex,
-                    );
+                    const { ethDepositProofJson, despositSlotRaw } =
+                        await depositAttestation.compute(
+                            presentationJsonStr,
+                            depositBlockNumber,
+                            ethAddressLowerHex
+                        );
                     depositAttestation.terminate();
                     return {
                         ethDepositProofJson,
@@ -259,9 +257,15 @@ describe('e2e', () => {
         console.timeEnd('noriMinter.setupStorage');
 
         console.time('Minting');
-        await noriMinter.mint(minaPublicKeyBase58, {ethDepositProofJson: ethDepositProofJson, presentationProofStr: presentationJsonStr}, minaPrivateKey.toBase58())
+        await noriMinter.mint(
+            minaPublicKeyBase58,
+            {
+                ethDepositProofJson: ethDepositProofJson,
+                presentationProofStr: presentationJsonStr,
+            },
+            minaPrivateKey.toBase58()
+        );
         console.timeEnd('Minted');
-        
 
         console.log('Minted!');
     }, 1000000000);
