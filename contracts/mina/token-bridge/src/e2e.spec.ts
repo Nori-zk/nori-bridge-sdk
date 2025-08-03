@@ -72,7 +72,7 @@ describe('e2e', () => {
         const noriMinterReady = noriMinter.ready({
             senderPrivateKey: minaPrivateKeyBase58,
             network: 'devnet',
-            networkUrl: 'http://localhost:3000/graphql',
+            networkUrl: 'http://localhost:8080/graphql',
             txFee: 0.1 * 1e9,
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
             tokenBaseAddress: tokenBaseAddressBase58,

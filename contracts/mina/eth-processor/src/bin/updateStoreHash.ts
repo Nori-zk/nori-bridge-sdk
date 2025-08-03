@@ -51,7 +51,7 @@ if (missingEnvVariables.length > 0) {
 
 // Network configuration
 const networkUrl =
-    process.env.MINA_RPC_NETWORK_URL || 'http://localhost:3000/graphql'; // Should probably validate here the network type. FIXME
+    process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql'; // Should probably validate here the network type. FIXME
 const fee = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
 
 // Get cli argument
@@ -96,21 +96,18 @@ async function updateStoreHash() {
     Mina.setActiveInstance(Network);
 
     // Compile and verify
-    await compileAndVerifyContracts(
-        logger,
-        [
-            {
-                name: 'ethVerifier',
-                program: EthVerifier,
-                integrityHash: ethVerifierVkHash,
-            },
-            {
-                name: 'ethProcessor',
-                program: EthProcessor,
-                integrityHash: ethProcessorVkHash,
-            },
-        ]
-    );
+    await compileAndVerifyContracts(logger, [
+        {
+            name: 'ethVerifier',
+            program: EthVerifier,
+            integrityHash: ethVerifierVkHash,
+        },
+        {
+            name: 'ethProcessor',
+            program: EthProcessor,
+            integrityHash: ethProcessorVkHash,
+        },
+    ]);
 
     // Initialize contract
     const zkApp = new EthProcessor(zkAppAddress);

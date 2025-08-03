@@ -51,7 +51,7 @@ describe('e2e', () => {
         // Configure workers FIXME not sure we need this for both we will only be sending tx's from one place.
         const minaConfig = {
             networkId: 'devnet' as NetworkId,
-            mina: 'http://localhost:3000/graphql',
+            mina: 'http://localhost:8080/graphql',
         };
         mockWalletWorker.minaSetup(minaConfig);
         tokenMintWorker.minaSetup(minaConfig);

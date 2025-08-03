@@ -75,7 +75,7 @@ try {
 
 // Network configuration
 const networkUrl =
-    process.env.MINA_RPC_NETWORK_URL || 'http://localhost:3000/graphql';
+    process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
 const fee = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
 
 // Validate envs

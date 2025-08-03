@@ -180,9 +180,9 @@ export class NoriTokenControllerSubmitter {
         const Network = Mina.Network({
             networkId: this.#network,
             mina: this.minaRPCNetworkUrl,
-            // ...(this.#network.toString().match('localhost') && {
-            //     lightnetAccountManager: 'http://localhost:8181',
-            // }),
+            ...(this.#network.toString().match('localhost') && {
+                lightnetAccountManager: 'http://localhost:8181',
+            }),
         });
 
         Mina.setActiveInstance(Network);
@@ -353,6 +353,11 @@ export class NoriTokenControllerSubmitter {
         console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
         await this.fetchAccounts([userPublicKey]);
+        await this.fetchAccounts([this.#noriTokenController.address]);
+        // await fetchAccount({
+        //     publicKey: userPublicKey,
+        //     tokenId: this.#noriTokenController.deriveTokenId(),
+        // });
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: this.#txFee },
