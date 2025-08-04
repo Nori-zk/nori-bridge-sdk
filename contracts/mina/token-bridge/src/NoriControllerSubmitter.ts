@@ -16,13 +16,13 @@ import {
 import { Logger } from '@nori-zk/proof-conversion';
 import { FungibleToken } from './TokenBase.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
-import {
+/*import {
     MockNoriTokenController,
     MockConsenusProof,
     MockDepositAttesterProof,
     MockMinaAttestationProof,
     MockMintProofData,
-} from './NoriTokenControllerMock.js';
+} from './NoriTokenControllerMock.js';*/
 import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils';
 import { EthVerifier } from '@nori-zk/o1js-zk-utils';
 import { EthDepositProgram } from './e2ePrerequisites.js';
@@ -67,7 +67,7 @@ export class NoriTokenControllerSubmitter {
     protected readonly minaRPCNetworkUrl: string;
 
     // Contract instances
-    #noriTokenController: MockNoriTokenController | NoriTokenController;
+    #noriTokenController: NoriTokenController; // MockNoriTokenController
     #tokenBase: FungibleToken;
 
     // Optional private keys for deployment
@@ -167,9 +167,9 @@ export class NoriTokenControllerSubmitter {
             this.#mock ? 'selecting mock' : 'selecting real'
         );
 
-        this.#noriTokenController = this.#mock
+        this.#noriTokenController = /*this.#mock
             ? new MockNoriTokenController(noriAddress)
-            : new NoriTokenController(noriAddress);
+            :*/ new NoriTokenController(noriAddress);
 
         this.#tokenBase = new FungibleToken(tokenAddress);
 
@@ -264,11 +264,11 @@ export class NoriTokenControllerSubmitter {
             this.#mock ? 'compiling mock' : 'compiling real'
         );
 
-        const controllerResult = this.#mock
+        const controllerResult = /*this.#mock
             ? await MockNoriTokenController.compile({
                   cache: this.#cache,
               })
-            : await NoriTokenController.compile({
+            : */await NoriTokenController.compile({
                   cache: this.#cache,
               });
         //TODO replace with compileAndVerifyContracts
@@ -431,7 +431,7 @@ export class NoriTokenControllerSubmitter {
                     AccountUpdate.fundNewAccount(userPublicKey, 1);
                 }
 
-                if (this.#mock) {
+                /*if (this.#mock) {
                     const mockNoriTokenController = this
                         .#noriTokenController as MockNoriTokenController;
                     const mockProofData = proofData as MockMintProofData;
@@ -440,7 +440,7 @@ export class NoriTokenControllerSubmitter {
                         mockProofData.depositAttesterProof,
                         mockProofData.minaAttestationProof
                     );
-                } else {
+                } else {*/
                     const noriTokenController = this
                         .#noriTokenController as NoriTokenController;
                     const realProofData = proofData as MintProofData;
@@ -448,7 +448,7 @@ export class NoriTokenControllerSubmitter {
                         realProofData.ethDepositProof,
                         realProofData.presentationProof
                     );
-                }
+                //}
             }
         );
 
