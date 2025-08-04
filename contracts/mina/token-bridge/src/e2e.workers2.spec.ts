@@ -45,6 +45,7 @@ describe('e2e', () => {
         const depositAttestation = getDepositAttestation();
         const credentialAttestation = getCredentialAttestation();
 
+        // MOVE BELOW??
         const depositAttestationWorkerReady = depositAttestation.compile();
         const credentialAttestationReady = credentialAttestation.compile();
 
@@ -288,6 +289,7 @@ describe('e2e', () => {
         // Configure wallet
         // In reality we would not pass this from the main thread.
         tokenMintWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
+        tokenMintWorker.minaSetup(minaConfig);
 
         const noriTokenControllerVerificationKeySafe =
             await tokenMintWorker.compileAll();
