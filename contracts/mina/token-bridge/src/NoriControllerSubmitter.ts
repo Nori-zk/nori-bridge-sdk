@@ -407,7 +407,7 @@ export class NoriTokenControllerSubmitter {
     //TODO make one that returns unsigned transaction to be passed to the wallet
     async mint(
         userPublicKey: PublicKey,
-        proofData: MockMintProofData | MintProofData,
+        proofData: MintProofData, // MockMintProofData | 
         userPrivateKey: PrivateKey,
         fundNewAccount = true
     ): Promise<MintResult> {
@@ -468,21 +468,21 @@ export class NoriTokenControllerSubmitter {
 
         console.log('Minting completed successfully');
 
-        if (this.#isMintProofData(proofData)) {
+        //if (this.#isMintProofData(proofData)) {
             return {
                 txHash: result.hash,
                 mintedAmount:
                     proofData.ethDepositProof.publicOutput.totalLocked.toString(),
                 userBalance: balance.toString(),
             };
-        } else {
+        /*} else {
             return {
                 txHash: result.hash,
                 mintedAmount:
                     proofData.depositAttesterProof?.lockedSoFar.toString(),
                 userBalance: balance.toString(),
             };
-        }
+        }*/
     }
 
     async getUserBalance(userPublicKey: PublicKey): Promise<UInt64> {

@@ -19,7 +19,7 @@ import {
     UInt8,
     VerificationKey,
 } from 'o1js';
-import { MockNoriTokenController } from './NoriTokenControllerMock.js';
+import { NoriTokenController } from './NoriTokenController.js';
 
 interface FungibleTokenDeployProps extends Exclude<DeployArgs, undefined> {
     /** The token symbol. */
@@ -58,7 +58,7 @@ export class FungibleToken extends TokenContract {
     // This defines the type of the contract that is used to control access to administrative actions.
     // If you want to have a custom contract, overwrite this by setting FungibleToken.AdminContract to
     // your own implementation of FungibleTokenAdminBase.
-    static AdminContract: new (...args: any) => MockNoriTokenController;
+    static AdminContract: new (...args: any) => NoriTokenController;
 
     readonly events = {
         SetAdmin: SetAdminEvent,
@@ -125,14 +125,14 @@ export class FungibleToken extends TokenContract {
         accountUpdate.account.permissions.set(permissions);
     }
 
-    public async getAdminContract(): Promise<MockNoriTokenController> {
+    public async getAdminContract(): Promise<NoriTokenController> {
         const admin = await Provable.witnessAsync(PublicKey, async () => {
             let pk = await this.admin.fetch();
             assert(pk !== undefined, FungibleTokenErrors.noAdminKey);
             return pk;
         });
         this.admin.requireEquals(admin);
-        return new MockNoriTokenController(admin);
+        return new NoriTokenController(admin);
     }
 
     @method
