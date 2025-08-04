@@ -19,7 +19,7 @@ import {
 import { EthProcessor } from '@nori-zk/ethprocessor/browser';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
-import { Field, UInt64, Bytes } from 'o1js';
+import { Field, UInt64, Bytes, UInt8 } from 'o1js';
 import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
 import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils/build/utils.js';
 import {
@@ -165,6 +165,7 @@ describe('e2e_prerequisites', () => {
                 const value = Bytes32.fromHex(
                     slot.value.slice(2).padStart(64, '0')
                 );
+                console.log('Mappedd!!!', value.bytes.map((byte)=>byte.toBigInt()));
                 return new ContractDeposit({
                     address: addr,
                     attestationHash: attestation,
@@ -369,5 +370,12 @@ describe('e2e_prerequisites', () => {
         console.log('--------------------------------compare to....');
 
         console.log(bridgeHeadJobSucceededMessage.contract_storage_slots);
+
+        // Value encoding
+
+        console.log(e2ePrerequisitesProof.proof.publicOutput.totalLocked.toBigInt());
+        //@ts-ignore
+        const bytes: UInt8[] = depositAttestationProof.proof.publicInput.value.value.bytes;
+        console.log(bytes.map((byte)=>byte.toBigInt()));
     });
 });

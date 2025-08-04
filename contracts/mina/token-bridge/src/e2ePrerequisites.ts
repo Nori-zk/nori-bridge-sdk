@@ -105,15 +105,27 @@ export const EthDepositProgram = ZkProgram({
                     contractDepositAttestorProofCredential
                 );
 
+                Provable.asProver(()=>{
+                    console.log(contractDepositAttestorPublicInputs.value.bytes.map((byte)=>byte.toBigInt()));
+                });
+
                 // Turn totalLocked into a field
                 const totalLockedBytes =
                     contractDepositAttestorPublicInputs.value.bytes;
                 let totalLocked = new Field(0);
-                for (let i = 31; i >= 0; i--) {
+                /*for (let i = 31; i >= 0; i--) {
+                    totalLocked = totalLocked
+                        .mul(256)
+                        .add(totalLockedBytes[i].value);
+                }*/
+                for (let i = 0; i < 32; i++) {
                     totalLocked = totalLocked
                         .mul(256)
                         .add(totalLockedBytes[i].value);
                 }
+
+                // Perhaps flip this??
+                // We interpret contractDepositAttestorProofCredential to BE so why not this??
 
                 const storageDepositRoot = ethVerifierStorageProofRoot;
                 const attestationHash = contractDepositAttestorProofCredential;
