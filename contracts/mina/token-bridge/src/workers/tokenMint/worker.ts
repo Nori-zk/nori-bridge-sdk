@@ -63,6 +63,45 @@ export class TokenMintWorker {
         return presentationJson;
     }
 
+    /*private deserializeTransaction(serializedTransaction: string) {
+        const { tx, blindingValues, length } = JSON.parse(
+            serializedTransaction
+        );
+        const parsedTx = JSON.parse(tx);
+        const transaction = Mina.Transaction.fromJSON(
+            parsedTx
+        ) as Mina.Transaction<false, false>;
+
+        if (length !== txNew.transaction.accountUpdates.length) {
+            throw new Error('New Transaction length mismatch');
+        }
+        if (length !== transaction.transaction.accountUpdates.length) {
+            throw new Error('Serialized Transaction length mismatch');
+        }
+        for (let i = 0; i < length; i++) {
+            transaction.transaction.accountUpdates[i].lazyAuthorization =
+                txNew.transaction.accountUpdates[i].lazyAuthorization;
+            if (blindingValues[i] !== '')
+                (
+                    transaction.transaction.accountUpdates[i]
+                        .lazyAuthorization as any
+                ).blindingValue = Field.fromJSON(blindingValues[i]);
+        }
+        return transaction;
+    }*/
+
+    private deserializeTransaction(serializedTransaction: string) {
+        const txJSON = JSON.parse(serializedTransaction);
+        /*const payload = {
+            transaction,
+            onlySign: true,
+            feePayer: {
+                fee: fee,
+                memo: memo,
+            },
+        };*/
+    }
+
     // Sign and send transaction
     async WALLET_signAndSend(provedTxJsonStr: string) {
         if (!this.#minaPrivateKey)
@@ -246,8 +285,8 @@ export class TokenMintWorker {
             }
         );
 
-        await setupTx.prove();
-        return setupTx.toJSON();
+        const provedTx = await setupTx.prove();
+        return provedTx.toJSON();
 
         /*await setupTx.prove();
         setupTx.toJSON()
@@ -346,9 +385,9 @@ export class TokenMintWorker {
             }
         );
 
-        await mintTx.prove();
+        const provedTx = await mintTx.prove();
 
-        return mintTx.toJSON();
+        return provedTx.toJSON();
 
         /*await mintTx.prove();
         const tx = await mintTx
