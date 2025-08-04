@@ -8,12 +8,6 @@ import {
 import { getBridgeStateWithTimings$ } from './state.js';
 import { getDepositProcessingStatus$ } from './deposit.js';
 
-import pkg from '@rxjs-insights/devtools';
-import { connect } from '@rxjs-insights/devtools/connect';
-
-const { inspect } = pkg;
-connect();
-
 // Util for testing Obserables
 function testSub($: Observable<any>) {
     $.subscribe({
@@ -51,7 +45,6 @@ const depositProcessingStatus$ = nextFinalizationTarget$.pipe(
     )
 );
 
-inspect(depositProcessingStatus$);
 
 /*testSub(bridgeStateTopic$);
 testSub(ethStateTopic$);
