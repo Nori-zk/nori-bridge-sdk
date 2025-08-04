@@ -41,6 +41,7 @@ export async function deployTokenController() {
 
     // Determine if we are a mock
     const mock = !!process.env.MOCK;
+    console.log('mock', mock);
     
     // Create the config with the saved variables
     const config: NoriTokenControllerConfig = {
@@ -56,6 +57,8 @@ export async function deployTokenController() {
         txFee: Number(process.env.TX_FEE || 0.1),
         mock: mock
     };
+
+    console.log('config', config);
 
     // // Network variable for deployment info
     // const network = process.env.NETWORK || 'lightnet';

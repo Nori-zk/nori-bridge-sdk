@@ -73,13 +73,20 @@ describe('e2e', () => {
             senderPrivateKey: minaPrivateKeyBase58,
             network: 'devnet',
             networkUrl: 'http://localhost:8080/graphql', // 8080
-            txFee: 0.1 * 1e9,
+            txFee: 0.1,
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
             tokenBaseAddress: tokenBaseAddressBase58,
             // ethProcessorAddress
         });
 
         await noriMinterReady;
+
+        // Setting up noriMinter storage.
+        await noriMinterReady;
+        console.time('noriMinter.setupStorage');
+        await noriMinter.setupStorage(minaPublicKeyBase58);
+        console.timeEnd('noriMinter.setupStorage');
+
         /*
 
   host: 'localhost',
@@ -149,12 +156,6 @@ describe('e2e', () => {
         const { credentialAttestationBEHex, credentialAttestationHashField } =
             getSecretHashFromPresentationJson(presentationJsonStr);
         console.log('attestationBEHex', credentialAttestationBEHex);
-
-        // Setting up noriMinter storage.
-        await noriMinterReady;
-        console.time('noriMinter.setupStorage');
-        await noriMinter.setupStorage(minaPublicKeyBase58);
-        console.timeEnd('noriMinter.setupStorage');
 
         // CONNECT TO BRIDGE **************************************************
 
