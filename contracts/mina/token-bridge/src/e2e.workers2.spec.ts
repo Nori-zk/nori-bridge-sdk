@@ -294,20 +294,20 @@ describe('e2e', () => {
         const noriTokenControllerVerificationKeySafe =
             await tokenMintWorker.compileAll();
         console.time('noriMinter.setupStorage');
-        const provedSetupTxStr = await tokenMintWorker.setupStorage(
+        const { txHash: setupTxHash } = await tokenMintWorker.MOCK_setupStorage( // used to be const provedSetupTxStr = setupStorage
             senderPublicKeyBase58,
             noriTokenControllerAddressBase58, // CHECKME @Karol
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
         );
-        console.log('provedSetupTxStr', provedSetupTxStr);
-        const { txHash: setupTxHash } =
-            await tokenMintWorker.WALLET_signAndSend(provedSetupTxStr);
+        //console.log('provedSetupTxStr', provedSetupTxStr);
+        /*const { txHash: setupTxHash } =
+            await tokenMintWorker.WALLET_signAndSend(provedSetupTxStr);*/
         console.log('setupTxHash', setupTxHash);
         console.timeEnd('noriMinter.setupStorage');
 
         console.time('Minting');
-        const provedMintTxStr = await tokenMintWorker.mint(
+        const { txHash: mintTxHash } = await tokenMintWorker.MOCK_mint( // used to be const provedMintTxStr = mint
             senderPublicKeyBase58,
             noriTokenControllerAddressBase58, // CHECKME @Karol
             {
@@ -317,10 +317,10 @@ describe('e2e', () => {
             1e9 * 0.1,
             true
         );
-        console.log('provedMintTxStr', provedMintTxStr);
-        const { txHash: mintTxHash } = await tokenMintWorker.WALLET_signAndSend(
+        //console.log('provedMintTxStr', provedMintTxStr);
+        /*const { txHash: mintTxHash } = await tokenMintWorker.WALLET_signAndSend(
             provedMintTxStr
-        );
+        );*/
         console.log('mintTxHash', mintTxHash);
         console.timeEnd('Minted');
 

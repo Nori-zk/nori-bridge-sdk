@@ -298,6 +298,52 @@ export class TokenMintWorker {
         return { txHash: result.hash };*/
     }
 
+    async MOCK_setupStorage(
+        userPublicKeyBase58: string,
+        noriAddressBase58: string,
+        txFee: number,
+        storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
+    ) {
+        //const userPrivateKey = PrivateKey.fromBase58(userPrivateKeyBase58);
+        const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58); // userPrivateKey.toPublicKey();
+        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+        const { hashStr: storageInterfaceVerificationKeyHashStr, data } =
+            storageInterfaceVerificationKeySafe;
+        const storageInterfaceVerificationKeyHashBigInt = BigInt(
+            storageInterfaceVerificationKeyHashStr
+        );
+        const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
+        const storageInterfaceVerificationKey = { data, hash };
+
+        console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
+
+        //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        // FIXME do we need
+        await this.fetchAccounts([userPublicKey, noriAddress]);
+
+        // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
+        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+
+        const setupTx = await Mina.transaction(
+            { sender: userPublicKey, fee: txFee },
+            async () => {
+                AccountUpdate.fundNewAccount(userPublicKey, 1);
+                await noriTokenControllerInst.setUpStorage(
+                    userPublicKey,
+                    storageInterfaceVerificationKey
+                );
+            }
+        );
+
+        const provedTx = await setupTx.prove();
+
+        const tx = await provedTx.sign([this.#minaPrivateKey]).send();
+        const result = await tx.wait();
+
+        console.log('Storage setup completed successfully');
+        return { txHash: result.hash };
+    }
+
     // MINTER ******************************************************************************
 
     async compileMinterDeps() {
@@ -420,6 +466,73 @@ export class TokenMintWorker {
                 userBalance: balance.toString(),
             };
         }*/
+    }
+
+    async MOCK_mint(
+        userPublicKeyBase58: string,
+        noriAddressBase58: string,
+        proofDataJson: MintProofDataJson,
+        //userPrivateKey: PrivateKey,
+        txFee: number,
+        fundNewAccount = true
+    ) {
+        const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
+        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+
+        // Reconstruct MintProofData
+        const { ethDepositProofJson, presentationProofStr } = proofDataJson;
+
+        const ethDepositProof = await EthDepositProgramProofType.fromJSON(
+            ethDepositProofJson
+        );
+        const presentationProof = ProvableEcdsaSigPresentation.from(
+            Presentation.fromJSON(presentationProofStr)
+        );
+        const proofData: MintProofData = {
+            ethDepositProof,
+            presentationProof,
+        };
+
+        console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
+
+        //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        await this.fetchAccounts([userPublicKey, noriAddress]);
+
+        // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
+        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+
+        const mintTx = await Mina.transaction(
+            { sender: userPublicKey, fee: txFee },
+            async () => {
+                if (fundNewAccount) {
+                    AccountUpdate.fundNewAccount(userPublicKey, 1);
+                }
+                const realProofData = proofData as MintProofData;
+                await noriTokenControllerInst.noriMint(
+                    realProofData.ethDepositProof,
+                    realProofData.presentationProof
+                );
+            }
+        );
+
+        const provedTx = await mintTx.prove();
+
+        const tx = await provedTx
+            .sign([this.#minaPrivateKey])
+            .send();
+        const result = await tx.wait();
+
+        // Fetch updated balance
+        /*await fetchAccount({
+            publicKey: userPublicKey,
+            tokenId: noriTokenControllerInst.deriveTokenId(),
+        });*/
+
+        //const balance = await this.#tokenBase.getBalanceOf(userPublicKey);
+
+        console.log('Minting completed successfully');
+
+        return { txHash: result.hash };
     }
 
     // Not sure if the wallet should do this.... or the worker FIXME
