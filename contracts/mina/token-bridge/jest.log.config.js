@@ -1,2 +1,2 @@
-import * as console from 'console';
-global.console = console;
+//import * as console from 'console';
+//global.console = console;

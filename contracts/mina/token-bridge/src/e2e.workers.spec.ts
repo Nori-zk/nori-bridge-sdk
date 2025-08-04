@@ -34,11 +34,11 @@ import { getTokenDeployer } from './workers/tokenDeployer/node/parent.js';
 describe('e2e', () => {
     test('e2e_complete', async () => {
         // Deploy token minter contracts
-        /*const {
+        const {
             tokenBaseAddress: tokenBaseAddressBase58,
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
         } = await deployTokenController();
-*/
+
 
         const minaConfig = {
             networkId: 'devnet' as NetworkId,
@@ -46,7 +46,7 @@ describe('e2e', () => {
         };
 
         // Use the worker to save some ram
-        const tokenDeployer = getTokenDeployer();
+        /*const tokenDeployer = getTokenDeployer();
         const storageInterfaceVerificationKeySafe: {
             data: string;
             hashStr: string;
@@ -81,7 +81,7 @@ describe('e2e', () => {
                 allowUpdates: true,
             }
         );
-        tokenDeployer.terminate();
+        tokenDeployer.terminate();*/
 
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
@@ -98,8 +98,16 @@ describe('e2e', () => {
         mockWalletWorker.minaSetup(minaConfig);
         tokenMintWorker.minaSetup(minaConfig);
 
-        const tokenMintWorkerCredentialsReady =
-            tokenMintWorker.compileCredentialDeps();
+        await mockWalletWorker.compileCredentialDeps();
+        await tokenMintWorker.compileCredentialDeps();
+        
+
+        // We should compile what we need for deposit attestation based of an event but for now
+        await tokenMintWorker.compileEthDepositProgramDeps();
+
+        // Compile what we need for minting
+        const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
+        await tokenMintWorkerMintReady;
 
         // SETUP MINA **************************************************
 
@@ -128,7 +136,7 @@ describe('e2e', () => {
         console.log('senderPublicKey.toBase58()', senderPublicKeyBase58);
 
         // WALLET or CLIENT?? *******************
-        await tokenMintWorkerCredentialsReady;
+        // await tokenMintWorkerCredentialsReady;
         // Create credential
         console.time('createCredential');
         const credentialJson = await tokenMintWorker.computeCredential(
@@ -225,10 +233,6 @@ describe('e2e', () => {
             'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
         );
 
-        // We should compile what we need for deposit attestation based of an event but for now
-        const tokenMintWorkerEthDepositProgramReady =
-            tokenMintWorker.compileEthDepositProgramDeps();
-
         const { ethDepositProofJson, despositSlotRaw } = await firstValueFrom(
             depositProcessingStatus$.pipe(
                 filter(
@@ -240,7 +244,7 @@ describe('e2e', () => {
                 ),
                 take(1),
                 switchMap(async () => {
-                    await tokenMintWorkerEthDepositProgramReady;
+                    //await tokenMintWorkerEthDepositProgramReady;
                     console.log('Computing proofs...');
                     const { ethDepositProofJson, despositSlotRaw } =
                         await tokenMintWorker.computeEthDeposit(
@@ -262,7 +266,7 @@ describe('e2e', () => {
         );
 
         // Compile what we need for minting
-        const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
+        //const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
 
         // Block until deposit has been processed
         console.log(
