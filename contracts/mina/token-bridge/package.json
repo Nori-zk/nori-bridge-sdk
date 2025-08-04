@@ -30,6 +30,15 @@
         },
         "./browser/worker/child": {
             "import": "./target/src/worker/child/index.browser.js"
+        },
+        "./rx/deposit": {
+            "import": "./target/src/rx/deposit.js"
+        },
+        "./rx/socket": {
+            "import": "./target/src/rx/socket.js"
+        },
+        "./rx/topics": {
+            "import": "./target/src/rx/topics.js"
         }
     },
     "scripts": {

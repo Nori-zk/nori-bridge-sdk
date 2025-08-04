@@ -29,14 +29,59 @@ import { deployTokenController } from './NoriTokenControllerDeploy.js';
 import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
 import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getMockWalletWorker } from './workers/mockWallet/node/parent.js';
+import { getTokenDeployer } from './workers/tokenDeployer/node/parent.js';
 
 describe('e2e', () => {
-    test('e2e', async () => {
+    test('e2e_complete', async () => {
         // Deploy token minter contracts
-        const {
+        /*const {
             tokenBaseAddress: tokenBaseAddressBase58,
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
         } = await deployTokenController();
+*/
+
+        const minaConfig = {
+            networkId: 'devnet' as NetworkId,
+            mina: 'http://localhost:8080/graphql',
+        };
+
+        // Use the worker to save some ram
+        const tokenDeployer = getTokenDeployer();
+        const storageInterfaceVerificationKeySafe: {
+            data: string;
+            hashStr: string;
+        } = await tokenDeployer.compile();
+        const contractsLitenetSk = await getNewMinaLiteNetAccountSK();
+        const contractSenderPrivateKey =
+            PrivateKey.fromBase58(contractsLitenetSk);
+        const contractSenderPrivateKeyBase58 =
+            contractSenderPrivateKey.toBase58();
+        //const contractSenderPublicKey = contractSenderPrivateKey.toPublicKey();
+        //const adminPrivateKey = PrivateKey.random();
+        const tokenControllerPrivateKey = PrivateKey.random();
+        const tokenBasePrivateKey = PrivateKey.random();
+        const ethProcessorAddress = PrivateKey.random()
+            .toPublicKey()
+            .toBase58();
+        await tokenDeployer.minaSetup(minaConfig);
+        const {
+            tokenBaseAddress: tokenBaseAddressBase58,
+            noriTokenControllerAddress: noriTokenControllerAddressBase58,
+        } = await tokenDeployer.deployContracts(
+            contractSenderPrivateKeyBase58,
+            contractSenderPrivateKeyBase58, // Admin
+            tokenControllerPrivateKey.toBase58(),
+            tokenBasePrivateKey.toBase58(),
+            ethProcessorAddress,
+            storageInterfaceVerificationKeySafe,
+            0.1 * 1e9,
+            {
+                symbol: 'nETH',
+                decimals: 18,
+                allowUpdates: true,
+            }
+        );
+        tokenDeployer.terminate();
 
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
@@ -49,10 +94,7 @@ describe('e2e', () => {
         const mockWalletWorker = getMockWalletWorker();
 
         // Configure workers FIXME not sure we need this for both we will only be sending tx's from one place.
-        const minaConfig = {
-            networkId: 'devnet' as NetworkId,
-            mina: 'http://localhost:3000/graphql',
-        };
+
         mockWalletWorker.minaSetup(minaConfig);
         tokenMintWorker.minaSetup(minaConfig);
 
@@ -240,7 +282,9 @@ describe('e2e', () => {
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
         );
-        const { txHash: setupTxHash } = await mockWalletWorker.signAndSend(provedSetupTxStr);
+        const { txHash: setupTxHash } = await mockWalletWorker.signAndSend(
+            provedSetupTxStr
+        );
         console.log('setupTxHash', setupTxHash);
         console.timeEnd('noriMinter.setupStorage');
 
