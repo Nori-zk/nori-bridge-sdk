@@ -160,6 +160,12 @@ export class NoriTokenControllerSubmitter {
             : this.#tokenBasePrivateKey!.toPublicKey();
 
         this.#mock = !!config.mock || false;
+        console.log('this.#mock', this.#mock);
+        console.log(
+            'this.#mock',
+            this.#mock,
+            this.#mock ? 'selecting mock' : 'selecting real'
+        );
 
         this.#noriTokenController = this.#mock
             ? new MockNoriTokenController(noriAddress)
@@ -252,6 +258,12 @@ export class NoriTokenControllerSubmitter {
         });
 
         console.log('Compiling NoriTokenController...');
+        console.log(
+            'this.#mock',
+            this.#mock,
+            this.#mock ? 'compiling mock' : 'compiling real'
+        );
+
         const controllerResult = this.#mock
             ? await MockNoriTokenController.compile({
                   cache: this.#cache,
@@ -293,6 +305,12 @@ export class NoriTokenControllerSubmitter {
         const startPaused = Bool(options.startPaused ?? false);
 
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();
+
+        console.log(
+            'this.#mock',
+            this.#mock,
+            this.#mock ? 'deploying mock' : 'deploying real'
+        );
 
         const deployTx = await Mina.transaction(
             { sender: senderPublicKey, fee: this.#txFee },
@@ -352,7 +370,16 @@ export class NoriTokenControllerSubmitter {
     async setupStorage(userPublicKey: PublicKey): Promise<{ txHash: string }> {
         console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
-        await this.fetchAccounts([userPublicKey, this.#noriTokenController.address]);
+        await this.fetchAccounts([
+            userPublicKey,
+            this.#noriTokenController.address,
+        ]);
+
+        console.log(
+            'this.#mock',
+            this.#mock,
+            this.#mock ? 'setup mock' : 'setup real'
+        );
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: this.#txFee },
@@ -386,7 +413,16 @@ export class NoriTokenControllerSubmitter {
     ): Promise<MintResult> {
         console.log(`Minting tokens for user: ${userPublicKey.toBase58()}`);
 
-        await this.fetchAccounts([userPublicKey, this.#noriTokenController.address]);
+        await this.fetchAccounts([
+            userPublicKey,
+            this.#noriTokenController.address,
+        ]);
+
+        console.log(
+            'this.#mock',
+            this.#mock,
+            this.#mock ? 'mint mock' : 'mint real'
+        );
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: this.#txFee },
