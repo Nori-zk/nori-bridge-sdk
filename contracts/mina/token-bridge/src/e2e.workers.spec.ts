@@ -58,13 +58,13 @@ describe('e2e', () => {
         await tokenMintWorkerMintReady;
 
         // Deploy token minter contracts
-        const {
+        /*const {
             tokenBaseAddress: tokenBaseAddressBase58,
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
-        } = await deployTokenController();
+        } = await deployTokenController();*/
 
         // Use the worker to save some ram
-        /*const tokenDeployer = getTokenDeployer();
+        const tokenDeployer = getTokenDeployer();
         const storageInterfaceVerificationKeySafe: {
             data: string;
             hashStr: string;
@@ -99,7 +99,7 @@ describe('e2e', () => {
                 allowUpdates: true,
             }
         );
-        tokenDeployer.terminate();*/
+        tokenDeployer.terminate();
 
         // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
 
