@@ -288,8 +288,8 @@ describe('e2e', () => {
 
         // Configure wallet
         // In reality we would not pass this from the main thread.
-        tokenMintWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
-        tokenMintWorker.minaSetup(minaConfig);
+        await tokenMintWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
+        await tokenMintWorker.minaSetup(minaConfig);
 
         const noriTokenControllerVerificationKeySafe =
             await tokenMintWorker.compileAll();
