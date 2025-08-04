@@ -137,7 +137,7 @@ describe('attestation', () => {
         // From this it creates a presentation.
         console.time('getPresentation');
         const presentationJson =
-            await credentialAttestation.computeEcdsaSigPresentation(
+            await credentialAttestation.WALLET_computeEcdsaSigPresentation(
                 presentationRequestJson,
                 credentialJson,
                 minaPrivateKey.toBase58()
@@ -228,7 +228,7 @@ describe('attestation', () => {
         // From this it creates a presentation.
         console.time('getPresentation');
         const presentationJson =
-            await credentialAttestation.computeEcdsaSigPresentation(
+            await credentialAttestation.WALLET_computeEcdsaSigPresentation(
                 presentationRequestJson,
                 credentialJson,
                 minaPrivateKey.toBase58()
