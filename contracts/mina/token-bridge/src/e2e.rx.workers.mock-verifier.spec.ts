@@ -99,7 +99,7 @@ describe('e2e-rx-workers-mock', () => {
         // From this it creates a presentation.
         console.time('getPresentation');
         const presentationJson =
-            await credentialAttestation.computeEcdsaSigPresentation(
+            await credentialAttestation.WALLET_computeEcdsaSigPresentation(
                 presentationRequestJson,
                 credentialJson,
                 minaPrivateKey.toBase58()
