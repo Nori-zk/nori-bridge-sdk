@@ -3,6 +3,7 @@ import {
     compileEcdsaEthereum,
     compileEcdsaSigPresentationVerifier,
     createEcdsaMinaCredential,
+    createEcdsaSigPresentation,
     createEcdsaSigPresentationRequest,
     EnforceMaxLength,
     getSecretHashFromPresentationJson,
@@ -36,6 +37,45 @@ import { Presentation } from 'mina-attestations';
 // FIXME make a setter for senderPublicKey and perhaps noriAddressBase58
 
 export class TokenMintWorker {
+    /// WALLET METHOD DONT USE IN FRONT END
+
+    // Initialise methods
+    #minaPrivateKey: PrivateKey;
+    async WALLET_setMinaPrivateKey(minaPrivateKeyBase58: string) {
+        if (this.#minaPrivateKey)
+            throw new Error('Mina private key has already been set.');
+        this.#minaPrivateKey = PrivateKey.fromBase58(minaPrivateKeyBase58);
+    }
+
+    // Credential methods
+
+    async WALLET_computeEcdsaSigPresentation(
+        presentationRequestJson: string,
+        credentialJson: string
+    ) {
+        console.time('getPresentation');
+        const presentationJson = await createEcdsaSigPresentation(
+            presentationRequestJson,
+            credentialJson,
+            this.#minaPrivateKey
+        );
+        console.timeEnd('getPresentation'); // 46.801s
+        return presentationJson;
+    }
+
+    // Sign and send transaction
+    async WALLET_signAndSend(provedTxJsonStr: string) {
+        if (!this.#minaPrivateKey)
+            throw new Error(
+                '#minaPrivateKey is undefined please call setMinaPrivateKey first'
+            );
+        const tx = Transaction.fromJSON(
+            JSON.parse(provedTxJsonStr) as any
+        ) as unknown as Mina.Transaction<true, false>;
+        const result = await tx.sign([this.#minaPrivateKey]).send().wait();
+        return { txHash: result.hash };
+    }
+
     // CREDENTIAL METHODS ******************************************************************************
     //credential (compile)
     async compileCredentialDeps() {
@@ -189,7 +229,7 @@ export class TokenMintWorker {
         console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
-        // FIXME do we need 
+        // FIXME do we need
         await this.fetchAccounts([userPublicKey, noriAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.

@@ -352,7 +352,7 @@ export class NoriTokenControllerSubmitter {
     async setupStorage(userPublicKey: PublicKey): Promise<{ txHash: string }> {
         console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
-        await this.fetchAccounts([userPublicKey]);
+        await this.fetchAccounts([userPublicKey, this.#noriTokenController.address]);
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: this.#txFee },
@@ -386,7 +386,7 @@ export class NoriTokenControllerSubmitter {
     ): Promise<MintResult> {
         console.log(`Minting tokens for user: ${userPublicKey.toBase58()}`);
 
-        await this.fetchAccounts([userPublicKey]);
+        await this.fetchAccounts([userPublicKey, this.#noriTokenController.address]);
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: this.#txFee },

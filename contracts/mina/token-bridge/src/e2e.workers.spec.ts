@@ -33,17 +33,35 @@ import { getTokenDeployer } from './workers/tokenDeployer/node/parent.js';
 
 describe('e2e', () => {
     test('e2e_complete', async () => {
+        const minaConfig = {
+            networkId: 'devnet' as NetworkId,
+            mina: 'http://localhost:8080/graphql',
+        };
+
+        // Init workers
+        const tokenMintWorker = getTokenMintWorker();
+        //const mockWalletWorker = getMockWalletWorker();
+
+        // Configure workers FIXME not sure we need this for both we will only be sending tx's from one place.
+
+        //mockWalletWorker.minaSetup(minaConfig);
+        tokenMintWorker.minaSetup(minaConfig);
+
+        //await mockWalletWorker.compileCredentialDeps();
+        await tokenMintWorker.compileCredentialDeps();
+
+        // We should compile what we need for deposit attestation based of an event but for now
+        await tokenMintWorker.compileEthDepositProgramDeps();
+
+        // Compile what we need for minting
+        const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
+        await tokenMintWorkerMintReady;
+
         // Deploy token minter contracts
         const {
             tokenBaseAddress: tokenBaseAddressBase58,
             noriTokenControllerAddress: noriTokenControllerAddressBase58,
         } = await deployTokenController();
-
-
-        const minaConfig = {
-            networkId: 'devnet' as NetworkId,
-            mina: 'http://localhost:8080/graphql',
-        };
 
         // Use the worker to save some ram
         /*const tokenDeployer = getTokenDeployer();
@@ -89,26 +107,6 @@ describe('e2e', () => {
         const ethWallet = await getEthWallet();
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
-        // Init workers
-        const tokenMintWorker = getTokenMintWorker();
-        const mockWalletWorker = getMockWalletWorker();
-
-        // Configure workers FIXME not sure we need this for both we will only be sending tx's from one place.
-
-        mockWalletWorker.minaSetup(minaConfig);
-        tokenMintWorker.minaSetup(minaConfig);
-
-        await mockWalletWorker.compileCredentialDeps();
-        await tokenMintWorker.compileCredentialDeps();
-        
-
-        // We should compile what we need for deposit attestation based of an event but for now
-        await tokenMintWorker.compileEthDepositProgramDeps();
-
-        // Compile what we need for minting
-        const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
-        await tokenMintWorkerMintReady;
-
         // SETUP MINA **************************************************
 
         // Generate a funded test private key for mina litenet
@@ -120,7 +118,7 @@ describe('e2e', () => {
 
         // Configure wallet
         // In reality we would not pass this from the main thread.
-        mockWalletWorker.setMinaPrivateKey(senderPrivateKeyBase58);
+        tokenMintWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
 
         // OBTAIN CREDENTIAL **************************************************
 
@@ -162,7 +160,7 @@ describe('e2e', () => {
         // From this it creates a presentation.
         console.time('getPresentation');
         const presentationJsonStr =
-            await mockWalletWorker.computeEcdsaSigPresentation(
+            await tokenMintWorker.WALLET_computeEcdsaSigPresentation(
                 presentationRequestJson,
                 credentialJson
             );
@@ -286,7 +284,7 @@ describe('e2e', () => {
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
         );
-        const { txHash: setupTxHash } = await mockWalletWorker.signAndSend(
+        const { txHash: setupTxHash } = await tokenMintWorker.WALLET_signAndSend(
             provedSetupTxStr
         );
         console.log('setupTxHash', setupTxHash);
@@ -303,7 +301,7 @@ describe('e2e', () => {
             1e9 * 0.1,
             true
         );
-        const { txHash: mintTxHash } = await mockWalletWorker.signAndSend(
+        const { txHash: mintTxHash } = await tokenMintWorker.WALLET_signAndSend(
             provedMintTxStr
         );
         console.log('mintTxHash', mintTxHash);
