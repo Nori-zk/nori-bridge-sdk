@@ -300,6 +300,7 @@ describe('e2e', () => {
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
         );
+        console.log('provedSetupTxStr', provedSetupTxStr);
         const { txHash: setupTxHash } =
             await tokenMintWorker.WALLET_signAndSend(provedSetupTxStr);
         console.log('setupTxHash', setupTxHash);
@@ -316,6 +317,7 @@ describe('e2e', () => {
             1e9 * 0.1,
             true
         );
+        console.log('provedMintTxStr', provedMintTxStr);
         const { txHash: mintTxHash } = await tokenMintWorker.WALLET_signAndSend(
             provedMintTxStr
         );
