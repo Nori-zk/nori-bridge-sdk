@@ -392,4 +392,10 @@ export class TokenMintWorker {
         const result = await tx.send().wait();
         return { txHash: result.hash };
     }*/
+
+    async compileAll() {
+        await this.compileCredentialDeps();
+        await this.compileEthDepositProgramDeps();
+        return this.compileMinterDeps();
+    }
 }

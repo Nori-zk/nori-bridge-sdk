@@ -54,7 +54,7 @@ export class CredentialAttestationWorker {
         return credentialJson;
     }
 
-    async computeEcdsaSigPresentation(
+    async WALLET_computeEcdsaSigPresentation(
         presentationRequestJson: string,
         credentialJson: string,
         minaPrivateKeyBase58: string
