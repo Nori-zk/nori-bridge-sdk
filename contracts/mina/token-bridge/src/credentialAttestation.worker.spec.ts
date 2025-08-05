@@ -12,8 +12,8 @@ import {
 } from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';
-import { signSecret } from './ethSignature.js';
-import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
+import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 import { getMockVerification } from './workers/mockCredVerification/node/parent.js';
 
 describe('attestation', () => {
@@ -89,7 +89,7 @@ describe('attestation', () => {
     }
 
     test('should_perform_pure_worker_credential_attestation_pipeline', async () => {
-        const credentialAttestation = getCredentialAttestation();
+        const credentialAttestation = getCredentialAttestationWorker();
         const credentialAttestationReady = credentialAttestation.compile();
 
         await credentialAttestationReady;
@@ -109,7 +109,7 @@ describe('attestation', () => {
         // CLIENT *******************
         const secret = 'IAmASecretOfLength20';
         // Get signature
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
 
         // WALLET *******************
         // Create credential
@@ -148,7 +148,7 @@ describe('attestation', () => {
         // Then the ZKApp verifies the presentation
         // Note the client obviously would not be doing the deploy.
 
-        await credentialAttestation.mockDeployAndVerifyEcdsaSigPresentationVerifier(
+        await credentialAttestation.MOCK_deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKey.toBase58(),
             minaPrivateKey.toBase58(),
             presentationJson
@@ -171,7 +171,7 @@ describe('attestation', () => {
     }, 1000000000);
 
     test('should_perform_worker_credential_attestation_pipeline', async () => {
-        const credentialAttestation = getCredentialAttestation();
+        const credentialAttestation = getCredentialAttestationWorker();
         const credentialAttestationReady = credentialAttestation.compile();
 
         // Compile programs / contracts
@@ -200,7 +200,7 @@ describe('attestation', () => {
         // CLIENT *******************
         const secret = 'IAmASecretOfLength20';
         // Get signature
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
 
         // WALLET *******************
         // Create credential

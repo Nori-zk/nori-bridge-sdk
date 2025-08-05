@@ -1,10 +1,9 @@
-import { Bytes, Field, NetworkId, PrivateKey, PublicKey } from 'o1js';
+import { NetworkId, PrivateKey } from 'o1js';
 import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
     lockTokens,
 } from './testUtils.js';
-import { wordToBytes } from '@nori-zk/proof-conversion';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,
@@ -24,56 +23,38 @@ import {
     getDepositProcessingStatus$,
 } from './rx/deposit.js';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
-import { signSecret } from './ethSignature.js';
-import { deployTokenController } from './NoriTokenControllerDeploy.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
 import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
 import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
-import { getMockWalletWorker } from './workers/mockWallet/node/parent.js';
-import { getTokenDeployer } from './workers/tokenDeployer/node/parent.js';
-import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
-import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
+import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+import { getDepositAttestationWorker } from './workers/depositAttestation/node/parent.js';
+import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 
 describe('e2e', () => {
     test('e2e_complete', async () => {
+        // Define litenet mina config
         const minaConfig = {
             networkId: 'devnet' as NetworkId,
             mina: 'http://localhost:8080/graphql',
         };
 
-        // Init workers
+        // INIT WORKERS **************************************************
         const tokenMintWorker = getTokenMintWorker();
-        const depositAttestation = getDepositAttestation();
-        const credentialAttestation = getCredentialAttestation();
+        const depositAttestationWorker = getDepositAttestationWorker();
+        const credentialAttestationWorker = getCredentialAttestationWorker();
 
-        // MOVE BELOW??
-        const depositAttestationWorkerReady = depositAttestation.compile();
-        const credentialAttestationReady = credentialAttestation.compile();
+        // READY ATTESTATION WORKERS **************************************
+        // Compile credential and deposit attestation workers
+        // MOVE BELOW?? CHECKME
+        const depositAttestationWorkerReady =
+            depositAttestationWorker.compile();
+        const credentialAttestationReady =
+            credentialAttestationWorker.compile();
 
-        //const mockWalletWorker = getMockWalletWorker();
-
-        // Configure workers FIXME not sure we need this for both we will only be sending tx's from one place.
-
-        //mockWalletWorker.minaSetup(minaConfig);
-        /*tokenMintWorker.minaSetup(minaConfig);
-
-        //await mockWalletWorker.compileCredentialDeps();
-        await tokenMintWorker.compileCredentialDeps();
-
-        // We should compile what we need for deposit attestation based of an event but for now
-        await tokenMintWorker.compileEthDepositProgramDeps();
-
-        // Compile what we need for minting
-        const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
-        await tokenMintWorkerMintReady;*/
-
-        // Deploy token minter contracts
-        /*const {
-            tokenBaseAddress: tokenBaseAddressBase58,
-            noriTokenControllerAddress: noriTokenControllerAddressBase58,
-        } = await deployTokenController();*/
-
-        // Use the worker to save some ram
-        const tokenDeployer = getTokenDeployer();
+        // DEPLOY TEST CONTRACTS **************************************************
+        // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
+        // Use the worker to be able to reclaim some ram
+        const tokenDeployer = getTokenDeployerWorker();
         const storageInterfaceVerificationKeySafe: {
             data: string;
             hashStr: string;
@@ -83,8 +64,6 @@ describe('e2e', () => {
             PrivateKey.fromBase58(contractsLitenetSk);
         const contractSenderPrivateKeyBase58 =
             contractSenderPrivateKey.toBase58();
-        //const contractSenderPublicKey = contractSenderPrivateKey.toPublicKey();
-        //const adminPrivateKey = PrivateKey.random();
         const tokenControllerPrivateKey = PrivateKey.random();
         const tokenBasePrivateKey = PrivateKey.random();
         const ethProcessorAddress = PrivateKey.random()
@@ -110,14 +89,6 @@ describe('e2e', () => {
         );
         tokenDeployer.terminate();
 
-        // Before we start we need, to compile pre requisites access to a wallet and an attested credential....
-
-        // GET WALLET **************************************************
-        const ethWallet = await getEthWallet();
-        const ethAddressLowerHex = ethWallet.address.toLowerCase();
-
-        // SETUP MINA **************************************************
-
         // Generate a funded test private key for mina litenet
         const litenetSk = await getNewMinaLiteNetAccountSK();
         const senderPrivateKey = PrivateKey.fromBase58(litenetSk);
@@ -125,70 +96,80 @@ describe('e2e', () => {
         const senderPublicKey = senderPrivateKey.toPublicKey();
         const senderPublicKeyBase58 = senderPublicKey.toBase58();
 
+        // START MAIN FLOW
+
+        // GET WALLET **************************************************
+        const ethWallet = await getEthWallet();
+        const ethAddressLowerHex = ethWallet.address.toLowerCase();
+
         // OBTAIN CREDENTIAL **************************************************
 
         // CLIENT *******************
         const secret = 'IAmASecretOfLength20';
         // Get signature
         console.time('ethSecretSignature');
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
         console.timeEnd('ethSecretSignature');
 
+        // These prints are just for testing purposes.
         console.log('ethSecretSignature', ethSecretSignature);
         console.log('senderPrivateKey.toBase58()', senderPrivateKeyBase58);
         console.log('senderPublicKey.toBase58()', senderPublicKeyBase58);
 
-        // WALLET or CLIENT?? *******************
-        // await tokenMintWorkerCredentialsReady;
+        // CLIENT *******************
         await credentialAttestationReady;
         // Create credential
         console.time('createCredential');
-        const credentialJson = await credentialAttestation.computeCredential(
-            secret,
-            ethSecretSignature,
-            ethWallet.address,
-            senderPublicKeyBase58
-        );
+        // This would be sent from the CLIENT to the WALLET to store.
+        const credentialJson =
+            await credentialAttestationWorker.computeCredential(
+                secret,
+                ethSecretSignature,
+                ethWallet.address,
+                senderPublicKeyBase58
+            );
         console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
         // CLIENT *******************
         // Create a presentation request
-        // This is sent from the client to the WALLET
+        // This is sent from the CLIENT to the WALLET
         console.time('getPresentationRequest');
         const presentationRequestJson =
-            await credentialAttestation.computeEcdsaSigPresentationRequest(
+            await credentialAttestationWorker.computeEcdsaSigPresentationRequest(
                 noriTokenControllerAddressBase58
             );
         console.timeEnd('getPresentationRequest'); // 1.348ms
 
         // WALLET ********************
         // WALLET takes a presentation request and the WALLET can retrieve the stored credential
-        // From this it creates a presentation.
+        // From this it creates a presentation and sends this to the CLIENT
         console.time('getPresentation');
         const presentationJsonStr =
-            await credentialAttestation.WALLET_computeEcdsaSigPresentation(
+            await credentialAttestationWorker.WALLET_computeEcdsaSigPresentation(
                 presentationRequestJson,
                 credentialJson,
                 senderPrivateKeyBase58
             );
         console.timeEnd('getPresentation'); // 46.801s
 
-        // Kill credentialAttestation worker
-        credentialAttestation.terminate();
+        // Kill credentialAttestation worker to reclaim ram.
+        credentialAttestationWorker.terminate();
 
-        // Extract hashed secret
+        // CLIENT only logic from now on....
 
+        // Extract hashed secret from presentation
         const { credentialAttestationBEHex, credentialAttestationHashField } =
             getSecretHashFromPresentationJson(presentationJsonStr);
         console.log('attestationBEHex', credentialAttestationBEHex);
 
         // CONNECT TO BRIDGE **************************************************
 
-        // Establish a connection to the bridge and listen to topics.
+        // Establish a connection to the bridge.
         console.log('Establishing bridge connection and topics.');
         const { bridgeSocket$, bridgeSocketConnectionState$ } =
             getReconnectingBridgeSocket$();
 
+        // Subscribe to the sockets connection status.
         bridgeSocketConnectionState$.subscribe({
             next: (state) => console.log(`[WS] ${state}`),
             error: (state) => console.error(`[WS] ${state}`),
@@ -196,11 +177,13 @@ describe('e2e', () => {
                 console.log('[WS] Bridge socket connection completed.'),
         });
 
+        // Retrieve observables for the bridge topics needed.
         const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
         const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
         const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
-        // Wait for bridge topics to be ready.
+        // Wait for bridge topics to be ready, to ensure a safe deposit.
+        // Under normal conditions this is very fast.
         console.time('bridgeStateReady');
         await firstValueFrom(
             combineLatest([
@@ -220,9 +203,9 @@ describe('e2e', () => {
         );
         console.timeEnd('lockingTokens');
 
-        // WAIT FOR BRIDGE PROCESSING **************************************************
+        // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
 
-        // Get deposit status.
+        // Get deposit status given our execution block number from the tx receipt.
         const depositProcessingStatus$ = getDepositProcessingStatus$(
             depositBlockNumber,
             ethStateTopic$,
@@ -230,19 +213,21 @@ describe('e2e', () => {
             bridgeTimingsTopic$
         );
 
+        // Subscribe to the depositProcessingStatus observable to print our progress.
         depositProcessingStatus$.subscribe({
             next: console.log,
             error: console.error,
             complete: () => console.log('Deposit processing completed'),
         });
 
-        // Compute proof
+        // COMPUTE DEPOSIT ATTESTATION **************************************************
         console.log(
             'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
         );
-
+        // Block until we have computed our deposit attestation proof.
         const { ethDepositProofJson, despositSlotRaw } = await firstValueFrom(
             depositProcessingStatus$.pipe(
+                // Wait for ProofConversionJobSucceeded during state WaitingForCurrentJobCompletion
                 filter(
                     ({ deposit_processing_status, stageName }) =>
                         deposit_processing_status ===
@@ -250,17 +235,19 @@ describe('e2e', () => {
                         stageName ===
                             TransitionNoticeMessageType.ProofConversionJobSucceeded
                 ),
+                // Only take one event
                 take(1),
+                // Compute our deposit attestation
                 switchMap(async () => {
                     await depositAttestationWorkerReady;
                     console.log('Computing proofs...');
                     const { ethDepositProofJson, despositSlotRaw } =
-                        await depositAttestation.compute(
+                        await depositAttestationWorker.compute(
                             presentationJsonStr,
                             depositBlockNumber,
                             ethAddressLowerHex
                         );
-                    depositAttestation.terminate();
+                    depositAttestationWorker.terminate();
                     return {
                         ethDepositProofJson,
                         despositSlotRaw,
@@ -274,40 +261,73 @@ describe('e2e', () => {
             despositSlotRaw.slot_nested_key_attestation_hash
         );
 
-        // Compile what we need for minting
-        //const tokenMintWorkerMintReady = tokenMintWorker.compileMinterDeps();
+        // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE ***************************
 
-        // Block until deposit has been processed
         console.log(
             'Waiting for deposit processing completion before we can complete the minting process.'
         );
+        // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
         await lastValueFrom(depositProcessingStatus$);
         console.log('Deposit is processed unblocking mint process.');
 
-        // COMPUTE PRESENTATION VERIFIER **************************************************
+        // PREPARE FOR MINTING **************************************************
 
         // Configure wallet
-        // In reality we would not pass this from the main thread.
+        // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
         await tokenMintWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
         await tokenMintWorker.minaSetup(minaConfig);
 
+        // Compile noriMintWorker dependancies. (This could perhaps be done earlier).
         const noriTokenControllerVerificationKeySafe =
             await tokenMintWorker.compileAll();
+
+        // SETUP STORAGE **************************************************
+
         console.time('noriMinter.setupStorage');
-        const { txHash: setupTxHash } = await tokenMintWorker.MOCK_setupStorage( // used to be const provedSetupTxStr = setupStorage
+        const { txHash: setupTxHash } = await tokenMintWorker.MOCK_setupStorage(
             senderPublicKeyBase58,
-            noriTokenControllerAddressBase58, // CHECKME @Karol
+            noriTokenControllerAddressBase58,
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
         );
-        //console.log('provedSetupTxStr', provedSetupTxStr);
+
+        // NOTE! ************
+        // Really a client would use await tokenMintWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
+        // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenMintWorker.setupStorage should be used on the
+        // frontend.
+        /*const provedSetupTxStr = await tokenMintWorker.setupStorage(
+            senderPublicKeyBase58,
+            noriTokenControllerAddressBase58,
+            0.1 * 1e9,
+            noriTokenControllerVerificationKeySafe
+        );
+        console.log('provedSetupTxStr', provedSetupTxStr);*/
+        // MOCK for wallet behaviour
         /*const { txHash: setupTxHash } =
             await tokenMintWorker.WALLET_signAndSend(provedSetupTxStr);*/
+
         console.log('setupTxHash', setupTxHash);
         console.timeEnd('noriMinter.setupStorage');
 
+        // MINT **************************************************
+
         console.time('Minting');
-        const { txHash: mintTxHash } = await tokenMintWorker.MOCK_mint( // used to be const provedMintTxStr = mint
+        const { txHash: mintTxHash } = await tokenMintWorker.MOCK_mint(
+            senderPublicKeyBase58,
+            noriTokenControllerAddressBase58,
+            {
+                ethDepositProofJson: ethDepositProofJson,
+                presentationProofStr: presentationJsonStr,
+            },
+            1e9 * 0.1,
+            true
+        );
+
+        // NOTE! ************
+        // Really a client would use await tokenMintWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
+        // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenMintWorker.mint should be used on the
+        // frontend.
+        /*const provedMintTxStr = await tokenMintWorker.mint(
             senderPublicKeyBase58,
             noriTokenControllerAddressBase58, // CHECKME @Karol
             {
@@ -317,13 +337,16 @@ describe('e2e', () => {
             1e9 * 0.1,
             true
         );
-        //console.log('provedMintTxStr', provedMintTxStr);
-        /*const { txHash: mintTxHash } = await tokenMintWorker.WALLET_signAndSend(
-            provedMintTxStr
-        );*/
+        console.log('provedMintTxStr', provedMintTxStr);*/
+        // MOCK for wallet behaviour
+        /*const { txHash: mintTxHash } =
+            await tokenMintWorker.WALLET_signAndSend(provedMintTxStr);*/
+
         console.log('mintTxHash', mintTxHash);
         console.timeEnd('Minted');
-
         console.log('Minted!');
+
+        // END MAIN FLOW
+    
     }, 1000000000);
 });

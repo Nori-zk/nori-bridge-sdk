@@ -31,6 +31,9 @@
         "./browser/worker/child": {
             "import": "./target/src/worker/child/index.browser.js"
         },
+        "./worker": {
+            "import": "./target/src/worker/index.js"
+        },
         "./rx/deposit": {
             "import": "./target/src/rx/deposit.js"
         },
@@ -39,6 +42,27 @@
         },
         "./rx/topics": {
             "import": "./target/src/rx/topics.js"
+        },
+        "./pure-workers": {
+            "import": "./target/src/workers/index.js"
+        },
+        "./node/workers/tokenMint": {
+            "import": "./target/src/workers/tokenMint/node/parent.js"
+        },
+        "./browser/workers/tokenMint": {
+            "import": "./target/src/workers/tokenMint/browser/parent.js"
+        },
+        "./node/workers/depositAttestation": {
+            "import": "./target/src/workers/depositAttestation/node/parent.js"
+        },
+        "./browser/workers/depositAttestation": {
+            "import": "./target/src/workers/depositAttestation/browser/parent.js"
+        },
+        "./node/workers/credentialAttestation": {
+            "import": "./target/src/workers/credentialAttestation/node/parent.js"
+        },
+        "./browser/workers/credentialAttestation": {
+            "import": "./target/src/workers/credentialAttestation/browser/parent.js"
         }
     },
     "scripts": {

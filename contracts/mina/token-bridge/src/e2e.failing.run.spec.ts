@@ -334,8 +334,8 @@ const proofBundleJson = {
 };
 
 import { AccountUpdate, Field, Mina, PrivateKey } from 'o1js';
-import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
-import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
+import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
+import { getDepositAttestationWorker } from './workers/depositAttestation/node/parent.js';
 import { getMockVerification } from './workers/mockCredVerification/node/parent.js';
 import {
     EcdsaSigPresentationVerifier,
@@ -425,8 +425,8 @@ describe('failing_e2e', () => {
         const depositBlockNumber = 4252341;
         const ethAddressLowerHex = signerAddressHex.toLocaleLowerCase();
 
-        const depositAttestation = getDepositAttestation();
-        const credentialAttestation = getCredentialAttestation();
+        const depositAttestation = getDepositAttestationWorker();
+        const credentialAttestation = getCredentialAttestationWorker();
         const mockVerifier = getMockVerification();
 
         const credentialAttestationReady = credentialAttestation.compile();
@@ -482,13 +482,13 @@ describe('failing_e2e', () => {
         //const zkAppPrivateKey = PrivateKey.random();
         //const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
 
-        // mockDeployAndVerifyEcdsaSigPresentationVerifier
+        // MOCK_deployAndVerifyEcdsaSigPresentationVerifier
         await credentialAttestationReady;
         console.log(
-            'Performing mockDeployAndVerifyEcdsaSigPresentationVerifier'
+            'Performing MOCK_deployAndVerifyEcdsaSigPresentationVerifier'
         );
         // Note might need to swap these to the generated ones
-        await credentialAttestation.mockDeployAndVerifyEcdsaSigPresentationVerifier(
+        await credentialAttestation.MOCK_deployAndVerifyEcdsaSigPresentationVerifier(
             zkAppPrivateKeyBase58,
             minaPrivateKeyBase58,
             JSON.stringify(presentationJson)

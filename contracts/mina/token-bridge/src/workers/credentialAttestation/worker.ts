@@ -70,7 +70,7 @@ export class CredentialAttestationWorker {
         return presentationJson;
     }
 
-    async mockDeployAndVerifyEcdsaSigPresentationVerifier(
+    async MOCK_deployAndVerifyEcdsaSigPresentationVerifier(
         zkAppPrivateKeyBase58: string,
         senderPrivateKeyBase58: string,
         presentationJSON: string

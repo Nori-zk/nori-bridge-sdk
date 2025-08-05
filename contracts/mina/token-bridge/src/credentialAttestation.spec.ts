@@ -12,7 +12,7 @@ import {
 } from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';
-import { signSecret } from './ethSignature.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
 
 describe('attestation', () => {
     // Get a private key from .env located within <projectRoot>/contracts/ethereum/.env
@@ -111,7 +111,7 @@ describe('attestation', () => {
         // CLIENT *******************
         const secret = 'IAmASecretOfLength20';
         // Get signature
-        const ethSignature = await signSecret(secret, ethWallet);
+        const ethSignature = await signSecretWithEthWallet(secret, ethWallet);
 
         // WALLET *******************
         // Create credential

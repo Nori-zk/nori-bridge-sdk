@@ -19,7 +19,7 @@ import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
 import { DeploymentResult } from '../../NoriControllerSubmitter.js';
 
-export class TokenDeployer {
+export class TokenDeployerWorker {
     // Mina setup ******************************************************************************
 
     async minaSetup(options: {

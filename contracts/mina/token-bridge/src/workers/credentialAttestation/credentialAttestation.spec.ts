@@ -1,15 +1,15 @@
-import { getCredentialAttestation } from './node/parent.js';
+import { getCredentialAttestationWorker } from './node/parent.js';
 
 describe('CredentialAttestationWorker', () => {
-    let credentialAttestation: ReturnType<typeof getCredentialAttestation>;
+    let credentialAttestationWorker: ReturnType<typeof getCredentialAttestationWorker>;
     beforeAll(() => {
-        credentialAttestation = getCredentialAttestation();
+        credentialAttestationWorker = getCredentialAttestationWorker();
     });
     afterAll(() => {
-        credentialAttestation.terminate();
+        credentialAttestationWorker.terminate();
     });
     it('should_compile_credential_attestation_message', async () => {
         console.log('Called credentialAttestation.compile');
-        await credentialAttestation.compile();
+        await credentialAttestationWorker.compile();
     });
 });

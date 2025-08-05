@@ -24,9 +24,9 @@ import {
     getDepositProcessingStatus$,
 } from './rx/deposit.js';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
-import { signSecret } from './ethSignature.js';
-import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
-import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
+import { getDepositAttestationWorker } from './workers/depositAttestation/node/parent.js';
+import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 import { getMockVerification } from './workers/mockCredVerification/node/parent.js';
 import { getE2e } from './workers/e2eWorker/node/parent.js';
 import { deployTokenController } from './NoriTokenControllerDeploy.js';
@@ -51,8 +51,8 @@ describe('e2e', () => {
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
         // Init workers
-        const depositAttestation = getDepositAttestation();
-        const credentialAttestation = getCredentialAttestation();
+        const depositAttestation = getDepositAttestationWorker();
+        const credentialAttestation = getCredentialAttestationWorker();
         const noriMinter = getE2e();
 
         const depositAttestationWorkerReady = depositAttestation.compile();
@@ -85,7 +85,7 @@ describe('e2e', () => {
         const secret = 'IAmASecretOfLength20';
         // Get signature
         console.time('ethSecretSignature');
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
         console.timeEnd('ethSecretSignature');
 
         console.log('ethSecretSignature', ethSecretSignature);

@@ -42,9 +42,9 @@ import {
     fieldToHexBE,
 } from '@nori-zk/o1js-zk-utils';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
-import { signSecret } from './ethSignature.js';
-import { getDepositAttestation } from './workers/depositAttestation/node/parent.js';
-import { getCredentialAttestation } from './workers/credentialAttestation/node/parent.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
+import { getDepositAttestationWorker } from './workers/depositAttestation/node/parent.js';
+import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 import {
     compileEcdsaEthereum,
     compileEcdsaSigPresentationVerifier,
@@ -62,8 +62,8 @@ describe('e2e-rx-workers', () => {
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
         // Init workers
-        const depositAttestation = getDepositAttestation();
-        const credentialAttestation = getCredentialAttestation();
+        const depositAttestation = getDepositAttestationWorker();
+        const credentialAttestation = getCredentialAttestationWorker();
 
         const depositAttestationWorkerReady = depositAttestation.compileAttestation();
 
@@ -102,7 +102,7 @@ describe('e2e-rx-workers', () => {
         const secret = 'IAmASecretOfLength20';
         // Get signature
         console.time('ethSecretSignature');
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
         console.timeEnd('ethSecretSignature');
 
         console.log('ethSecretSignature', ethSecretSignature);

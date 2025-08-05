@@ -90,17 +90,17 @@ export class TokenMintWorker {
         return transaction;
     }*/
 
-    private deserializeTransaction(serializedTransaction: string) {
+    /*private deserializeTransaction(serializedTransaction: string) {
         const txJSON = JSON.parse(serializedTransaction);
-        /*const payload = {
+        const payload = {
             transaction,
             onlySign: true,
             feePayer: {
                 fee: fee,
                 memo: memo,
             },
-        };*/
-    }
+        };
+    }*/
 
     // Sign and send transaction
     async WALLET_signAndSend(provedTxJsonStr: string) {

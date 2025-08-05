@@ -24,12 +24,12 @@ import {
     getDepositProcessingStatus$,
 } from './rx/deposit.js';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
-import { signSecret } from './ethSignature.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
 import { deployTokenController } from './NoriTokenControllerDeploy.js';
 import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
 import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getMockWalletWorker } from './workers/mockWallet/node/parent.js';
-import { getTokenDeployer } from './workers/tokenDeployer/node/parent.js';
+import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 
 describe('e2e', () => {
     test('e2e_complete', async () => {
@@ -64,7 +64,7 @@ describe('e2e', () => {
         } = await deployTokenController();*/
 
         // Use the worker to save some ram
-        const tokenDeployer = getTokenDeployer();
+        const tokenDeployer = getTokenDeployerWorker();
         const storageInterfaceVerificationKeySafe: {
             data: string;
             hashStr: string;
@@ -126,7 +126,7 @@ describe('e2e', () => {
         const secret = 'IAmASecretOfLength20';
         // Get signature
         console.time('ethSecretSignature');
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
         console.timeEnd('ethSecretSignature');
 
         console.log('ethSecretSignature', ethSecretSignature);

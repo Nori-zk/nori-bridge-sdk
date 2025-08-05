@@ -41,7 +41,7 @@ import {
 import { computeDepositAttestation } from './depositAttestation.js';
 import { fieldToBigIntLE, fieldToHexBE } from '@nori-zk/o1js-zk-utils';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
-import { signSecret } from './ethSignature.js';
+import { signSecretWithEthWallet } from './ethSignature.js';
 
 describe('e2e_rx_prerequisites', () => {
     test('e2e_rx_pipeline', async () => {
@@ -82,7 +82,7 @@ describe('e2e_rx_prerequisites', () => {
         const secret = 'IAmASecretOfLength20';
         // Get signature
         console.time('ethSecretSignature');
-        const ethSecretSignature = await signSecret(secret, ethWallet);
+        const ethSecretSignature = await signSecretWithEthWallet(secret, ethWallet);
         console.timeEnd('ethSecretSignature');
 
         // WALLET *******************

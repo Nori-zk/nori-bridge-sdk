@@ -1,9 +1,9 @@
-import { getDepositAttestation } from './node/parent.js';
+import { getDepositAttestationWorker } from './node/parent.js';
 
 describe('DepositAttestationWorker', () => {
-    let depositAttestation: ReturnType<typeof getDepositAttestation>;
+    let depositAttestation: ReturnType<typeof getDepositAttestationWorker>;
     beforeAll(() => {
-        depositAttestation = getDepositAttestation();
+        depositAttestation = getDepositAttestationWorker();
     });
     afterAll(() => {
         depositAttestation.terminate();

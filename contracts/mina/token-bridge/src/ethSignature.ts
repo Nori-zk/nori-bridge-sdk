@@ -5,7 +5,7 @@ import {
 } from './credentialAttestation.js';
 import { id, Wallet } from 'ethers';
 
-export async function signSecret<FixedString extends string>(
+export async function signSecretWithEthWallet<FixedString extends string>(
     secret: EnforceMaxLength<FixedString, SecretMaxLength>,
     ethWallet: Wallet
 ) {
