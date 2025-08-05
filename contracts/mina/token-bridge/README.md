@@ -88,7 +88,7 @@ import {
     > This example shows how to wire up a pure worker using [Comlink](https://github.com/GoogleChromeLabs/comlink)
 
     ```typescript
-    workers/credentialAttestation/child.ts
+    //workers/credentialAttestation/child.ts
     import * as Comlink from 'comlink';
     import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/pure-workers';
 
@@ -96,7 +96,7 @@ import {
     ```
 
     ```typescript
-    workers/credentialAttestation/parent.ts
+    //workers/credentialAttestation/parent.ts
     import * as Comlink from 'comlink';
     import type { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/pure-workers';
 
