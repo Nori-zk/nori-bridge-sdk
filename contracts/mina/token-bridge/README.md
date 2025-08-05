@@ -242,6 +242,8 @@ NORI_TOKEN_BRIDGE_TEST_MODE=true
 NORI_TOKEN_BRIDGE_ADDRESS=<Extract this from contracts/ethereum/.env.nori-token-bridge, after running npm run deploy (within the contracts/ethereum workspace), or use an already deployed test contract>
 ```
 
+### Then run the tests
+
 ```sh
 npm run test # all tests (hangs due to multiple instances of o1js deps)
 npm run test -- -t 'e2e_complete' # run a specific test (e.g. the complete e2e test)
