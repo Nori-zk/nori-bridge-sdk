@@ -23,7 +23,6 @@ You have several options depending on your environment and bundler setup:
 
 ```typescript
 import { getTokenMintWorker } from '@nori-zk/mina-token-bridge/node/workers/tokenMint';
-import { getDepositAttestationWorker } from '@nori-zk/mina-token-bridge/node/workers/depositAttestation';
 import { getCredentialAttestationWorker } from '@nori-zk/mina-token-bridge/node/workers/credentialAttestation';
 ```
 
@@ -34,7 +33,6 @@ import { getCredentialAttestationWorker } from '@nori-zk/mina-token-bridge/node/
 
 ```typescript
 import { getTokenMintWorker } from '@nori-zk/mina-token-bridge/browser/workers/tokenMint';
-import { getDepositAttestationWorker } from '@nori-zk/mina-token-bridge/browser/workers/depositAttestation';
 import { getCredentialAttestationWorker } from '@nori-zk/mina-token-bridge/browser/workers/credentialAttestation';
 ```
 
@@ -46,7 +44,6 @@ import { getCredentialAttestationWorker } from '@nori-zk/mina-token-bridge/brows
 ```typescript
 import {
   CredentialAttestationWorker,
-  DepositAttestationWorker,
   TokenMintWorker,
 } from '@nori-zk/mina-token-bridge/pure-workers';
 ```
@@ -116,28 +113,60 @@ import {
 ```typescript
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
-
 import {
   getBridgeStateTopic$,
   getBridgeTimingsTopic$,
   getEthStateTopic$,
 } from '@nori-zk/mina-token-bridge/rx/topics';
-
 import {
   BridgeDepositProcessingStatus,
   getDepositProcessingStatus$,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
+import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 
-import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
-
-// Import your worker getter function here, e.g.:
+// Import your worker getter function here to support minting, e.g.:
 // import { getCredentialAttestationWorker } from './workers/credentialAttestation/parent';
+
+// Do other logic such as retrieving user balance etc.
 ```
 
-### Example
+### Example of mint flow
 
 See the [E2E test](src/e2e.workers2.spec.ts) for a comprehensive example.
 
+### Example of token contracts usage
+
+#### Get user balance
+
+```typescript
+const tokenBase = new FungibleToken(tokenAddress);
+
+await fetchAccount({
+  publicKey: userPublicKey,
+  tokenId: tokenBase.deriveTokenId(),
+});
+
+const balance = tokenBase.getBalanceOf(userPublicKey);
+```
+
+#### Get user storage info
+
+```typescript
+const noriTokenController = new NoriTokenController(noriAddress);
+
+const storage = new NoriStorageInterface(
+    userPublicKey,
+    this.#noriTokenController.deriveTokenId()
+);
+
+await fetchAccount({
+  publicKey: userPublicKey,
+  tokenId: noriTokenController.deriveTokenId(),
+});
+
+const userKeyHash = await storage.userKeyHash.fetch();
+const mintedSoFar = await storage.mintedSoFar.fetch();
+```
 
 ## Token Contract Deployment
 

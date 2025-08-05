@@ -27,7 +27,6 @@ import { signSecretWithEthWallet } from './ethSignature.js';
 import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
 import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
-import { getDepositAttestationWorker } from './workers/depositAttestation/node/parent.js';
 import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 
 describe('e2e', () => {
@@ -40,14 +39,9 @@ describe('e2e', () => {
 
         // INIT WORKERS **************************************************
         const tokenMintWorker = getTokenMintWorker();
-        const depositAttestationWorker = getDepositAttestationWorker();
         const credentialAttestationWorker = getCredentialAttestationWorker();
 
-        // READY ATTESTATION WORKERS **************************************
-        // Compile credential and deposit attestation workers
-        // MOVE BELOW?? CHECKME
-        const depositAttestationWorkerReady =
-            depositAttestationWorker.compile();
+        // READY CREDENTIAL ATTESTATION WORKER **************************************
         const credentialAttestationReady =
             credentialAttestationWorker.compile();
 
@@ -221,10 +215,14 @@ describe('e2e', () => {
         });
 
         // COMPUTE DEPOSIT ATTESTATION **************************************************
+
+        // Compile tokenMintWorker dependancies
+        const tokenMintWorkerReady = tokenMintWorker.compileAll();
+
+        // Block until we have computed our deposit attestation proof.
         console.log(
             'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
         );
-        // Block until we have computed our deposit attestation proof.
         const { ethDepositProofJson, despositSlotRaw } = await firstValueFrom(
             depositProcessingStatus$.pipe(
                 // Wait for ProofConversionJobSucceeded during state WaitingForCurrentJobCompletion
@@ -239,15 +237,14 @@ describe('e2e', () => {
                 take(1),
                 // Compute our deposit attestation
                 switchMap(async () => {
-                    await depositAttestationWorkerReady;
+                    await tokenMintWorkerReady;
                     console.log('Computing proofs...');
                     const { ethDepositProofJson, despositSlotRaw } =
-                        await depositAttestationWorker.compute(
+                        await tokenMintWorker.computeEthDeposit(
                             presentationJsonStr,
                             depositBlockNumber,
                             ethAddressLowerHex
                         );
-                    depositAttestationWorker.terminate();
                     return {
                         ethDepositProofJson,
                         despositSlotRaw,
@@ -277,9 +274,9 @@ describe('e2e', () => {
         await tokenMintWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
         await tokenMintWorker.minaSetup(minaConfig);
 
-        // Compile noriMintWorker dependancies. (This could perhaps be done earlier).
+        // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
         const noriTokenControllerVerificationKeySafe =
-            await tokenMintWorker.compileAll();
+            await tokenMintWorkerReady;
 
         // SETUP STORAGE **************************************************
 

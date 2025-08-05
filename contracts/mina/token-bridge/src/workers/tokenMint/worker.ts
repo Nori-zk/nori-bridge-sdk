@@ -18,6 +18,7 @@ import {
 import { EthVerifier, ContractDepositAttestor } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
+    Bytes,
     fetchAccount,
     Field,
     Mina,
@@ -34,6 +35,7 @@ import {
     NoriTokenController,
 } from '../../NoriTokenController.js';
 import { Presentation } from 'mina-attestations';
+import { wordToBytes } from '@nori-zk/proof-conversion';
 // FIXME make a setter for senderPublicKey and perhaps noriAddressBase58
 
 export class TokenMintWorker {
@@ -517,9 +519,7 @@ export class TokenMintWorker {
 
         const provedTx = await mintTx.prove();
 
-        const tx = await provedTx
-            .sign([this.#minaPrivateKey])
-            .send();
+        const tx = await provedTx.sign([this.#minaPrivateKey]).send();
         const result = await tx.wait();
 
         // Fetch updated balance
