@@ -156,7 +156,7 @@ const noriTokenController = new NoriTokenController(noriAddress);
 
 const storage = new NoriStorageInterface(
     userPublicKey,
-    this.#noriTokenController.deriveTokenId()
+    noriTokenController.deriveTokenId()
 );
 
 await fetchAccount({
