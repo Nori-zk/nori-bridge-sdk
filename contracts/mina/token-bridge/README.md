@@ -209,7 +209,7 @@ To configure the deployment, set the following environment variables:
   Transaction fee to use. Defaults to `0.1`.
 
 - `MOCK`  
-  Optional flag to indicate mock mode (any value).
+  Optional flag to indicate mock mode ('true' or omit for false [the default]).
 
 ### Example `.env` file
 
@@ -224,12 +224,23 @@ TX_FEE=0.1
 MOCK=true
 ```
 
-## How to run tests
+## How to run the tests
 
-Install Mina lightnet
+### Install Mina lightnet
 
 1. `npm install -g zkapp-cli`
 2. `zk lightnet start`
+
+### Configure the .env file in the contracts/ethereum workspace
+
+contracts/ethereum/.env
+```
+ETH_PRIVATE_KEY=<Your ETH private key>
+ETH_RPC_URL=<Ethereum execution RPC e.g. 'https://ethereum-holesky.core.chainstack.com/<apiKey>'>
+ETH_NETWORK=holesky (for example)
+NORI_TOKEN_BRIDGE_TEST_MODE=true
+NORI_TOKEN_BRIDGE_ADDRESS=<Extract this from contracts/ethereum/.env.nori-token-bridge, after running npm run deploy (within the contracts/ethereum workspace), or use an already deployed test contract>
+```
 
 ```sh
 npm run test # all tests (hangs due to multiple instances of o1js deps)
