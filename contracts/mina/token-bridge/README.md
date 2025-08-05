@@ -138,6 +138,63 @@ import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 
 See the [E2E test](src/e2e.workers2.spec.ts) for a comprehensive example.
 
+
+## Token Contract Deployment
+
+In order to deploy the contract, a script has been provided as an npm command:
+
+```sh
+npm run deploy
+```
+
+This command builds the project and runs the deployment script with Node.js using the necessary experimental flags for VM and WASM modules.
+
+### Environment Variables
+
+To configure the deployment, set the following environment variables:
+
+- `MINA_RPC_NETWORK_URL`  
+  The Mina network RPC endpoint URL.  
+  Defaults to `http://localhost:8080/graphql` if unset.
+
+- `SENDER_PRIVATE_KEY`  
+  Private key of the deploying sender account.  
+  Required for non-local deployments. Auto-generated for localhost.
+
+- `NORI_CONTROLLER_PRIVATE_KEY`  
+  Private key for the Nori Token Controller contract.  
+  Randomly generated if not provided.
+
+- `TOKEN_BASE_PRIVATE_KEY`  
+  Private key for the Token Base contract.  
+  Randomly generated if not provided.
+
+- `ADMIN_PUBLIC_KEY`  
+  Public key of the admin.  
+  Defaults to the public key derived from `SENDER_PRIVATE_KEY`.
+
+- `ETH_PROCESSOR_ADDRESS`  
+  Optional Ethereum processor contract address.
+
+- `TX_FEE`  
+  Transaction fee to use. Defaults to `0.1`.
+
+- `MOCK`  
+  Optional flag to indicate mock mode (any value).
+
+### Example `.env` file
+
+```
+MINA_RPC_NETWORK_URL=http://localhost:8080/graphql
+SENDER_PRIVATE_KEY=your_sender_private_key_here
+NORI_CONTROLLER_PRIVATE_KEY=your_nori_controller_key_here
+TOKEN_BASE_PRIVATE_KEY=your_token_base_private_key_here
+ADMIN_PUBLIC_KEY=your_admin_public_key_here
+ETH_PROCESSOR_ADDRESS=optional_eth_processor_address
+TX_FEE=0.1
+MOCK=true
+```
+
 ## How to run tests
 
 Install Mina lightnet
