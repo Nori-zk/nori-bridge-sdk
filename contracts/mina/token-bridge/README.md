@@ -146,7 +146,7 @@ await fetchAccount({
   tokenId: tokenBase.deriveTokenId(),
 });
 
-const balance = tokenBase.getBalanceOf(userPublicKey);
+const balance = await tokenBase.getBalanceOf(userPublicKey);
 ```
 
 #### Get user storage info
