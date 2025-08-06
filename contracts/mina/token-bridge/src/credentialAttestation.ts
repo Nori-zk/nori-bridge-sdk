@@ -271,5 +271,5 @@ export function getSecretHashFromPresentationJson(presentationJson: string) {
         wordToBytes(credentialAttestationHashField, 32).reverse()
     );
     const credentialAttestationBEHex = `0x${beAttestationHashBytes.toHex()}`;
-    return { credentialAttestationBEHex, credentialAttestationHashField };
+    return { credentialAttestationBEHex, credentialAttestationHashField, credentialAttestationBigInt: messageHashBigInt };
 }

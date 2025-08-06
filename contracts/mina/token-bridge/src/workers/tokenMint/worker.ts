@@ -105,6 +105,7 @@ export class TokenMintWorker {
     }*/
 
     // Sign and send transaction
+    // THIS DOES NOT WORK ATM
     async WALLET_signAndSend(provedTxJsonStr: string) {
         if (!this.#minaPrivateKey)
             throw new Error(
@@ -289,17 +290,9 @@ export class TokenMintWorker {
 
         const provedTx = await setupTx.prove();
         return provedTx.toJSON();
-
-        /*await setupTx.prove();
-        setupTx.toJSON()
-
-        const tx = await setupTx.sign([userPrivateKey]).send();
-        const result = await tx.wait();
-
-        console.log('Storage setup completed successfully');
-        return { txHash: result.hash };*/
     }
 
+    // This will be removed when we have a working version of WALLET_signAndSend
     async MOCK_setupStorage(
         userPublicKeyBase58: string,
         noriAddressBase58: string,
@@ -436,40 +429,9 @@ export class TokenMintWorker {
         const provedTx = await mintTx.prove();
 
         return provedTx.toJSON();
-
-        /*await mintTx.prove();
-        const tx = await mintTx
-            .sign([this.#senderPrivateKey, userPrivateKey])
-            .send();
-        const result = await tx.wait();
-
-        // Fetch updated balance
-        await fetchAccount({
-            publicKey: userPublicKey,
-            tokenId: this.#tokenBase.deriveTokenId(),
-        });
-
-        const balance = await this.#tokenBase.getBalanceOf(userPublicKey);
-
-        console.log('Minting completed successfully');
-
-        if (this.#isMintProofData(proofData)) {
-            return {
-                txHash: result.hash,
-                mintedAmount:
-                    proofData.ethDepositProof.publicOutput.totalLocked.toString(),
-                userBalance: balance.toString(),
-            };
-        } else {
-            return {
-                txHash: result.hash,
-                mintedAmount:
-                    proofData.depositAttesterProof?.lockedSoFar.toString(),
-                userBalance: balance.toString(),
-            };
-        }*/
     }
 
+    // This will be removed when we have a working version of WALLET_signAndSend
     async MOCK_mint(
         userPublicKeyBase58: string,
         noriAddressBase58: string,
@@ -535,19 +497,73 @@ export class TokenMintWorker {
         return { txHash: result.hash };
     }
 
-    // Not sure if the wallet should do this.... or the worker FIXME
-    /*async send(signedAndProvedTxJsonStr: string) {
-        const tx = Transaction.fromJSON(
-            JSON.parse(signedAndProvedTxJsonStr) as any
-        ) as unknown as Mina.Transaction<true, true>;
-        //throw new Error('theres not fucking way this is gonna work lol');
-        const result = await tx.send().wait();
-        return { txHash: result.hash };
-    }*/
-
+    // Compile all deps
     async compileAll() {
         await this.compileCredentialDeps();
         await this.compileEthDepositProgramDeps();
         return this.compileMinterDeps();
+    }
+
+    // Here another MOCK for mint but split into two stages statefulMintProof and signAndSendStatefulMintProof
+    // This will be removed when we have a working version of WALLET_signAndSend
+
+    #mintProofCache: Mina.Transaction<true, false>;
+    async MOCK_computeMintProofAndCache(
+        userPublicKeyBase58: string,
+        noriAddressBase58: string,
+        proofDataJson: MintProofDataJson,
+        txFee: number,
+        fundNewAccount = true
+    ) {
+        const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
+        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+
+        // Reconstruct MintProofData
+        const { ethDepositProofJson, presentationProofStr } = proofDataJson;
+
+        const ethDepositProof = await EthDepositProgramProofType.fromJSON(
+            ethDepositProofJson
+        );
+        const presentationProof = ProvableEcdsaSigPresentation.from(
+            Presentation.fromJSON(presentationProofStr)
+        );
+        const proofData: MintProofData = {
+            ethDepositProof,
+            presentationProof,
+        };
+
+        console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
+
+        //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
+        await this.fetchAccounts([userPublicKey, noriAddress]);
+
+        // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
+        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+
+        const mintTx = await Mina.transaction(
+            { sender: userPublicKey, fee: txFee },
+            async () => {
+                if (fundNewAccount) {
+                    AccountUpdate.fundNewAccount(userPublicKey, 1);
+                }
+                const realProofData = proofData as MintProofData;
+                await noriTokenControllerInst.noriMint(
+                    realProofData.ethDepositProof,
+                    realProofData.presentationProof
+                );
+            }
+        );
+
+        const provedTx = await mintTx.prove();
+
+        this.#mintProofCache = provedTx;
+    }
+
+    async WALLET_MOCK_signAndSendMintProofCache() {
+        const tx = await this.#mintProofCache
+            .sign([this.#minaPrivateKey])
+            .send();
+        const result = await tx.wait();
+        return { txHash: result.hash };
     }
 }

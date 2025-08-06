@@ -330,7 +330,7 @@ export class NoriTokenControllerSubmitter {
                 // Deploy TokenBase
                 await this.#tokenBase.deploy({
                     symbol,
-                    src: 'https://nori',
+                    src: 'https://x.com/nori_zk',
                     allowUpdates,
                 });
 

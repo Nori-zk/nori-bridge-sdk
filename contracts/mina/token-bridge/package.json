@@ -85,6 +85,7 @@
         "@babel/preset-env": "^7.16.4",
         "@babel/preset-typescript": "^7.16.0",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "@nori-zk/ethereum-token-bridge": "^0.0.7",
         "@nori-zk/pts-types": "^3.0.13",
         "@types/jest": "^29.5.12",
         "@typescript-eslint/eslint-plugin": "^5.5.0",
