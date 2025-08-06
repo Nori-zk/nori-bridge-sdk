@@ -18,7 +18,6 @@ import {
 import { EthVerifier, ContractDepositAttestor } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
-    Bytes,
     fetchAccount,
     Field,
     Mina,
@@ -35,7 +34,6 @@ import {
     NoriTokenController,
 } from '../../NoriTokenController.js';
 import { Presentation } from 'mina-attestations';
-import { wordToBytes } from '@nori-zk/proof-conversion';
 // FIXME make a setter for senderPublicKey and perhaps noriAddressBase58
 
 export class TokenMintWorker {
@@ -249,6 +247,32 @@ export class TokenMintWorker {
         await Promise.all(
             accounts.map((addr) => fetchAccount({ publicKey: addr }))
         );
+    }
+
+    // Determine if we need to setupStorage (as it only needs to be done once per account).
+    async needsToSetupStorage(
+        noriTokenControllerAddressBase58: string,
+        minaSenderPublicKeyBase58: string
+    ) {
+        const minaSenderPublicKey = PublicKey.fromBase58(
+            minaSenderPublicKeyBase58
+        );
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
+        const noriTokenController = new NoriTokenController(
+            noriTokenControllerAddress
+        );
+        const storage = new NoriStorageInterface(
+            minaSenderPublicKey,
+            noriTokenController.deriveTokenId()
+        );
+        await fetchAccount({
+            publicKey: minaSenderPublicKey,
+            tokenId: noriTokenController.deriveTokenId(),
+        });
+        const userKeyHash = await storage.userKeyHash.fetch();
+        if (!userKeyHash) throw new Error('userKeyHash was falsey');
     }
 
     async setupStorage(

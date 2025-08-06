@@ -133,7 +133,7 @@ describe('e2e_testnet', () => {
         const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
         const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
         const ethAddressLowerHex = ethWallet.address.toLowerCase();
-        
+
         // INIT WORKERS **************************************************
         console.log('Fetching workers.');
         const tokenMintWorker = getTokenMintWorker();
@@ -151,6 +151,7 @@ describe('e2e_testnet', () => {
         // CLIENT *******************
         const secret = 'IAmASecretOfLength20';
         // Get signature
+        console.log('Creating eth signature of our secret');
         console.time('ethSecretSignature');
         const ethSecretSignature = await signSecretWithEthWallet(
             secret,
@@ -165,6 +166,7 @@ describe('e2e_testnet', () => {
         // CLIENT *******************
         await credentialAttestationReady;
         // Create credential
+        console.log('Creating credential');
         console.time('createCredential');
         // This would be sent from the CLIENT to the WALLET to store.
         const credentialJson =
@@ -179,6 +181,7 @@ describe('e2e_testnet', () => {
         // CLIENT *******************
         // Create a presentation request
         // This is sent from the CLIENT to the WALLET
+        console.log('Creating presentation request');
         console.time('getPresentationRequest');
         const presentationRequestJson =
             await credentialAttestationWorker.computeEcdsaSigPresentationRequest(
@@ -189,6 +192,7 @@ describe('e2e_testnet', () => {
         // WALLET ********************
         // WALLET takes a presentation request and the WALLET can retrieve the stored credential
         // From this it creates a presentation and sends this to the CLIENT
+        console.log('Creating presentation');
         console.time('getPresentation');
         const presentationJsonStr =
             await credentialAttestationWorker.WALLET_computeEcdsaSigPresentation(
@@ -200,6 +204,7 @@ describe('e2e_testnet', () => {
 
         // Kill credentialAttestation worker to reclaim ram.
         credentialAttestationWorker.terminate();
+        console.log('credentialAttestationWorker terminated');
 
         // CLIENT only logic from now on....
 
@@ -246,6 +251,7 @@ describe('e2e_testnet', () => {
         // LOCK TOKENS **************************************************
 
         // FIX ME DO THIS PROPERLY WITH AN ETHERS TX
+        console.log('Locking eth tokens');
         console.time('lockingTokens');
         const abi = noriTokenBridgeJson.abi;
         const contract = new ethers.Contract(
@@ -269,7 +275,9 @@ describe('e2e_testnet', () => {
         if (!depositBlockNumber) {
             console.error('depositBlockNumber was falsey');
         }
-        console.log(`Deposit confirmed with blockNumber: ${depositBlockNumber}`);
+        console.log(
+            `Deposit confirmed with blockNumber: ${depositBlockNumber}`
+        );
         console.timeEnd('lockingTokens');
 
         // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
@@ -292,6 +300,7 @@ describe('e2e_testnet', () => {
         // COMPUTE DEPOSIT ATTESTATION **************************************************
 
         // Compile tokenMintWorker dependancies
+        console.log('Compiling dependancies of tokenMintWorker');
         const tokenMintWorkerReady = tokenMintWorker.compileAll(); // ?? Can we move this earlier...
 
         // PREPARE FOR MINTING **************************************************
@@ -306,33 +315,50 @@ describe('e2e_testnet', () => {
         // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
         const noriTokenControllerVerificationKeySafe =
             await tokenMintWorkerReady;
+        console.log('Awaited compilation of tokenMintWorkerReady');
 
         // SETUP STORAGE **************************************************
+        // TODO IMPROVE THIS
+        const setupRequired = await tokenMintWorker.needsToSetupStorage(noriTokenControllerAddressBase58, minaSenderPublicKeyBase58)
+            .then(() => false)
+            .catch((error) => {
+                console.error(
+                    `Error determining if we needed to setup storage. Going to assume that we do need to.`,
+                    error
+                );
+                // But perhaps this could error for other reasons?!
+                return true;
+            });
 
-        console.time('noriMinter.setupStorage');
-        const { txHash: setupTxHash } = await tokenMintWorker.MOCK_setupStorage(
-            minaSenderPublicKeyBase58,
-            noriTokenControllerAddressBase58,
-            0.1 * 1e9,
-            noriTokenControllerVerificationKeySafe
-        );
-        // NOTE! ************
-        // Really a client would use await tokenMintWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
-        // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenMintWorker.setupStorage should be used on the
-        // frontend.
-        /*const provedSetupTxStr = await tokenMintWorker.setupStorage(
+        console.log(`Setup storage required? '${setupRequired}'`);
+        if (setupRequired) {
+            console.log('Setting up storage');
+            console.time('noriMinter.setupStorage');
+            const { txHash: setupTxHash } =
+                await tokenMintWorker.MOCK_setupStorage(
+                    minaSenderPublicKeyBase58,
+                    noriTokenControllerAddressBase58,
+                    0.1 * 1e9,
+                    noriTokenControllerVerificationKeySafe
+                );
+            // NOTE! ************
+            // Really a client would use await tokenMintWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
+            // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenMintWorker.setupStorage should be used on the
+            // frontend.
+            /*const provedSetupTxStr = await tokenMintWorker.setupStorage(
             senderPublicKeyBase58,
             noriTokenControllerAddressBase58,
             0.1 * 1e9,
             noriTokenControllerVerificationKeySafe
-        );
-        console.log('provedSetupTxStr', provedSetupTxStr);*/
-        // The below should use a real wallets signAndSend method.
-        /*const { txHash: setupTxHash } =
+            );
+            console.log('provedSetupTxStr', provedSetupTxStr);*/
+            // The below should use a real wallets signAndSend method.
+            /*const { txHash: setupTxHash } =
             await tokenMintWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
-        console.log('setupTxHash', setupTxHash);
-        console.timeEnd('noriMinter.setupStorage');
+            console.log('setupTxHash', setupTxHash);
+            console.timeEnd('noriMinter.setupStorage');
+        }
 
         // Block until we have computed our deposit attestation proof.
         console.log(
@@ -412,7 +438,7 @@ describe('e2e_testnet', () => {
 
         // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
         await lastValueFrom(depositProcessingStatus$);
-        console.log('Deposit is processed unblocking mint process.');
+        console.log('Deposit is processed signing and sending the mint proof.');
 
         // SIGN AND SEND MINT PROOF **************************************************
 

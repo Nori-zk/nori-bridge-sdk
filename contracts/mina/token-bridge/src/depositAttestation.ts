@@ -207,6 +207,6 @@ export async function computeDepositAttestation(
     ).proof;
     console.timeEnd('EthVerifier.compute');
 
-    console.log(`All proofs built needed to mint!`);
+    console.log(`All proofs built needed to compute mint proof!`);
     return { depositAttestationProof, ethVerifierProof, despositSlotRaw };
 }

@@ -132,7 +132,7 @@ import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWit
 
 ### Example of mint flow
 
-See the [E2E test](src/e2e.workers2.spec.ts) for a comprehensive example.
+See the [E2E test](src/e2e.workers3.spec.ts) for a comprehensive example.
 
 ### Example of token contracts usage
 
@@ -250,6 +250,25 @@ npm run test -- -t 'e2e_complete' # run a specific test (e.g. the complete e2e t
 npm run test -- src/e2e.workers2.spec.ts # run a specific test file
 npm run testw # watch mode
 ```
+
+### How to run E2E test on DevNet
+
+Firstly configure your `contracts/mina/token-bridge/.env` file:
+
+```
+ETH_PRIVATE_KEY=<Holesky ETH private key which will send the Holesky ETH>
+ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<apiKey>
+NORI_TOKEN_BRIDGE_ADDRESS=<Holesky ETH Nori Token Bridge address>
+NORI_CONTROLLER_PUBLIC_KEY=<Nori Mina TestNet Token controller base58 address>
+MINA_RPC_NETWORK_URL=https://devnet.minaprotocol.network/graphql
+SENDER_PRIVATE_KEY=<Nori Mina TestNet private key which will receive the deposit>
+```
+
+**Note a real Mina TestNet contract must already be deployed.** 
+
+#### After configuration, run the E2E test procedure:
+
+`npm run test -- src/e2e.workers3.spec.ts`
 
 ## How to run coverage
 
