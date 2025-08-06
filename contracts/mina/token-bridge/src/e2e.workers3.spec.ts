@@ -262,7 +262,14 @@ describe('e2e_testnet', () => {
             { value: depositAmount }
         );
         console.log('Eth deposit made', result);
-        const depositBlockNumber = result.blockNumber;
+        console.log('Waiting for 1 confirmation');
+        const confirmedResult = await result.wait();
+        console.log('Confirmed Eth Deposit', confirmedResult);
+        const depositBlockNumber = confirmedResult.blockNumber;
+        if (!depositBlockNumber) {
+            console.error('depositBlockNumber was falsey');
+        }
+        console.log(`Deposit confirmed with blockNumber: ${depositBlockNumber}`);
         console.timeEnd('lockingTokens');
 
         // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
