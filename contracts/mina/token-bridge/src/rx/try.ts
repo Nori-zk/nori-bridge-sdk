@@ -57,6 +57,8 @@ testSub(bridgeStateWithTimings$)*/
 //testSub(bridgeSocketConnectionState$);
 //testSub(depositProcessingStatus$);
 
+testSub(bridgeSocket$);
+
 testSub(
     getDepositProcessingStatus$(
         0,

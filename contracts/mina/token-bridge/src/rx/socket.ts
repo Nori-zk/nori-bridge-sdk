@@ -1,5 +1,5 @@
 import { WebSocketServiceTopicSubscriptionMessage } from '@nori-zk/pts-types';
-import { filter, interval, map, shareReplay, Subscription } from 'rxjs';
+import { filter, interval, map, Subscription } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { reconnectingWebSocket, ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
@@ -20,7 +20,20 @@ const subscribeTimingsTransition = {
     topic: 'timings.notices.transition',
 };
 
-// Make socket connection
+/**
+ * Creates a basic `WebSocketSubject` for receiving bridge-related messages.
+ * 
+ * This socket:
+ * - Subscribes to `state.eth`, `state.bridge`, and `timings.notices.transition` on open.
+ * - Sends `ping` messages at a fixed interval (heartbeat).
+ * - Ignores `pong` replies in the message stream.
+ *
+ * Automatically unsubscribes from heartbeat pings on socket close.
+ *
+ * @param url WebSocket server URL (default: wss://wss.nori.it.com)
+ * @param heartBeatInterval Interval for heartbeat pings in ms (default: 3000)
+ * @returns A filtered WebSocketSubject that emits structured subscription messages.
+ */
 export function getBridgeSocket$(
     url: string = 'wss://wss.nori.it.com',
     heartBeatInterval: number = 3000
@@ -58,6 +71,21 @@ export function getBridgeSocket$(
     ) as WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>;
 }
 
+/**
+ * Creates a reconnecting WebSocketSubject that:
+ * - Handles connection state tracking and automatic reconnect with exponential backoff
+ * - Sends regular `ping` heartbeats
+ * - Watches for missing `pong` responses and triggers reconnection if threshold is exceeded
+ * - Subscribes to key bridge-related topics on connection
+ * - Filters out pong replies from message stream
+ *
+ * @param url WebSocket server URL (default: wss://wss.nori.it.com)
+ * @param heartBeatInterval Interval in ms for sending pings (default: 3000)
+ * @param pongTimeoutMultiplier Multiplier to determine allowed pong delay before reconnection (default: 2)
+ * @returns An object containing:
+ *   - `bridgeSocket$`: the reconnecting WebSocket observable for bridge messages
+ *   - `bridgeSocketConnectionState$`: connection state observable
+ */
 export function getReconnectingBridgeSocket$(
     url: string = 'wss://wss.nori.it.com',
     heartBeatInterval: number = 3000,

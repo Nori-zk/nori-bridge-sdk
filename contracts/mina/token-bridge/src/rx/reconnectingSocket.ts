@@ -9,10 +9,12 @@ import {
     Observable,
     Subscription,
     timer,
-    Observer,
     filter,
 } from 'rxjs';
 
+/**
+ * Enum-like type representing the internal state of the WebSocket connection.
+ */
 type WebSocketwebSocketConnectionState =
     | 'connecting'
     | 'open'
@@ -20,6 +22,9 @@ type WebSocketwebSocketConnectionState =
     | 'reconnecting'
     | 'permanently-closed';
 
+/**
+ * Extension of WebSocketSubjectConfig that includes optional reconnection parameters.
+ */
 interface ReconnectingWebSocketConfig<T> extends WebSocketSubjectConfig<T> {
     reconnect?: {
         initialDelayMs?: number;
@@ -28,6 +33,20 @@ interface ReconnectingWebSocketConfig<T> extends WebSocketSubjectConfig<T> {
     };
 }
 
+/**
+ * A Subject wrapper over `WebSocketSubject` that adds automatic reconnection behavior.
+ *
+ * Reconnection attempts use exponential backoff with an upper delay bound.
+ * The class exposes:
+ * - an observable stream for connection state changes,
+ * - an outgoing message buffer to prevent message loss during reconnects,
+ * - and a subscription proxy for incoming messages.
+ *
+ * Once the maximum number of retries is exceeded (if provided), the connection transitions
+ * to `permanently-closed`, completing all observables and releasing resources.
+ *
+ * @template T Type of message payload sent/received over the socket.
+ */
 export class ReconnectingWebSocketSubject<T> extends Subject<T> {
     webSocketConnectionState$: Observable<WebSocketwebSocketConnectionState>;
     private webSocketConnectionStateSubject: BehaviorSubject<WebSocketwebSocketConnectionState>;
@@ -179,6 +198,17 @@ export class ReconnectingWebSocketSubject<T> extends Subject<T> {
     }
 }
 
+/**
+ * Factory for creating a reconnecting WebSocket and its associated connection state stream.
+ *
+ * The returned socket behaves like a regular `WebSocketSubject` but includes
+ * automatic reconnection with exponential backoff and a persistent state observable.
+ *
+ * @param config Configuration for WebSocketSubject and reconnection strategy.
+ * @returns Object containing:
+ *   - `webSocket$`: the ReconnectingWebSocketSubject instance.
+ *   - `webSocketConnectionState$`: observable emitting connection state changes.
+ */
 export function reconnectingWebSocket<T>(
     config: ReconnectingWebSocketConfig<T>
 ) {

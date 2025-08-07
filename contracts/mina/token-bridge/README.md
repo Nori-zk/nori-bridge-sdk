@@ -246,8 +246,8 @@ NORI_TOKEN_BRIDGE_ADDRESS=<Extract this from contracts/ethereum/.env.nori-token-
 
 ```sh
 npm run test # all tests (hangs due to multiple instances of o1js deps)
-npm run test -- -t 'e2e_complete' # run a specific test (e.g. the complete e2e test)
-npm run test -- src/e2e.workers2.spec.ts # run a specific test file
+npm run test -- -t 'e2e_complete' # run a specific test (e.g. the litenet e2e test)
+npm run test -- src/e2e.workers2.spec.ts # run a specific test file (e.g. the litenet e2e test)
 npm run testw # watch mode
 ```
 

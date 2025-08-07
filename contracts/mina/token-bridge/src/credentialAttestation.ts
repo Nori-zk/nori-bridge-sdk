@@ -84,7 +84,7 @@ let ecdsaCredentialPresentationSpec = PresentationSpec(
             issuer: Operation.publicInput(credential), // Eth
             messageHash: Operation.hash(
                 Operation.property(credential, 'message'),
-                Operation.owner
+                //Operation.owner // FIXME introduce this later
             ),
         }),
     })
