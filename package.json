@@ -1,7 +1,7 @@
 {
     "name": "@nori-zk/nori-bridge-sdk",
     "private": true,
-    "version": "0.0.5",
+    "version": "0.0.6",
     "workspaces": [
         "workers",
         "o1js-zk-utils",
