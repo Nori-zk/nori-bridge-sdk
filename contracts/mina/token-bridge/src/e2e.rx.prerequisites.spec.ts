@@ -191,7 +191,7 @@ describe('e2e_rx_prerequisites', () => {
 
         /*
 {
-  stageName: 'ProofConversionJobReceived',
+  stage_name: 'ProofConversionJobReceived',
   input_slot: 4817024,
   input_block_number: 4241469,
   output_slot: 4817088,
@@ -202,7 +202,7 @@ describe('e2e_rx_prerequisites', () => {
   deposit_block_number: 4241490
 }
 {
-  stageName: 'EthProcessorProofRequest',
+  stage_name: 'EthProcessorProofRequest',
   input_slot: 4817024,
 
 
@@ -211,10 +211,10 @@ describe('e2e_rx_prerequisites', () => {
             await firstValueFrom(
                 depositProcessingStatus$.pipe(
                     filter(
-                        ({ deposit_processing_status, stageName }) =>
+                        ({ deposit_processing_status, stage_name }) =>
                             deposit_processing_status ===
                                 BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                            stageName ===
+                            stage_name ===
                                 TransitionNoticeMessageType.ProofConversionJobSucceeded
                         //TransitionNoticeMessageType.EthProcessorProofRequest
                         //TransitionNoticeMessageType.ProofConversionJobSucceeded

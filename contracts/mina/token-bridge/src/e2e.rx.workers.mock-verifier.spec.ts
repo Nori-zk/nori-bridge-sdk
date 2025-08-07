@@ -192,10 +192,10 @@ describe('e2e-rx-workers-mock', () => {
         } = await firstValueFrom(
             depositProcessingStatus$.pipe(
                 filter(
-                    ({ deposit_processing_status, stageName }) =>
+                    ({ deposit_processing_status, stage_name }) =>
                         deposit_processing_status ===
                             BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                        stageName ===
+                        stage_name ===
                             TransitionNoticeMessageType.ProofConversionJobSucceeded
                 ),
                 take(1),

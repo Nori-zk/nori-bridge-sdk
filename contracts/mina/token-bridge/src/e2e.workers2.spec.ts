@@ -227,10 +227,10 @@ describe('e2e', () => {
             depositProcessingStatus$.pipe(
                 // Wait for ProofConversionJobSucceeded during state WaitingForCurrentJobCompletion
                 filter(
-                    ({ deposit_processing_status, stageName }) =>
+                    ({ deposit_processing_status, stage_name }) =>
                         deposit_processing_status ===
                             BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                        stageName ===
+                        stage_name ===
                             TransitionNoticeMessageType.ProofConversionJobSucceeded
                 ),
                 // Only take one event

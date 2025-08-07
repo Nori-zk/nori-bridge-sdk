@@ -50,7 +50,7 @@ describe('XState integration example', () => {
                 bridgeTimingsTopic$
             ).pipe(
                 map((state) => {
-                    return { ...state, type: state.stageName };
+                    return { ...state, type: state.stage_name };
                 })
             )
         );

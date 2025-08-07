@@ -685,7 +685,7 @@ describe('should perform an end to end pipeline', () => {
                 ].includes(highLevelState)
             )
                 return;
-            if (subStage === bridgeState.stageName) return;
+            if (subStage === bridgeState.stage_name) return;
 
             if (
                 subStage ===
@@ -709,11 +709,11 @@ describe('should perform an end to end pipeline', () => {
                 clearInterval(timeTrackInterval);
                 stageWaitTime = 0;
             }
-            subStage = bridgeState.stageName;
+            subStage = bridgeState.stage_name;
             let timeEstimate =
                 Number(
                     bridgeStageTimings[
-                        bridgeState.stageName as KeyTransitionStageMessageTypes
+                        bridgeState.stage_name as KeyTransitionStageMessageTypes
                     ]
                 ) || 15;
             timeEstimate -= bridgeState.elapsed_sec as number;
@@ -771,7 +771,7 @@ describe('should perform an end to end pipeline', () => {
                     ethState &&
                     ethState.latest_finality_block_number !== 'unknown' &&
                     bridgeState &&
-                    bridgeState.stageName !== 'unknown' &&
+                    bridgeState.stage_name !== 'unknown' &&
                     bridgeStageTimings
                 )
                     initPromise.resolve();

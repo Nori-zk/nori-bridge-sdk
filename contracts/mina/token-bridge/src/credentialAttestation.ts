@@ -83,11 +83,13 @@ let ecdsaCredentialPresentationSpec = PresentationSpec(
             owner: Operation.owner, // Mina
             issuer: Operation.publicInput(credential), // Eth
             messageHash: Operation.hash(
-                Operation.property(credential, 'message')
+                Operation.property(credential, 'message'),
+                Operation.owner
             ),
         }),
     })
 );
+
 
 // Precompile ecdsaCredentialPresentationSpec
 let EcdsaSigPresentationSpecPreCompile = await Presentation.precompile(

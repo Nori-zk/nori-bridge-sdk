@@ -16,7 +16,10 @@ import {
 } from 'rxjs';
 import {
     BridgeDepositProcessingStatus,
+    bridgeStatusesKnownEnoughToLockUnsafe,
+    canMint,
     getDepositProcessingStatus$,
+    readyToComputeMintProof,
 } from './rx/deposit.js';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 import { signSecretWithEthWallet } from './ethSignature.js';
@@ -103,6 +106,8 @@ function validateEnv(): {
         minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY!,
     };
 }
+
+// https://faucet.minaprotocol.com/
 
 describe('e2e_testnet', () => {
     test('e2e_complete_testnet', async () => {
@@ -209,12 +214,10 @@ describe('e2e_testnet', () => {
         // CLIENT only logic from now on....
 
         // Extract hashed secret from presentation
-        const {
-            credentialAttestationBEHex,
-            //credentialAttestationHashField,
-            credentialAttestationBigInt,
-        } = getSecretHashFromPresentationJson(presentationJsonStr);
-        console.log('attestationBEHex', credentialAttestationBEHex);
+        const presentation = JSON.parse(presentationJsonStr);
+        const messageHashString =
+            presentation.outputClaim.value.messageHash.value;
+        const credentialAttestationBigInt = BigInt(messageHashString);
 
         // CONNECT TO BRIDGE **************************************************
 
@@ -236,21 +239,19 @@ describe('e2e_testnet', () => {
         const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
         const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
-        // Wait for bridge topics to be ready, to ensure a safe deposit.
-        // Under normal conditions this is very fast.
+        // Wait for bridge topics to be ready, to ensure correct deposit classification.
+        // Under normal conditions this is very fast. But see the docstring for why this
+        // may be unsafe, a safe method is also provided.
         console.time('bridgeStateReady');
-        await firstValueFrom(
-            combineLatest([
-                ethStateTopic$,
-                bridgeStateTopic$,
-                bridgeTimingsTopic$,
-            ])
+        await bridgeStatusesKnownEnoughToLockUnsafe(
+            ethStateTopic$,
+            bridgeStateTopic$,
+            bridgeTimingsTopic$
         );
         console.timeEnd('bridgeStateReady');
 
         // LOCK TOKENS **************************************************
 
-        // FIX ME DO THIS PROPERLY WITH AN ETHERS TX
         console.log('Locking eth tokens');
         console.time('lockingTokens');
         const abi = noriTokenBridgeJson.abi;
@@ -291,11 +292,15 @@ describe('e2e_testnet', () => {
         );
 
         // Subscribe to the depositProcessingStatus observable to print our progress.
-        depositProcessingStatus$.subscribe({
-            next: console.log,
-            error: console.error,
-            complete: () => console.log('Deposit processing completed'),
-        });
+        const depositProcessingStatusSubscription =
+            depositProcessingStatus$.subscribe({
+                next: console.log,
+                error: console.error,
+                complete: () =>
+                    console.warn(
+                        'Deposit processing completed. Mint oppertunity has been missed :(.'
+                    ),
+            });
 
         // COMPUTE DEPOSIT ATTESTATION **************************************************
 
@@ -319,16 +324,10 @@ describe('e2e_testnet', () => {
 
         // SETUP STORAGE **************************************************
         // TODO IMPROVE THIS
-        const setupRequired = await tokenMintWorker.needsToSetupStorage(noriTokenControllerAddressBase58, minaSenderPublicKeyBase58)
-            .then(() => false)
-            .catch((error) => {
-                console.error(
-                    `Error determining if we needed to setup storage. Going to assume that we do need to.`,
-                    error
-                );
-                // But perhaps this could error for other reasons?!
-                return true;
-            });
+        const setupRequired = await tokenMintWorker.needsToSetupStorage(
+            noriTokenControllerAddressBase58,
+            minaSenderPublicKeyBase58
+        );
 
         console.log(`Setup storage required? '${setupRequired}'`);
         if (setupRequired) {
@@ -364,39 +363,15 @@ describe('e2e_testnet', () => {
         console.log(
             'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute.'
         );
-        const { ethDepositProofJson, despositSlotRaw } = await firstValueFrom(
-            depositProcessingStatus$.pipe(
-                // Wait for ProofConversionJobSucceeded during state WaitingForCurrentJobCompletion
-                filter(
-                    ({ deposit_processing_status, stageName }) =>
-                        deposit_processing_status ===
-                            BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                        stageName ===
-                            TransitionNoticeMessageType.ProofConversionJobSucceeded
-                ),
-                // Only take one event
-                take(1),
-                // Compute our deposit attestation
-                switchMap(async () => {
-                    console.log('Computing eth deposit proof.');
-                    const { ethDepositProofJson, despositSlotRaw } =
-                        await tokenMintWorker.computeEthDeposit(
-                            presentationJsonStr,
-                            depositBlockNumber,
-                            ethAddressLowerHex
-                        );
-                    return {
-                        ethDepositProofJson,
-                        despositSlotRaw,
-                    };
-                })
-            )
-        );
 
-        console.log(
-            `bridge head [attestationHash] (BE hex):`,
-            despositSlotRaw.slot_nested_key_attestation_hash
-        );
+        await readyToComputeMintProof(depositProcessingStatus$);
+        console.log('Computing eth deposit proof.');
+        const { ethDepositProofJson, despositSlotRaw } =
+            await tokenMintWorker.computeEthDeposit(
+                presentationJsonStr,
+                depositBlockNumber,
+                ethAddressLowerHex
+            );
 
         // PRE-COMPUTE MINT PROOF ****************************************************
 
@@ -437,7 +412,7 @@ describe('e2e_testnet', () => {
         );
 
         // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
-        await lastValueFrom(depositProcessingStatus$);
+        await canMint(depositProcessingStatus$);
         console.log('Deposit is processed signing and sending the mint proof.');
 
         // SIGN AND SEND MINT PROOF **************************************************
@@ -452,6 +427,8 @@ describe('e2e_testnet', () => {
         console.log('mintTxHash', mintTxHash);
         console.timeEnd('Mint transaction finalized');
         console.log('Minted!');
+
+        depositProcessingStatusSubscription.unsubscribe();
 
         // END MAIN FLOW
     }, 1000000000);

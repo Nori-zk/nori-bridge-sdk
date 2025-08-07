@@ -21,12 +21,20 @@ export const getBridgeStateTopic$ = (
             ),
             map((message) => message.extension)
         ) as Observable<{
-            stageName: KeyTransitionStageMessageTypes;
+            stage_name: KeyTransitionStageMessageTypes;
             input_slot: number;
             input_block_number: number;
             output_slot: number;
             output_block_number: number;
             elapsed_sec: number;
+            last_finalized_job:
+                | 'unknown'
+                | {
+                      input_slot: number;
+                      input_block_number: number;
+                      output_slot: number;
+                      output_block_number: number;
+                  };
         }>
     ).pipe(shareReplay(1));
 
@@ -45,18 +53,20 @@ export const getBridgeTimingsTopic$ = (
 
 export const getEthStateTopic$ = (
     bridgeSocket$:
-            | WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
-            | ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+        | WebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
+        | ReconnectingWebSocketSubject<WebSocketServiceTopicSubscriptionMessage>
 ) =>
-    (bridgeSocket$.asObservable().pipe(
-        // Filter by topic and suppress events when the state is 'unknown'
-        filter(
-            (message) =>
-                message.topic === 'state.eth' &&
-                message.extension.latest_finality_block_number !== 'unknown'
-        ),
-        map((message) => message.extension),
-    ) as Observable<{
-        latest_finality_block_number: number;
-        latest_finality_slot: number;
-    }>).pipe(shareReplay(1));;
+    (
+        bridgeSocket$.asObservable().pipe(
+            // Filter by topic and suppress events when the state is 'unknown'
+            filter(
+                (message) =>
+                    message.topic === 'state.eth' &&
+                    message.extension.latest_finality_block_number !== 'unknown'
+            ),
+            map((message) => message.extension)
+        ) as Observable<{
+            latest_finality_block_number: number;
+            latest_finality_slot: number;
+        }>
+    ).pipe(shareReplay(1));

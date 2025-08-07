@@ -254,25 +254,38 @@ export class TokenMintWorker {
         noriTokenControllerAddressBase58: string,
         minaSenderPublicKeyBase58: string
     ) {
-        const minaSenderPublicKey = PublicKey.fromBase58(
-            minaSenderPublicKeyBase58
-        );
-        const noriTokenControllerAddress = PublicKey.fromBase58(
-            noriTokenControllerAddressBase58
-        );
-        const noriTokenController = new NoriTokenController(
-            noriTokenControllerAddress
-        );
-        const storage = new NoriStorageInterface(
-            minaSenderPublicKey,
-            noriTokenController.deriveTokenId()
-        );
-        await fetchAccount({
-            publicKey: minaSenderPublicKey,
-            tokenId: noriTokenController.deriveTokenId(),
-        });
-        const userKeyHash = await storage.userKeyHash.fetch();
-        if (!userKeyHash) throw new Error('userKeyHash was falsey');
+        try {
+            const minaSenderPublicKey = PublicKey.fromBase58(
+                minaSenderPublicKeyBase58
+            );
+            const noriTokenControllerAddress = PublicKey.fromBase58(
+                noriTokenControllerAddressBase58
+            );
+            const noriTokenController = new NoriTokenController(
+                noriTokenControllerAddress
+            );
+            const storage = new NoriStorageInterface(
+                minaSenderPublicKey,
+                noriTokenController.deriveTokenId()
+            );
+            await fetchAccount({
+                publicKey: minaSenderPublicKey,
+                tokenId: noriTokenController.deriveTokenId(),
+            });
+            const userKeyHash = await storage.userKeyHash.fetch();
+            if (!userKeyHash) throw new Error('userKeyHash was falsey');
+            const mintedSoFar = await storage.mintedSoFar.fetch();
+            console.log('mintedSoFar', mintedSoFar.toBigInt());
+            return false;
+        } catch (e) {
+            const error = e as Error;
+            console.error(
+                `Error determining if we needed to setup storage. Going to assume that we do need to.`,
+                error
+            );
+            // But perhaps this could error for other reasons?!
+            return true;
+        }
     }
 
     async setupStorage(

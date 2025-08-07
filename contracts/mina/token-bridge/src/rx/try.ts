@@ -3,7 +3,7 @@ import { getReconnectingBridgeSocket$ } from './socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
-    getEthStateTopic$
+    getEthStateTopic$,
 } from './topics.js';
 import { getBridgeStateWithTimings$ } from './state.js';
 import { getDepositProcessingStatus$ } from './deposit.js';
@@ -17,7 +17,8 @@ function testSub($: Observable<any>) {
     });
 }
 
-const { bridgeSocket$, bridgeSocketConnectionState$ } = getReconnectingBridgeSocket$();
+const { bridgeSocket$, bridgeSocketConnectionState$ } =
+    getReconnectingBridgeSocket$();
 
 const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
 const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
@@ -45,15 +46,22 @@ const depositProcessingStatus$ = nextFinalizationTarget$.pipe(
     )
 );
 
-
 /*testSub(bridgeStateTopic$);
 testSub(ethStateTopic$);
 testSub(bridgeTimingsTopic$);
 testSub(bridgeStateWithTimings$)*/
 
 //testSub(ethStateTopic$);
-testSub(bridgeStateTopic$);
+//testSub(bridgeStateTopic$);
 
 //testSub(bridgeSocketConnectionState$);
-testSub(depositProcessingStatus$);
+//testSub(depositProcessingStatus$);
 
+testSub(
+    getDepositProcessingStatus$(
+        0,
+        ethStateTopic$,
+        bridgeStateTopic$,
+        bridgeTimingsTopic$
+    )
+);

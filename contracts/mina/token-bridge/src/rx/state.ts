@@ -20,8 +20,8 @@ export const getBridgeStateWithTimings$ = (
         // Calculate the time remaining
         map(([bridgeState, bridgeTimings]) => {
             // FIXME this mixed casing is awful.
-            const { stageName, elapsed_sec } = bridgeState;
-            const expectedDuration = bridgeTimings.extension[stageName];
+            const { stage_name, elapsed_sec } = bridgeState;
+            const expectedDuration = bridgeTimings.extension[stage_name];
             let timeRemaining = expectedDuration - elapsed_sec;
             return { bridgeState, timeRemaining };
         }),
