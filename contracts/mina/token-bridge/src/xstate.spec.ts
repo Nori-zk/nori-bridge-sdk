@@ -164,6 +164,8 @@ describe('XState integration example', () => {
             }
         );
 
+        // An example of a factory for getDepositProcessingStatusXStateObservableActor
+        // Just so we can subscribe to it and see some behaviour:
         const depositActor = createActor(
             getDepositProcessingStatusXStateObservableActor,
             {
@@ -171,6 +173,7 @@ describe('XState integration example', () => {
             }
         );
 
+        // Subscribe to the stream:
         depositActor.subscribe(
             (snapshot) =>
                 console.log({
@@ -183,9 +186,14 @@ describe('XState integration example', () => {
             },
             () => actorCompletion.resolve()
         );
+
+        // Start the actor
         depositActor.start();
 
-        // Block
+        // Block until the actor completes (will only complete when the minting oppertunity has been missed)
+        // Note you may want to depositActor.stop() yourself if minting was successful. But until that transaction 
+        // has been confirmed keep the stream alive so that you could know if the minting oppertunity has been missed
+        // because say the client took to long to compute their proofs.
         await actorCompletion.promise;
     }, 1000000000);
 });
