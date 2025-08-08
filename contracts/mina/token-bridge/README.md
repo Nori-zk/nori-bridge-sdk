@@ -121,6 +121,11 @@ import {
 import {
   BridgeDepositProcessingStatus,
   getDepositProcessingStatus$,
+  bridgeStatusesKnownEnoughToLockUnsafe,
+  bridgeStatusesKnownEnoughToLockSafe,
+  canMint,
+  getDepositProcessingStatus$,
+  readyToComputeMintProof,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 
