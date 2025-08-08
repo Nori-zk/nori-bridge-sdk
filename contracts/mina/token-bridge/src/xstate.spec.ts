@@ -124,7 +124,7 @@ describe('XState integration example', () => {
         // to compute the ethDepositProof, one of the prerequisites to perform the minting process, given only the data
         // streams and a depositBlockNumber.
         const getCanComputeMintProofXStatePromiseActorLogic = fromPromise(
-            async ({ input }: { input: { depositBlockNumber: number } }) => {
+            ({ input }: { input: { depositBlockNumber: number } }) => {
                 // Check the doc string of the function below for more information:
                 const canComputeMintProofResult = readyToComputeMintProof(
                     getDepositProcessingStatus$(
@@ -148,7 +148,7 @@ describe('XState integration example', () => {
         // for any given deposit depending on the state of the websocket streams.
         // Note that in order to mint successfully one would have to have computed the deposit proof.
         const getCanMintXStatePromiseActorLogic = fromPromise(
-            async ({ input }: { input: { depositBlockNumber: number } }) => {
+            ({ input }: { input: { depositBlockNumber: number } }) => {
                 // Check the doc string of the function below for more information:
                 const canMintResult = canMint(
                     getDepositProcessingStatus$(
