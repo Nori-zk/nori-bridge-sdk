@@ -74,7 +74,7 @@ describe('XState integration example', () => {
         // Demonstrate how to construct an XState PromiseActorLogic for bridgeStatusesKnownEnoughToLockSafe
         // Note determine if we have enough state from the bridge head to support the entire procedure.
         const getCanLockXStatePromiseActorLogic = fromPromise(
-            ({ input }: { input: { depositBlockNumber: number } }) => {
+            () => {
                 // Check the doc string of the function below for more information:
                 const canLockPromise = bridgeStatusesKnownEnoughToLockSafe(
                     ethStateTopic$,
