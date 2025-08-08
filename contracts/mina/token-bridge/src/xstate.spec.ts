@@ -1,4 +1,4 @@
-import { firstValueFrom, map, switchMap, take } from 'rxjs';
+import { firstValueFrom, map, take } from 'rxjs';
 import {
     canMint,
     getDepositProcessingStatus$,
@@ -6,7 +6,6 @@ import {
     readyToComputeMintProof,
 } from './rx/deposit.js';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
-import { getBridgeStateWithTimings$ } from './rx/state.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
@@ -16,6 +15,7 @@ import { createActor, fromObservable, fromPromise } from 'xstate';
 import { DeferredPromise } from './worker/index.js';
 
 describe('XState integration example', () => {
+    // Just a test facility to get some block number ahead of finality given the ethStateTopic$
     async function getNextDepositTarget(
         ethStateTopic$: ReturnType<typeof getEthStateTopic$>
     ) {
@@ -54,12 +54,28 @@ describe('XState integration example', () => {
 
         // Now demonstrate how integrate with XState:
 
+        // When we connect to the auto reconnecting bridge socket we can known the status of the websocket connection
+        // using the bridgeSocketConnectionState$
+        // The reconnecting websocket will cycle through states of:
+        /*
+            | 'connecting'
+            | 'open'
+            | 'closed'
+            | 'reconnecting'
+            | 'permanently-closed';
+        */
+        const getBridgeSocketConnectionStateXStateObservableActor =
+            fromObservable(
+                () => bridgeSocketConnectionState$
+            );
+
         // Pre locking we need to know if it is plausable to lock:
 
         // Demonstrate how to construct an XState PromiseActorLogic for bridgeStatusesKnownEnoughToLockSafe
         // Note determine if we have enough state from the bridge head to support the entire procedure.
         const getCanLockXStatePromiseActorLogic = fromPromise(
             ({ input }: { input: { depositBlockNumber: number } }) => {
+                // Check the doc string of the function below for more information:
                 const canLockPromise = bridgeStatusesKnownEnoughToLockSafe(
                     ethStateTopic$,
                     bridgeStateTopic$,
@@ -81,7 +97,7 @@ describe('XState integration example', () => {
             unknown,
             { depositBlockNumber: number }
         >(({ input: { depositBlockNumber } }) =>
-            // Check the doc string for this function:
+            // Check the doc string of the function below for more information:
             /*
                 The stream emits objects containing the current bridge state, estimated time remaining, elapsed time, 
                 deposit processing status, and the original deposit block number. It transitions through various statuses
@@ -109,6 +125,7 @@ describe('XState integration example', () => {
         // streams and a depositBlockNumber.
         const getCanComputeMintProofXStatePromiseActorLogic = fromPromise(
             async ({ input }: { input: { depositBlockNumber: number } }) => {
+                // Check the doc string of the function below for more information:
                 const canComputeMintProofResult = readyToComputeMintProof(
                     getDepositProcessingStatus$(
                         input.depositBlockNumber,
@@ -132,6 +149,7 @@ describe('XState integration example', () => {
         // Note that in order to mint successfully one would have to have computed the deposit proof.
         const getCanMintXStatePromiseActorLogic = fromPromise(
             async ({ input }: { input: { depositBlockNumber: number } }) => {
+                // Check the doc string of the function below for more information:
                 const canMintResult = canMint(
                     getDepositProcessingStatus$(
                         input.depositBlockNumber,
