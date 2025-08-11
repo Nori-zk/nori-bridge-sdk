@@ -85,7 +85,7 @@ describe('e2e', () => {
 
             // Generate a funded test private key for mina litenet
             const litenetSk = await getNewMinaLiteNetAccountSK();
-            const senderPrivateKey = PrivateKey.fromBase58(litenetSk); // litenetSk
+            const senderPrivateKey = PrivateKey.fromBase58(litenetSk);
             const senderPrivateKeyBase58 = senderPrivateKey.toBase58();
             const senderPublicKey = senderPrivateKey.toPublicKey();
             const senderPublicKeyBase58 = senderPublicKey.toBase58();

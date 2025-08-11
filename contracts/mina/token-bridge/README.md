@@ -267,6 +267,7 @@ NORI_TOKEN_BRIDGE_ADDRESS=<Holesky ETH Nori Token Bridge address>
 NORI_CONTROLLER_PUBLIC_KEY=<Nori Mina TestNet Token controller base58 address>
 MINA_RPC_NETWORK_URL=https://devnet.minaprotocol.network/graphql
 SENDER_PRIVATE_KEY=<Nori Mina TestNet private key which will receive the deposit>
+NORI_TOKEN_PUBLIC_KEY=<Nori Mina TestNet Token base base58 address>
 ```
 
 **Note a real Mina TestNet contract must already be deployed.** 

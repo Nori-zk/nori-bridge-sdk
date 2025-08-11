@@ -121,7 +121,7 @@ export async function computeDepositAttestation(
     if (depositIndex === -1)
         throw new Error(
             `Could not find deposit index with attestationBEHex: ${attestationBEHex}, ethAddressLowerHex:${ethAddressLowerHex} in slots ${JSON.stringify(
-                consensusMPTProofContractStorageSlots,
+                paddedConsensusMPTProofContractStorageSlots,
                 null,
                 4
             )}`
@@ -129,23 +129,22 @@ export async function computeDepositAttestation(
     console.log(
         `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const despositSlotRaw =
-        paddedConsensusMPTProofContractStorageSlots[depositIndex];
+    const despositSlotRaw = paddedConsensusMPTProofContractStorageSlots[depositIndex];
     const totalDespositedValue = despositSlotRaw.value; // this is a hex // would be nice here to print a bigint
     console.log(`Total deposited to date (hex): ${totalDespositedValue}`);
 
     // Build contract storage slots (to be hashed)
     // Are we sure this is ok???
-    const contractStorageSlots =
-        paddedConsensusMPTProofContractStorageSlots.map((slot) => {
+    const contractStorageSlots = paddedConsensusMPTProofContractStorageSlots.map(
+        (slot) => {
             const addr = slot.slot_key_address;
             const attr = slot.slot_nested_key_attestation_hash;
             const value = slot.value;
-            console.log({ addr, attr, value });
+            console.log({addr, attr, value});
             return new ContractDeposit({
-                address: Bytes20.fromHex(addr),
-                attestationHash: Bytes32.fromHex(attr),
-                value: Bytes32.fromHex(value),
+                address: Bytes20.fromHex(addr.slice(2)),
+                attestationHash: Bytes32.fromHex(attr.slice(2)),
+                value: Bytes32.fromHex(value.slice(2))
             });
             /*console.log({
                 add: slot.slot_key_address.slice(2).padStart(40, '0'),
@@ -168,7 +167,8 @@ export async function computeDepositAttestation(
                 attestationHash: attestation,
                 value,
             });*/
-        });
+        }
+    );
     // Select our deposit
     const depositSlot = contractStorageSlots[depositIndex];
 

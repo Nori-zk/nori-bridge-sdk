@@ -28,6 +28,7 @@ function validateEnv(): {
     noriTokenControllerAddressBase58: string;
     minaRpcUrl: string;
     minaSenderPrivateKeyBase58: string;
+    noriTokenBaseAddressBase58: string;
 } {
     const errors: string[] = [];
 
@@ -38,6 +39,7 @@ function validateEnv(): {
         NORI_CONTROLLER_PUBLIC_KEY,
         MINA_RPC_NETWORK_URL,
         SENDER_PRIVATE_KEY,
+        NORI_TOKEN_PUBLIC_KEY,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -68,6 +70,15 @@ function validateEnv(): {
         );
     }
 
+    if (
+        !NORI_TOKEN_PUBLIC_KEY ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_TOKEN_PUBLIC_KEY)
+    ) {
+        errors.push(
+            'NORI_TOKEN_PUBLIC_KEY missing or invalid (expected Base58 string)'
+        );
+    }
+
     if (!MINA_RPC_NETWORK_URL || !/^https?:\/\//.test(MINA_RPC_NETWORK_URL)) {
         errors.push(
             'MINA_RPC_NETWORK_URL missing or invalid (expected http(s) URL)'
@@ -94,6 +105,7 @@ function validateEnv(): {
         ethRpcUrl: ETH_RPC_URL!,
         noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS!,
         noriTokenControllerAddressBase58: NORI_CONTROLLER_PUBLIC_KEY!,
+        noriTokenBaseAddressBase58: NORI_TOKEN_PUBLIC_KEY!,
         minaRpcUrl: MINA_RPC_NETWORK_URL!,
         minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY!,
     };
@@ -113,6 +125,7 @@ describe('e2e_testnet', () => {
                 noriTokenControllerAddressBase58,
                 minaRpcUrl,
                 minaSenderPrivateKeyBase58,
+                noriTokenBaseAddressBase58,
             } = validateEnv();
 
             const minaSenderPrivateKey = PrivateKey.fromBase58(
@@ -434,6 +447,13 @@ describe('e2e_testnet', () => {
             console.log('mintTxHash', mintTxHash);
             console.timeEnd('Mint transaction finalized');
             console.log('Minted!');
+
+            // Get the amount minted so far and print it
+            const mintedSoFar = await tokenMintWorker.mintedSoFar(noriTokenControllerAddressBase58, minaSenderPublicKeyBase58);
+            console.log('mintedSoFar', mintedSoFar);
+
+            const balanceOfUser = await tokenMintWorker.getBalanceOf(noriTokenBaseAddressBase58, minaSenderPublicKeyBase58);
+            console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
         } catch (e) {
