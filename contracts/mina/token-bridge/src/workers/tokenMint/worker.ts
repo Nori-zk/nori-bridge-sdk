@@ -250,6 +250,39 @@ export class TokenMintWorker {
     }
 
     // Balance utils
+
+    // getBalanceOf
+    async getBalanceOf(
+        //noriTokenControllerAddressBase58: string,
+        noriTokenBaseBase58: string,
+        minaSenderPublicKeyBase58: string
+    ) {
+        const minaSenderPublicKey = PublicKey.fromBase58(
+            minaSenderPublicKeyBase58
+        );
+        const noriTokenBaseAddress = PublicKey.fromBase58(
+            noriTokenBaseBase58
+        );
+        const noriTokenBase = new FungibleToken(
+            noriTokenBaseAddress
+        );
+        /*const storage = new NoriStorageInterface(
+            minaSenderPublicKey,
+            noriTokenController.deriveTokenId()
+        );*/
+        await fetchAccount({
+            publicKey: minaSenderPublicKey,
+            tokenId: noriTokenBase.deriveTokenId(),
+        });
+
+        const balanceOf = await noriTokenBase.getBalanceOf(minaSenderPublicKey);
+
+        console.log('balanceOf raw', balanceOf);
+        console.log('balanceOf string', balanceOf.toString());
+
+        return balanceOf.toBigInt().toString()
+    }
+
     async mintedSoFar(
         noriTokenControllerAddressBase58: string,
         minaSenderPublicKeyBase58: string
@@ -277,7 +310,7 @@ export class TokenMintWorker {
                 'userKeyHash was falsey. Perhaps this account is not set up?'
             );
         const mintedSoFar = await storage.mintedSoFar.fetch();
-        return mintedSoFar.toBigInt();
+        return mintedSoFar.toBigInt().toString();
     }
 
     // Determine if we need to setupStorage (as it only needs to be done once per account).

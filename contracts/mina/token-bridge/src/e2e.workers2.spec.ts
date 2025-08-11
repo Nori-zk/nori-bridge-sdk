@@ -77,7 +77,7 @@ describe('e2e', () => {
                 0.1 * 1e9,
                 {
                     symbol: 'nETH',
-                    decimals: 9,
+                    decimals: 18,
                     allowUpdates: true,
                 }
             );
@@ -85,7 +85,7 @@ describe('e2e', () => {
 
             // Generate a funded test private key for mina litenet
             const litenetSk = await getNewMinaLiteNetAccountSK();
-            const senderPrivateKey = PrivateKey.fromBase58(litenetSk);
+            const senderPrivateKey = PrivateKey.fromBase58(litenetSk); // litenetSk
             const senderPrivateKeyBase58 = senderPrivateKey.toBase58();
             const senderPublicKey = senderPrivateKey.toPublicKey();
             const senderPublicKeyBase58 = senderPublicKey.toBase58();
@@ -353,6 +353,9 @@ describe('e2e', () => {
             // Get the amount minted so far and print it
             const mintedSoFar = await tokenMintWorker.mintedSoFar(noriTokenControllerAddressBase58, senderPublicKeyBase58);
             console.log('mintedSoFar', mintedSoFar);
+
+            const balanceOfUser = await tokenMintWorker.getBalanceOf(tokenBaseAddressBase58, senderPublicKeyBase58);
+            console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
         } catch (e) {

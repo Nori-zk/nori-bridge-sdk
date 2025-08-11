@@ -165,7 +165,7 @@ export const getDepositProcessingStatus$ = (
 
                         // If the deposit was in the last finalized job window and the current job has not been finalized then we can still mint
                         // FIXME this could still break! Instead we should do < Submitting stage
-                        //if (stageIdx === -1) // Indeterminate
+                        //if (stageIdx === -1) // Indeterminate (but looking at what events we actually omit we shouldnt actually have any missing.)
 
                         // Turn to else if (something like this....)
                         /*
@@ -174,7 +174,9 @@ export const getDepositProcessingStatus$ = (
                             depositBlockNumber <= last_output_block_number &&
                             // Our stage index is less than stageIndexEthProcessorTransactionSubmitSucceeded
                             stageIdx < stageIndexEthProcessorTransactionSubmitSucceeded &&
-                            // Our last stage is not the same as our current stage.
+                            // Our last stage is not the same as our current stage. (But think about this.... if we are looking current job we wont get here
+                            and the below is only true when we were processed in the last job when isn't stageIndexEthProcessorTransactionSubmitSucceeded which is where
+                            the previous and current blocks are the same.... so i think the last condition here is probably not a desirable constraint)
                             !(last_input_block_number ===
                                 input_block_number &&
                             last_output_block_number ===
@@ -183,8 +185,10 @@ export const getDepositProcessingStatus$ = (
                         if (
                             last_input_block_number <= depositBlockNumber &&
                             depositBlockNumber <= last_output_block_number &&
-                            stage_name !==
-                                TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded // This may be too late!
+                            stageIdx <
+                                stageIndexEthProcessorTransactionSubmitSucceeded
+                            //stage_name !==
+                            //    TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded // This may be too late!
                         ) {
                             status = BridgeDepositProcessingStatus.ReadyToMint;
                         } else {
@@ -301,6 +305,54 @@ export async function canMint(
     );
 }
 
+// Implement a trinary this version just works out our stage between ready, missed and a generic 'waiting'
+const canMintStatus = [
+    BridgeDepositProcessingStatus.MissedMintingOpportunity,
+    BridgeDepositProcessingStatus.ReadyToMint,
+    'Waiting',
+] as const;
+const canMintWaitingStatuses = [
+    BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion,
+    BridgeDepositProcessingStatus.WaitingForEthFinality,
+    BridgeDepositProcessingStatus.WaitingForPreviousJobCompletion,
+];
+type CanMintStatus = (typeof canMintStatus)[number];
+export function canMint$(
+    depositProcessingStatus$: ReturnType<typeof getDepositProcessingStatus$>
+) {
+    return depositProcessingStatus$.pipe(
+        distinctUntilChanged(
+            (prev, curr) =>
+                prev.deposit_processing_status ===
+                curr.deposit_processing_status
+        ),
+        map(({ deposit_processing_status }) => {
+            if (
+                deposit_processing_status ===
+                BridgeDepositProcessingStatus.MissedMintingOpportunity
+            ) {
+                return BridgeDepositProcessingStatus.MissedMintingOpportunity;
+            } else if (
+                deposit_processing_status ===
+                BridgeDepositProcessingStatus.ReadyToMint
+            ) {
+                return BridgeDepositProcessingStatus.ReadyToMint;
+            } else if (
+                canMintWaitingStatuses.includes(deposit_processing_status)
+            ) {
+                return 'Waiting';
+            } else {
+                // Suppress statuses not in any category by returning undefined
+                return undefined;
+            }
+        }),
+        // Filter out undefined values
+        filter((status): status is CanMintStatus => status !== undefined),
+        // Suppress duplicate consecutive mapped statuses
+        distinctUntilChanged()
+    );
+}
+
 // OLD VERSION
 /**
  * Waits until the deposit is eligible for mint proof generation, based on bridge state.
@@ -362,7 +414,7 @@ export async function canMint(
 export function readyToComputeMintProof(
     depositProcessingStatus$: ReturnType<typeof getDepositProcessingStatus$>
 ) {
-    // FIXME we could probably simplify this! 
+    // FIXME we could probably simplify this!
     // If our status is ReadyToMint then we are good (but possibly warn)
     // If our status is WaitingForCurrentJobCompletion and > stageIndex(TransitionNoticeMessageType.ProofConversionJobReceived)
     return firstValueFrom(
@@ -428,9 +480,7 @@ export function readyToComputeMintProof(
                             BridgeDepositProcessingStatus.ReadyToMint &&
                         deposit_is_in_last_window &&
                         stageIndex(stage_name) >
-                            stageIndex(
-                                TransitionNoticeMessageType.ProofConversionJobReceived
-                            ) &&
+                            stageIndexProofConversionJobSucceeded &&
                         !current_job_equals_last_finalized
                     ) {
                         console.warn(
@@ -453,23 +503,25 @@ export function readyToComputeMintProof(
                     )
                         return true;
 
+                    const stageIdx = stageIndex(stage_name);
+
                     // Accept if deposit status is WaitingForCurrentJobCompletion
                     // and stage is at or beyond ProofConversionJobSucceeded
                     const waitingForCurrentJobAndStageOk =
                         deposit_processing_status ===
                             BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                        stageIndex(stage_name) >=
-                            stageIndex(
-                                TransitionNoticeMessageType.ProofConversionJobSucceeded
-                            );
+                        stageIdx >= stageIndexProofConversionJobSucceeded;
 
+                    //
                     // Accept if deposit is in the last deposit window AND
                     // the current job stage is not finalized,
                     // excluding the edge case where current job equals last finalized job
                     const inLastWindowAndNotAtMinaFinalizedStage =
                         deposit_is_in_last_window &&
-                        stage_name !==
-                            TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded && // This may be too late!
+                        stageIdx <
+                            stageIndexEthProcessorTransactionSubmitSucceeded &&
+                        //stage_name !==
+                        //    TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded && // This may be too late!
                         !current_job_equals_last_finalized; // Redundant be helped me rationalise it
 
                     return (

@@ -173,6 +173,10 @@ export class NoriTokenController
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
 
+        Provable.asProver(() => {
+            console.log('UInt64.Unsafe.fromField(amountToMint)', UInt64.Unsafe.fromField(amountToMint).toBigInt());
+        });
+
         // Mint!
         await token.mint(
             userAddress,

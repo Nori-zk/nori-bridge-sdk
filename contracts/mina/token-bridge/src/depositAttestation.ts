@@ -95,7 +95,25 @@ export async function computeDepositAttestation(
     console.log(
         `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const depositIndex = consensusMPTProofContractStorageSlots.findIndex(
+    // This can fail if there is zero padding FIXME
+    /*const depositIndex = consensusMPTProofContractStorageSlots.findIndex(
+        (slot) =>
+            slot.slot_key_address === ethAddressLowerHex &&
+            slot.slot_nested_key_attestation_hash === attestationBEHex
+    );*/
+    // Solution? What about as we map this after why dont we move that padding to before
+    const paddedConsensusMPTProofContractStorageSlots =
+        consensusMPTProofContractStorageSlots.map((slot) => {
+            return {
+                //prettier-ignore
+                slot_key_address: `0x${slot.slot_key_address.slice(2).padStart(40, '0')}`,
+                //prettier-ignore
+                slot_nested_key_attestation_hash: `0x${slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')}`,
+                //prettier-ignore
+                value: `0x${slot.value.slice(2).padStart(64, '0')}`,
+            };
+        });
+    const depositIndex = paddedConsensusMPTProofContractStorageSlots.findIndex(
         (slot) =>
             slot.slot_key_address === ethAddressLowerHex &&
             slot.slot_nested_key_attestation_hash === attestationBEHex
@@ -111,14 +129,25 @@ export async function computeDepositAttestation(
     console.log(
         `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const despositSlotRaw = consensusMPTProofContractStorageSlots[depositIndex];
+    const despositSlotRaw =
+        paddedConsensusMPTProofContractStorageSlots[depositIndex];
     const totalDespositedValue = despositSlotRaw.value; // this is a hex // would be nice here to print a bigint
     console.log(`Total deposited to date (hex): ${totalDespositedValue}`);
 
     // Build contract storage slots (to be hashed)
-    const contractStorageSlots = consensusMPTProofContractStorageSlots.map(
-        (slot) => {
-            console.log({
+    // Are we sure this is ok???
+    const contractStorageSlots =
+        paddedConsensusMPTProofContractStorageSlots.map((slot) => {
+            const addr = slot.slot_key_address;
+            const attr = slot.slot_nested_key_attestation_hash;
+            const value = slot.value;
+            console.log({ addr, attr, value });
+            return new ContractDeposit({
+                address: Bytes20.fromHex(addr),
+                attestationHash: Bytes32.fromHex(attr),
+                value: Bytes32.fromHex(value),
+            });
+            /*console.log({
                 add: slot.slot_key_address.slice(2).padStart(40, '0'),
                 attr: slot.slot_nested_key_attestation_hash
                     .slice(2)
@@ -138,9 +167,8 @@ export async function computeDepositAttestation(
                 address: addr,
                 attestationHash: attestation,
                 value,
-            });
-        }
-    );
+            });*/
+        });
     // Select our deposit
     const depositSlot = contractStorageSlots[depositIndex];
 
