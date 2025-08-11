@@ -249,6 +249,37 @@ export class TokenMintWorker {
         );
     }
 
+    // Balance utils
+    async mintedSoFar(
+        noriTokenControllerAddressBase58: string,
+        minaSenderPublicKeyBase58: string
+    ) {
+        const minaSenderPublicKey = PublicKey.fromBase58(
+            minaSenderPublicKeyBase58
+        );
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
+        const noriTokenController = new NoriTokenController(
+            noriTokenControllerAddress
+        );
+        const storage = new NoriStorageInterface(
+            minaSenderPublicKey,
+            noriTokenController.deriveTokenId()
+        );
+        await fetchAccount({
+            publicKey: minaSenderPublicKey,
+            tokenId: noriTokenController.deriveTokenId(),
+        });
+        const userKeyHash = await storage.userKeyHash.fetch();
+        if (!userKeyHash)
+            throw new Error(
+                'userKeyHash was falsey. Perhaps this account is not set up?'
+            );
+        const mintedSoFar = await storage.mintedSoFar.fetch();
+        return mintedSoFar.toBigInt();
+    }
+
     // Determine if we need to setupStorage (as it only needs to be done once per account).
     async needsToSetupStorage(
         noriTokenControllerAddressBase58: string,

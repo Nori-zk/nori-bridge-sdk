@@ -263,6 +263,7 @@ describe('e2e_testnet', () => {
             const credentialAttestationBigNumberIsh: BigNumberish =
                 credentialAttestationBigInt;
             const depositAmountStr = '0.000001';
+            console.log('depositAmountStr', depositAmountStr);
             const depositAmount = ethers.parseEther(depositAmountStr);
             const result: TransactionResponse = await contract.lockTokens(
                 credentialAttestationBigNumberIsh,

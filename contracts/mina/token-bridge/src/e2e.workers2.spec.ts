@@ -77,7 +77,7 @@ describe('e2e', () => {
                 0.1 * 1e9,
                 {
                     symbol: 'nETH',
-                    decimals: 18,
+                    decimals: 9,
                     allowUpdates: true,
                 }
             );
@@ -204,9 +204,11 @@ describe('e2e', () => {
 
             console.log('Locking eth tokens');
             console.time('lockingTokens');
+            const depositAmount = 0.000001;
+            console.log('Deposit amount', depositAmount);
             const depositBlockNumber = await lockTokens(
                 credentialAttestationHashField,
-                0.000001
+                depositAmount
             );
             console.timeEnd('lockingTokens');
 
@@ -347,6 +349,10 @@ describe('e2e', () => {
             console.log('mintTxHash', mintTxHash);
             console.timeEnd('Minted');
             console.log('Minted!');
+
+            // Get the amount minted so far and print it
+            const mintedSoFar = await tokenMintWorker.mintedSoFar(noriTokenControllerAddressBase58, senderPublicKeyBase58);
+            console.log('mintedSoFar', mintedSoFar);
 
             // END MAIN FLOW
         } catch (e) {
