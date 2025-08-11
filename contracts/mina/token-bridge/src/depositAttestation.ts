@@ -95,13 +95,6 @@ export async function computeDepositAttestation(
     console.log(
         `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    // This can fail if there is zero padding FIXME
-    /*const depositIndex = consensusMPTProofContractStorageSlots.findIndex(
-        (slot) =>
-            slot.slot_key_address === ethAddressLowerHex &&
-            slot.slot_nested_key_attestation_hash === attestationBEHex
-    );*/
-    // Solution? What about as we map this after why dont we move that padding to before
     const paddedConsensusMPTProofContractStorageSlots =
         consensusMPTProofContractStorageSlots.map((slot) => {
             return {
@@ -134,7 +127,6 @@ export async function computeDepositAttestation(
     console.log(`Total deposited to date (hex): ${totalDespositedValue}`);
 
     // Build contract storage slots (to be hashed)
-    // Are we sure this is ok???
     const contractStorageSlots = paddedConsensusMPTProofContractStorageSlots.map(
         (slot) => {
             const addr = slot.slot_key_address;
@@ -146,29 +138,9 @@ export async function computeDepositAttestation(
                 attestationHash: Bytes32.fromHex(attr.slice(2)),
                 value: Bytes32.fromHex(value.slice(2))
             });
-            /*console.log({
-                add: slot.slot_key_address.slice(2).padStart(40, '0'),
-                attr: slot.slot_nested_key_attestation_hash
-                    .slice(2)
-                    .padStart(64, '0'),
-                value: slot.value.slice(2).padStart(64, '0'),
-            });
-            const addr = Bytes20.fromHex(
-                slot.slot_key_address.slice(2).padStart(40, '0')
-            );
-            const attestation = Bytes32.fromHex(
-                slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')
-            );
-            const value = Bytes32.fromHex(
-                slot.value.slice(2).padStart(64, '0')
-            );
-            return new ContractDeposit({
-                address: addr,
-                attestationHash: attestation,
-                value,
-            });*/
         }
     );
+    
     // Select our deposit
     const depositSlot = contractStorageSlots[depositIndex];
 
