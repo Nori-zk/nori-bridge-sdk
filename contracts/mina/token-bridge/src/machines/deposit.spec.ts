@@ -86,7 +86,7 @@ describe('depositMachine', () => {
 
     test('should prioritize computedEthProof over other states', async () => {
         window.localStorage.clear();
-        window.localStorage.setItem('activeDepositNumber', '123');
+        window.localStorage.setItem('activeDepositNumber', '1233333333333333');
         window.localStorage.setItem('computedEthProof', 'proof-123');
         window.localStorage.setItem('depositMintTx', 'tx-123');
 
