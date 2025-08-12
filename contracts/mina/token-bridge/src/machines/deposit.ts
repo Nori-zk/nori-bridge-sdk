@@ -399,11 +399,11 @@ export const getDepositMachine = (initialContext: {
                         }),
                     },
                 },
-                transitions: [
-                    { target: 'buildingMintTx', cond: 'canMint' },
+                always: [
+                    { target: 'buildingMintTx', guard: 'canMint' },
                     {
                         target: 'missedOpportunity',
-                        cond: 'isMissedOpportunity',
+                        guard: 'isMissedOpportunity',
                     },
                     { target: 'hasComputedEthProof' },
                 ],
