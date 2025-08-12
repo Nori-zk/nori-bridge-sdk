@@ -178,7 +178,7 @@ describe('XState integration example', () => {
         );
 
         // Equivalently one can use the observable variant of this function.
-        const getCaneMintProofXStateObservableActor = fromObservable<
+        const getCanMintProofXStateObservableActor = fromObservable<
             unknown,
             { depositBlockNumber: number }
         >(({ input: { depositBlockNumber } }) =>
