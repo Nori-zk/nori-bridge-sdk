@@ -1,9 +1,11 @@
 import { firstValueFrom, map, take } from 'rxjs';
 import {
-    canMint,
     getDepositProcessingStatus$,
     bridgeStatusesKnownEnoughToLockSafe,
     readyToComputeMintProof,
+    canMint,
+    getCanComputeEthProof$,
+    getCanMint$,
 } from './rx/deposit.js';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
@@ -65,25 +67,21 @@ describe('XState integration example', () => {
             | 'permanently-closed';
         */
         const getBridgeSocketConnectionStateXStateObservableActor =
-            fromObservable(
-                () => bridgeSocketConnectionState$
-            );
+            fromObservable(() => bridgeSocketConnectionState$);
 
         // Pre locking we need to know if it is plausable to lock:
 
         // Demonstrate how to construct an XState PromiseActorLogic for bridgeStatusesKnownEnoughToLockSafe
         // Note determine if we have enough state from the bridge head to support the entire procedure.
-        const getCanLockXStatePromiseActorLogic = fromPromise(
-            () => {
-                // Check the doc string of the function below for more information:
-                const canLockPromise = bridgeStatusesKnownEnoughToLockSafe(
-                    ethStateTopic$,
-                    bridgeStateTopic$,
-                    bridgeTimingsTopic$
-                );
-                return canLockPromise;
-            }
-        );
+        const getCanLockXStatePromiseActorLogic = fromPromise(() => {
+            // Check the doc string of the function below for more information:
+            const canLockPromise = bridgeStatusesKnownEnoughToLockSafe(
+                ethStateTopic$,
+                bridgeStateTopic$,
+                bridgeTimingsTopic$
+            );
+            return canLockPromise;
+        });
 
         // Post locking there are various things we need to know, including the overall status of the deposit given
         // the deposit block number, which can be used to drive the state machine(s):
@@ -140,6 +138,21 @@ describe('XState integration example', () => {
             }
         );
 
+        // Equivalently one can use the observable variant of this function.
+        const getCanComputeMintProofXStateObservableActor = fromObservable<
+            unknown,
+            { depositBlockNumber: number }
+        >(({ input: { depositBlockNumber } }) =>
+            getCanComputeEthProof$(
+                getDepositProcessingStatus$(
+                    depositBlockNumber,
+                    ethStateTopic$,
+                    bridgeStateTopic$,
+                    bridgeTimingsTopic$
+                )
+            )
+        );
+
         // After the ethDepositProof has been calculate we still need to wait until the depositProcessingStatus has reached a
         // sufficient stage such that we can perform the minting process and send the minting transactions:
 
@@ -162,6 +175,21 @@ describe('XState integration example', () => {
                 // if we missed the window (it will not be possible to mint what was locked, the user would currently have to lock more to try again)
                 return canMintResult;
             }
+        );
+
+        // Equivalently one can use the observable variant of this function.
+        const getCaneMintProofXStateObservableActor = fromObservable<
+            unknown,
+            { depositBlockNumber: number }
+        >(({ input: { depositBlockNumber } }) =>
+            getCanMint$(
+                getDepositProcessingStatus$(
+                    depositBlockNumber,
+                    ethStateTopic$,
+                    bridgeStateTopic$,
+                    bridgeTimingsTopic$
+                )
+            )
         );
 
         // An example of a factory for getDepositProcessingStatusXStateObservableActor
@@ -191,7 +219,7 @@ describe('XState integration example', () => {
         depositActor.start();
 
         // Block until the actor completes (will only complete when the minting oppertunity has been missed)
-        // Note you may want to depositActor.stop() yourself if minting was successful. But until that transaction 
+        // Note you may want to depositActor.stop() yourself if minting was successful. But until that transaction
         // has been confirmed keep the stream alive so that you could know if the minting oppertunity has been missed
         // because say the client took to long to compute their proofs.
         await actorCompletion.promise;

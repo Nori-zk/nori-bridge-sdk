@@ -149,7 +149,7 @@ export const getDepositProcessingStatus$ = (
                 } else {
                     // if (despositBlockNumber < input_block_number)
                     // Here we might still be ready to mint if our last finalized job includes our deposit in its window
-                    // AND the current job has not reached TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded
+                    // AND the current job has not reached TransitionNoticeMessageType.EthProcessorTransactionSubmitSucceeded
                     if (bridgeState.last_finalized_job === 'unknown') {
                         // Due to a server restart we don't know what our last finalized job was we can only assume that
                         // we missed our minting opportunity.
@@ -163,32 +163,12 @@ export const getDepositProcessingStatus$ = (
 
                         const stageIdx = stageIndex(stage_name);
 
-                        // If the deposit was in the last finalized job window and the current job has not been finalized then we can still mint
-                        // FIXME this could still break! Instead we should do < Submitting stage
-                        //if (stageIdx === -1) // Indeterminate (but looking at what events we actually omit we shouldnt actually have any missing.)
-
-                        // Turn to else if (something like this....)
-                        /*
-                            // Our deposit was in the last window
-                            last_input_block_number <= depositBlockNumber &&
-                            depositBlockNumber <= last_output_block_number &&
-                            // Our stage index is less than stageIndexEthProcessorTransactionSubmitSucceeded
-                            stageIdx < stageIndexEthProcessorTransactionSubmitSucceeded &&
-                            // Our last stage is not the same as our current stage. (But think about this.... if we are looking current job we wont get here
-                            and the below is only true when we were processed in the last job when isn't stageIndexEthProcessorTransactionSubmitSucceeded which is where
-                            the previous and current blocks are the same.... so i think the last condition here is probably not a desirable constraint)
-                            !(last_input_block_number ===
-                                input_block_number &&
-                            last_output_block_number ===
-                                output_block_number)
-                        */
+                        // If the deposit was in the last finalized job window and the current job has not been submitted to mina then we can still mint
                         if (
                             last_input_block_number <= depositBlockNumber &&
                             depositBlockNumber <= last_output_block_number &&
                             stageIdx <
                                 stageIndexEthProcessorTransactionSubmitSucceeded
-                            //stage_name !==
-                            //    TransitionNoticeMessageType.EthProcessorTransactionFinalizationSucceeded // This may be too late!
                         ) {
                             status = BridgeDepositProcessingStatus.ReadyToMint;
                         } else {
@@ -305,19 +285,36 @@ export async function canMint(
     );
 }
 
-// Implement a trinary this version just works out our stage between ready, missed and a generic 'waiting'
-const canMintStatus = [
+// Implement a trinary version just works out our stage between ready, missed and a generic 'waiting'
+export const canMintStatus = [
     BridgeDepositProcessingStatus.MissedMintingOpportunity,
     BridgeDepositProcessingStatus.ReadyToMint,
     'Waiting',
 ] as const;
-const canMintWaitingStatuses = [
+
+export const canMintWaitingStatuses = [
     BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion,
     BridgeDepositProcessingStatus.WaitingForEthFinality,
     BridgeDepositProcessingStatus.WaitingForPreviousJobCompletion,
 ];
-type CanMintStatus = (typeof canMintStatus)[number];
-export function canMint$(
+
+export type CanMintStatus = (typeof canMintStatus)[number];
+
+/**
+ * Emits the current minting status as one of three possible values:
+ * `ReadyToMint`, `MissedMintingOpportunity`, or `'Waiting'`.
+ *
+ * - Emits `'Waiting'` when the deposit is in any of the waiting states defined in `canMintWaitingStatuses`.
+ * - Emits `BridgeDepositProcessingStatus.ReadyToMint` when the deposit is ready to mint.
+ * - Emits `BridgeDepositProcessingStatus.MissedMintingOpportunity` and completes when the minting opportunity has been missed.
+ *
+ * Any other deposit processing statuses are ignored (no emission).
+ * Duplicate consecutive statuses are suppressed.
+ *
+ * @param depositProcessingStatus$ Observable emitting deposit processing updates.
+ * @returns Observable emitting the trinary mint status (`ReadyToMint`, `MissedMintingOpportunity`, or `'Waiting'`).
+ */
+export function getCanMint$(
     depositProcessingStatus$: ReturnType<typeof getDepositProcessingStatus$>
 ) {
     return depositProcessingStatus$.pipe(
@@ -348,62 +345,31 @@ export function canMint$(
         }),
         // Filter out undefined values
         filter((status): status is CanMintStatus => status !== undefined),
-        // Suppress duplicate consecutive mapped statuses
-        distinctUntilChanged()
-    );
-}
-
-// OLD VERSION
-/**
- * Waits until the deposit is eligible for mint proof generation, based on bridge state.
- *
- * Specifically, waits for the deposit status to become `WaitingForCurrentJobCompletion`
- * and the bridge stage to be `ProofConversionJobSucceeded`.
- * Throws if the deposit becomes a missed minting opportunity before that.
- *
- * @param depositProcessingStatus$ Observable emitting deposit processing updates.
- * @returns A promise resolving to true when mint proof generation is ready.
- * @throws Error if the minting opportunity is missed.
- */
-/*export function readyToComputeMintProof(
-    depositProcessingStatus$: ReturnType<typeof getDepositProcessingStatus$>
-) {
-    return firstValueFrom(
-        depositProcessingStatus$.pipe(
-            // Error if we have missed our minting opportunity
-            tap(({ deposit_processing_status, last_finalized_job }) => {
-                if (
-                    deposit_processing_status ===
-                    BridgeDepositProcessingStatus.MissedMintingOpportunity
-                ) {
-                    throw new Error('Minting opportunity missed.');
-                }
-            }),
-            // Wait for WaitingForCurrentJobCompletion and ProofConversionJobSucceeded before resolving
-            filter(
-                ({ deposit_processing_status, stage_name }) =>
-                    deposit_processing_status ===
-                        BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
-                    stage_name ===
-                        TransitionNoticeMessageType.ProofConversionJobSucceeded
-            ),
-            take(1),
-            map(() => true)
+        // Suppress duplicates
+        distinctUntilChanged(),
+        // Complete when the minting opportunity is missed
+        takeWhile(
+            (status) =>
+                status !==
+                BridgeDepositProcessingStatus.MissedMintingOpportunity,
+            true
         )
     );
-}*/
+}
 
 /**
  * Waits until the deposit is eligible for mint proof generation, based on bridge state.
  *
  * Specifically, resolves when:
  * - Deposit status is `ReadyToMint`, or
- * - Deposit status is `WaitingForCurrentJobCompletion` and the current stage is at or beyond `ProofConversionJobSucceeded`, or
- * - Deposit is in the last deposit window (between last finalized job input and output blocks),
- *   the current job has not finalized (`EthProcessorTransactionFinalizationSucceeded`), and
- *   the current job is not the same as the last finalized job (to handle an edge case where last finalized job updates at finalization event).
+ * - Deposit status is `WaitingForCurrentJobCompletion` and the stage index is at or beyond `ProofConversionJobSucceeded`, or
+ * - Deposit is in the last deposit window (between the last finalized job’s input and output blocks),
+ *   the current job’s stage index is before `EthProcessorTransactionSubmitSucceeded`,
+ *   and the current job’s block range is not identical to the last finalized job’s block range
+ *   (edge case occurring when last finalized job updates at the `EthProcessorTransactionFinalizationSucceeded` event).
  *
- * Emits a warning if the deposit is in the last window and the stage is advanced past `ProofConversionJobReceived`.
+ * Emits a warning if the deposit is in the last window and the stage index is greater than
+ * `ProofConversionJobSucceeded` (excluding the above edge case).
  *
  * Throws an error if the deposit processing status becomes `MissedMintingOpportunity`.
  *
@@ -532,6 +498,119 @@ export function readyToComputeMintProof(
             ),
             take(1),
             map(() => true)
+        )
+    );
+}
+
+// Create a trinary version of this which just has 'waiting', 'canCompute', 'missed'
+export const canComputeEthProof = [
+    'Waiting',
+    'CanCompute',
+    BridgeDepositProcessingStatus.MissedMintingOpportunity,
+] as const;
+
+export type CanComputEthProof = (typeof canComputeEthProof)[number];
+
+/**
+ * Emits the current proof computation status as one of three possible values:
+ * `'CanCompute'`, `'Waiting'`, or `BridgeDepositProcessingStatus.MissedMintingOpportunity`.
+ *
+ * - Emits `'Waiting'` if none of the above conditions are met and the opportunity has not been missed.
+ * - Emits `'CanCompute'` if:
+ *   - Deposit status is `ReadyToMint`, or
+ *   - Deposit status is `WaitingForCurrentJobCompletion` and the stage is at or beyond `ProofConversionJobSucceeded`, or
+ *   - Deposit is in the last deposit window, the current job stage index is before `EthProcessorTransactionSubmitSucceeded`,
+ *     and the current job’s block range is not identical to the last finalized job’s block range (edge-case avoidance).
+ * - Emits `BridgeDepositProcessingStatus.MissedMintingOpportunity` and completes if the deposit transitions to a missed opportunity state.
+ *
+ * Consecutive duplicate values are suppressed.
+ * Null intermediate values (indeterminate state) are not emitted.
+ *
+ * @param depositProcessingStatus$ Observable emitting deposit processing updates.
+ * @returns Observable emitting `'canCompute'`, `'waiting'`, or `MissedMintingOpportunity`.
+ */
+export function getCanComputeEthProof$(
+    depositProcessingStatus$: ReturnType<typeof getDepositProcessingStatus$>
+) {
+    return depositProcessingStatus$.pipe(
+        map(
+            ({
+                deposit_processing_status,
+                stage_name,
+                last_finalized_job,
+                deposit_block_number,
+                input_block_number,
+                output_block_number,
+            }) => {
+                if (
+                    deposit_processing_status ===
+                    BridgeDepositProcessingStatus.MissedMintingOpportunity
+                )
+                    return deposit_processing_status;
+
+                // Otherwise deal with determining if we are waiting or if we can compute.
+
+                // If we can mint we can compute the eth proof.
+
+                if (
+                    deposit_processing_status ===
+                    BridgeDepositProcessingStatus.ReadyToMint
+                )
+                    return 'CanCompute';
+
+                // Can compute if deposit status is WaitingForCurrentJobCompletion
+                // and stage is at or beyond ProofConversionJobSucceeded
+                const stageIdx = stageIndex(stage_name);
+                if (
+                    deposit_processing_status ===
+                        BridgeDepositProcessingStatus.WaitingForCurrentJobCompletion &&
+                    stageIdx >= stageIndexProofConversionJobSucceeded
+                )
+                    return 'CanCompute';
+
+                // Otherwise if we are in the last batch but the current job has not gotten to the stage of the mina
+                // tx being submitted we can compute.
+
+                // Determine if last finalized job is known (if it isnt known we cannot decide this yet).
+                if (last_finalized_job === 'unknown') return null;
+
+                // Check if deposit is in the last deposit window
+                const deposit_is_in_last_window =
+                    last_finalized_job.input_block_number <=
+                        deposit_block_number &&
+                    deposit_block_number <=
+                        last_finalized_job.output_block_number;
+
+                const current_job_equals_last_finalized =
+                    last_finalized_job.input_block_number ===
+                        input_block_number &&
+                    last_finalized_job.output_block_number ===
+                        output_block_number;
+
+                // If the deposit is in the last window and the current job has not been sent to mina we can still mint.
+                if (
+                    deposit_is_in_last_window &&
+                    stageIdx <
+                        stageIndexEthProcessorTransactionSubmitSucceeded &&
+                    !current_job_equals_last_finalized
+                ) {
+                    return 'CanCompute';
+                }
+
+                // Otherwise we are waiting
+                return 'Waiting';
+            }
+        ),
+        // Filter nulls
+        filter((value) => value !== null),
+        // Suppress duplicates
+        distinctUntilChanged(),
+        // Complete when the minting opportunity is missed
+        takeWhile(
+            (status) =>
+                status !==
+                BridgeDepositProcessingStatus.MissedMintingOpportunity,
+            true
         )
     );
 }

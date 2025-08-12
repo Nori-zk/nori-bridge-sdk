@@ -123,9 +123,19 @@ import {
   getDepositProcessingStatus$,
   bridgeStatusesKnownEnoughToLockUnsafe,
   bridgeStatusesKnownEnoughToLockSafe,
-  canMint,
   getDepositProcessingStatus$,
+  // Promise triggers resolve when key event occurs and reject after opportunity has been missed:
+  canMint,
   readyToComputeMintProof,
+  // Observable triggers:
+  // CanMint observable:
+  getCanMint$, // cycles through states of 'Waiting', 'ReadyToMint' and 'MissedMintingOpportunity'
+  CanMintStatus,
+  // CanComputeEthProof observable:
+  getCanComputeEthProof$, // cycles through states of 'Waiting', 'CanCompute', or 'MissedMintingOpportunity'
+  CanComputEthProof,
+
+
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 
