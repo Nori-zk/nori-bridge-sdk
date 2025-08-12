@@ -1,4 +1,4 @@
-import { NetworkId, PrivateKey } from 'o1js';
+import { Lightnet, NetworkId, PrivateKey } from 'o1js';
 import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
@@ -84,9 +84,8 @@ describe('e2e', () => {
             tokenDeployer.terminate();
 
             // Generate a funded test private key for mina litenet
-            //const litenetSk = await getNewMinaLiteNetAccountSK();
-            const senderPrivateKey = PrivateKey.fromBase58('EKFbdYjhgnVAF7bFLhhi4pEbLTKRinizCKbZiNvavpCHnZCBJCvR'); // litenetSk
-            // EKFbdYjhgnVAF7bFLhhi4pEbLTKRinizCKbZiNvavpCHnZCBJCvR this one generated a message hash starting with 0x0... (useful for checking padding)
+            const litenetSk = await getNewMinaLiteNetAccountSK();
+            const senderPrivateKey = PrivateKey.fromBase58(litenetSk);
             const senderPrivateKeyBase58 = senderPrivateKey.toBase58();
             const senderPublicKey = senderPrivateKey.toPublicKey();
             const senderPublicKeyBase58 = senderPublicKey.toBase58();
