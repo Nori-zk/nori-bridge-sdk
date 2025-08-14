@@ -13,7 +13,6 @@ import {
     VerificationKey,
     Cache,
 } from 'o1js';
-import { Logger } from '@nori-zk/proof-conversion';
 import { FungibleToken } from './TokenBase.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 /*import {

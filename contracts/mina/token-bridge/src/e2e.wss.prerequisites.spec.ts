@@ -17,7 +17,7 @@ import {
     VerifiedContractStorageSlot,
     WebSocketServiceTopicSubscriptionMessage,
 } from '@nori-zk/pts-types';
-import { InvertedPromise, NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
+import { InvertedPromise, NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion/min';
 import { clearInterval } from 'node:timers';
 import {
     EthVerifier,

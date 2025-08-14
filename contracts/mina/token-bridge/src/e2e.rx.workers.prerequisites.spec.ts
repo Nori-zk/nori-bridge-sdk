@@ -5,7 +5,7 @@ import {
     lockTokens,
     minaSetup,
 } from './testUtils.js';
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import {
     compilePreRequisites,
     deployAndVerifyEcdsaSigPresentationVerifier,

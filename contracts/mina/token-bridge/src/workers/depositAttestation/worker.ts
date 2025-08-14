@@ -7,7 +7,7 @@ import {
     computeDepositAttestation,
 } from '../../depositAttestation.js';
 import { Bytes, Field } from 'o1js';
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 
 export class DepositAttestationWorker {
     async compileAttestation() {

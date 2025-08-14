@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Field, SmartContract, UInt64, UInt8 } from 'o1js';
-import { Logger, wordToBytes } from '@nori-zk/proof-conversion';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { PlonkProof, Bytes32, ZkProgram, CompilableZkProgram } from './types.js';
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
@@ -140,7 +140,7 @@ export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
 // Compile and verify contracts utility
 
 export async function compileAndVerifyContracts(
-    logger: Logger,
+    logger: any, // Logger fix this later
     contracts: {
         name: string;
         program: typeof SmartContract | CompilableZkProgram; // Ideally we would use CompilableZkProgram

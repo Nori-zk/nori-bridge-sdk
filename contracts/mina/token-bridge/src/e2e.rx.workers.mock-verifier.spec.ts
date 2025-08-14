@@ -4,7 +4,7 @@ import {
     getNewMinaLiteNetAccountSK,
     lockTokens,
 } from './testUtils.js';
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,

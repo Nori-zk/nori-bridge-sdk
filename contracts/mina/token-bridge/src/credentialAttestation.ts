@@ -19,7 +19,7 @@ import {
     PresentationSpec,
     StoredCredential,
 } from 'mina-attestations';
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 
 // Secret type utils
 
