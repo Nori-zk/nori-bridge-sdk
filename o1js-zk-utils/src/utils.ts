@@ -1,5 +1,3 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { Field, SmartContract, UInt64, UInt8 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { PlonkProof, Bytes32, ZkProgram, CompilableZkProgram } from './types.js';
@@ -197,7 +195,5 @@ export async function compileAndVerifyContracts(
     }
 }
 
-// Root dir
 
-const __filename = fileURLToPath(import.meta.url);
-export const rootDir = path.dirname(__filename);
+
