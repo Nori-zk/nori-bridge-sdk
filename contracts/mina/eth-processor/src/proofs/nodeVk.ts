@@ -1,5 +1,4 @@
-import { ConvertedProofVkData } from '@nori-zk/o1js-zk-utils';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const vkData: ConvertedProofVkData = require('./nodeVk.json');
+import vkDataRaw from './nodeVk.json' with { type: 'json' };
+import type { ConvertedProofVkData } from '@nori-zk/o1js-zk-utils';
+const vkData = vkDataRaw as ConvertedProofVkData;
 export { vkData };

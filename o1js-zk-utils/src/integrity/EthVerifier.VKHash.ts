@@ -1,4 +1,3 @@
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const ethVerifierVkHash: string = require('./EthVerifier.VkHash.json');
+import ethVerifierVkHashRaw from './EthVerifier.VkHash.json' with { type: 'json'};
+const ethVerifierVkHash = ethVerifierVkHashRaw as string;
 export { ethVerifierVkHash };

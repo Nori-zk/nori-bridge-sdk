@@ -51,7 +51,7 @@ const EthVerifier = ZkProgram({
                 // vk = proofConversionOutput.vkData
                 // this is also from nodeVK
                 const vk = VerificationKey.fromJSON(
-                    proofConversionSP1ToPlonkVkData
+                    proofConversionSP1ToPlonkVkData as unknown as string
                 );
 
                 // [zkProgram / circuit][eth processor /  contract ie on-chain state]

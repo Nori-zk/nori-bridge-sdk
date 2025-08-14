@@ -2,6 +2,7 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "build",
+    "module": "esnext",
     "rootDir": "src"
   },
   "include": ["./src", "./src/proofs/*.json", "src/integrity/*.json"],

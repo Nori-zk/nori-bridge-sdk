@@ -1,4 +1,2 @@
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const ethProcessorVkHash: string = require('./EthProcessor.VkHash.json');
+import ethProcessorVkHash from './EthProcessor.VkHash.json' with { type: "json" };
 export { ethProcessorVkHash };
