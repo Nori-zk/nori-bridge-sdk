@@ -17,6 +17,11 @@
     "type": "module",
     "main": "build/index.js",
     "types": "build/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./build/index.js"
+        }
+    },
     "scripts": {
         "clean": "rimraf build",
         "build": "npm run clean && tsc",
@@ -54,7 +59,7 @@
         "node": ">=22.0.0"
     },
     "dependencies": {
-        "@nori-zk/proof-conversion": "^0.5.10",
+        "@nori-zk/proof-conversion": "^0.5.14",
         "dotenv": "^16.4.7",
         "mina-attestations": "^0.5.2"
     },

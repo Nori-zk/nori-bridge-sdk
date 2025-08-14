@@ -1,5 +1,5 @@
-import { PlonkProof } from '../../types';
-import sp1ConsensusMPTPlonkProofRaw from './4666560-v5.0.0.json';
+import { PlonkProof } from '../../types.js';
+import sp1ConsensusMPTPlonkProofRaw from './4666560-v5.0.0.json' with { type: 'json' };
 const sp1ConsensusMPTPlonkProof = sp1ConsensusMPTPlonkProofRaw as ProofResultResultMessage;
 
 type ContractStorageSlot = {

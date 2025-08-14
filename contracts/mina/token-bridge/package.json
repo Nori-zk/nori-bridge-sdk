@@ -111,7 +111,7 @@
     "dependencies": {
         "@nori-zk/ethprocessor": "*",
         "@nori-zk/o1js-zk-utils": "*",
-        "@nori-zk/proof-conversion": "^0.5.10",
+        "@nori-zk/proof-conversion": "^0.5.14",
         "autrace": "^0.0.22",
         "mina-attestations": "^0.5.3",
         "rxjs": "^7.8.2",

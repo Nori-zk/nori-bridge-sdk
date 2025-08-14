@@ -13,7 +13,7 @@ import {
     FrC,
     NodeProofLeft,
     parsePlonkPublicInputsProvable,
-} from '@nori-zk/proof-conversion';
+} from '@nori-zk/proof-conversion/min';
 import { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP1HeliosProgram.pi0.js';
 import { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
 import { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js';
