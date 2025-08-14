@@ -11,7 +11,6 @@ import {
     SecretMaxLength,
 } from '../../credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
-import { minaSetup } from '../../testUtils.js';
 
 export class CredentialAttestationWorker {
     async compile() {
@@ -70,12 +69,21 @@ export class CredentialAttestationWorker {
         return presentationJson;
     }
 
+    // Remove this later! This was just for testing anyway
+    private async minaSetup() {
+        const Network = Mina.Network({
+            networkId: 'devnet',
+            mina: 'http://localhost:8080/graphql',
+        });
+        Mina.setActiveInstance(Network);
+    }
+
     async MOCK_deployAndVerifyEcdsaSigPresentationVerifier(
         zkAppPrivateKeyBase58: string,
         senderPrivateKeyBase58: string,
         presentationJSON: string
     ) {
-        await minaSetup();
+        await this.minaSetup();
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         const zkAppPrivateKey = PrivateKey.fromBase58(zkAppPrivateKeyBase58);
         const senderPublicKey = senderPrivateKey.toPublicKey();

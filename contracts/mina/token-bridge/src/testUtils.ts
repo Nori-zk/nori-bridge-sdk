@@ -1,4 +1,4 @@
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { Bytes, Field, Mina } from 'o1js';
 
 export async function getNewMinaLiteNetAccountSK(): Promise<string> {
