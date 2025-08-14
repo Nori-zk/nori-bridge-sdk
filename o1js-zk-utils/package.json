@@ -54,7 +54,7 @@
         "node": ">=22.0.0"
     },
     "dependencies": {
-        "@nori-zk/proof-conversion": "^0.5.9",
+        "@nori-zk/proof-conversion": "^0.5.10",
         "dotenv": "^16.4.7",
         "mina-attestations": "^0.5.2"
     },
