@@ -1,3 +1,10 @@
+import { JsonProof, NetworkId } from 'o1js';
+
+export interface MintProofDataJson {
+    ethDepositProofJson: JsonProof,
+    presentationProofStr: string
+}
+
 /**
  * Specification of the methods exposed by TokenMintWorker
  * for parent proxying.
@@ -71,9 +78,20 @@ export const workerSpec = {
         presentationJson: string,
         depositBlockNumber: number,
         ethAddressLowerHex: string
-    ) => ({
-        despositSlotRaw: 0,
-        ethDepositProofJson: {} as any,
+    ): Promise<{
+        depositSlotRaw: {
+            slot_key_address: string;
+            slot_nested_key_attestation_hash: string;
+            value: string;
+        };
+        ethDepositProofJson: JsonProof;
+    }> => ({
+        depositSlotRaw: {
+            slot_key_address: '',
+            slot_nested_key_attestation_hash: '',
+            value: '',
+        },
+        ethDepositProofJson: {} as JsonProof,
     }),
 
     /**
@@ -81,7 +99,7 @@ export const workerSpec = {
      * @param options - Mina network options
      */
     minaSetup: async (options: {
-        networkId?: any;
+        networkId?: NetworkId;
         mina: string | string[];
         archive?: string | string[];
         lightnetAccountManager?: string;
@@ -136,7 +154,7 @@ export const workerSpec = {
         noriAddressBase58: string,
         txFee: number,
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
-    ) => ({} as any),
+    ) => '',
 
     /**
      * Mock helper that performs storage setup and signs/sends using worker's mina key.
@@ -175,10 +193,10 @@ export const workerSpec = {
     mint: async (
         userPublicKeyBase58: string,
         noriAddressBase58: string,
-        proofDataJson: any,
+        proofDataJson: MintProofDataJson,
         txFee: number,
         fundNewAccount?: boolean
-    ) => ({} as any),
+    ) => '',
 
     /**
      * Mock mint that signs and sends using worker's mina key.
