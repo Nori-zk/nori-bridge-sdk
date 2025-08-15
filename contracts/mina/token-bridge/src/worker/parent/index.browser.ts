@@ -4,15 +4,16 @@ export class WorkerParent implements WorkerParentChildInterface {
     private worker: Worker;
     private deferedReady = new DeferredPromise();
 
-    constructor(workerUrl: URL) {
-        this.worker = new Worker(workerUrl.href);
+    constructor(worker: Worker) {
+        this.worker = worker;
     }
 
     async ready() {
         return this.deferedReady.promise;
     }
 
-    call(data: string): void {
+    async call(data: string): Promise<void> {
+        await this.ready();
         this.worker.postMessage(data);
     }
 

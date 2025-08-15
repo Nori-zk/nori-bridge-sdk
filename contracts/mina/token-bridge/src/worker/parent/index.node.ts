@@ -54,7 +54,8 @@ export class WorkerParent implements WorkerParentChildInterface {
         return this.deferedReady.promise;
     }
     
-    call(data: string): void {
+    async call(data: string): Promise<void> {
+        await this.ready();
         this.child.send?.(data);
     }
 

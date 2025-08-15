@@ -44,7 +44,7 @@ export interface WorkerParentChildInterface extends BaseWorkerEndpoint {
      * Sends a message to the parent.
      * @param args - The message arguments.
      */
-    call(...args: any[]): void;
+    call(...args: any[]): Promise<void>;
 
     /**
      * Terminates the child endpoint.
@@ -63,6 +63,11 @@ export interface WorkerParentChildInterface extends BaseWorkerEndpoint {
 type MethodNames<T> = {
     [K in keyof T]: T[K] extends (...args: any) => Promise<any> ? K : never;
 }[keyof T];
+
+/**
+ * A generic mapping of async worker method names to their function signatures.
+ */
+export type WorkerMethodSpec = Record<string, (...args: any[]) => Promise<any>>;
 
 /**
  * Creates a proxy type from T containing only async methods.
@@ -136,7 +141,7 @@ export class WorkerParentBase {
         this.#pendingRequests.set(id, deferred);
 
         // Send the serialized message to the child
-        this.#child.call(messageStr);
+        await this.#child.call(messageStr);
 
         // Return the promise to the caller
         return deferred.promise;
@@ -337,7 +342,7 @@ export function createWorker<T>(
  * @param args - Arguments passed to the logic class constructor
  * @returns A proxy object with async methods and a terminate method
  */
-export function createParent<T>(
+export function createProxy<T>(
     child: WorkerParentChildInterface,
     ChildClass: new (...args: any[]) => T,
     ...args: any[]
@@ -365,4 +370,53 @@ export function createParent<T>(
 
     // Return the proxy
     return proxyInstance as WorkerChildInfer<T> & { terminate(): void };
+}
+
+/**
+ * Creates a proxy for the parent to invoke child logic via async calls,
+ * using a predefined method specification instead of inferring methods
+ * from a class prototype.
+ *
+ * @param child - The child endpoint
+ * @param methodSpec - An object whose keys are method names and values are functions
+ *                     describing the expected parameters/return type for each call
+ * @returns A proxy object with async methods matching the provided specification
+ *          and a terminate method for stopping the worker.
+ *
+ * @remarks
+ * - This is useful when the child logic is not represented by a single class
+ *   or when you want to strictly control which methods are exposed to the parent.
+ * - It also avoids the need to construct a class instance in the parent context,
+ *   which can be valuable if that constructor has heavy setup logic or depends on
+ *   modules with top-level async/await that would otherwise block initialization.
+ * - All generated methods return Promises, since worker communication is asynchronous.
+ */
+export function createProxyFromSpec<T extends WorkerMethodSpec>(
+    child: WorkerParentChildInterface,
+    methodSpec: T
+) {
+    // Create parent base to handle communication
+    const parentBase = new WorkerParentBase(child);
+
+    // Build a typed proxy
+    const proxy = {} as {
+        [K in keyof T]: (
+            ...args: Parameters<T[K]>
+        ) => Promise<Awaited<ReturnType<T[K]>>>;
+    } & { terminate(): void };
+
+    for (const key of Object.keys(methodSpec) as Array<keyof T>) {
+        // Always wrap in async to ensure Promise return type
+        proxy[key] = (async (...args: Parameters<T[typeof key]>) => {
+            return parentBase.call(key as string, ...args);
+        }) as (typeof proxy)[typeof key];
+    }
+
+    // Extend the proxy with terminate method to cleanly stop the worker
+    proxy.terminate = () => parentBase.terminate();
+
+    // Return the fully typed proxy instance
+    return proxy as {
+        [K in keyof T]: (...args: Parameters<T[K]>) => ReturnType<T[K]>;
+    } & { terminate(): void };
 }

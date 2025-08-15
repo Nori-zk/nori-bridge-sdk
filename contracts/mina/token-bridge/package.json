@@ -43,26 +43,20 @@
         "./rx/topics": {
             "import": "./target/src/rx/topics.js"
         },
-        "./pure-workers": {
-            "import": "./target/src/workers/index.js"
+        "./workers/specs": {
+            "import": "./target/src/workers/specs.js"
+        },
+        "./workers/defs": {
+            "import": "./target/src/workers/defs.js"
         },
         "./node/workers/tokenMint": {
             "import": "./target/src/workers/tokenMint/node/parent.js"
         },
-        "./browser/workers/tokenMint": {
-            "import": "./target/src/workers/tokenMint/browser/parent.js"
-        },
         "./node/workers/depositAttestation": {
             "import": "./target/src/workers/depositAttestation/node/parent.js"
         },
-        "./browser/workers/depositAttestation": {
-            "import": "./target/src/workers/depositAttestation/browser/parent.js"
-        },
         "./node/workers/credentialAttestation": {
             "import": "./target/src/workers/credentialAttestation/node/parent.js"
-        },
-        "./browser/workers/credentialAttestation": {
-            "import": "./target/src/workers/credentialAttestation/browser/parent.js"
         }
     },
     "scripts": {

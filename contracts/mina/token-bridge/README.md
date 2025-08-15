@@ -28,24 +28,14 @@ import { getCredentialAttestationWorker } from '@nori-zk/mina-token-bridge/node/
 
 ---
 
-#### 2. **Use browser workers directly**  
-> Only works if your bundler supports importing workers directly (e.g., Vite, Webpack 5+ with proper config)
-
-```typescript
-import { getTokenMintWorker } from '@nori-zk/mina-token-bridge/browser/workers/tokenMint';
-import { getCredentialAttestationWorker } from '@nori-zk/mina-token-bridge/browser/workers/credentialAttestation';
-```
-
----
-
-#### 3. **Import pure logic worker classes and lift them into workers manually**  
+#### 2. **For the browser, import pure logic worker classes and lift them into workers manually, using a spec**  
 > Use this if you're building your own worker pipeline (custom setup, unsupported bundler, etc.)
 
 ```typescript
 import {
   CredentialAttestationWorker,
   TokenMintWorker,
-} from '@nori-zk/mina-token-bridge/pure-workers';
+} from '@nori-zk/mina-token-bridge/workers/defs';
 ```
 
 - You must lift these pure classes into actual workers.  
@@ -53,26 +43,33 @@ import {
   
   - **(a) Provided worker tooling**
 
-    > Uses `WorkerParent`, `WorkerChild`, and `createParent/createWorker` from the mina-token-bridge repo
+    > Uses `WorkerParent`, `WorkerChild`, and `createParentFromSpec/createWorker` from the mina-token-bridge repo
 
     ```typescript
     //workers/credentialAttestation/browser/parent.ts
-    import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/pure-workers';
+    import { CredentialAttestationWorkerSpec } from '@nori-zk/mina-token-bridge/workers/specs';
     import { WorkerParent } from '@nori-zk/mina-token-bridge/browser/worker/parent';
-    import { createParent } from '@nori-zk/mina-token-bridge/worker';
+    import { createProxyFromSpec } from '@nori-zk/mina-token-bridge/worker';
+    
+    const worker = new Worker(new URL('./child.ts', import.meta.url), {
+      type: 'module',
+    });
 
-    const workerUrl = new URL('./child.js', import.meta.url);
+    // workerParent has a ready function which returns a promise, that you can await, as
+    // it can take a long time, for the worker to load.
+    const workerParent = new WorkerParent(worker);
+
     export const getCredentialAttestationWorker = () =>
-      createParent(new WorkerParent(workerUrl), CredentialAttestationWorker);
+      createProxyFromSpec(workerParent, CredentialAttestationWorkerSpec);
     ```
 
     ```typescript
     //workers/credentialAttestation/browser/child.ts
-    import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/pure-workers';
+    import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/workers/defs';
     import { WorkerChild } from '@nori-zk/mina-token-bridge/browser/worker/child';
     import { createWorker } from '@nori-zk/mina-token-bridge/worker';
 
-    export const credentialAttestationWorker = createWorker(
+    const credentialAttestationWorker = createWorker(
       new WorkerChild(),
       CredentialAttestationWorker
     );
@@ -87,7 +84,7 @@ import {
     ```typescript
     //workers/credentialAttestation/child.ts
     import * as Comlink from 'comlink';
-    import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/pure-workers';
+    import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/workers/defs';
 
     Comlink.expose(new CredentialAttestationWorker());
     ```
@@ -95,7 +92,7 @@ import {
     ```typescript
     //workers/credentialAttestation/parent.ts
     import * as Comlink from 'comlink';
-    import type { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/pure-workers';
+    import type { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/workers/defs';
 
     const worker = new Worker(new URL('./child.ts', import.meta.url), { type: 'module' });
 
@@ -112,12 +109,15 @@ import {
 
 ```typescript
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
+
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
+
 import {
   getBridgeStateTopic$,
   getBridgeTimingsTopic$,
   getEthStateTopic$,
 } from '@nori-zk/mina-token-bridge/rx/topics';
+
 import {
   BridgeDepositProcessingStatus,
   getDepositProcessingStatus$,
@@ -134,9 +134,8 @@ import {
   // CanComputeEthProof observable:
   getCanComputeEthProof$, // cycles through states of 'Waiting', 'CanCompute', or 'MissedMintingOpportunity'
   CanComputEthProof,
-
-
 } from '@nori-zk/mina-token-bridge/rx/deposit';
+
 import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 
 // Import your worker getter function here to support minting, e.g.:
