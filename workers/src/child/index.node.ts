@@ -9,18 +9,19 @@ export class WorkerChild implements WorkerChildParentInterface {
         this.proc = proc;
 
         this.proc.on('message', (msg) => {
-            if (typeof msg === 'string' && this.messageCallback) {
-                this.messageCallback(msg);
-            } else if (this.messageCallback) {
-                this.messageCallback(JSON.stringify(msg));
-            }
+            if (this.messageCallback) {
+                if (typeof msg === 'string') {
+                    this.messageCallback(msg);
+                } else {
+                    this.messageCallback(JSON.stringify(msg));
+                }
+            } else console.warn('Callback for messages not assigned. Call onMessageHandler first.');
         });
 
         this.proc.on('error', (err) => {
             if (this.errorCallback) this.errorCallback(err);
+            else console.warn('ErrorCallback for error not assigned. Call onErrorHandler first.');
         });
-
-        this.proc.send('ready');
     }
 
     send(data: string): void {

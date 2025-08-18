@@ -34,7 +34,6 @@ import {
     NoriTokenController,
 } from '../../NoriTokenController.js';
 import { Presentation } from 'mina-attestations';
-// FIXME make a setter for senderPublicKey and perhaps noriAddressBase58
 
 export class TokenMintWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -260,12 +259,8 @@ export class TokenMintWorker {
         const minaSenderPublicKey = PublicKey.fromBase58(
             minaSenderPublicKeyBase58
         );
-        const noriTokenBaseAddress = PublicKey.fromBase58(
-            noriTokenBaseBase58
-        );
-        const noriTokenBase = new FungibleToken(
-            noriTokenBaseAddress
-        );
+        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
+        const noriTokenBase = new FungibleToken(noriTokenBaseAddress);
         /*const storage = new NoriStorageInterface(
             minaSenderPublicKey,
             noriTokenController.deriveTokenId()
@@ -280,7 +275,7 @@ export class TokenMintWorker {
         console.log('balanceOf raw', balanceOf);
         console.log('balanceOf string', balanceOf.toString());
 
-        return balanceOf.toBigInt().toString()
+        return balanceOf.toBigInt().toString();
     }
 
     async mintedSoFar(
@@ -354,13 +349,15 @@ export class TokenMintWorker {
 
     async setupStorage(
         userPublicKeyBase58: string,
-        noriAddressBase58: string,
+        noriTokenControllerAddressBase58: string,
         txFee: number,
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
     ) {
         //const userPrivateKey = PrivateKey.fromBase58(userPrivateKeyBase58);
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58); // userPrivateKey.toPublicKey();
-        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
         const { hashStr: storageInterfaceVerificationKeyHashStr, data } =
             storageInterfaceVerificationKeySafe;
         const storageInterfaceVerificationKeyHashBigInt = BigInt(
@@ -373,10 +370,12 @@ export class TokenMintWorker {
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         // FIXME do we need
-        await this.fetchAccounts([userPublicKey, noriAddress]);
+        await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+        const noriTokenControllerInst = new NoriTokenController(
+            noriTokenControllerAddress
+        );
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -396,13 +395,15 @@ export class TokenMintWorker {
     // This will be removed when we have a working version of WALLET_signAndSend
     async MOCK_setupStorage(
         userPublicKeyBase58: string,
-        noriAddressBase58: string,
+        noriTokenControllerAddressBase58: string,
         txFee: number,
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
     ) {
         //const userPrivateKey = PrivateKey.fromBase58(userPrivateKeyBase58);
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58); // userPrivateKey.toPublicKey();
-        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
         const { hashStr: storageInterfaceVerificationKeyHashStr, data } =
             storageInterfaceVerificationKeySafe;
         const storageInterfaceVerificationKeyHashBigInt = BigInt(
@@ -415,10 +416,12 @@ export class TokenMintWorker {
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         // FIXME do we need
-        await this.fetchAccounts([userPublicKey, noriAddress]);
+        await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+        const noriTokenControllerInst = new NoriTokenController(
+            noriTokenControllerAddress
+        );
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -482,14 +485,17 @@ export class TokenMintWorker {
 
     async mint(
         userPublicKeyBase58: string,
-        noriAddressBase58: string,
+        noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
         //userPrivateKey: PrivateKey,
         txFee: number,
-        fundNewAccount = true
+        noriTokenBaseBase58: string
     ) {
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
-        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
+        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
 
         // Reconstruct MintProofData
         const { ethDepositProofJson, presentationProofStr } = proofDataJson;
@@ -508,10 +514,34 @@ export class TokenMintWorker {
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
-        await this.fetchAccounts([userPublicKey, noriAddress]);
+        await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
+
+        const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
+        const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
+
+        let fundNewAccount: boolean = false;
+        try {
+            console.log('Attempting to fetch public key with token id.');
+            // success we dont need to fund account...
+            await fetchAccount({
+                publicKey: userPublicKey,
+                tokenId: noriTokenBaseTokenId,
+            });
+            console.log(
+                'Fetched account with tokenid, we dont need to fund the account.'
+            );
+        } catch (e) {
+            console.warn(
+                'Failed to fetch public key with token id, we need to fund the account.',
+                e
+            );
+            fundNewAccount = true;
+        }
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+        const noriTokenControllerInst = new NoriTokenController(
+            noriTokenControllerAddress
+        );
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -535,14 +565,17 @@ export class TokenMintWorker {
     // This will be removed when we have a working version of WALLET_signAndSend
     async MOCK_mint(
         userPublicKeyBase58: string,
-        noriAddressBase58: string,
+        noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
         //userPrivateKey: PrivateKey,
         txFee: number,
-        fundNewAccount = true
+        noriTokenBaseBase58: string
     ) {
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
-        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
+        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
 
         // Reconstruct MintProofData
         const { ethDepositProofJson, presentationProofStr } = proofDataJson;
@@ -561,10 +594,34 @@ export class TokenMintWorker {
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
-        await this.fetchAccounts([userPublicKey, noriAddress]);
+        await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
+
+        const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
+        const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
+
+        let fundNewAccount: boolean = false;
+        try {
+            console.log('Attempting to fetch public key with token id.');
+            // success we dont need to fund account...
+            await fetchAccount({
+                publicKey: userPublicKey,
+                tokenId: noriTokenBaseTokenId,
+            });
+            console.log(
+                'Fetched account with tokenid, we dont need to fund the account.'
+            );
+        } catch (e) {
+            console.warn(
+                'Failed to fetch public key with token id, we need to fund the account.',
+                e
+            );
+            fundNewAccount = true;
+        }
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+        const noriTokenControllerInst = new NoriTokenController(
+            noriTokenControllerAddress
+        );
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -611,13 +668,17 @@ export class TokenMintWorker {
     #mintProofCache: Mina.Transaction<true, false>;
     async MOCK_computeMintProofAndCache(
         userPublicKeyBase58: string,
-        noriAddressBase58: string,
+        noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
         txFee: number,
-        fundNewAccount = true
+        noriTokenBaseBase58: string
+        //fundNewAccount = true
     ) {
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
-        const noriAddress = PublicKey.fromBase58(noriAddressBase58);
+        const noriTokenControllerAddress = PublicKey.fromBase58(
+            noriTokenControllerAddressBase58
+        );
+        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
 
         // Reconstruct MintProofData
         const { ethDepositProofJson, presentationProofStr } = proofDataJson;
@@ -636,10 +697,34 @@ export class TokenMintWorker {
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
-        await this.fetchAccounts([userPublicKey, noriAddress]);
+        await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
+
+        const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
+        const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
+
+        let fundNewAccount: boolean = false;
+        try {
+            console.log('Attempting to fetch public key with token id.');
+            // success we dont need to fund account...
+            await fetchAccount({
+                publicKey: userPublicKey,
+                tokenId: noriTokenBaseTokenId,
+            });
+            console.log(
+                'Fetched account with tokenid, we dont need to fund the account.'
+            );
+        } catch (e) {
+            console.warn(
+                'Failed to fetch public key with token id, we need to fund the account.',
+                e
+            );
+            fundNewAccount = true;
+        }
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenControllerInst = new NoriTokenController(noriAddress);
+        const noriTokenControllerInst = new NoriTokenController(
+            noriTokenControllerAddress
+        );
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -661,10 +746,12 @@ export class TokenMintWorker {
     }
 
     async WALLET_MOCK_signAndSendMintProofCache() {
-        const tx = await this.#mintProofCache
-            .sign([this.#minaPrivateKey])
-            .send();
+        const signedTx = this.#mintProofCache.sign([this.#minaPrivateKey]);
+        console.log('signedTx...sending', signedTx);
+        const tx = await signedTx.send();
+        console.log('Sent tx...waiting', tx);
         const result = await tx.wait();
+        console.log('Awaited tx');
         return { txHash: result.hash };
     }
 }

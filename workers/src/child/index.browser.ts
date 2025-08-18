@@ -7,18 +7,20 @@ export class WorkerChild implements WorkerChildParentInterface {
     constructor() {
         self.addEventListener('message', (ev: MessageEvent) => {
             const data = ev.data;
-            if (typeof data === 'string' && this.messageCallback) {
-                this.messageCallback(data);
-            } else if (this.messageCallback) {
-                this.messageCallback(JSON.stringify(data));
+            if (this.messageCallback) {
+                if (typeof data === 'string') {
+                    this.messageCallback(data);
+                } else {
+                    this.messageCallback(JSON.stringify(data));
+                }
             }
+            else console.warn('Callback for messages not assigned. Call onMessageHandler first.'); 
         });
 
         self.addEventListener('error', (ev: ErrorEvent) => {
             if (this.errorCallback) this.errorCallback(ev.error);
+            else console.warn('ErrorCallback for error not assigned. Call onErrorHandler first.');
         });
-
-        self.postMessage('ready');
     }
 
     send(data: string): void {

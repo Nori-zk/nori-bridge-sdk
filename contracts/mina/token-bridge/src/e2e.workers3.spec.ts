@@ -403,7 +403,7 @@ describe('e2e_testnet', () => {
                     presentationProofStr: presentationJsonStr,
                 },
                 1e9 * 0.1,
-                true
+                noriTokenBaseAddressBase58
             );
             console.timeEnd('Mint proof computation');
             // NOTE!
