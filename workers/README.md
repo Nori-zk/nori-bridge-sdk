@@ -115,7 +115,7 @@ export class EchoWorker {
     ```typescript
     import { EchoWorkerParent } from './browser/parent.js';
 
-    async function runBrowser() {
+    async function runBrowserCode() {
         // Construct parent with arguments
         const echoWorker = new EchoWorkerParent('browser-app');
 
@@ -133,7 +133,7 @@ export class EchoWorker {
         echoWorker.terminate();
     }
 
-    runBrowser();
+    runBrowserCode();
     ```
 
 ---
