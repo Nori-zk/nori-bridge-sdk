@@ -12,13 +12,18 @@ A collection of smart/zk contracts, o1js programs and utilities for Nori Bridge.
    `package: @nori-zk/mina-token-bridge`  
    Mina contracts for bridging tokens using Nori stack.
 
-3. **[o1js ZK Utils](./o1js-zk-utils)**  
+3. **[Eth Processor](./contracts/mina/eth-processor)**  
+   `package: @nori-zk/ethprocessor`  
+   Mina contract for Ethereum state commitment to Mina.
+
+4. **[o1js ZK Utils](./o1js-zk-utils)**  
    `package: @nori-zk/o1js-zk-utils`  
    Zero-knowledge programs and helpers built with o1js.
 
-4. **[Eth Processor](./contracts/mina/eth-processor)**  
-   `package: @nori-zk/ethprocessor`  
-   Mina contract for Ethereum state commitment to Mina.
+5. **[Workers](./workers)**  
+   `package: @nori-zk/workers`  
+   A node.js / browser worker abstraction.
+
 
 ## Usage
 
