@@ -19,9 +19,9 @@ import {
 } from './rx/deposit.js';
 import { signSecretWithEthWallet } from './ethSignature.js';
 import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
-import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
-import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
-import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
+import { TokenMintWorker } from './workers/tokenMint/node/parent.js';
+import { TokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+import { CredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 
 describe('e2e', () => {
     test('e2e_complete', async () => {
@@ -35,9 +35,9 @@ describe('e2e', () => {
 
             // INIT WORKERS **************************************************
             console.log('Fetching workers.');
-            const tokenMintWorker = getTokenMintWorker();
+            const tokenMintWorker = new TokenMintWorker();
             const credentialAttestationWorker =
-                getCredentialAttestationWorker();
+                new CredentialAttestationWorker();
 
             // READY CREDENTIAL ATTESTATION WORKER **************************************
             console.log('Compiling credentialAttestationWorker dependancies.');
@@ -48,7 +48,7 @@ describe('e2e', () => {
             // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
             // Use the worker to be able to reclaim some ram
             console.log('Deploying contract.');
-            const tokenDeployer = getTokenDeployerWorker();
+            const tokenDeployer = new TokenDeployerWorker();
             const storageInterfaceVerificationKeySafe: {
                 data: string;
                 hashStr: string;
@@ -351,10 +351,16 @@ describe('e2e', () => {
             console.log('Minted!');
 
             // Get the amount minted so far and print it
-            const mintedSoFar = await tokenMintWorker.mintedSoFar(noriTokenControllerAddressBase58, senderPublicKeyBase58);
+            const mintedSoFar = await tokenMintWorker.mintedSoFar(
+                noriTokenControllerAddressBase58,
+                senderPublicKeyBase58
+            );
             console.log('mintedSoFar', mintedSoFar);
 
-            const balanceOfUser = await tokenMintWorker.getBalanceOf(tokenBaseAddressBase58, senderPublicKeyBase58);
+            const balanceOfUser = await tokenMintWorker.getBalanceOf(
+                tokenBaseAddressBase58,
+                senderPublicKeyBase58
+            );
             console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW

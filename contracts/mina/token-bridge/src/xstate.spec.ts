@@ -14,7 +14,7 @@ import {
     getEthStateTopic$,
 } from './rx/topics.js';
 import { createActor, fromObservable, fromPromise } from 'xstate';
-import { DeferredPromise } from './worker/index.js';
+import { DeferredPromise } from '@nori-zk/workers';
 
 describe('XState integration example', () => {
     // Just a test facility to get some block number ahead of finality given the ethStateTopic$

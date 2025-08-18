@@ -402,7 +402,6 @@ export function createProxy<T extends new (...args: any) => any>(
                 });
             return new Proxy(this, {
                 get(target, propName) {
-                    console.log('in proxy get', propName);
                     if (typeof propName !== 'string') {
                         throw new Error(
                             'Only string method names are supported'

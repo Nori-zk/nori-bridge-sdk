@@ -19,18 +19,6 @@
     "types": "target/src/index.d.ts",
     "exports": {
         ".": "./target/src/index.js",
-        "./node/worker/parent": {
-            "import": "./target/src/worker/parent/index.node.js"
-        },
-        "./node/worker/child": {
-            "import": "./target/src/worker/child/index.node.js"
-        },
-        "./browser/worker/parent": {
-            "import": "./target/src/worker/parent/index.browser.js"
-        },
-        "./browser/worker/child": {
-            "import": "./target/src/worker/child/index.browser.js"
-        },
         "./worker": {
             "import": "./target/src/worker/index.js"
         },
@@ -42,9 +30,6 @@
         },
         "./rx/topics": {
             "import": "./target/src/rx/topics.js"
-        },
-        "./workers/specs": {
-            "import": "./target/src/workers/specs.js"
         },
         "./workers/defs": {
             "import": "./target/src/workers/defs.js"
@@ -105,6 +90,7 @@
     "dependencies": {
         "@nori-zk/ethprocessor": "*",
         "@nori-zk/o1js-zk-utils": "*",
+        "@nori-zk/workers": "*",
         "@nori-zk/proof-conversion": "^0.5.14",
         "autrace": "^0.0.22",
         "mina-attestations": "^0.5.3",

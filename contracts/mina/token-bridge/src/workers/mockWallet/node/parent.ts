@@ -1,5 +1,7 @@
-import { MockWalletWorker } from '../worker.js';
-import { WorkerParent } from '../../../worker/parent/index.node.js';
-import { createProxy } from '../../../worker/index.js';
+import { type MockWalletWorker as MockWalletWorkerType } from '../worker.js';
+import { WorkerParent } from '@nori-zk/workers/node/parent';
+import { createProxy } from '@nori-zk/workers';
 const workerUrl = new URL('./child.js', import.meta.url);
-export const getMockWalletWorker = () => createProxy(new WorkerParent(workerUrl), MockWalletWorker);
+export const MockWalletWorker = createProxy<typeof MockWalletWorkerType>(
+    new WorkerParent(workerUrl)
+);

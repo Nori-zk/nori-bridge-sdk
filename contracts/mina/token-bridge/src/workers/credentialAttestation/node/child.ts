@@ -1,4 +1,4 @@
 import { CredentialAttestationWorker } from '../worker.js';
-import { WorkerChild } from '../../../worker/child/index.node.js';
-import { createWorker } from '../../../worker/index.js';
-export const credentialAttestationWorker = createWorker(new WorkerChild(), CredentialAttestationWorker);
+import { WorkerChild } from '@nori-zk/workers/node/child';
+import { createWorker } from '@nori-zk/workers';
+createWorker(new WorkerChild(), CredentialAttestationWorker);

@@ -16,8 +16,8 @@ import {
     readyToComputeMintProof,
 } from './rx/deposit.js';
 import { signSecretWithEthWallet } from './ethSignature.js';
-import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
-import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
+import { TokenMintWorker } from './workers/tokenMint/node/parent.js';
+import { CredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 import { BigNumberish, ethers, TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 
@@ -148,9 +148,8 @@ describe('e2e_testnet', () => {
 
             // INIT WORKERS **************************************************
             console.log('Fetching workers.');
-            const tokenMintWorker = getTokenMintWorker();
-            const credentialAttestationWorker =
-                getCredentialAttestationWorker();
+            const tokenMintWorker = new TokenMintWorker();
+            const credentialAttestationWorker = new CredentialAttestationWorker();
 
             // READY CREDENTIAL ATTESTATION WORKER **************************************
             console.log('Compiling credentialAttestationWorker dependancies.');

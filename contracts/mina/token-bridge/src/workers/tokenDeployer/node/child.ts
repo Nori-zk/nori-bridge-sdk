@@ -1,4 +1,4 @@
 import { TokenDeployerWorker } from '../worker.js';
-import { WorkerChild } from '../../../worker/child/index.node.js';
-import { createWorker } from '../../../worker/index.js';
-export const tokenDeployerWorker = createWorker(new WorkerChild(), TokenDeployerWorker);
+import { WorkerChild } from '@nori-zk/workers/node/child';
+import { createWorker } from '@nori-zk/workers';
+createWorker(new WorkerChild(), TokenDeployerWorker);

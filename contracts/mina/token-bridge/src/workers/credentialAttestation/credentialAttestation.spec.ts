@@ -1,10 +1,7 @@
-import { getCredentialAttestationWorker } from './node/parent.js';
+import { CredentialAttestationWorker } from './node/parent.js';
 
 describe('CredentialAttestationWorker', () => {
-    let credentialAttestationWorker: ReturnType<typeof getCredentialAttestationWorker>;
-    beforeAll(() => {
-        credentialAttestationWorker = getCredentialAttestationWorker();
-    });
+    let credentialAttestationWorker = new CredentialAttestationWorker();
     afterAll(() => {
         credentialAttestationWorker.terminate();
     });
