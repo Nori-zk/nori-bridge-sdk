@@ -1,6 +1,6 @@
 # Workers
 
-A library to enable one to create workers and to use them within a browser and Node.js context.
+A library to enable creating and using workers within a browser and Node.js context.
 
 # Define a worker
 
