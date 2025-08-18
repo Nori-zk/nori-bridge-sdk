@@ -101,13 +101,13 @@ function validateEnv(): {
     }
 
     return {
-        ethPrivateKey: ETH_PRIVATE_KEY!,
-        ethRpcUrl: ETH_RPC_URL!,
-        noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS!,
-        noriTokenControllerAddressBase58: NORI_CONTROLLER_PUBLIC_KEY!,
-        noriTokenBaseAddressBase58: NORI_TOKEN_PUBLIC_KEY!,
-        minaRpcUrl: MINA_RPC_NETWORK_URL!,
-        minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY!,
+        ethPrivateKey: ETH_PRIVATE_KEY,
+        ethRpcUrl: ETH_RPC_URL,
+        noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
+        noriTokenControllerAddressBase58: NORI_CONTROLLER_PUBLIC_KEY,
+        noriTokenBaseAddressBase58: NORI_TOKEN_PUBLIC_KEY,
+        minaRpcUrl: MINA_RPC_NETWORK_URL,
+        minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
     };
 }
 
@@ -455,9 +455,7 @@ describe('e2e_testnet', () => {
             console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
-        } catch (e) {
-            throw e;
-        } finally {
+        }finally {
             depositProcessingStatusSubscription.unsubscribe();
         }
     }, 1000000000);

@@ -31,6 +31,7 @@ import { TokenMintWorker } from '@nori-zk/mina-token-bridge/node/workers/tokenMi
 import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/node/workers/credentialAttestation';
 async function main() {
     const tokenMintWorker = new TokenMintWorker();
+    // Optional as method calls are buffered
     await tokenMintWorker.ready;
     await tokenMintWorker.compileAll();
 }

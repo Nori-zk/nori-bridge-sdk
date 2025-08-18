@@ -519,7 +519,7 @@ export class TokenMintWorker {
         const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
         const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
 
-        let fundNewAccount: boolean = false;
+        let fundNewAccount = false;
         try {
             console.log('Attempting to fetch public key with token id.');
             // success we dont need to fund account...
@@ -599,7 +599,7 @@ export class TokenMintWorker {
         const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
         const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
 
-        let fundNewAccount: boolean = false;
+        let fundNewAccount = false;
         try {
             console.log('Attempting to fetch public key with token id.');
             // success we dont need to fund account...
@@ -702,7 +702,7 @@ export class TokenMintWorker {
         const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
         const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
 
-        let fundNewAccount: boolean = false;
+        let fundNewAccount = false;
         try {
             console.log('Attempting to fetch public key with token id.');
             // success we dont need to fund account...

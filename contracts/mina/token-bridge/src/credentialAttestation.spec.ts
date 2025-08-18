@@ -1,4 +1,4 @@
-import { AccountUpdate, Field, Mina, PrivateKey, PublicKey } from 'o1js';
+import { AccountUpdate, Mina, PrivateKey } from 'o1js';
 import {
     compileEcdsaEthereum,
     compileEcdsaSigPresentationVerifier,
@@ -8,7 +8,6 @@ import {
     EcdsaSigPresentationVerifier,
     hashSecret,
     ProvableEcdsaSigPresentation,
-    verifyEcdsaSigPresentation,
 } from './credentialAttestation.js';
 import { Presentation } from 'mina-attestations';
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';

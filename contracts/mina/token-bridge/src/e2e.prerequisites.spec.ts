@@ -20,7 +20,8 @@ import { EthProcessor } from '@nori-zk/ethprocessor/browser';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
 import { Field, UInt64, Bytes, UInt8 } from 'o1js';
-import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion/min';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { NodeProofLeft } from '@nori-zk/o1js-zk-utils';
 import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils/build/utils.js';
 import {
     EthDepositProgramInput,
@@ -265,7 +266,6 @@ describe('e2e_prerequisites', () => {
         );
         console.log('Decoded EthInput from MPT proof');
 
-        // @ts-ignore this is silly! why!
         const rawProof = await NodeProofLeft.fromJSON(
             conversionOutputProof.proofData
         );
@@ -374,8 +374,7 @@ describe('e2e_prerequisites', () => {
         // Value encoding
 
         console.log(e2ePrerequisitesProof.proof.publicOutput.totalLocked.toBigInt());
-        //@ts-ignore
-        const bytes: UInt8[] = depositAttestationProof.proof.publicInput.value.value.bytes;
+        const bytes: UInt8[] = (depositAttestationProof.proof.publicInput.value as ContractDeposit).value.bytes;
         console.log(bytes.map((byte)=>byte.toBigInt()));
     });
 });

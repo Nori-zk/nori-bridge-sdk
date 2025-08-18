@@ -19,9 +19,6 @@
     "types": "target/src/index.d.ts",
     "exports": {
         ".": "./target/src/index.js",
-        "./worker": {
-            "import": "./target/src/worker/index.js"
-        },
         "./rx/deposit": {
             "import": "./target/src/rx/deposit.js"
         },

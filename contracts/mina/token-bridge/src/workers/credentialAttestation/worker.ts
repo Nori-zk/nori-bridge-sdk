@@ -69,7 +69,9 @@ export class CredentialAttestationWorker {
         return presentationJson;
     }
 
-    // Remove this later! This was just for testing anyway
+    /**
+     * @deprecated This method is deprecated and will be removed in a future version.
+     */
     private async minaSetup() {
         const Network = Mina.Network({
             networkId: 'devnet',
@@ -78,6 +80,9 @@ export class CredentialAttestationWorker {
         Mina.setActiveInstance(Network);
     }
 
+    /**
+     * @deprecated This method is deprecated and will be removed in a future version.
+     */
     async MOCK_deployAndVerifyEcdsaSigPresentationVerifier(
         zkAppPrivateKeyBase58: string,
         senderPrivateKeyBase58: string,

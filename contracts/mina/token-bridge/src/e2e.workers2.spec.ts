@@ -1,4 +1,4 @@
-import { Lightnet, NetworkId, PrivateKey } from 'o1js';
+import { NetworkId, PrivateKey } from 'o1js';
 import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
@@ -364,8 +364,6 @@ describe('e2e', () => {
             console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
-        } catch (e) {
-            throw e;
         } finally {
             depositProcessingStatusSubscription.unsubscribe();
         }
