@@ -148,7 +148,7 @@ export class EchoWorker {
             // Wait for child to spawn
             await this.workerSpawnedDeferred.promise;
         } else {
-            // Wait for worker readiness (optional)
+            // Wait for worker readiness
             await this.workerReadyDeferred.promise;
         }
         // Forward call to worker
