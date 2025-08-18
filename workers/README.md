@@ -152,6 +152,8 @@ export class EchoWorker {
             await this.workerReadyDeferred.promise;
         }
         // Forward call to worker
+        // ...
+        return deferred.promise;
     }
     ```
 

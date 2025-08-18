@@ -130,8 +130,6 @@ export class WorkerParentBase {
             await this.workerReadyDeferred.promise;
         }
 
-        //await this.#child.workerSpawned();
-
         // Generate a unique ID for this request
         const id = ++this.requestId;
 
