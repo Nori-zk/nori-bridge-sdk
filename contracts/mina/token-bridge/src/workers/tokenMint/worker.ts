@@ -489,13 +489,12 @@ export class TokenMintWorker {
         proofDataJson: MintProofDataJson,
         //userPrivateKey: PrivateKey,
         txFee: number,
-        noriTokenBaseBase58: string
+        fundNewAccount: boolean
     ) {
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
         const noriTokenControllerAddress = PublicKey.fromBase58(
             noriTokenControllerAddressBase58
         );
-        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
 
         // Reconstruct MintProofData
         const { ethDepositProofJson, presentationProofStr } = proofDataJson;
@@ -515,28 +514,6 @@ export class TokenMintWorker {
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
-
-        const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
-        const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
-
-        let fundNewAccount = false;
-        try {
-            console.log('Attempting to fetch public key with token id.');
-            // success we dont need to fund account...
-            await fetchAccount({
-                publicKey: userPublicKey,
-                tokenId: noriTokenBaseTokenId,
-            });
-            console.log(
-                'Fetched account with tokenid, we dont need to fund the account.'
-            );
-        } catch (e) {
-            console.warn(
-                'Failed to fetch public key with token id, we need to fund the account.',
-                e
-            );
-            fundNewAccount = true;
-        }
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(
@@ -569,13 +546,12 @@ export class TokenMintWorker {
         proofDataJson: MintProofDataJson,
         //userPrivateKey: PrivateKey,
         txFee: number,
-        noriTokenBaseBase58: string
+        fundNewAccount: boolean
     ) {
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
         const noriTokenControllerAddress = PublicKey.fromBase58(
             noriTokenControllerAddressBase58
         );
-        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
 
         // Reconstruct MintProofData
         const { ethDepositProofJson, presentationProofStr } = proofDataJson;
@@ -594,29 +570,6 @@ export class TokenMintWorker {
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
-        await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
-
-        const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
-        const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
-
-        let fundNewAccount = false;
-        try {
-            console.log('Attempting to fetch public key with token id.');
-            // success we dont need to fund account...
-            await fetchAccount({
-                publicKey: userPublicKey,
-                tokenId: noriTokenBaseTokenId,
-            });
-            console.log(
-                'Fetched account with tokenid, we dont need to fund the account.'
-            );
-        } catch (e) {
-            console.warn(
-                'Failed to fetch public key with token id, we need to fund the account.',
-                e
-            );
-            fundNewAccount = true;
-        }
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(
@@ -671,14 +624,13 @@ export class TokenMintWorker {
         noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
         txFee: number,
-        noriTokenBaseBase58: string
+        fundNewAccount: boolean
         //fundNewAccount = true
     ) {
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58);
         const noriTokenControllerAddress = PublicKey.fromBase58(
             noriTokenControllerAddressBase58
         );
-        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
 
         // Reconstruct MintProofData
         const { ethDepositProofJson, presentationProofStr } = proofDataJson;
@@ -698,28 +650,6 @@ export class TokenMintWorker {
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
-
-        const noriTokenBaseInst = new FungibleToken(noriTokenBaseAddress);
-        const noriTokenBaseTokenId = noriTokenBaseInst.tokenId;
-
-        let fundNewAccount = false;
-        try {
-            console.log('Attempting to fetch public key with token id.');
-            // success we dont need to fund account...
-            await fetchAccount({
-                publicKey: userPublicKey,
-                tokenId: noriTokenBaseTokenId,
-            });
-            console.log(
-                'Fetched account with tokenid, we dont need to fund the account.'
-            );
-        } catch (e) {
-            console.warn(
-                'Failed to fetch public key with token id, we need to fund the account.',
-                e
-            );
-            fundNewAccount = true;
-        }
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(

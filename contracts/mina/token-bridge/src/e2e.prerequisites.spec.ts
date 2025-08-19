@@ -15,14 +15,14 @@ import {
     fieldToBigIntLE,
     fieldToHexLE,
     fieldToHexBE,
+    NodeProofLeft, 
+    uint8ArrayToBigIntBE
 } from '@nori-zk/o1js-zk-utils';
 import { EthProcessor } from '@nori-zk/ethprocessor/browser';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
 import { Field, UInt64, Bytes, UInt8 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { NodeProofLeft } from '@nori-zk/o1js-zk-utils';
-import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils/build/utils.js';
 import {
     EthDepositProgramInput,
     EthDepositProgram,

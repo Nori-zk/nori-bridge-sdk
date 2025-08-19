@@ -391,6 +391,11 @@ describe('e2e_testnet', () => {
 
             // PRE-COMPUTE MINT PROOF ****************************************************
 
+            console.log('Determining user balance');
+            const balanceOfResult = tokenMintWorker.getBalanceOf(noriTokenBaseAddressBase58, minaSenderPublicKeyBase58).catch(() => 0n.toString());
+            const balanceOf = BigInt(await balanceOfResult);
+            const needsToFundAccount = balanceOf === 0n;
+
             console.log('Computing mint proof.');
 
             console.time('Mint proof computation');
@@ -402,7 +407,7 @@ describe('e2e_testnet', () => {
                     presentationProofStr: presentationJsonStr,
                 },
                 1e9 * 0.1,
-                noriTokenBaseAddressBase58
+                needsToFundAccount
             );
             console.timeEnd('Mint proof computation');
             // NOTE!

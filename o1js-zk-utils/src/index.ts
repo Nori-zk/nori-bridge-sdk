@@ -15,6 +15,7 @@ export {
     fieldToHexLE,
     fieldToBigIntBE,
     fieldToBigIntLE,
+    uint8ArrayToBigIntBE,
     decodeConsensusMptProof,
     compileAndVerifyContracts,
 } from './utils.js';

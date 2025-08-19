@@ -324,7 +324,7 @@ describe('e2e', () => {
                     presentationProofStr: presentationJsonStr,
                 },
                 1e9 * 0.1,
-                noriTokenControllerAddressBase58
+                true
             );
 
             // NOTE! ************

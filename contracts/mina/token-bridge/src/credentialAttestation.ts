@@ -1,4 +1,3 @@
-import { id, Wallet } from 'ethers';
 import { EcdsaEthereum } from 'mina-attestations/imported';
 import {
     Bytes,
@@ -17,7 +16,6 @@ import {
     Presentation,
     PresentationRequest,
     PresentationSpec,
-    StoredCredential,
 } from 'mina-attestations';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 
@@ -50,7 +48,7 @@ type LengthMismatchError<Expected extends number> = {
 // String length enforcement types.
 
 // Fixed length string enforcement type.
-type EnforceLength<S extends string, N extends number> = CountChars<S> extends N
+export type EnforceLength<S extends string, N extends number> = CountChars<S> extends N
     ? S
     : LengthMismatchError<N>;
 
@@ -70,9 +68,12 @@ export type SecretMaxLength = typeof secretMaxLength;
 const SecretString = DynamicString({ maxLength: secretMaxLength });
 
 // Define EcdsaCredential type
+console.log('Awaiting EcdsaCredential.Credential()');
+console.time('EcdsaCredential.Credential() awaited');
 export const EcdsaCredential = await EcdsaEthereum.Credential({
     maxMessageLength: secretMaxLength, // maxMessageLength is a misnomer by mina-attestations
 });
+console.timeEnd('EcdsaCredential.Credential() awaited');
 
 // Define EcdsaCredentialPresentation Spec
 let ecdsaCredentialPresentationSpec = PresentationSpec(
@@ -90,10 +91,15 @@ let ecdsaCredentialPresentationSpec = PresentationSpec(
     })
 );
 
-
 // Precompile ecdsaCredentialPresentationSpec
-let EcdsaSigPresentationSpecPreCompile = await Presentation.precompile(
+console.log('Compiling EcdsaSigPresentationSpecPreCompile');
+console.time('EcdsaSigPresentationSpecPreCompile compile');
+const EcdsaSigPresentationSpecPreCompile = await Presentation.precompile(
     ecdsaCredentialPresentationSpec
+);
+console.timeEnd('EcdsaSigPresentationSpecPreCompile compile');
+console.log(
+    `EcdsaSigPresentationSpecPreCompile compiled vk: '${EcdsaSigPresentationSpecPreCompile.verificationKey.hash}'.`
 );
 
 // Define ProvableEcdsaSigPresentation
@@ -103,7 +109,7 @@ export class ProvableEcdsaSigPresentation extends EcdsaSigPresentationSpecPreCom
 export class EcdsaSigPresentationVerifier extends SmartContract {
     async verifyPresentation(presentation: ProvableEcdsaSigPresentation) {
         // verify the presentation, and receive its claims for further validation and usage
-        let { claims, outputClaim } = presentation.verify({
+        let { outputClaim } = presentation.verify({
             publicKey: this.address,
             tokenId: this.tokenId,
             methodName: 'verifyPresentation',
@@ -122,14 +128,14 @@ declareMethods(EcdsaSigPresentationVerifier, {
 
 // Compile EcdsaEthereum
 export async function compileEcdsaEthereum(cache?: Cache) {
-    const ecdsaEthereumOptions = {
+    /*const ecdsaEthereumOptions = {
         maxMessageLength: secretMaxLength, // maxMessageLength is a misnomer by mina-attestations
         proofsEnabled: true,
     } as {
         proofsEnabled: boolean;
         maxMessageLength: SecretMaxLength;
         cache?: Cache;
-    }; // Note that cache does not really exist here FIXME!
+    };*/ // Note that cache does not really exist here FIXME!
 
     const ecdsaCredentialOptions = { proofsEnabled: true } as {
         proofsEnabled: boolean;
@@ -273,5 +279,9 @@ export function getSecretHashFromPresentationJson(presentationJson: string) {
         wordToBytes(credentialAttestationHashField, 32).reverse()
     );
     const credentialAttestationBEHex = `0x${beAttestationHashBytes.toHex()}`;
-    return { credentialAttestationBEHex, credentialAttestationHashField, credentialAttestationBigInt: messageHashBigInt };
+    return {
+        credentialAttestationBEHex,
+        credentialAttestationHashField,
+        credentialAttestationBigInt: messageHashBigInt,
+    };
 }
