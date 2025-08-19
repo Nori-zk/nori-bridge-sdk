@@ -15,22 +15,25 @@ import { Presentation } from 'mina-attestations';
 export class CredentialAttestationWorker {
     async compile() {
         // Compile programs / contracts
+        console.log('awaiting compileEcdsaEthereum()');
         console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
         console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
 
-        console.time('compilePresentationVerifier');
+        console.log('awaiting compileEcdsaSigPresentationVerifier()');
+        console.time('compileEcdsaSigPresentationVerifier');
         await compileEcdsaSigPresentationVerifier();
-        console.timeEnd('compilePresentationVerifier'); // 11.507s
+        console.timeEnd('compileEcdsaSigPresentationVerifier'); // 11.507s
     }
 
     async computeEcdsaSigPresentationRequest(zkAppPublicKeyBase58: string) {
         const zkAppPublicKey = PublicKey.fromBase58(zkAppPublicKeyBase58);
-        console.time('getPresentationRequest');
+        console.log('Awaiting createEcdsaSigPresentationRequest()');
+        console.time('createEcdsaSigPresentationRequest');
         const presentationRequestJson = await createEcdsaSigPresentationRequest(
             zkAppPublicKey
         );
-        console.timeEnd('getPresentationRequest'); // 1.348ms
+        console.timeEnd('createEcdsaSigPresentationRequest'); // 1.348ms
         return presentationRequestJson;
     }
 
@@ -42,14 +45,15 @@ export class CredentialAttestationWorker {
     ) {
         console.log('minaPublicKeyBase58', minaPublicKeyBase58);
         const minaPublicKey = PublicKey.fromBase58(minaPublicKeyBase58);
-        console.time('createCredential');
+        console.log('Awaiting createEcdsaMinaCredential()');
+        console.time('createEcdsaMinaCredential');
         const credentialJson = await createEcdsaMinaCredential(
             ethSecretSignature,
             ethWalletAddress,
             minaPublicKey,
             secret
         );
-        console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
+        console.timeEnd('createEcdsaMinaCredential'); // 2:02.513 (m:ss.mmm)
         return credentialJson;
     }
 
@@ -58,14 +62,15 @@ export class CredentialAttestationWorker {
         credentialJson: string,
         minaPrivateKeyBase58: string
     ) {
-        console.time('getPresentation');
+        console.log('Awaiting createEcdsaSigPresentation()');
+        console.time('createEcdsaSigPresentation');
         const minaPrivateKey = PrivateKey.fromBase58(minaPrivateKeyBase58);
         const presentationJson = await createEcdsaSigPresentation(
             presentationRequestJson,
             credentialJson,
             minaPrivateKey
         );
-        console.timeEnd('getPresentation'); // 46.801s
+        console.timeEnd('createEcdsaSigPresentation'); // 46.801s
         return presentationJson;
     }
 

@@ -24,7 +24,7 @@ import { NoriStorageInterface } from './NoriStorageInterface.js';
 } from './NoriTokenControllerMock.js';*/
 import { ContractDepositAttestor } from '@nori-zk/o1js-zk-utils';
 import { EthVerifier } from '@nori-zk/o1js-zk-utils';
-import { EthDepositProgram } from './e2ePrerequisites.js';
+import { EthDepositProgram } from './EthDepositProgram.js';
 import { MintProofData, NoriTokenController } from './NoriTokenController.js';
 import {
     compileEcdsaEthereum,

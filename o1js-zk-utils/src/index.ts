@@ -33,6 +33,6 @@ export {
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
-} from './contractDepositAttestor.js';
+} from './ContractDepositAttestor.js';
 
 export * from './nodeProofLeft.patch.js';

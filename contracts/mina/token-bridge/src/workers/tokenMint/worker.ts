@@ -14,7 +14,7 @@ import {
     EthDepositProgram,
     EthDepositProgramInput,
     EthDepositProgramProofType,
-} from '../../e2ePrerequisites.js';
+} from '../../EthDepositProgram.js';
 import { EthVerifier, ContractDepositAttestor } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
@@ -52,13 +52,14 @@ export class TokenMintWorker {
         presentationRequestJson: string,
         credentialJson: string
     ) {
-        console.time('getPresentation');
+        console.log('Awaiting createEcdsaSigPresentation()');
+        console.time('createEcdsaSigPresentation');
         const presentationJson = await createEcdsaSigPresentation(
             presentationRequestJson,
             credentialJson,
             this.#minaPrivateKey
         );
-        console.timeEnd('getPresentation'); // 46.801s
+        console.timeEnd('createEcdsaSigPresentation'); // 46.801s
         return presentationJson;
     }
 
@@ -119,13 +120,15 @@ export class TokenMintWorker {
     //credential (compile)
     async compileCredentialDeps() {
         // Compile programs / contracts
+        console.log('awaiting compileEcdsaEthereum()');
         console.time('compileEcdsaEthereum');
         await compileEcdsaEthereum();
         console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
 
-        console.time('compilePresentationVerifier');
+        console.log('awaiting compileEcdsaSigPresentationVerifier()');
+        console.time('compileEcdsaSigPresentationVerifier');
         await compileEcdsaSigPresentationVerifier();
-        console.timeEnd('compilePresentationVerifier'); // 11.507s
+        console.timeEnd('compileEcdsaSigPresentationVerifier'); // 11.507s
     }
 
     // Credential methods
@@ -138,24 +141,26 @@ export class TokenMintWorker {
     ) {
         console.log('senderPublicKeyBase58', senderPublicKeyBase58);
         const senderPublicKey = PublicKey.fromBase58(senderPublicKeyBase58);
-        console.time('createCredential');
+        console.log('Awaiting createEcdsaMinaCredential()');
+        console.time('createEcdsaMinaCredential');
         const credentialJson = await createEcdsaMinaCredential(
             ethSecretSignature,
             ethWalletAddress,
             senderPublicKey,
             secret
         );
-        console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
+        console.timeEnd('createEcdsaMinaCredential'); // 2:02.513 (m:ss.mmm)
         return credentialJson;
     }
 
     async computeEcdsaSigPresentationRequest(zkAppPublicKeyBase58: string) {
         const zkAppPublicKey = PublicKey.fromBase58(zkAppPublicKeyBase58);
-        console.time('getPresentationRequest');
+        console.log('Awaiting createEcdsaSigPresentation()');
+        console.time('createEcdsaSigPresentation');
         const presentationRequestJson = await createEcdsaSigPresentationRequest(
             zkAppPublicKey
         );
-        console.timeEnd('getPresentationRequest'); // 1.348ms
+        console.timeEnd('createEcdsaSigPresentation'); // 1.348ms
         return presentationRequestJson;
     }
 
@@ -164,6 +169,7 @@ export class TokenMintWorker {
     //ethDepositProof
 
     async compileEthDepositProgramDeps() {
+        console.log('Compiling ContractDepositAttestor');
         console.time('ContractDepositAttestor compile');
         const { verificationKey: contractDepositAttestorVerificationKey } =
             await ContractDepositAttestor.compile({ forceRecompile: true });
@@ -172,6 +178,7 @@ export class TokenMintWorker {
             `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
         );
 
+        console.log('Compiling EthVerifier');
         console.time('EthVerifier compile');
         const { verificationKey: ethVerifierVerificationKey } =
             await EthVerifier.compile({ forceRecompile: true });
@@ -180,6 +187,7 @@ export class TokenMintWorker {
             `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
         );
         // EthDepositProgram
+        console.log('Compiling EthDepositProgram');
         console.time('EthDepositProgram compile');
         const { verificationKey: EthDepositProgramVerificationKey } =
             await EthDepositProgram.compile({
@@ -210,7 +218,7 @@ export class TokenMintWorker {
             credentialAttestationHash: credentialAttestationHashField,
         });
 
-        console.log('Computing e2e');
+        console.log('Computing EthDepositProgram');
         console.time('EthDepositProgram.compute');
         const ethDepositProof = await EthDepositProgram.compute(
             e2ePrerequisitesInput,
@@ -446,6 +454,7 @@ export class TokenMintWorker {
     // MINTER ******************************************************************************
 
     async compileMinterDeps() {
+        console.log('Compiling NoriStorageInterface');
         console.time('compileNoriStorageInterface');
         const { verificationKey: noriStorageInterfaceVerificationKey } =
             await NoriStorageInterface.compile();
@@ -454,6 +463,7 @@ export class TokenMintWorker {
             `NoriStorageInterface compiled vk: '${noriStorageInterfaceVerificationKey.hash}'.`
         );
 
+        console.log('Compiling FungibleToken');
         console.time('compileFungibleToken');
         const { verificationKey: fungibleTokenVerificationKey } =
             await FungibleToken.compile();
@@ -462,6 +472,7 @@ export class TokenMintWorker {
             `FungibleToken compiled vk: '${fungibleTokenVerificationKey.hash}'.`
         );
 
+        console.log('Compiling NoriTokenController');
         console.time('compileNoriTokenController');
         const { verificationKey: noriTokenControllerVerificationKey } =
             await NoriTokenController.compile();

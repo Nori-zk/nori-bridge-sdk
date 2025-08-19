@@ -26,7 +26,7 @@ import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import {
     EthDepositProgramInput,
     EthDepositProgram,
-} from './e2ePrerequisites.js';
+} from './EthDepositProgram.js';
 
 const mptConsensusProofBundle = proofArgument;
 const bridgeHeadJobSucceededMessage = bridgeHeadJobSucceededExample;

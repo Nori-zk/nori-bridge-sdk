@@ -315,6 +315,14 @@ describe('e2e', () => {
 
             // MINT **************************************************
 
+            const needsToFundAccount = await tokenMintWorker
+                .getBalanceOf(
+                    tokenBaseAddressBase58,
+                    senderPublicKeyBase58
+                )
+                .then(() => false)
+                .catch(() => true);
+
             console.time('Minting');
             const { txHash: mintTxHash } = await tokenMintWorker.MOCK_mint(
                 senderPublicKeyBase58,
@@ -324,7 +332,7 @@ describe('e2e', () => {
                     presentationProofStr: presentationJsonStr,
                 },
                 1e9 * 0.1,
-                true
+                needsToFundAccount
             );
 
             // NOTE! ************

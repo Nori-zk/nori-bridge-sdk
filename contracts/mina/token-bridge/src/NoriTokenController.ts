@@ -25,7 +25,7 @@ import {
     FungibleTokenAdminBase,
     NoriTokenControllerDeployProps,
 } from './types.js';
-import { EthDepositProgramProofType } from './e2ePrerequisites.js';
+import { EthDepositProgramProofType } from './EthDepositProgram.js';
 import { ProvableEcdsaSigPresentation } from './credentialAttestation.js';
 
 export interface MintProofData {

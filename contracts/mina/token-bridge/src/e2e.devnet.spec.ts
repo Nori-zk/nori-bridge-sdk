@@ -6,9 +6,7 @@ import {
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from './rx/topics.js';
-import {
-    Subscription
-} from 'rxjs';
+import { Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
@@ -149,7 +147,8 @@ describe('e2e_testnet', () => {
             // INIT WORKERS **************************************************
             console.log('Fetching workers.');
             const tokenMintWorker = new TokenMintWorker();
-            const credentialAttestationWorker = new CredentialAttestationWorker();
+            const credentialAttestationWorker =
+                new CredentialAttestationWorker();
 
             // READY CREDENTIAL ATTESTATION WORKER **************************************
             console.log('Compiling credentialAttestationWorker dependancies.');
@@ -392,9 +391,16 @@ describe('e2e_testnet', () => {
             // PRE-COMPUTE MINT PROOF ****************************************************
 
             console.log('Determining user balance');
-            const balanceOfResult = tokenMintWorker.getBalanceOf(noriTokenBaseAddressBase58, minaSenderPublicKeyBase58).catch(() => 0n.toString());
-            const balanceOf = BigInt(await balanceOfResult);
-            const needsToFundAccount = balanceOf === 0n;
+
+            //const balanceOfResult = tokenMintWorker.getBalanceOf(noriTokenBaseAddressBase58, minaSenderPublicKeyBase58).catch(() => 0n.toString());
+            //const balanceOf = BigInt(await balanceOfResult);
+            const needsToFundAccount = await tokenMintWorker
+                .getBalanceOf(
+                    noriTokenBaseAddressBase58,
+                    minaSenderPublicKeyBase58
+                )
+                .then(() => false)
+                .catch(() => true);
 
             console.log('Computing mint proof.');
 
@@ -453,14 +459,20 @@ describe('e2e_testnet', () => {
             console.log('Minted!');
 
             // Get the amount minted so far and print it
-            const mintedSoFar = await tokenMintWorker.mintedSoFar(noriTokenControllerAddressBase58, minaSenderPublicKeyBase58);
+            const mintedSoFar = await tokenMintWorker.mintedSoFar(
+                noriTokenControllerAddressBase58,
+                minaSenderPublicKeyBase58
+            );
             console.log('mintedSoFar', mintedSoFar);
 
-            const balanceOfUser = await tokenMintWorker.getBalanceOf(noriTokenBaseAddressBase58, minaSenderPublicKeyBase58);
+            const balanceOfUser = await tokenMintWorker.getBalanceOf(
+                noriTokenBaseAddressBase58,
+                minaSenderPublicKeyBase58
+            );
             console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
-        }finally {
+        } finally {
             depositProcessingStatusSubscription.unsubscribe();
         }
     }, 1000000000);

@@ -13,7 +13,7 @@ import {
     compileEcdsaEthereum,
     compileEcdsaSigPresentationVerifier,
 } from '../../credentialAttestation.js';
-import { EthDepositProgram } from '../../e2ePrerequisites.js';
+import { EthDepositProgram } from '../../EthDepositProgram.js';
 import { NoriTokenController } from '../../NoriTokenController.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';

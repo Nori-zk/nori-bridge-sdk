@@ -206,8 +206,12 @@ This command builds the project and runs the deployment script with Node.js usin
 
     npm run test
     npm run test -- -t 'e2e_complete'
-    npm run test -- src/e2e.workers2.spec.ts
+    npm run test -- src/e2e.litenet.spec.ts
     npm run testw
+
+### How to run E2E test on LiteNet
+
+    npm run test -- src/e2e.litenet.spec.ts
 
 ### How to run E2E test on DevNet
 
@@ -221,9 +225,9 @@ Configure your contracts/mina/token-bridge/.env file:
     SENDER_PRIVATE_KEY=<Nori Mina TestNet private key>
     NORI_TOKEN_PUBLIC_KEY=<Nori Mina TestNet Token base base58 address>
 
-Run the E2E test procedure:
+Run the E2E test procedure with a deployed devnet contract:
 
-    npm run test -- src/e2e.workers3.spec.ts
+    npm run test -- src/e2e.devnet.spec.ts
 
 ## How to run coverage
 
