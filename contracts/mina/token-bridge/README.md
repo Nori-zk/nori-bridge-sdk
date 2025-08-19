@@ -128,7 +128,7 @@ import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWit
 
 ### Example of mint flow
 
-See the [E2E test](src/e2e.workers3.spec.ts) for a comprehensive example.
+See the [E2E test](src/e2e.devnet.spec.ts) for a comprehensive example.
 
 ### Example of token contracts usage
 
