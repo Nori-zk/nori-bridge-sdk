@@ -81,12 +81,12 @@ createWorker(
 Browser Worker Usage:
 
 ```typescript
-import { TokenMintWorker } from './.workers/credentialAttestation/browser/parent.ts';
+import { CredentialAttestationWorker } from './.workers/credentialAttestation/browser/parent.ts';
 async function main() {
-    const tokenMintWorker = new TokenMintWorker();
+    const credentialAttestationWorker = new CredentialAttestationWorker();
     // Optional as method calls are buffered
-    await tokenMintWorker.ready;
-    await tokenMintWorker.compileAll();
+    await credentialAttestationWorker.ready;
+    await credentialAttestationWorker.compile();
 }
 
 // run main etc
