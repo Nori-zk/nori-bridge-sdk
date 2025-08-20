@@ -453,6 +453,34 @@ export class TokenMintWorker {
 
     // MINTER ******************************************************************************
 
+    // Determines whether or not to set fundNewAccount to true/false within the minting functions.
+    async needsToFundAccount(
+        noriTokenBaseBase58: string,
+        minaSenderPublicKeyBase58: string
+    ) {
+        const minaSenderPublicKey = PublicKey.fromBase58(
+            minaSenderPublicKeyBase58
+        );
+        const noriTokenBaseAddress = PublicKey.fromBase58(noriTokenBaseBase58);
+        const noriTokenBase = new FungibleToken(noriTokenBaseAddress);
+        try {
+            const fetchAccountResult = await fetchAccount({
+                publicKey: minaSenderPublicKey,
+                tokenId: noriTokenBase.deriveTokenId(),
+            });
+            console.log(fetchAccountResult);
+
+            if (fetchAccountResult.account === undefined) return true;
+            return false;
+        } catch (e: any) {
+            console.log(
+                'We had an error fetching the account. We assume we need to fund it.',
+                e.stack
+            );
+            return true;
+        }
+    }
+
     async compileMinterDeps() {
         console.log('Compiling NoriStorageInterface');
         console.time('compileNoriStorageInterface');
@@ -602,18 +630,8 @@ export class TokenMintWorker {
         );
 
         const provedTx = await mintTx.prove();
-
         const tx = await provedTx.sign([this.#minaPrivateKey]).send();
         const result = await tx.wait();
-
-        // Fetch updated balance
-        /*await fetchAccount({
-            publicKey: userPublicKey,
-            tokenId: noriTokenControllerInst.deriveTokenId(),
-        });*/
-
-        //const balance = await this.#tokenBase.getBalanceOf(userPublicKey);
-
         console.log('Minting completed successfully');
 
         return { txHash: result.hash };

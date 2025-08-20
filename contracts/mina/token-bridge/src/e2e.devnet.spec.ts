@@ -390,17 +390,13 @@ describe('e2e_testnet', () => {
 
             // PRE-COMPUTE MINT PROOF ****************************************************
 
-            console.log('Determining user balance');
-
-            //const balanceOfResult = tokenMintWorker.getBalanceOf(noriTokenBaseAddressBase58, minaSenderPublicKeyBase58).catch(() => 0n.toString());
-            //const balanceOf = BigInt(await balanceOfResult);
+            console.log('Determining user funding status.');
             const needsToFundAccount = await tokenMintWorker
-                .getBalanceOf(
+                .needsToFundAccount(
                     noriTokenBaseAddressBase58,
                     minaSenderPublicKeyBase58
-                )
-                .then(() => false)
-                .catch(() => true);
+                );
+            console.log('needsToFundAccount', needsToFundAccount);
 
             console.log('Computing mint proof.');
 
@@ -473,7 +469,7 @@ describe('e2e_testnet', () => {
 
             // END MAIN FLOW
         } finally {
-            depositProcessingStatusSubscription.unsubscribe();
+            if (depositProcessingStatusSubscription) depositProcessingStatusSubscription.unsubscribe();
         }
     }, 1000000000);
 });

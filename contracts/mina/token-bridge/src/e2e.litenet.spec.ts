@@ -315,13 +315,12 @@ describe('e2e', () => {
 
             // MINT **************************************************
 
-            const needsToFundAccount = await tokenMintWorker
-                .getBalanceOf(
-                    tokenBaseAddressBase58,
-                    senderPublicKeyBase58
-                )
-                .then(() => false)
-                .catch(() => true);
+            console.log('Determining user funding status.');
+            const needsToFundAccount = await tokenMintWorker.needsToFundAccount(
+                tokenBaseAddressBase58,
+                senderPublicKeyBase58
+            );
+            console.log('needsToFundAccount', needsToFundAccount);
 
             console.time('Minting');
             const { txHash: mintTxHash } = await tokenMintWorker.MOCK_mint(
@@ -332,7 +331,7 @@ describe('e2e', () => {
                     presentationProofStr: presentationJsonStr,
                 },
                 1e9 * 0.1,
-                needsToFundAccount
+                needsToFundAccount // needsToFundAccount should resolve to be true for this test.
             );
 
             // NOTE! ************
@@ -373,7 +372,8 @@ describe('e2e', () => {
 
             // END MAIN FLOW
         } finally {
-            depositProcessingStatusSubscription.unsubscribe();
+            if (depositProcessingStatusSubscription)
+                depositProcessingStatusSubscription.unsubscribe();
         }
     }, 1000000000);
 });
