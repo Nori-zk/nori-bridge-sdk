@@ -66,6 +66,7 @@
         "@types/jest": "^29.5.12",
         "@typescript-eslint/eslint-plugin": "^5.5.0",
         "@typescript-eslint/parser": "^5.5.0",
+        "chartjs-node-canvas": "^5.0.0",
         "eslint": "^8.7.0",
         "eslint-plugin-o1js": "^0.4.0",
         "ethers": "^6.15.0",
@@ -87,8 +88,8 @@
     "dependencies": {
         "@nori-zk/ethprocessor": "*",
         "@nori-zk/o1js-zk-utils": "*",
-        "@nori-zk/workers": "*",
         "@nori-zk/proof-conversion": "^0.5.14",
+        "@nori-zk/workers": "*",
         "autrace": "^0.0.22",
         "mina-attestations": "^0.5.3",
         "rxjs": "^7.8.2",
