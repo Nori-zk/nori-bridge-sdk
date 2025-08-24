@@ -440,8 +440,8 @@ async function plotTotalBridgeHeadWait(
         return sumCurrent + sumPrevious;
     });
 
-    const title = `${namePrefix} Total Bridge Head Wait Time`;
-    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const title = `Total Bridge Head Wait Time`;
+    const outFile = `${`${namePrefix} ${title}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
     const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
@@ -487,8 +487,8 @@ async function plotTotalBridgeHeadWaitExcludingMina(
         return sumCurrent + sumPrevious;
     });
 
-    const title = `${namePrefix} Total Bridge Head Wait Time (excluding mina finalization)`;
-    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const title = `Total Bridge Head Wait Time (excluding mina finalization)`;
+    const outFile = `${`${namePrefix} ${title}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
     const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
@@ -533,8 +533,8 @@ async function plotEthProcessorProcessingTime(
         return sumCurrent + sumPrevious;
     });
 
-    const title = `${namePrefix} EthProcessorProcessing Time (without mina finalization)`;
-    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const title = `EthProcessorProcessing Time (without mina finalization)`;
+    const outFile = `${`${namePrefix} ${title}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
     const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
@@ -577,8 +577,8 @@ async function plotActualOverallTimeFromDepositToCanMint(
         return ethFinality + sumCurrent + sumPrevious;
     });
 
-    const title = `${namePrefix} Actual Overall Time from Deposit to canMint`;
-    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const title = `Actual Overall Time from Deposit to canMint`;
+    const outFile = `${`${namePrefix} ${title}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
     const binSize = autoBinSizeWithTarget(totalTimes, binCountTarget);
 
     await makeHistogram({
@@ -613,8 +613,8 @@ async function plotAverageNetworkWaitingTime(
         return ethFinality + sumCurrent + sumPrevious;
     });
 
-    const title = `${namePrefix} Average Network Waiting Time ETH + Mina per Deposit`;
-    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const title = `Average Network Waiting Time ETH + Mina per Deposit`;
+    const outFile = `${`${namePrefix} ${title}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
     const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
@@ -660,8 +660,8 @@ async function plotAverageBridgeProcessingTime(
         return sumCurrent + sumPrevious;
     });
 
-    const title = `${namePrefix} Average Bridge Processing Time per Deposit (without network time)`;
-    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const title = `Average Bridge Processing Time per Deposit (without network time)`;
+    const outFile = `${`${namePrefix} ${title}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
     const binSize = autoBinSizeWithTarget(totalTimes, binCountTarget);
 
     await makeHistogram({
@@ -698,8 +698,8 @@ async function main() {
     for (const [stageName, values] of Object.entries(
         simulationResult.bridgeTimingsAggregates
     )) {
-        const title = `${namePrefix} ${stageName}`;
-        const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+        const title = `${stageName}`;
+        const outFile = `${`${namePrefix} ${stageName}`.replaceAll(/ /g, '-').toLowerCase()}.png`;
         const binSize = autoBinSizeWithTarget(values, binCountTarget); // autoBinSize
         console.log(`Creating chart '${title}' with bin size '${binSize}'`);
         await makeHistogram({
