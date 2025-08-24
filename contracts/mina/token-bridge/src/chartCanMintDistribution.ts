@@ -207,14 +207,14 @@ export async function makeHistogram(opts: {
             }),
             verticalLinePlugin({
                 x: mean - std,
-                label: '-1σ',
+                label: `-1σ ${formatNumber(mean-std, precision)}`,
                 color: 'red',
                 dash: [6, 6],
                 lineWidth: 3,
             }),
             verticalLinePlugin({
                 x: mean + std,
-                label: '+1σ',
+                label: `+1σ ${formatNumber(mean+std, precision)}`,
                 color: 'red',
                 dash: [6, 6],
                 lineWidth: 3,
@@ -395,13 +395,13 @@ async function makeFirstStageHistogramFromSimulation(
     const config: any = {
         type: 'bar',
         data: {
-            labels: [`First Stage Entered. Sample number: ${total}`],
+            labels: ['First Stage Entered'],
             datasets,
         },
         options: {
             responsive: false,
             plugins: {
-                title: { display: true, text: title, font: { size: 18 } },
+                title: { display: true, text: `First Stage Entered. Sample number: ${total}`, font: { size: 18 } },
                 legend: { position: 'right' },
             },
             scales: {
@@ -422,7 +422,8 @@ async function makeFirstStageHistogramFromSimulation(
 async function plotTotalBridgeHeadWait(
     simulationResult: SimulationResult,
     namePrefix: string,
-    asPercentage = true
+    asPercentage = true,
+    binCountTarget = 20,
 ) {
     // Compute total wait per deposit
     const totalWaits: number[] = simulationResult.successes.map((success) => {
@@ -441,7 +442,7 @@ async function plotTotalBridgeHeadWait(
 
     const title = `${namePrefix} Total Bridge Head Wait Time`;
     const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-    const binSize = autoBinSizeWithTarget(totalWaits);
+    const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
         values: totalWaits,
@@ -458,7 +459,8 @@ async function plotTotalBridgeHeadWait(
 async function plotTotalBridgeHeadWaitExcludingMina(
     simulationResult: SimulationResult,
     namePrefix: string,
-    asPercentage = true
+    asPercentage = true,
+    binCountTarget = 20,
 ) {
     const totalWaits: number[] = simulationResult.successes.map((success) => {
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
@@ -487,7 +489,7 @@ async function plotTotalBridgeHeadWaitExcludingMina(
 
     const title = `${namePrefix} Total Bridge Head Wait Time (excluding mina finalization)`;
     const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-    const binSize = autoBinSizeWithTarget(totalWaits);
+    const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
         values: totalWaits,
@@ -504,7 +506,8 @@ async function plotTotalBridgeHeadWaitExcludingMina(
 async function plotEthProcessorProcessingTime(
     simulationResult: SimulationResult,
     namePrefix: string,
-    asPercentage = true
+    asPercentage = true,
+    binCountTarget = 20,
 ) {
     const relevantStages = [
         'EthProcessorProofRequest',
@@ -532,7 +535,7 @@ async function plotEthProcessorProcessingTime(
 
     const title = `${namePrefix} EthProcessorProcessing Time (without mina finalization)`;
     const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-    const binSize = autoBinSizeWithTarget(totalWaits);
+    const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
         values: totalWaits,
@@ -549,7 +552,8 @@ async function plotEthProcessorProcessingTime(
 async function plotActualOverallTimeFromDepositToCanMint(
     simulationResult: SimulationResult,
     namePrefix: string,
-    asPercentage = true
+    asPercentage = true,
+    binCountTarget = 20,
 ) {
     const totalTimes: number[] = simulationResult.successes.map((success) => {
         const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
@@ -575,7 +579,7 @@ async function plotActualOverallTimeFromDepositToCanMint(
 
     const title = `${namePrefix} Actual Overall Time from Deposit to canMint`;
     const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-    const binSize = autoBinSizeWithTarget(totalTimes);
+    const binSize = autoBinSizeWithTarget(totalTimes, binCountTarget);
 
     await makeHistogram({
         values: totalTimes,
@@ -592,7 +596,8 @@ async function plotActualOverallTimeFromDepositToCanMint(
 async function plotAverageNetworkWaitingTime(
     simulationResult: SimulationResult,
     namePrefix: string,
-    asPercentage = true
+    asPercentage = true,
+    binCountTarget = 20,
 ) {
     const totalWaits: number[] = simulationResult.successes.map((success) => {
         const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
@@ -610,7 +615,7 @@ async function plotAverageNetworkWaitingTime(
 
     const title = `${namePrefix} Average Network Waiting Time ETH + Mina per Deposit`;
     const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-    const binSize = autoBinSizeWithTarget(totalWaits);
+    const binSize = autoBinSizeWithTarget(totalWaits, binCountTarget);
 
     await makeHistogram({
         values: totalWaits,
@@ -627,7 +632,8 @@ async function plotAverageNetworkWaitingTime(
 async function plotAverageBridgeProcessingTime(
     simulationResult: SimulationResult,
     namePrefix: string,
-    asPercentage = true
+    asPercentage = true,
+    binCountTarget = 20,
 ) {
     const totalTimes: number[] = simulationResult.successes.map((success) => {
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
@@ -656,7 +662,7 @@ async function plotAverageBridgeProcessingTime(
 
     const title = `${namePrefix} Average Bridge Processing Time per Deposit (without network time)`;
     const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-    const binSize = autoBinSizeWithTarget(totalTimes);
+    const binSize = autoBinSizeWithTarget(totalTimes, binCountTarget);
 
     await makeHistogram({
         values: totalTimes,
@@ -686,13 +692,15 @@ async function main() {
 
     const namePrefix = `Simulation Result ${simulationResult.startedAt}`;
 
+    const binCountTarget = 30;
+
     // Chart all the bridgeTimings
     for (const [stageName, values] of Object.entries(
         simulationResult.bridgeTimingsAggregates
     )) {
         const title = `${namePrefix} ${stageName}`;
         const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
-        const binSize = autoBinSizeWithTarget(values); // autoBinSize
+        const binSize = autoBinSizeWithTarget(values, binCountTarget); // autoBinSize
         console.log(`Creating chart '${title}' with bin size '${binSize}'`);
         await makeHistogram({
             values,
@@ -708,7 +716,7 @@ async function main() {
     const depositTimes = simulationResult.successes.map(
         (success) => success.overallDepositTimeSec
     );
-    const binSizeDepositTimes = autoBinSizeWithTarget(depositTimes);
+    const binSizeDepositTimes = autoBinSizeWithTarget(depositTimes, binCountTarget);
     await makeHistogram({
         values: depositTimes,
         title: `Overall deposit simulation time until BridgeHeadJobCreated after ReadyToMint (slight over estimate of time to ready to mint)`,
@@ -726,7 +734,7 @@ async function main() {
     const ethFinalityTimes = simulationResult.successes.map(
         (success) => success.timingsMap.WaitingForEthFinality
     );
-    const binSizeEthFinalityTimes = autoBinSizeWithTarget(ethFinalityTimes, 20);
+    const binSizeEthFinalityTimes = autoBinSizeWithTarget(ethFinalityTimes, binCountTarget);
     await makeHistogram({
         values: ethFinalityTimes,
         title: `EthFinality wait time vs Percentage %`,
