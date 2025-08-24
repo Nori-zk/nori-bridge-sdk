@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import { KeyTransitionStageMessageTypes } from '@nori-zk/pts-types';
-KeyTransitionStageMessageTypes
+KeyTransitionStageMessageTypes;
 const WIDTH = 1200;
 const HEIGHT = 700;
 const BACKGROUND = 'white';
@@ -41,7 +41,7 @@ function computeXAxisRange(values: number[], mean: number, std: number) {
     return { min: axisMin, max: axisMax };
 }
 
-function binData(values: number[], binSize: number) {
+function binData(values: number[], binSize: number, asPercentage = true) {
     if (!values.length) return null;
 
     const minVal = Math.min(...values);
@@ -60,6 +60,14 @@ function binData(values: number[], binSize: number) {
         if (idx < 0) idx = 0;
         if (idx >= binsCount) idx = binsCount - 1;
         binCounts[idx]++;
+    }
+
+    if (asPercentage) {
+        const total = values.length;
+        return {
+            binCounts: binCounts.map((c) => (c / total) * 100),
+            binCenters,
+        };
     }
 
     return { binCounts, binCenters };
@@ -121,30 +129,40 @@ function formatNumber(value: number, precision: number): string {
 export async function makeHistogram(opts: {
     title: string;
     xLabel: string;
-    yLabel: string;
     values: number[];
     binSize: number;
     outFile: string;
+    asPercentage?: boolean;
 }) {
-    const { title, xLabel, yLabel, values, binSize, outFile } = opts;
+    const { xLabel, values, binSize, outFile } = opts;
+    const asPercentageBool: boolean =
+        opts.asPercentage === undefined ? true : opts.asPercentage;
+
     if (!values || values.length === 0) return;
 
     const precision = computePrecision(values);
     const { mean, std } = computeMeanStd(values);
-    const bins = binData(values, binSize);
+    const sampleCount = values.length;
+    const bins = binData(values, binSize, asPercentageBool);
     const { min, max } = computeXAxisRange(values, mean, std);
+    const title = opts.title + `. Sample number: ${sampleCount}`;
 
     if (!bins) return;
 
     const { binCounts, binCenters } = bins;
     const dataPoints = binCenters.map((c, i) => ({ x: c, y: binCounts[i] }));
+    console.log(
+        'Total y-axis',
+        dataPoints.reduce((acc, it) => acc + it.y, 0)
+    );
+
+    const yLabel = asPercentageBool ? `Percentage [%]` : `Counts [Counts]`;
 
     const config: any = {
         type: 'bar',
         data: {
             datasets: [
                 {
-                    label: `${title} (count)`,
                     data: dataPoints,
                     parsing: false,
                     backgroundColor: 'rgba(40,120,255,0.75)',
@@ -167,6 +185,7 @@ export async function makeHistogram(opts: {
                     min,
                     max,
                     title: { display: true, text: xLabel },
+                    autoSkip: false,
                     ticks: {
                         stepSize: binSize, // one tick per bin
                         precision, // adjust decimal places
@@ -228,10 +247,7 @@ type SimulationResult = {
     bridgeTimingsAggregates: Record<string, number[]>;
 };
 
-function autoBinSize(
-    values: number[],
-    targetBins = 10
-): number {
+function autoBinSize(values: number[], targetBins = 10): number {
     if (values.length === 0) return 0.01; // fallback for empty
     if (values.length === 1) {
         // single value: pick a small fraction to allow separation
@@ -302,8 +318,13 @@ async function makeFirstStageHistogramFromSimulation(
     outFile: string,
     title: string,
     xLabel: string,
-    yLabel: string
+    asPercentage = true
 ) {
+    const asPercentageBool = asPercentage === undefined ? true : asPercentage;
+    const yLabel = asPercentageBool
+        ? 'Percentage [Deposits] %'
+        : 'Counts [Unit]';
+
     const countsPrev: Record<string, number> = {};
     const countsCurr: Record<string, number> = {};
 
@@ -321,48 +342,74 @@ async function makeFirstStageHistogramFromSimulation(
     }
 
     // Order stages according to KeyTransitionStageMessageTypes
-    const prevStages = KeyTransitionStageMessageTypes.filter((s) =>
-        countsPrev[s]
+    const prevStages = KeyTransitionStageMessageTypes.filter(
+        (s) => countsPrev[s]
     );
-    const currStages = KeyTransitionStageMessageTypes.filter((s) =>
-        countsCurr[s]
+    const currStages = KeyTransitionStageMessageTypes.filter(
+        (s) => countsCurr[s]
     );
+
+    const prevTotal = Object.values(countsPrev).reduce((a, b) => a + b, 0);
+    const currTotal = Object.values(countsCurr).reduce((a, b) => a + b, 0);
+    const total = prevTotal + currTotal;
 
     // Generate shades: darkest = first stage, lightest = last stage
     const prevColors = prevStages.map(
         (_, i) =>
-            hsvToRgb(0, 0.7, 0.3 + (0.7 * i) / Math.max(prevStages.length - 1, 1)) // red hue
+            hsvToRgb(
+                0,
+                0.7,
+                0.3 + (0.7 * i) / Math.max(prevStages.length - 1, 1)
+            ) // red hue
     );
     const currColors = currStages.map(
         (_, i) =>
-            hsvToRgb(220, 0.7, 0.3 + (0.7 * i) / Math.max(currStages.length - 1, 1)) // blue hue
+            hsvToRgb(
+                220,
+                0.7,
+                0.3 + (0.7 * i) / Math.max(currStages.length - 1, 1)
+            ) // blue hue
     );
 
     const datasets = [
         ...prevStages.map((stage, i) => ({
             label: `Prev: ${stage}`,
-            data: [countsPrev[stage]],
+            data: [
+                asPercentageBool
+                    ? (countsPrev[stage] / total) * 100
+                    : countsPrev[stage],
+            ],
             backgroundColor: prevColors[i],
         })),
         ...currStages.map((stage, i) => ({
             label: `Curr: ${stage}`,
-            data: [countsCurr[stage]],
+            data: [
+                asPercentageBool
+                    ? (countsCurr[stage] / total) * 100
+                    : countsCurr[stage],
+            ],
             backgroundColor: currColors[i],
         })),
     ];
 
     const config: any = {
-        type: "bar",
-        data: { labels: ["First Stage Entered"], datasets },
+        type: 'bar',
+        data: {
+            labels: [`First Stage Entered. Sample number: ${total}`],
+            datasets,
+        },
         options: {
             responsive: false,
             plugins: {
                 title: { display: true, text: title, font: { size: 18 } },
-                legend: { position: "right" }, // legend on RHS
+                legend: { position: 'right' },
             },
             scales: {
                 x: { title: { display: true, text: xLabel } },
-                y: { title: { display: true, text: yLabel }, ticks: { precision: 0 } },
+                y: {
+                    title: { display: true, text: yLabel },
+                    ticks: { precision: 0 },
+                },
             },
         },
     };
@@ -372,14 +419,22 @@ async function makeFirstStageHistogramFromSimulation(
     console.log(`Created chart: '${outFile}'`);
 }
 
-async function plotTotalBridgeHeadWait(simulationResult: SimulationResult, namePrefix: string) {
+async function plotTotalBridgeHeadWait(
+    simulationResult: SimulationResult,
+    namePrefix: string,
+    asPercentage = true
+) {
     // Compute total wait per deposit
     const totalWaits: number[] = simulationResult.successes.map((success) => {
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
         const previousJobs = success.timingsMap.WaitingForPreviousJobCompletion;
 
-        const sumCurrent = currentJobs ? Object.values(currentJobs).reduce((a, b) => a + b, 0) : 0;
-        const sumPrevious = previousJobs ? Object.values(previousJobs).reduce((a, b) => a + b, 0) : 0;
+        const sumCurrent = currentJobs
+            ? Object.values(currentJobs).reduce((a, b) => a + b, 0)
+            : 0;
+        const sumPrevious = previousJobs
+            ? Object.values(previousJobs).reduce((a, b) => a + b, 0)
+            : 0;
 
         return sumCurrent + sumPrevious;
     });
@@ -392,28 +447,38 @@ async function plotTotalBridgeHeadWait(simulationResult: SimulationResult, nameP
         values: totalWaits,
         title,
         xLabel: 'Total Bridge Head Wait Time [Seconds]',
-        yLabel: 'Count [Deposits]',
         binSize,
         outFile,
+        asPercentage,
     });
 
     console.log(`Created chart: '${outFile}'`);
 }
 
-async function plotTotalBridgeHeadWaitExcludingMina(simulationResult: SimulationResult, namePrefix: string) {
+async function plotTotalBridgeHeadWaitExcludingMina(
+    simulationResult: SimulationResult,
+    namePrefix: string,
+    asPercentage = true
+) {
     const totalWaits: number[] = simulationResult.successes.map((success) => {
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
         const previousJobs = success.timingsMap.WaitingForPreviousJobCompletion;
 
         const sumCurrent = currentJobs
             ? Object.entries(currentJobs)
-                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .filter(
+                      ([stage]) =>
+                          stage !== 'EthProcessorTransactionSubmitSucceeded'
+                  )
                   .reduce((sum, [, v]) => sum + v, 0)
             : 0;
 
         const sumPrevious = previousJobs
             ? Object.entries(previousJobs)
-                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .filter(
+                      ([stage]) =>
+                          stage !== 'EthProcessorTransactionSubmitSucceeded'
+                  )
                   .reduce((sum, [, v]) => sum + v, 0)
             : 0;
 
@@ -428,16 +493,23 @@ async function plotTotalBridgeHeadWaitExcludingMina(simulationResult: Simulation
         values: totalWaits,
         title,
         xLabel: 'Total Bridge Head Wait Time [Seconds]',
-        yLabel: 'Count [Deposits]',
         binSize,
         outFile,
+        asPercentage,
     });
 
     console.log(`Created chart: '${outFile}'`);
 }
 
-async function plotEthProcessorProcessingTime(simulationResult: SimulationResult, namePrefix: string) {
-    const relevantStages = ['EthProcessorProofRequest', 'EthProcessorTransactionSubmitting'];
+async function plotEthProcessorProcessingTime(
+    simulationResult: SimulationResult,
+    namePrefix: string,
+    asPercentage = true
+) {
+    const relevantStages = [
+        'EthProcessorProofRequest',
+        'EthProcessorTransactionSubmitting',
+    ];
 
     const totalWaits: number[] = simulationResult.successes.map((success) => {
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
@@ -466,15 +538,19 @@ async function plotEthProcessorProcessingTime(simulationResult: SimulationResult
         values: totalWaits,
         title,
         xLabel: 'EthProcessorProcessing Time [Seconds]',
-        yLabel: 'Count [Deposits]',
         binSize,
         outFile,
+        asPercentage,
     });
 
     console.log(`Created chart: '${outFile}'`);
 }
 
-async function plotActualOverallTimeFromDepositToCanMint(simulationResult: SimulationResult, namePrefix: string) {
+async function plotActualOverallTimeFromDepositToCanMint(
+    simulationResult: SimulationResult,
+    namePrefix: string,
+    asPercentage = true
+) {
     const totalTimes: number[] = simulationResult.successes.map((success) => {
         const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
 
@@ -483,7 +559,10 @@ async function plotActualOverallTimeFromDepositToCanMint(simulationResult: Simul
 
         const sumCurrent = currentJobs
             ? Object.entries(currentJobs)
-                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .filter(
+                      ([stage]) =>
+                          stage !== 'EthProcessorTransactionSubmitSucceeded'
+                  )
                   .reduce((sum, [, v]) => sum + v, 0)
             : 0;
 
@@ -502,23 +581,29 @@ async function plotActualOverallTimeFromDepositToCanMint(simulationResult: Simul
         values: totalTimes,
         title,
         xLabel: 'Total Time [Seconds]',
-        yLabel: 'Count [Deposits]',
         binSize,
         outFile,
+        asPercentage,
     });
 
     console.log(`Created chart: '${outFile}'`);
 }
 
-async function plotAverageNetworkWaitingTime(simulationResult: SimulationResult, namePrefix: string) {
+async function plotAverageNetworkWaitingTime(
+    simulationResult: SimulationResult,
+    namePrefix: string,
+    asPercentage = true
+) {
     const totalWaits: number[] = simulationResult.successes.map((success) => {
         const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
 
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
         const previousJobs = success.timingsMap.WaitingForPreviousJobCompletion;
 
-        const sumCurrent = currentJobs?.['EthProcessorTransactionSubmitSucceeded'] ?? 0;
-        const sumPrevious = previousJobs?.['EthProcessorTransactionSubmitSucceeded'] ?? 0;
+        const sumCurrent =
+            currentJobs?.['EthProcessorTransactionSubmitSucceeded'] ?? 0;
+        const sumPrevious =
+            previousJobs?.['EthProcessorTransactionSubmitSucceeded'] ?? 0;
 
         return ethFinality + sumCurrent + sumPrevious;
     });
@@ -531,28 +616,38 @@ async function plotAverageNetworkWaitingTime(simulationResult: SimulationResult,
         values: totalWaits,
         title,
         xLabel: 'Network Waiting Time [Seconds]',
-        yLabel: 'Count [Deposits]',
         binSize,
         outFile,
+        asPercentage,
     });
 
     console.log(`Created chart: '${outFile}'`);
 }
 
-async function plotAverageBridgeProcessingTime(simulationResult: SimulationResult, namePrefix: string) {
+async function plotAverageBridgeProcessingTime(
+    simulationResult: SimulationResult,
+    namePrefix: string,
+    asPercentage = true
+) {
     const totalTimes: number[] = simulationResult.successes.map((success) => {
         const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
         const previousJobs = success.timingsMap.WaitingForPreviousJobCompletion;
 
         const sumCurrent = currentJobs
             ? Object.entries(currentJobs)
-                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .filter(
+                      ([stage]) =>
+                          stage !== 'EthProcessorTransactionSubmitSucceeded'
+                  )
                   .reduce((sum, [, v]) => sum + v, 0)
             : 0;
 
         const sumPrevious = previousJobs
             ? Object.entries(previousJobs)
-                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .filter(
+                      ([stage]) =>
+                          stage !== 'EthProcessorTransactionSubmitSucceeded'
+                  )
                   .reduce((sum, [, v]) => sum + v, 0)
             : 0;
 
@@ -567,9 +662,9 @@ async function plotAverageBridgeProcessingTime(simulationResult: SimulationResul
         values: totalTimes,
         title,
         xLabel: 'Bridge Processing Time [Seconds]',
-        yLabel: 'Count [Deposits]',
         binSize,
         outFile,
+        asPercentage,
     });
 
     console.log(`Created chart: '${outFile}'`);
@@ -583,6 +678,8 @@ async function main() {
         );
         process.exit(1);
     }
+
+    const asPercentage = true;
     const inputFile = argv[0];
     const raw = await fs.readFile(inputFile, 'utf8');
     const simulationResult = JSON.parse(raw) as SimulationResult;
@@ -601,9 +698,9 @@ async function main() {
             values,
             title,
             xLabel: `Time until next status after ${stageName} (binned to ${binSize} seconds) [Seconds]`,
-            yLabel: 'Count [Unit]',
             binSize,
             outFile,
+            asPercentage,
         });
     }
 
@@ -616,12 +713,12 @@ async function main() {
         values: depositTimes,
         title: `Overall deposit simulation time until BridgeHeadJobCreated after ReadyToMint (slight over estimate of time to ready to mint)`,
         xLabel: `Time until BridgeHeadJobCreated after ReadyToMint [Seconds]`,
-        yLabel: 'Count [Unit]',
         binSize: binSizeDepositTimes,
         outFile: `${namePrefix.replaceAll(
             / /g,
             '-'
         )}_deposit_times.png`.toLowerCase(),
+        asPercentage,
     });
 
     // Chart waiting for eth finality
@@ -632,14 +729,14 @@ async function main() {
     const binSizeEthFinalityTimes = autoBinSizeWithTarget(ethFinalityTimes, 20);
     await makeHistogram({
         values: ethFinalityTimes,
-        title: `EthFinality wait time vs Count`,
+        title: `EthFinality wait time vs Percentage %`,
         xLabel: `Time deposit waits for Eth finalization status [Seconds]`,
-        yLabel: 'Count [Unit]',
         binSize: binSizeEthFinalityTimes,
         outFile: `${namePrefix.replaceAll(
             / /g,
             '-'
         )}_eth_finality_times.png`.toLowerCase(),
+        asPercentage,
     });
 
     const firstStageChartTitle = `${namePrefix} First Stage Entered by Deposits`;
@@ -651,15 +748,35 @@ async function main() {
         firstStageOutFile,
         firstStageChartTitle,
         'Stage Name',
-        'Count [Deposits]'
+        asPercentage
     );
 
-    await plotTotalBridgeHeadWait(simulationResult, namePrefix);
-    await plotTotalBridgeHeadWaitExcludingMina(simulationResult, namePrefix);
-    await plotEthProcessorProcessingTime(simulationResult, namePrefix);
-    await plotActualOverallTimeFromDepositToCanMint(simulationResult, namePrefix);
-    await plotAverageNetworkWaitingTime(simulationResult, namePrefix);
-    await plotAverageBridgeProcessingTime(simulationResult, namePrefix);
+    await plotTotalBridgeHeadWait(simulationResult, namePrefix, asPercentage);
+    await plotTotalBridgeHeadWaitExcludingMina(
+        simulationResult,
+        namePrefix,
+        asPercentage
+    );
+    await plotEthProcessorProcessingTime(
+        simulationResult,
+        namePrefix,
+        asPercentage
+    );
+    await plotActualOverallTimeFromDepositToCanMint(
+        simulationResult,
+        namePrefix,
+        asPercentage
+    );
+    await plotAverageNetworkWaitingTime(
+        simulationResult,
+        namePrefix,
+        asPercentage
+    );
+    await plotAverageBridgeProcessingTime(
+        simulationResult,
+        namePrefix,
+        asPercentage
+    );
 }
 
 main().catch((e) => {
