@@ -510,6 +510,71 @@ async function plotActualOverallTimeFromDepositToCanMint(simulationResult: Simul
     console.log(`Created chart: '${outFile}'`);
 }
 
+async function plotAverageNetworkWaitingTime(simulationResult: SimulationResult, namePrefix: string) {
+    const totalWaits: number[] = simulationResult.successes.map((success) => {
+        const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
+
+        const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
+        const previousJobs = success.timingsMap.WaitingForPreviousJobCompletion;
+
+        const sumCurrent = currentJobs?.['EthProcessorTransactionSubmitSucceeded'] ?? 0;
+        const sumPrevious = previousJobs?.['EthProcessorTransactionSubmitSucceeded'] ?? 0;
+
+        return ethFinality + sumCurrent + sumPrevious;
+    });
+
+    const title = `${namePrefix} Average Network Waiting Time ETH + Mina per Deposit`;
+    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const binSize = autoBinSizeWithTarget(totalWaits);
+
+    await makeHistogram({
+        values: totalWaits,
+        title,
+        xLabel: 'Network Waiting Time [Seconds]',
+        yLabel: 'Count [Deposits]',
+        binSize,
+        outFile,
+    });
+
+    console.log(`Created chart: '${outFile}'`);
+}
+
+async function plotAverageBridgeProcessingTime(simulationResult: SimulationResult, namePrefix: string) {
+    const totalTimes: number[] = simulationResult.successes.map((success) => {
+        const currentJobs = success.timingsMap.WaitingForCurrentJobCompletion;
+        const previousJobs = success.timingsMap.WaitingForPreviousJobCompletion;
+
+        const sumCurrent = currentJobs
+            ? Object.entries(currentJobs)
+                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .reduce((sum, [, v]) => sum + v, 0)
+            : 0;
+
+        const sumPrevious = previousJobs
+            ? Object.entries(previousJobs)
+                  .filter(([stage]) => stage !== 'EthProcessorTransactionSubmitSucceeded')
+                  .reduce((sum, [, v]) => sum + v, 0)
+            : 0;
+
+        return sumCurrent + sumPrevious;
+    });
+
+    const title = `${namePrefix} Average Bridge Processing Time per Deposit (without network time)`;
+    const outFile = `${title.replaceAll(/ /g, '-').toLowerCase()}.png`;
+    const binSize = autoBinSizeWithTarget(totalTimes);
+
+    await makeHistogram({
+        values: totalTimes,
+        title,
+        xLabel: 'Bridge Processing Time [Seconds]',
+        yLabel: 'Count [Deposits]',
+        binSize,
+        outFile,
+    });
+
+    console.log(`Created chart: '${outFile}'`);
+}
+
 async function main() {
     const argv = process.argv.slice(2);
     if (argv.length < 1) {
@@ -593,6 +658,8 @@ async function main() {
     await plotTotalBridgeHeadWaitExcludingMina(simulationResult, namePrefix);
     await plotEthProcessorProcessingTime(simulationResult, namePrefix);
     await plotActualOverallTimeFromDepositToCanMint(simulationResult, namePrefix);
+    await plotAverageNetworkWaitingTime(simulationResult, namePrefix);
+    await plotAverageBridgeProcessingTime(simulationResult, namePrefix);
 }
 
 main().catch((e) => {
