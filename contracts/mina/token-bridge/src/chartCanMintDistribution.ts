@@ -6,6 +6,7 @@ const WIDTH = 1200;
 const HEIGHT = 700;
 const BACKGROUND = 'white';
 
+
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
     width: WIDTH,
     height: HEIGHT,
@@ -772,6 +773,152 @@ async function plotAverageBridgeProcessingTime(
     console.log(`Created chart: '${outFile}'`);
 }
 
+const PIXELS_PER_BAR = 1; // fixed pixel per bar for all charts
+const MIN_WIDTH = 1200;     // minimum canvas width
+const MAX_WIDTH = 3000;    // maximum canvas width
+
+// helper to create a ChartJSNodeCanvas
+function makeCanvas(width: number) {
+    return new ChartJSNodeCanvas({
+        width,
+        height: HEIGHT,
+        backgroundColour: BACKGROUND,
+    });
+}
+
+
+export async function plotDepositElapsedTimeUntilCanMintVsBlock(
+    simulationResult: SimulationResult,
+    namePrefix: string
+) {
+    const elapsedTimes = simulationResult.successes.map((success) => {
+        const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
+        const prevJobs = success.timingsMap.WaitingForPreviousJobCompletion ?? {};
+        const currJobs = success.timingsMap.WaitingForCurrentJobCompletion ?? {};
+        return ethFinality + Object.values(prevJobs).reduce((a,b)=>a+b,0) + Object.values(currJobs).reduce((a,b)=>a+b,0);
+    });
+
+    const dataPoints = simulationResult.successes.map((s, idx) => ({
+        x: s.depositBlockNumber,
+        y: elapsedTimes[idx],
+    }));
+
+    const outFile = `${namePrefix}-deposit-elapsed-time-until-can-mint-vs-block.png`.replaceAll(/ /g,'-').toLowerCase();
+
+    const n = dataPoints.length;
+    const widthByCount = n * PIXELS_PER_BAR;
+    const canvasWidth = Math.max(MIN_WIDTH, Math.min(widthByCount, MAX_WIDTH));
+
+    const canvas = makeCanvas(canvasWidth);
+
+    const config: any = {
+        type: 'bar',
+        data: {
+            datasets: [
+                {
+                    label: 'Deposit Elapsed Time Until Can Mint',
+                    data: dataPoints,
+                    parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+                    backgroundColor: 'rgba(255,120,80,0.7)',
+                    barThickness: PIXELS_PER_BAR,
+                },
+            ],
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                title: { display: true, text: 'Deposit Elapsed Time Until Can Mint vs Deposit Block Number', font:{size:18} },
+                legend: { display: false },
+            },
+            scales: {
+                x: { type:'linear', title:{display:true,text:'Deposit Block Number'} },
+                y: { title:{display:true,text:'Deposit Elapsed Time Until Can Mint [Seconds]'} },
+            },
+        },
+    };
+
+    const buffer = await canvas.renderToBuffer(config);
+    await fs.writeFile(outFile, buffer);
+    console.log(`Created chart: '${outFile}'`);
+}
+
+
+export async function plotDepositElapsedTimeUntilCanMintVsTime(
+    simulationResult: SimulationResult,
+    namePrefix: string
+) {
+    const elapsedTimes = simulationResult.successes.map((success) => {
+        const ethFinality = success.timingsMap.WaitingForEthFinality ?? 0;
+        const prevJobs = success.timingsMap.WaitingForPreviousJobCompletion ?? {};
+        const currJobs = success.timingsMap.WaitingForCurrentJobCompletion ?? {};
+        return ethFinality + Object.values(prevJobs).reduce((a,b)=>a+b,0) + Object.values(currJobs).reduce((a,b)=>a+b,0);
+    });
+
+    // x = Unix timestamp, y = elapsed time
+    const dataPoints = simulationResult.successes.map((s, idx) => ({
+        x: Date.parse(s.humanReadableDepositStartTime), // numeric
+        y: elapsedTimes[idx],
+    }));
+
+    const outFile = `${namePrefix}-deposit-elapsed-time-until-can-mint-vs-time.png`.replaceAll(/ /g,'-').toLowerCase();
+
+    const n = dataPoints.length;
+    const widthByCount = n * PIXELS_PER_BAR;
+    const canvasWidth = Math.max(MIN_WIDTH, Math.min(widthByCount, MAX_WIDTH));
+
+    const canvas = makeCanvas(canvasWidth);
+
+    const config: any = {
+        type: 'bar',
+        data: {
+            datasets: [
+                {
+                    label: 'Deposit Elapsed Time Until Can Mint',
+                    data: dataPoints,
+                    parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+                    backgroundColor: 'rgba(120,180,255,0.7)',
+                    barThickness: PIXELS_PER_BAR,
+                },
+            ],
+        },
+        options: {
+            responsive: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Deposit Elapsed Time Until Can Mint vs Deposit Start Time',
+                    font: { size: 18 },
+                },
+                legend: { display: false },
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Deposit Start Time' },
+                    ticks: {
+                        callback: (val:any) => {
+                            const n = Number(val);
+                            if (Number.isNaN(n)) return String(val);
+                            const d = new Date(n);
+                            return `${d.getUTCFullYear()}-${(d.getUTCMonth()+1).toString().padStart(2,'0')}-${d.getUTCDate().toString().padStart(2,'0')} ${d.getUTCHours().toString().padStart(2,'0')}:${d.getUTCMinutes().toString().padStart(2,'0')}`;
+                        },
+                        maxRotation: 45,
+                        minRotation: 30,
+                    },
+                },
+                y: { title:{ display:true, text:'Deposit Elapsed Time Until Can Mint [Seconds]' } },
+            },
+        },
+    };
+
+    const buffer = await canvas.renderToBuffer(config);
+    await fs.writeFile(outFile, buffer);
+    console.log(`Created chart: '${outFile}'`);
+}
+
+
+
+
 async function main() {
     const argv = process.argv.slice(2);
     if (argv.length < 1) {
@@ -899,6 +1046,8 @@ async function main() {
         namePrefix,
         asPercentage
     );
+    await plotDepositElapsedTimeUntilCanMintVsBlock(simulationResult, namePrefix);
+    await plotDepositElapsedTimeUntilCanMintVsTime(simulationResult, namePrefix);
 }
 
 main().catch((e) => {
