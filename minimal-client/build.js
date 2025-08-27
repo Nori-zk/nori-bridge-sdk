@@ -47,7 +47,7 @@ function writeHtml() {
 
 async function buildFirst() {
   await esbuild.build({
-    entryPoints: ["src/first/index.ts"],
+    entryPoints: ["src/index.ts"],
     bundle: true,
     outfile: `public/${files.bundle}`,
     format: "esm",
@@ -79,7 +79,7 @@ async function buildFirst() {
 
 async function buildSlim() {
   await esbuild.build({
-    entryPoints: ["src/slim/index.ts"],
+    entryPoints: ["src/index.ts"],
     bundle: true,
     outfile: `public/${files.bundle}`,
     format: "esm",
