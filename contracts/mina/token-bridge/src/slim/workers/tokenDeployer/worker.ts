@@ -37,15 +37,6 @@ export class TokenDeployerWorker {
     async compile() {
         console.log('Compiling prerequisites...');
 
-        // Compile programs / contracts
-        console.time('compileEcdsaEthereum');
-        await compileEcdsaEthereum();
-        console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
-
-        console.time('compilePresentationVerifier');
-        await compileEcdsaSigPresentationVerifier();
-        console.timeEnd('compilePresentationVerifier'); // 11.507s
-
         console.time('EthVerifier compile');
         const { verificationKey: ethVerifierVerificationKey } =
             await EthVerifier.compile({
@@ -55,6 +46,15 @@ export class TokenDeployerWorker {
         console.log(
             `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
         );
+
+        // Compile programs / contracts
+        console.time('compileEcdsaEthereum');
+        await compileEcdsaEthereum();
+        console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
+
+        console.time('compilePresentationVerifier');
+        await compileEcdsaSigPresentationVerifier();
+        console.timeEnd('compilePresentationVerifier'); // 11.507s
 
         console.log('Compiling contracts...');
         // Compile all required contracts

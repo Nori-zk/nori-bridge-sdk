@@ -8,7 +8,7 @@ import {
     ProvableEcdsaSigPresentation,
     SecretMaxLength,
 } from '../../../credentialAttestation.js';
-import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import { decodeConsensusMptProof, EthInput, EthProofType, EthVerifier, NodeProofLeft } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
     fetchAccount,
@@ -31,8 +31,9 @@ import {
     buildMerkleTreeContractDepositAttestorInput,
     MerkleTreeContractDepositAttestorInputJson,
 } from '../../../slim/depositAttestation.js';
+import { PlonkOutput, Sp1 } from '@nori-zk/pts-types';
 
-export class TokenMintWorker {
+export class TokenMintWorkerSlim {
     /// WALLET METHOD DONT USE IN FRONT END
 
     // Initialise methods
@@ -174,6 +175,42 @@ export class TokenMintWorker {
     }) {
         const Network = Mina.Network(options);
         Mina.setActiveInstance(Network);
+    }
+
+    // Eth verifier methods **********************************************************************
+    async compileEthVerifier() {
+        console.log('Compiling EthVerifier');
+        console.time('EthVerifier compile');
+        const { verificationKey: ethVerifierVerificationKey } =
+            await EthVerifier.compile({ forceRecompile: true });
+        console.timeEnd('EthVerifier compile');
+        console.log(
+            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+        );
+    }
+
+    async computeEthVerifier(consensusMPTProofProof: Sp1,
+        consensusMPTProofVerification: PlonkOutput) {
+        console.log('Loaded sp1PlonkProof and conversionOutputProof');
+        const ethVerifierInput = new EthInput(
+            decodeConsensusMptProof(consensusMPTProofProof)
+        );
+        console.log('Decoded EthInput from MPT proof');
+
+        console.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
+
+        const rawProof = await NodeProofLeft.fromJSON(
+            consensusMPTProofVerification.proofData
+        );
+        console.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
+
+        console.log('Computing EthVerifier');
+        console.time('EthVerifier.compute');
+        const ethVerifierProof = (
+            await EthVerifier.compute(ethVerifierInput, rawProof)
+        ).proof;
+        console.timeEnd('EthVerifier.compute');
+        return ethVerifierProof.toJSON();
     }
 
     // Storage setup ******************************************************************************
@@ -410,15 +447,8 @@ export class TokenMintWorker {
     }
 
     async compileMinterDeps() {
-        console.log('Compiling EthVerifier');
-        console.time('EthVerifier compile');
-        const { verificationKey: ethVerifierVerificationKey } =
-            await EthVerifier.compile({ forceRecompile: true });
-        console.timeEnd('EthVerifier compile');
-        console.log(
-            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
-        );
-
+        await this.compileEthVerifier();
+        
         console.log('Compiling NoriStorageInterface');
         console.time('compileNoriStorageInterface');
         const { verificationKey: noriStorageInterfaceVerificationKey } =

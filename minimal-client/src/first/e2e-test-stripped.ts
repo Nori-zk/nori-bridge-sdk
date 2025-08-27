@@ -5,7 +5,7 @@ import {
   BigNumberish,
 } from "ethers";
 import { NetworkId, PrivateKey } from "o1js";
-import { signSecretWithEthWallet } from "@nori-zk/mina-token-bridge/target/src/ethSignature.js";
+import { signSecretWithEthWallet } from "@nori-zk/mina-token-bridge";
 import {
   getBridgeStateTopic$,
   getBridgeTimingsTopic$,

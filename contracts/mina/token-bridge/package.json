@@ -39,7 +39,14 @@
         },
         "./node/workers/credentialAttestation": {
             "import": "./target/src/workers/credentialAttestation/node/parent.js"
+        },
+        "./slim/workers/defs": {
+            "import": "./target/src/slim/workers/defs.js"
+        },
+        "./slim": {
+            "import": "./target/src/slim/index.js"
         }
+
     },
     "scripts": {
         "clean": "rimraf target",
@@ -55,7 +62,8 @@
         "controller": "tsc && NODE_NO_WARNINGS=1 node --test ./target/src/NoriTokenController.test.js --loader ts-node/esm",
         "nori": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm --test-name-pattern='NoriCore' ",
         "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' ",
-        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js"
+        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js",
+        "deploy-slim": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/slim/deploy.js"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.16.4",
