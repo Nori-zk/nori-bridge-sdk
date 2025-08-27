@@ -6,6 +6,7 @@
     "moduleResolution": "nodenext",
     "rootDir": "src",
     "baseUrl": ".", 
+    "isolatedModules": true,
     "paths": {
       "o1js": ["../node_modules/o1js"],
       "*": ["*", "src/*", "../node_modules/*"]

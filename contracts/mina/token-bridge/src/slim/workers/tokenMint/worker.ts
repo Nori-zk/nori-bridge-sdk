@@ -27,6 +27,10 @@ import {
     NoriTokenController,
 } from '../../NoriTokenController.js';
 import { Presentation } from 'mina-attestations';
+import {
+    buildMerkleTreeContractDepositAttestorInput,
+    MerkleTreeContractDepositAttestorInputJson,
+} from '../../../slim/depositAttestation.js';
 
 export class TokenMintWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -459,6 +463,7 @@ export class TokenMintWorker {
         userPublicKeyBase58: string,
         noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
+        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
         //userPrivateKey: PrivateKey,
         txFee: number,
         fundNewAccount: boolean
@@ -469,10 +474,13 @@ export class TokenMintWorker {
         );
 
         // Reconstruct MintProofData
-        const { ethVerifierProofJson: ethDepositProofJson, presentationProofStr } = proofDataJson;
+        const {
+            ethVerifierProofJson: ethVerifierProofJson,
+            presentationProofStr,
+        } = proofDataJson;
 
         const ethVerifierProof = await EthProofType.fromJSON(
-            ethDepositProofJson
+            ethVerifierProofJson
         );
         const presentationProof = ProvableEcdsaSigPresentation.from(
             Presentation.fromJSON(presentationProofStr)
@@ -481,6 +489,12 @@ export class TokenMintWorker {
             ethVerifierProof,
             presentationProof,
         };
+
+        // Reconstruct deposit input
+        const merkleTreeContractDepositAttestorInput =
+            buildMerkleTreeContractDepositAttestorInput(
+                merkleTreeContractDepositAttestorInputJson
+            );
 
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
@@ -500,8 +514,9 @@ export class TokenMintWorker {
                 }
                 const realProofData = proofData as MintProofData;
                 await noriTokenControllerInst.noriMint(
-                    realProofData.ethDepositProof,
-                    realProofData.presentationProof
+                    realProofData.ethVerifierProof,
+                    realProofData.presentationProof,
+                    merkleTreeContractDepositAttestorInput
                 );
             }
         );
@@ -516,6 +531,7 @@ export class TokenMintWorker {
         userPublicKeyBase58: string,
         noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
+        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
         //userPrivateKey: PrivateKey,
         txFee: number,
         fundNewAccount: boolean
@@ -526,18 +542,27 @@ export class TokenMintWorker {
         );
 
         // Reconstruct MintProofData
-        const { ethVerifierProofJson: ethDepositProofJson, presentationProofStr } = proofDataJson;
+        const {
+            ethVerifierProofJson: ethVerifierProofJson,
+            presentationProofStr,
+        } = proofDataJson;
 
-        const ethDepositProof = await EthDepositProgramProofType.fromJSON(
-            ethDepositProofJson
+        const ethVerifierProof = await EthProofType.fromJSON(
+            ethVerifierProofJson
         );
         const presentationProof = ProvableEcdsaSigPresentation.from(
             Presentation.fromJSON(presentationProofStr)
         );
         const proofData: MintProofData = {
-            ethDepositProof,
+            ethVerifierProof,
             presentationProof,
         };
+
+        // Reconstruct deposit input
+        const merkleTreeContractDepositAttestorInput =
+            buildMerkleTreeContractDepositAttestorInput(
+                merkleTreeContractDepositAttestorInputJson
+            );
 
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
@@ -556,8 +581,9 @@ export class TokenMintWorker {
                 }
                 const realProofData = proofData as MintProofData;
                 await noriTokenControllerInst.noriMint(
-                    realProofData.ethDepositProof,
-                    realProofData.presentationProof
+                    realProofData.ethVerifierProof,
+                    realProofData.presentationProof,
+                    merkleTreeContractDepositAttestorInput
                 );
             }
         );
@@ -573,7 +599,6 @@ export class TokenMintWorker {
     // Compile all deps
     async compileAll() {
         await this.compileCredentialDeps();
-        await this.compileEthDepositProgramDeps();
         return this.compileMinterDeps();
     }
 
@@ -585,6 +610,7 @@ export class TokenMintWorker {
         userPublicKeyBase58: string,
         noriTokenControllerAddressBase58: string,
         proofDataJson: MintProofDataJson,
+        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
         txFee: number,
         fundNewAccount: boolean
         //fundNewAccount = true
@@ -595,18 +621,27 @@ export class TokenMintWorker {
         );
 
         // Reconstruct MintProofData
-        const { ethVerifierProofJson: ethDepositProofJson, presentationProofStr } = proofDataJson;
+        const {
+            ethVerifierProofJson: ethVerifierProofJson,
+            presentationProofStr,
+        } = proofDataJson;
 
-        const ethDepositProof = await EthDepositProgramProofType.fromJSON(
-            ethDepositProofJson
+        const ethVerifierProof = await EthProofType.fromJSON(
+            ethVerifierProofJson
         );
         const presentationProof = ProvableEcdsaSigPresentation.from(
             Presentation.fromJSON(presentationProofStr)
         );
         const proofData: MintProofData = {
-            ethDepositProof,
+            ethVerifierProof,
             presentationProof,
         };
+
+        // Reconstruct deposit input
+        const merkleTreeContractDepositAttestorInput =
+            buildMerkleTreeContractDepositAttestorInput(
+                merkleTreeContractDepositAttestorInputJson
+            );
 
         console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
@@ -626,8 +661,9 @@ export class TokenMintWorker {
                 }
                 const realProofData = proofData as MintProofData;
                 await noriTokenControllerInst.noriMint(
-                    realProofData.ethDepositProof,
-                    realProofData.presentationProof
+                    realProofData.ethVerifierProof,
+                    realProofData.presentationProof,
+                    merkleTreeContractDepositAttestorInput
                 );
             }
         );

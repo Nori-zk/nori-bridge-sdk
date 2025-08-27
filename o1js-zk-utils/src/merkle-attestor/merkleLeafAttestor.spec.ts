@@ -63,15 +63,27 @@ describe('Merkle Attestor Test', () => {
         const hash = nonProvableStorageSlotLeafHash(addr, attestation, value);
 
         console.log(`Hash result big int: ${hash.toBigInt()}`);
-        console.log(`Hash result bytes: ${wordToBytes(hash, 32).map((byte)=>byte.toNumber())}`);
-        console.log(`Hash result hex: ${wordToBytes(hash, 32).map(byte => byte.toNumber().toString(16).padStart(2, '0')).join('')}`);
+        console.log(
+            `Hash result bytes: ${wordToBytes(hash, 32).map((byte) =>
+                byte.toNumber()
+            )}`
+        );
+        console.log(
+            `Hash result hex: ${wordToBytes(hash, 32)
+                .map((byte) => byte.toNumber().toString(16).padStart(2, '0'))
+                .join('')}`
+        );
 
-
-        const hash2 = provableLeafContentsHash(new ProvableLeafObject({address: addr, attestation, value}));
+        const hash2 = provableLeafContentsHash(
+            new ProvableLeafObject({ address: addr, attestation, value })
+        );
 
         console.log('Provable hash result', hash2.toBigInt().toString());
-        console.log(`Provable hash result hex: ${wordToBytes(hash2, 32).map(byte => byte.toNumber().toString(16).padStart(2, '0')).join('')}`);
-
+        console.log(
+            `Provable hash result hex: ${wordToBytes(hash2, 32)
+                .map((byte) => byte.toNumber().toString(16).padStart(2, '0'))
+                .join('')}`
+        );
     });
 
     test('test_all_leaf_counts_and_indices_with_pipeline', async () => {
@@ -169,6 +181,91 @@ describe('Merkle Attestor Test', () => {
 
                 console.log(`     ✅ [nLeaves=${nLeaves}, index=${index}] OK`);
             }
+        }
+    }, 1000000000);
+
+    test('huge_2pow16_leaves_provable_test', async () => {
+        const merkleTreeLeafAttestorAnalysis =
+            await MerkleTreeLeafAttestor.analyzeMethods();
+        logger.log(
+            `MerkleTreeLeafAttestor analyze methods gates length '${merkleTreeLeafAttestorAnalysis.compute.gates.length}'.`
+        );
+
+        const { verificationKey } = await MerkleTreeLeafAttestor.compile({
+            forceRecompile: true,
+        });
+        logger.log(
+            `MerkleTreeLeafAttestor contract compiled vk: '${verificationKey.hash}'.`
+        );
+
+        const nLeaves = 2 ** 16; // 65536
+        console.log(
+            `Building ${nLeaves} provable leaves (this may use significant memory)...`
+        );
+
+        const triples = new Array(nLeaves);
+        for (let i = 0; i < nLeaves; i++) {
+            triples[i] = [dummyAddress(i), dummyAttestation(i), dummyValue(i)];
+        }
+
+        const leafObjects = new Array(nLeaves);
+        for (let i = 0; i < nLeaves; i++) {
+            leafObjects[i] = new ProvableLeafObject({
+                address: triples[i][0],
+                attestation: triples[i][1],
+                value: triples[i][2],
+            });
+        }
+
+        const leaves = buildLeaves(leafObjects);
+        const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
+        const zeros = getMerkleZeros(depth);
+
+        console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
+
+        const rustLeaves = buildLeavesNonProvable(triples);
+        const rootViaFold = foldMerkleLeft(
+            rustLeaves,
+            paddedSize,
+            depth,
+            zeros
+        );
+        console.log(`   rootViaFold = ${rootViaFold.toBigInt()}`);
+
+        const indicesToCheck = [
+            0,
+            1,
+            Math.floor(nLeaves / 2),
+            nLeaves - 2,
+            nLeaves - 1,
+        ];
+
+        for (const index of indicesToCheck) {
+            console.log(`Verifying index ${index} / ${nLeaves}`);
+
+            const pathFold = getMerklePathFromLeaves(leaves.slice(), index);
+            const slotToFind = leafObjects[index];
+
+            const input = new MerkleTreeLeafAttestorInput({
+                rootHash: rootViaFold,
+                path: pathFold,
+                index: UInt64.from(index),
+                value: slotToFind,
+            });
+
+            const t0 = Date.now();
+            const output = await MerkleTreeLeafAttestor.compute(input);
+            const t1 = Date.now();
+
+            expect(output.proof.publicOutput.toBigInt()).toBe(
+                rootViaFold.toBigInt()
+            );
+
+            console.log(
+                `     ✅ [nLeaves=${nLeaves}, index=${index}] OK (took ${
+                    t1 - t0
+                } ms)`
+            );
         }
     }, 1000000000);
 });

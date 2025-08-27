@@ -51,7 +51,7 @@ async function proofConversionServiceRequest(
     return json;
 }
 
-async function fetchContractWindowSlotProofs(depositBlockNumber: number) {
+async function fetchContractWindowSlotProofs(depositBlockNumber: number, domain = 'https://pcs.nori.it.com') {
     console.log(
         `Fetching proof bundle for deposit with block number: ${depositBlockNumber}`
     );
@@ -63,7 +63,7 @@ async function fetchContractWindowSlotProofs(depositBlockNumber: number) {
             contract_storage_slots: consensusMPTProofContractStorageSlots,
         },
         consensusMPTProofVerification: consensusMPTProofVerification,
-    } = await proofConversionServiceRequest(depositBlockNumber);
+    } = await proofConversionServiceRequest(depositBlockNumber, domain);
     console.timeEnd('proofConversionServiceRequest');
 
     console.log(
@@ -122,25 +122,25 @@ export async function computeDepositAttestation(
     console.log(
         `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const despositSlotRaw = paddedConsensusMPTProofContractStorageSlots[depositIndex];
+    const despositSlotRaw =
+        paddedConsensusMPTProofContractStorageSlots[depositIndex];
     const totalDespositedValue = despositSlotRaw.value; // this is a hex // would be nice here to print a bigint
     console.log(`Total deposited to date (hex): ${totalDespositedValue}`);
 
     // Build contract storage slots (to be hashed)
-    const contractStorageSlots = paddedConsensusMPTProofContractStorageSlots.map(
-        (slot) => {
+    const contractStorageSlots =
+        paddedConsensusMPTProofContractStorageSlots.map((slot) => {
             const addr = slot.slot_key_address;
             const attr = slot.slot_nested_key_attestation_hash;
             const value = slot.value;
-            console.log({addr, attr, value});
+            console.log({ addr, attr, value });
             return new ContractDeposit({
                 address: Bytes20.fromHex(addr.slice(2)),
                 attestationHash: Bytes32.fromHex(attr.slice(2)),
-                value: Bytes32.fromHex(value.slice(2))
+                value: Bytes32.fromHex(value.slice(2)),
             });
-        }
-    );
-    
+        });
+
     // Select our deposit
     const depositSlot = contractStorageSlots[depositIndex];
 
