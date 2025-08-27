@@ -1,6 +1,7 @@
-import { CredentialAttestationWorker } from './node/parent.js';
+import { getCredentialAttestationWorker } from './node/parent.js';
 
 describe('CredentialAttestationWorker', () => {
+    const CredentialAttestationWorker = getCredentialAttestationWorker();
     let credentialAttestationWorker = new CredentialAttestationWorker();
     afterAll(() => {
         credentialAttestationWorker.terminate();

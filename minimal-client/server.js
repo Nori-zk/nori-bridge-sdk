@@ -4,7 +4,7 @@ import http from "http";
 import httpProxy from "http-proxy";
 
 const app = express();
-const port = 4002;
+const port = 4003;
 
 // ---- COOP/COEP + no caching ----
 app.use((req, res, next) => {

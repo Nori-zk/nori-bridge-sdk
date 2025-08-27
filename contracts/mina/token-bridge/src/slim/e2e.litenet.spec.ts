@@ -19,11 +19,11 @@ import {
 } from '../rx/deposit.js';
 import { signSecretWithEthWallet } from '../ethSignature.js';
 import { getSecretHashFromPresentationJson } from '../credentialAttestation.js';
-import { TokenMintWorker } from './workers/tokenMint/node/parent.js';
-import { TokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
+import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 //import { TokenMintWorkerSlim } from './workers/tokenMint/worker.js';
 import { obtainDepositAttestationInputsJson } from './depositAttestation.js';
-import { CredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
+import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 
 describe('e2e', () => {
     // Define litenet mina config
@@ -35,11 +35,12 @@ describe('e2e', () => {
     let tokenBaseAddressBase58: string;
     let noriTokenControllerAddressBase58: string;
 
-    beforeAll(async () => {
+    test('e2e_complete', async () => {
         // DEPLOY TEST CONTRACTS **************************************************
         // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
         // Use the worker to be able to reclaim some ram
         console.log('Deploying contract.');
+        const TokenDeployerWorker = getTokenDeployerWorker();
         const tokenDeployer = new TokenDeployerWorker();
         const storageInterfaceVerificationKeySafe: {
             data: string;
@@ -74,12 +75,18 @@ describe('e2e', () => {
         tokenBaseAddressBase58 = tokenBaseAddress;
         noriTokenControllerAddressBase58 = noriTokenControllerAddress;
         tokenDeployer.terminate();
-    });
 
-    test('e2e_complete', async () => {
+        console.log('tokenBaseAddressBase58', tokenBaseAddressBase58);
+        console.log(
+            'noriTokenControllerAddressBase58',
+            noriTokenControllerAddressBase58
+        );
+
         let depositProcessingStatusSubscription: Subscription;
         try {
             // INIT WORKERS **************************************************
+            const CredentialAttestationWorker =
+                getCredentialAttestationWorker();
             const credentialAttestationWorker =
                 new CredentialAttestationWorker();
 
@@ -127,12 +134,13 @@ describe('e2e', () => {
             console.log('Creating credential');
             console.time('createCredential');
             // This would be sent from the CLIENT to the WALLET to store.
-            const credentialJson = await credentialAttestationWorker.computeCredential(
-                secret,
-                ethSecretSignature,
-                ethWallet.address,
-                senderPublicKeyBase58
-            );
+            const credentialJson =
+                await credentialAttestationWorker.computeCredential(
+                    secret,
+                    ethSecretSignature,
+                    ethWallet.address,
+                    senderPublicKeyBase58
+                );
             console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
 
             // CLIENT *******************
@@ -241,6 +249,7 @@ describe('e2e', () => {
 
             // Compile tokenMintWorker dependancies
             console.log('Compiling dependancies of tokenMintWorker');
+            const TokenMintWorker = getTokenMintWorker();
             const tokenMintWorker = new TokenMintWorker();
             const tokenMintWorkerReady = tokenMintWorker.compileMinterDeps();
 

@@ -30,6 +30,7 @@ export class WorkerParent implements WorkerParentChildInterface {
     }
 
     terminate(): void {
+        console.log('Calling terminate on worker', this.worker, this);
         this.worker.terminate();
     }
 }

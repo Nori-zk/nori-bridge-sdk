@@ -9,9 +9,13 @@ type CredentialAttestationWorkerInst = InstanceType<
 export const noriTokenControllerAddressBase58 =
     'B62qjjbAsmyjEYkUQQbwzVLBxUc66cLp48vxgT582UxK15t1E3LPUNs'; // This should be an env var! Will change in testnet vs production
 
-const worker = new Worker(new URL('./zkappWorker.js', import.meta.url), {
-    type: 'module',
-});
-const workerParent = new WorkerParent(worker);
-export const CredentialAttestationWorker =
-    createProxy<typeof CredentialAttestationWorkerType>(workerParent);
+export function getCredentialWorker() {
+    const worker = new Worker(
+        new URL(`./zkappWorker.${process.env.BUILD_HASH}.js`, import.meta.url),
+        {
+            type: 'module',
+        }
+    );
+    const workerParent = new WorkerParent(worker);
+    return createProxy<typeof CredentialAttestationWorkerType>(workerParent);
+}

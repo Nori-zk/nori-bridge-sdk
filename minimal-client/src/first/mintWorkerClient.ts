@@ -12,9 +12,13 @@ export const noriTokenControllerAddressBase58 =
 export const noriTokenBaseBase58 =
     'B62qjRLSRy5M1eEndnDyvT9ND8wdiNE3UpnH1KSoTgQyEtwNgDfebxx';
 
-const worker = new Worker(new URL('./mintWorker.js', import.meta.url), {
-    type: 'module',
-});
-const workerParent = new WorkerParent(worker);
-export const TokenMintWorker =
-    createProxy<typeof TokenMintWorkerType>(workerParent);
+export function getTokenMintWorker() {
+    const worker = new Worker(
+        new URL(`./mintWorker.${process.env.BUILD_HASH}.js`, import.meta.url),
+        {
+            type: 'module',
+        }
+    );
+    const workerParent = new WorkerParent(worker);
+    return createProxy<typeof TokenMintWorkerType>(workerParent);
+}

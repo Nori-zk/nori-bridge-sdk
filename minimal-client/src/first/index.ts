@@ -14,8 +14,8 @@ import {
     readyToComputeMintProof,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { TokenMintWorker } from './mintWorkerClient.js';
-import { CredentialAttestationWorker } from './zkappWorkerClient.js';
+import { getTokenMintWorker } from './mintWorkerClient.js';
+import { getCredentialWorker } from './zkappWorkerClient.js';
 import { Subscription } from 'rxjs';
 
 console.log('something changed');
@@ -143,6 +143,7 @@ try {
 
     // INIT WORKER **************************************************
     console.log('Fetching credential worker.');
+    const CredentialAttestationWorker = getCredentialWorker();
     const credentialAttestationWorker = new CredentialAttestationWorker();
 
     // READY CREDENTIAL ATTESTATION WORKER **************************************
@@ -297,7 +298,7 @@ try {
     });
 
     // COMPUTE DEPOSIT ATTESTATION **************************************************
-
+    const TokenMintWorker = getTokenMintWorker();
     const tokenMintWorker = new TokenMintWorker();
 
     // Compile tokenMintWorker dependancies

@@ -1,6 +1,6 @@
 import { getTokenMintWorker } from './mintWorkerClient.js';
 import { getCredentialWorker } from './zkappWorkerClient.js';
-console.log('COMPILING BUILD', process.env.BUILD_HASH);
+console.log('COMPILING BUILD (TRYING FIRST AND NOT SLIM)', process.env.BUILD_HASH);
 const CredentialWorker = getCredentialWorker();
 const credentialWorker = new CredentialWorker();
 await credentialWorker.compile();

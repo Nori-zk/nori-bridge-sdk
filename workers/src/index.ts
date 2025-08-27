@@ -406,7 +406,7 @@ export function createProxy<T extends new (...args: any) => any>(
                         );
                     }
                     if (propName === 'terminate')
-                        return parentBase.terminate.bind(parentBase);
+                        return () => parentBase.terminate();
                     if (propName === 'ready') return ready;
                     return async (...args: any[]) =>
                         parentBase.call(propName, ...args);

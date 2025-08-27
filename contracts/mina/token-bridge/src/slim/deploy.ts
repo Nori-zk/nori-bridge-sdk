@@ -1,5 +1,5 @@
 import { PrivateKey } from 'o1js';
-import { TokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 
 import 'dotenv/config';
 
@@ -85,6 +85,7 @@ export async function deployTokenController() {
     });*/
 
     console.log('Deploying contract.');
+    const TokenDeployerWorker = getTokenDeployerWorker();
     const tokenDeployer = new TokenDeployerWorker();
     const storageInterfaceVerificationKeySafe: {
         data: string;

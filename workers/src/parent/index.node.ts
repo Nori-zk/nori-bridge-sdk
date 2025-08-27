@@ -106,6 +106,7 @@ export class WorkerParent implements WorkerParentChildInterface {
     }
 
     terminate(): void {
+        console.log('Calling terminate on worker', this.child, this);
         this.child.removeAllListeners();
         this.child.kill();
     }
