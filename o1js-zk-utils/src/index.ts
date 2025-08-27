@@ -22,7 +22,7 @@ export {
 
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
 
-export { EthVerifier, EthProof, EthInput } from './ethVerifier.js';
+export { EthVerifier, EthProof, EthInput, EthProofType } from './ethVerifier.js';
 
 export * from './types.js';
 

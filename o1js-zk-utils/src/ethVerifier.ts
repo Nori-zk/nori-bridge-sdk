@@ -99,4 +99,6 @@ const EthVerifier = ZkProgram({
 
 const EthProof = ZkProgram.Proof(EthVerifier);
 
+export class EthProofType extends EthProof {}
+
 export { EthVerifier, EthProof, EthInput };

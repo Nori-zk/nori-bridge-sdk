@@ -7,7 +7,8 @@
         "o1js-zk-utils",
         "contracts/mina/eth-processor",
         "contracts/mina/token-bridge",
-        "contracts/ethereum"
+        "contracts/ethereum",
+        "minimal-client"
     ],
     "devDependencies": {
         "npm-workspaces-publish-tool": "^0.0.8",
