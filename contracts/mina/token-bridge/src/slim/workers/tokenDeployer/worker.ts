@@ -120,9 +120,10 @@ export class TokenDeployerWorker {
         );
         const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
         const storageInterfaceVerificationKey = { data, hash };
-
+        console.log('adminPrivateKeyBase58', !!adminPrivateKeyBase58);
         const adminPrivateKey = PrivateKey.fromBase58(adminPrivateKeyBase58);
         const adminPublicKey = adminPrivateKey.toPublicKey();
+        console.log('senderPrivateKeyBase58', !!senderPrivateKeyBase58);
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
 
         const ethProcessorAddress = PublicKey.fromBase58(
@@ -136,6 +137,7 @@ export class TokenDeployerWorker {
         const allowUpdates = options.allowUpdates ?? true;
         const startPaused = Bool(options.startPaused ?? false);
 
+        
         const senderPublicKey = senderPrivateKey.toPublicKey();
 
         const noriTokenControllerPrivateKey = PrivateKey.fromBase58(

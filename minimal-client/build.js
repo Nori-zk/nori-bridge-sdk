@@ -109,7 +109,7 @@ async function buildSlim() {
   console.log("Build completed successfully.");
 }
 
-buildSlim().catch((err) => {
+buildFirst().catch((err) => {
   console.error("Build failed:", err);
   process.exit(1);
 });

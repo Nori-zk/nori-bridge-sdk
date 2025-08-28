@@ -18,7 +18,6 @@ import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 import { BigNumberish, ethers, TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { obtainDepositAttestationInputsJson } from './depositAttestation.js';
 import { wordToBytes } from '@nori-zk/proof-conversion/build/src/index.min.js';
 
 function validateEnv(): {
@@ -148,7 +147,8 @@ describe('e2e_testnet', () => {
 
             // INIT WORKERS **************************************************
             console.log('Fetching workers.');
-            const CredentialAttestationWorker = getCredentialAttestationWorker();
+            const CredentialAttestationWorker =
+                getCredentialAttestationWorker();
             const credentialAttestationWorker =
                 new CredentialAttestationWorker();
 
@@ -391,27 +391,19 @@ describe('e2e_testnet', () => {
             // Throws if we have missed our minting opportunity.
             await readyToComputeMintProof(depositProcessingStatus$);
 
-            console.log('Computing eth deposit proof.');
-            /*const { ethDepositProofJson } =
-                await tokenMintWorker.computeEthDeposit(
-                    presentationJsonStr,
-                    depositBlockNumber,
-                    ethAddressLowerHex
-                );*/
-            // Fetch proof deps
-            const proofInputs = await obtainDepositAttestationInputsJson(
-                depositBlockNumber,
-                ethAddressLowerHex,
-                credentialAttestationBEHex
+            // Compute eth verifier and deposit witness
+            console.log(
+                'Computing eth verifier and calculating deposit witness.'
             );
-
-            const ethVerifierProofJson =
-                await tokenMintWorker.computeEthVerifier(
-                    proofInputs.consensusMPTProofProof,
-                    proofInputs.consensusMPTProofVerification
+            const { ethVerifierProofJson, depositAttestationInput } =
+                await tokenMintWorker.computeDepositAttestationWitnessAndEthVerifier(
+                    depositBlockNumber,
+                    ethAddressLowerHex,
+                    credentialAttestationBEHex
                 );
-
-            console.log('Computed eth verifier inputs');
+            console.log(
+                'Computed eth verifier and calculated deposit witness.'
+            );
 
             // PRE-COMPUTE MINT PROOF ****************************************************
 
@@ -432,7 +424,7 @@ describe('e2e_testnet', () => {
                     ethVerifierProofJson,
                     presentationProofStr: presentationJsonStr,
                 },
-                proofInputs,
+                depositAttestationInput,
                 1e9 * 0.1,
                 needsToFundAccount
             );

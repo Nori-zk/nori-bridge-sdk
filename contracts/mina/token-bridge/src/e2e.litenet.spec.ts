@@ -63,6 +63,7 @@ describe('e2e', () => {
             const ethProcessorAddress = PrivateKey.random()
                 .toPublicKey()
                 .toBase58();
+            console.log('Eth processor address', ethProcessorAddress);
             await tokenDeployer.minaSetup(minaConfig);
             const {
                 tokenBaseAddress: tokenBaseAddressBase58,
@@ -87,6 +88,7 @@ describe('e2e', () => {
             const litenetSk = await getNewMinaLiteNetAccountSK();
             const senderPrivateKey = PrivateKey.fromBase58(litenetSk);
             const senderPrivateKeyBase58 = senderPrivateKey.toBase58();
+            console.log('senderPrivateKey.toPublickKey',senderPrivateKey);
             const senderPublicKey = senderPrivateKey.toPublicKey();
             const senderPublicKeyBase58 = senderPublicKey.toBase58();
 
@@ -371,7 +373,13 @@ describe('e2e', () => {
             console.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
-        } finally {
+        }
+        catch(e: unknown) {
+            const error = e as Error;
+            console.error(error.stack);
+            throw e;
+        }
+        finally {
             if (depositProcessingStatusSubscription)
                 depositProcessingStatusSubscription.unsubscribe();
         }

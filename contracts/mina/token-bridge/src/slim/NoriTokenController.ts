@@ -24,8 +24,12 @@ import {
 } from '../types.js';
 import { ProvableEcdsaSigPresentation } from '../credentialAttestation.js';
 import { EthProofType } from '@nori-zk/o1js-zk-utils';
-import { attestContractDeposit, MerkleTreeContractDepositAttestorInput, verifyDepositAttestationRoot } from './depositAttestation.js';
-
+import {
+    getContractDepositSlotRootFromContractDepositAndWitness,
+    contractDepositCredentialAndTotalLockedToFields,
+    MerkleTreeContractDepositAttestorInput,
+    verifyDepositSlotRoot,
+} from './depositAttestation.js';
 
 export interface MintProofData {
     ethVerifierProof: EthProofType;
@@ -120,6 +124,7 @@ export class NoriTokenController
         this.adminPublicKey.requireEquals(admin);
         return AccountUpdate.createSigned(admin);
     }
+
     @method public async noriMint(
         ethVerifierProof: EthProofType,
         presentationProof: ProvableEcdsaSigPresentation,
@@ -135,30 +140,39 @@ export class NoriTokenController
             methodName: 'verifyPresentation', // TODO RENAME
         });
 
-        // Validate eth verifier
+        // Validate consensus mpt proof which includes the deposit contract slot root.
         ethVerifierProof.verify();
 
         // Calculate the deposit slot root
-        const contractDepositSlotRoot = attestContractDeposit(
+        // This just proves that the index and value with the witness yield a root
+        // Aka some value exists at some index and yields a certain root
+        const contractDepositSlotRoot = getContractDepositSlotRootFromContractDepositAndWitness(
             merkleTreeContractDepositAttestorInput
         );
 
-        // Validate with eth verifier and extract values
-        const ethDepositVerifiedData = verifyDepositAttestationRoot(
+        // Validates that the generated root and the contractDepositSlotRoot within the eth proof match.
+        verifyDepositSlotRoot(
             contractDepositSlotRoot,
-            merkleTreeContractDepositAttestorInput,
             ethVerifierProof
         );
 
+        // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
+        const { totalLocked, attestationHash } =
+            contractDepositCredentialAndTotalLockedToFields(
+                merkleTreeContractDepositAttestorInput
+            );
+
+        // Verify the presentation claim vs the attestation hash credential.
+        // Proves ownership of the deposited value 'totalLocked'
         Provable.asProver(() => {
             Provable.log(
                 'ethDepositProof.publicOutput.attestationHash',
                 'outputClaim.messageHash',
-                ethDepositVerifiedData.attestationHash,
+                attestationHash,
                 outputClaim.messageHash
             );
         });
-        ethDepositVerifiedData.attestationHash.assertEquals(
+        attestationHash.assertEquals(
             outputClaim.messageHash
         );
 
@@ -181,7 +195,7 @@ export class NoriTokenController
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
         const amountToMint = await storage.increaseMintedAmount(
-            ethDepositVerifiedData.totalLocked
+            totalLocked
         ); // TODO test mint amount is sane.
         Provable.log(amountToMint, 'amount to mint');
 
