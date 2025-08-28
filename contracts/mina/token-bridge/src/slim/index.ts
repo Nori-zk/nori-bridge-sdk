@@ -1,1 +1,1 @@
-export { obtainDepositAttestationInputsJson } from "./depositAttestation.js";
+export { computeDepositAttestationWitnessAndEthVerifier as obtainDepositAttestationInputsJson } from "./depositAttestation.js";

@@ -6,6 +6,10 @@ import {
     getMerklePathFromLeaves,
     getMerkleZeros,
     foldMerkleLeft,
+    decodeConsensusMptProof,
+    EthInput,
+    NodeProofLeft,
+    EthVerifier,
 } from '@nori-zk/o1js-zk-utils';
 import { DynamicArray } from 'mina-attestations';
 import { Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
@@ -121,7 +125,7 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
     return Poseidon.hash([firstField, secondField, thirdField]);
 }
 
-export function attestContractDeposit(
+export function getContractDepositSlotRootFromContractDepositAndWitness(
     input: MerkleTreeContractDepositAttestorInput
 ) {
     let { index, path, rootHash } = input; // value
@@ -145,9 +149,8 @@ export function attestContractDeposit(
 
 // ----------------------- Verify deposit root ---------------------------
 // merkleTreeContractDepositAttestorInput
-export function verifyDepositAttestationRoot(
-    credentialAttestationHash: Field,
-    merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
+export function verifyDepositSlotRoot(
+    contractDepositSlotRoot: Field,
     ethVerifierProof: EthProofType
 ) {
     const ethVerifierStorageProofRootBytes =
@@ -170,12 +173,23 @@ export function verifyDepositAttestationRoot(
         Provable.log(
             'depositAttestationProofRoot',
             'ethVerifierStorageProofRoot',
-            credentialAttestationHash,
+            contractDepositSlotRoot,
             ethVerifierStorageProofRoot
         );
     });
-    credentialAttestationHash.assertEquals(ethVerifierStorageProofRoot);
+    contractDepositSlotRoot.assertEquals(ethVerifierStorageProofRoot);
 
+    const storageDepositRoot = ethVerifierStorageProofRoot;
+
+    return {
+        storageDepositRoot,
+    };
+}
+
+export function contractDepositCredentialAndTotalLockedToFields(
+    merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput
+) {
+    // Its pretty wierd to have this here now
     // Mock attestation assert
     const contractDepositAttestorPublicInputs =
         merkleTreeContractDepositAttestorInput.value;
@@ -191,18 +205,20 @@ export function verifyDepositAttestationRoot(
                 .add(contractDepositAttestorProofCredentialBytes[i].value);
     }
 
-    Provable.asProver(() => {
+    /*Provable.asProver(() => {
         Provable.log(
             'input.credentialAttestationHash',
             'contractDepositAttestorProofCredential',
-            credentialAttestationHash,
+            contractDepositSlotRoot,
             contractDepositAttestorProofCredential
         );
     });
 
-    credentialAttestationHash.assertEquals(
+    contractDepositSlotRoot.assertEquals(
         contractDepositAttestorProofCredential
-    );
+    );*/
+
+    // FIX ME ABOVE??? do we need to not test this here?
 
     Provable.asProver(() => {
         console.log(
@@ -216,27 +232,25 @@ export function verifyDepositAttestationRoot(
     const totalLockedBytes = contractDepositAttestorPublicInputs.value.bytes;
     let totalLocked = new Field(0);
     /*for (let i = 31; i >= 0; i--) {
-                    totalLocked = totalLocked
-                        .mul(256)
-                        .add(totalLockedBytes[i].value);
-                }*/
+        totalLocked = totalLocked
+            .mul(256)
+            .add(totalLockedBytes[i].value);
+    }*/
     for (let i = 0; i < 32; i++) {
         totalLocked = totalLocked.mul(256).add(totalLockedBytes[i].value);
     }
 
     // Perhaps flip this??
     // We interpret contractDepositAttestorProofCredential to BE so why not this??
-
-    const storageDepositRoot = ethVerifierStorageProofRoot;
     const attestationHash = contractDepositAttestorProofCredential;
 
     return {
         totalLocked,
-        storageDepositRoot,
         attestationHash,
     };
 }
 
+// fixme slot contractSlotDeposit language
 export function buildContractDepositLeaves(
     contractDeposits: ContractDeposit[]
 ): Field[] {
@@ -307,7 +321,9 @@ async function fetchContractWindowSlotProofs(
     };
 }
 
-export async function obtainDepositAttestationInputsJson(
+// This is more than just deposit attestation its eth verifier as well....
+// fetchProofsAndDepositAttestationInputs
+export async function computeDepositAttestationWitnessAndEthVerifier(
     depositBlockNumber: number,
     ethAddressLowerHex: string,
     attestationBEHex: string,
@@ -400,13 +416,35 @@ export async function obtainDepositAttestationInputsJson(
     console.timeEnd('foldMerkleLeft');
     console.log(`Computed Merkle root: ${rootHash.toString()}`);
 
+    console.log('Loaded sp1PlonkProof and conversionOutputProof');
+    const ethVerifierInput = new EthInput(
+        decodeConsensusMptProof(consensusMPTProofProof)
+    );
+    console.log('Decoded EthInput from MPT proof');
+
+    console.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
+
+    const rawProof = await NodeProofLeft.fromJSON(
+        consensusMPTProofVerification.proofData
+    );
+    console.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
+
+    console.log('Computing EthVerifier');
+    console.time('EthVerifier.compute');
+    const ethVerifierProof = (
+        await EthVerifier.compute(ethVerifierInput, rawProof)
+    ).proof;
+    console.timeEnd('EthVerifier.compute');
+
     console.log(`All proofs inputs built needed to compute mint proof!`);
+
     return {
-        depositIndex,
-        despositSlotRaw,
-        path: path.map((it) => it.toBigInt().toString()),
-        rootHash: rootHash.toBigInt().toString(),
-        consensusMPTProofProof,
-        consensusMPTProofVerification,
+        ethVerifierProofJson: ethVerifierProof.toJSON(),
+        depositAttestationInput: {
+            path: path.map((it) => it.toBigInt().toString()),
+            depositIndex,
+            rootHash: rootHash.toBigInt().toString(),
+            despositSlotRaw
+        },
     };
 }

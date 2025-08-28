@@ -21,8 +21,6 @@ import { signSecretWithEthWallet } from '../ethSignature.js';
 import { getSecretHashFromPresentationJson } from '../credentialAttestation.js';
 import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
-//import { TokenMintWorkerSlim } from './workers/tokenMint/worker.js';
-import { obtainDepositAttestationInputsJson } from './depositAttestation.js';
 import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 
 describe('e2e', () => {
@@ -261,25 +259,23 @@ describe('e2e', () => {
             // Throws if we have missed our minting opportunity
             await readyToComputeMintProof(depositProcessingStatus$);
 
-            // Fetch proof deps
-            const proofInputs = await obtainDepositAttestationInputsJson(
-                depositBlockNumber,
-                ethAddressLowerHex,
-                credentialAttestationBEHex
-            );
-
-            // Compute eth verifier
             // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
-            console.log('Computing eth processor');
             const noriTokenControllerVerificationKeySafe =
                 await tokenMintWorkerReady;
-            const ethVerifierProofJson =
-                await tokenMintWorker.computeEthVerifier(
-                    proofInputs.consensusMPTProofProof,
-                    proofInputs.consensusMPTProofVerification
-                );
 
-            console.log('Computed eth verifier inputs');
+            // Compute eth verifier and deposit witness
+            console.log(
+                'Computing eth verifier and calculating deposit witness.'
+            );
+            const { ethVerifierProofJson, depositAttestationInput } =
+                await tokenMintWorker.computeDepositAttestationWitnessAndEthVerifier(
+                    depositBlockNumber,
+                    ethAddressLowerHex,
+                    credentialAttestationBEHex
+                );
+            console.log(
+                'Computed eth verifier and calculated deposit witness.'
+            );
 
             // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE ***************************
 
@@ -295,9 +291,9 @@ describe('e2e', () => {
 
             // Configure wallet
             // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
-            /*await tokenMintWorker.WALLET_setMinaPrivateKey(
+            await tokenMintWorker.WALLET_setMinaPrivateKey(
                 senderPrivateKeyBase58
-            );*/
+            );
             await tokenMintWorker.minaSetup(minaConfig);
 
             console.log('Awaited compilation of tokenMintWorkerReady');
@@ -348,7 +344,7 @@ describe('e2e', () => {
                     ethVerifierProofJson,
                     presentationProofStr: presentationJsonStr,
                 },
-                proofInputs,
+                depositAttestationInput,
                 1e9 * 0.1,
                 needsToFundAccount // needsToFundAccount should resolve to be true for this test.
             );

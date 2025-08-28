@@ -181,6 +181,8 @@ export async function deployAndVerifyEcdsaSigPresentationVerifier(
     senderPrivateKey: PrivateKey,
     presentationJSON: string
 ) {
+    console.log('senderPrivateKey', senderPrivateKey);
+    console.log('zkAppPrivateKey', zkAppPrivateKey);
     const senderPublicKey = senderPrivateKey.toPublicKey();
     const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
     const zkApp = new EcdsaSigPresentationVerifier(zkAppPublicKey);

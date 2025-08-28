@@ -8,7 +8,7 @@ import {
     ProvableEcdsaSigPresentation,
     SecretMaxLength,
 } from '../../../credentialAttestation.js';
-import { decodeConsensusMptProof, EthInput, EthProofType, EthVerifier, NodeProofLeft } from '@nori-zk/o1js-zk-utils';
+import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
     fetchAccount,
@@ -29,9 +29,9 @@ import {
 import { Presentation } from 'mina-attestations';
 import {
     buildMerkleTreeContractDepositAttestorInput,
+    computeDepositAttestationWitnessAndEthVerifier,
     MerkleTreeContractDepositAttestorInputJson,
 } from '../../../slim/depositAttestation.js';
-import { PlonkOutput, Sp1 } from '@nori-zk/pts-types';
 
 export class TokenMintWorkerSlim {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -189,28 +189,18 @@ export class TokenMintWorkerSlim {
         );
     }
 
-    async computeEthVerifier(consensusMPTProofProof: Sp1,
-        consensusMPTProofVerification: PlonkOutput) {
-        console.log('Loaded sp1PlonkProof and conversionOutputProof');
-        const ethVerifierInput = new EthInput(
-            decodeConsensusMptProof(consensusMPTProofProof)
+    async computeDepositAttestationWitnessAndEthVerifier(
+        depositBlockNumber: number,
+        ethAddressLowerHex: string,
+        attestationBEHex: string,
+        domain = 'https://pcs.nori.it.com'
+    ) {
+        return computeDepositAttestationWitnessAndEthVerifier(
+            depositBlockNumber,
+            ethAddressLowerHex,
+            attestationBEHex,
+            domain
         );
-        console.log('Decoded EthInput from MPT proof');
-
-        console.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
-
-        const rawProof = await NodeProofLeft.fromJSON(
-            consensusMPTProofVerification.proofData
-        );
-        console.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
-
-        console.log('Computing EthVerifier');
-        console.time('EthVerifier.compute');
-        const ethVerifierProof = (
-            await EthVerifier.compute(ethVerifierInput, rawProof)
-        ).proof;
-        console.timeEnd('EthVerifier.compute');
-        return ethVerifierProof.toJSON();
     }
 
     // Storage setup ******************************************************************************
@@ -327,6 +317,7 @@ export class TokenMintWorkerSlim {
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
     ) {
         //const userPrivateKey = PrivateKey.fromBase58(userPrivateKeyBase58);
+        console.log('userPublicKeyBase58', userPublicKeyBase58);
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58); // userPrivateKey.toPublicKey();
         const noriTokenControllerAddress = PublicKey.fromBase58(
             noriTokenControllerAddressBase58
@@ -390,11 +381,13 @@ export class TokenMintWorkerSlim {
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         // FIXME do we need
         await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
+        console.log('fetched accounts');
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(
             noriTokenControllerAddress
         );
+        console.log('got token controller inst');
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -407,11 +400,17 @@ export class TokenMintWorkerSlim {
             }
         );
 
+        console.log('setup tx');
+
         const provedTx = await setupTx.prove();
 
-        const tx = await provedTx.sign([this.#minaPrivateKey]).send();
-        const result = await tx.wait();
+        console.log('provedTx', provedTx);
 
+        console.log('this.#minaPrivateKey', this.#minaPrivateKey);
+        const tx = await provedTx.sign([this.#minaPrivateKey]).send();
+        console.log('sent');
+        const result = await tx.wait();
+        console.log('result', result);
         console.log('Storage setup completed successfully');
         return { txHash: result.hash };
     }
@@ -448,7 +447,7 @@ export class TokenMintWorkerSlim {
 
     async compileMinterDeps() {
         await this.compileEthVerifier();
-        
+
         console.log('Compiling NoriStorageInterface');
         console.time('compileNoriStorageInterface');
         const { verificationKey: noriStorageInterfaceVerificationKey } =

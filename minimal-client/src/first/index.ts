@@ -1,7 +1,6 @@
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
 import { TransactionResponse, ethers, BigNumberish } from 'ethers';
 import { NetworkId, PrivateKey } from 'o1js';
-import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
@@ -18,7 +17,20 @@ import { getTokenMintWorker } from './mintWorkerClient.js';
 import { getCredentialWorker } from './zkappWorkerClient.js';
 import { Subscription } from 'rxjs';
 
-console.log('something changed');
+import { Bytes } from 'o1js';
+import { id } from 'ethers';
+import { Wallet } from 'ethers';
+
+async function signSecretWithEthWallet<FixedString extends string>(
+    secret: string,
+    ethWallet: Wallet
+) {
+    const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
+    const hashMessage = (msg: string) => parseHex(id(msg));
+    return await ethWallet.signMessage(hashMessage(secret as string));
+}
+
+console.log('THIS IS FIRST AND ITS WITH BUILD', process.env.BUILD_HASH);
 
 function validateEnv(): {
     ethPrivateKey: string;
