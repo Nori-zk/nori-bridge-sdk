@@ -17,7 +17,7 @@ export class WorkerParent implements WorkerParentChildInterface {
         });
     }
 
-    async send(msg: string) {
+    send(msg: string) {
         this.worker.postMessage(msg);
     }
 

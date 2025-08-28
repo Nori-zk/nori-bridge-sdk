@@ -14,7 +14,7 @@ export const noriTokenBaseBase58 =
 
 export function getTokenMintWorker() {
     const worker = new Worker(
-        new URL(`./mintWorker.${process.env.BUILD_HASH}.js`, import.meta.url),
+        new URL(`./first.mintWorker.${process.env.BUILD_HASH}.js`, import.meta.url),
         {
             type: 'module',
         }

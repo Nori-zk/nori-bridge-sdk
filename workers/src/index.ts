@@ -44,7 +44,7 @@ export interface WorkerParentChildInterface extends BaseWorkerEndpoint {
      * Sends a message to the parent.
      * @param data - The message string.
      */
-    send(data: string): Promise<void>;
+    send(data: string): void;
 
     /**
      * Terminates the child endpoint.
@@ -146,7 +146,7 @@ export class WorkerParentBase {
         this.pendingRequests.set(id, deferred);
 
         // Send the serialized message to the child
-        await this.child.send(messageStr);
+        this.child.send(messageStr);
 
         // Return the promise to the caller
         return deferred.promise;
@@ -211,6 +211,18 @@ export class WorkerParentBase {
     terminate() {
         this.child.terminate();
     }
+
+    /**
+     * Singals the child to terminate itself
+     */
+    signalTerminate() {
+        const terminateRequest = {
+            id: -2,
+            methodName: 'worker-terminate',
+            data: '',
+        };
+        this.child.send(JSON.stringify(terminateRequest));
+    }
 }
 
 /**
@@ -268,6 +280,15 @@ export class WorkerChildBase {
         }
 
         const { id, methodName, args = [] } = message;
+
+        if (methodName === 'worker-terminate') {
+            // Call the terminate function on the Child ParentInterface which
+            // will contain the endpoint (node or browser) terminate method.
+            console.log('Calling terminate on self', this.parent);
+            // So this is the child killing itself even though the 'parent' naming falls down hear.
+            // We are not requesting the parent thread/process terminate themselves. We are termining ourselves.
+            this.parent.terminate();
+        }
 
         // Lazy construction on "worker-construct"
         if (methodName === 'worker-construct') {
@@ -359,9 +380,9 @@ export function createWorker<T>(
  * The returned class mimics the worker's API and forwards calls through the worker
  * communication channel. Method calls return promises that resolve with the worker's response.
  *
- * **Buffering behavior:**  
- * - The constructor first sends a `'worker-construct'` request to spawn the worker.  
- * - All other method calls are automatically **queued until the worker is ready** (`ready` promise resolves).  
+ * **Buffering behavior:**
+ * - The constructor first sends a `'worker-construct'` request to spawn the worker.
+ * - All other method calls are automatically **queued until the worker is ready** (`ready` promise resolves).
  *   This ensures that calls can be made immediately after construction, without manually waiting for the worker.
  *
  * @param child - The parent-side endpoint connected to the child (implements WorkerParentChildInterface)
@@ -407,18 +428,22 @@ export function createProxy<T extends new (...args: any) => any>(
                     }
                     if (propName === 'terminate')
                         return () => parentBase.terminate();
+                    if (propName === 'signalTerminate')
+                        return () => parentBase.signalTerminate();
                     if (propName === 'ready') return ready;
                     return async (...args: any[]) =>
                         parentBase.call(propName, ...args);
                 },
             }) as InstanceType<T> & {
                 terminate(): void;
+                signalTerminate(): void;
                 ready: Promise<void>;
             };
         }
     } as {
         new (...args: ConstructorArgs): InstanceType<T> & {
             terminate(): void;
+            signalTerminate(): void;
             ready: Promise<void>;
         };
     };

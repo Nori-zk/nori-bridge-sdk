@@ -43,10 +43,12 @@ function loadTSConfig(scriptPath: string): ts.CompilerOptions {
 }
 
 /** Resolves a worker URL to its emitted JS path using tsconfig.json */
-export function getWorkerUrl(url: URL): string {
+/*export function getWorkerUrl(url: URL): string {
     try {
         const filePath = fileURLToPath(url);
         const opts = loadTSConfig(filePath);
+
+        console.log('ts opts', opts);
 
         const rootDir = opts.rootDir ?? '.';
         const outDir = opts.outDir ?? 'build';
@@ -60,6 +62,38 @@ export function getWorkerUrl(url: URL): string {
         const fallback = path.resolve('build', path.basename(fileURLToPath(url)).replace(/\.(ts|mts|cts)$/, '.js'));
         return fallback;
     }
+}*/
+export function getWorkerUrl(url: URL): string {
+    const filePath = fileURLToPath(url);
+    const opts = loadTSConfig(filePath);
+
+    const configPath = findTSConfig(filePath);
+    const configDir = configPath ? path.dirname(configPath) : path.dirname(filePath);
+
+    // If no outDir configured, just return the incoming path (nothing to do).
+    if (!opts.outDir) return filePath;
+
+    // Absolute outDir based on tsconfig location
+    const outDirAbs = path.resolve(configDir, opts.outDir);
+
+    // If file is already inside outDir, return it unchanged (prevents outDir/outDir duplication)
+    const relToOut = path.relative(outDirAbs, filePath);
+    if (!relToOut.startsWith('..') && !path.isAbsolute(relToOut)) {
+        return filePath;
+    }
+
+    // Compute path relative to the tsconfig directory (where sources usually live)
+    // If that yields an outside path, fall back to just the basename so we still resolve sensibly.
+    let relFromConfig = path.relative(configDir, filePath);
+    if (relFromConfig.startsWith('..') || path.isAbsolute(relFromConfig) || relFromConfig === '') {
+        relFromConfig = path.basename(filePath);
+    }
+
+    // Build candidate path inside outDir (do NOT change extension)
+    const candidate = path.resolve(outDirAbs, relFromConfig);
+
+    // If compiled file exists in outDir, return it; otherwise return original path.
+    return fs.existsSync(candidate) ? candidate : filePath;
 }
 
 export class WorkerParent implements WorkerParentChildInterface {
@@ -93,7 +127,7 @@ export class WorkerParent implements WorkerParentChildInterface {
         });
     }
 
-    async send(data: string): Promise<void> {
+    send(data: string): void {
         this.child.send?.(data);
     }
 

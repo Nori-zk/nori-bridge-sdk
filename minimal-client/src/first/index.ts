@@ -16,7 +16,6 @@ import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { getTokenMintWorker } from './mintWorkerClient.js';
 import { getCredentialWorker } from './zkappWorkerClient.js';
 import { Subscription } from 'rxjs';
-
 import { Bytes } from 'o1js';
 import { id } from 'ethers';
 import { Wallet } from 'ethers';

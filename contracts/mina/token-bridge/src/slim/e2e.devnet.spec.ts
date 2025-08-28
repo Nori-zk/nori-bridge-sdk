@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Bytes, Field, NetworkId, PrivateKey } from 'o1js';
+import { NetworkId, PrivateKey } from 'o1js';
 import { getReconnectingBridgeSocket$ } from '../rx/socket.js';
 import {
     getBridgeStateTopic$,
@@ -18,7 +18,6 @@ import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
 import { BigNumberish, ethers, TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { wordToBytes } from '@nori-zk/proof-conversion/build/src/index.min.js';
 
 function validateEnv(): {
     ethPrivateKey: string;
@@ -145,8 +144,8 @@ describe('e2e_testnet', () => {
             const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
             const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
-            // INIT WORKERS **************************************************
-            console.log('Fetching workers.');
+            // INIT CRED WORKER **************************************************
+            console.log('Fetching cred worker.');
             const CredentialAttestationWorker =
                 getCredentialAttestationWorker();
             const credentialAttestationWorker =
@@ -230,13 +229,6 @@ describe('e2e_testnet', () => {
             const messageHashString =
                 presentation.outputClaim.value.messageHash.value;
             const credentialAttestationBigInt = BigInt(messageHashString);
-            const credentialAttestationHashField = Field.from(
-                credentialAttestationBigInt
-            );
-            const beAttestationHashBytes = Bytes.from(
-                wordToBytes(credentialAttestationHashField, 32).reverse()
-            );
-            const credentialAttestationBEHex = `0x${beAttestationHashBytes.toHex()}`;
 
             // CONNECT TO BRIDGE **************************************************
 
@@ -325,9 +317,12 @@ describe('e2e_testnet', () => {
 
             // COMPUTE DEPOSIT ATTESTATION **************************************************
 
+            // INIT CRED WORKER **************************************************
+            console.log('Fetching cred worker.');
+            const TokenMintWorker = getTokenMintWorker();
+
             // Compile tokenMintWorker dependancies
             console.log('Compiling dependancies of tokenMintWorker');
-            const TokenMintWorker = getTokenMintWorker();
             const tokenMintWorker = new TokenMintWorker();
             const tokenMintWorkerReady = tokenMintWorker.compileAll(); // ?? Can we move this earlier...
 
@@ -397,9 +392,9 @@ describe('e2e_testnet', () => {
             );
             const { ethVerifierProofJson, depositAttestationInput } =
                 await tokenMintWorker.computeDepositAttestationWitnessAndEthVerifier(
+                    presentationJsonStr,
                     depositBlockNumber,
-                    ethAddressLowerHex,
-                    credentialAttestationBEHex
+                    ethAddressLowerHex
                 );
             console.log(
                 'Computed eth verifier and calculated deposit witness.'

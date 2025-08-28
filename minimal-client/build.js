@@ -1,9 +1,8 @@
-import * as esbuild from "esbuild";
-import { config } from "dotenv";
-import fs from "fs";
-import path from "path";
+import * as esbuild from 'esbuild';
+import { config } from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
-// ---- generate random hash at top ----
 const HASH = Math.random().toString(36).slice(2, 10);
 
 const env = config().parsed || {};
@@ -12,7 +11,7 @@ const envObject = JSON.stringify(env);
 
 const define = {};
 for (const k in env) define[`process.env.${k}`] = JSON.stringify(env[k]);
-define["process.env"] = envObject;
+define['process.env'] = envObject;
 
 const banner = `
 if(typeof globalThis.process==='undefined'){
@@ -22,16 +21,8 @@ if(typeof globalThis.process==='undefined'){
 }
 `;
 
-// ---- filenames with hash ----
-const files = {
-  bundle: `bundle.${HASH}.js`,
-  mintWorker: `mintWorker.${HASH}.js`,
-  zkappWorker: `zkappWorker.${HASH}.js`,
-};
-
-// ---- write index.html dynamically ----
-function writeHtml() {
-  const html = `<!DOCTYPE html>
+function writeHtml(bundleFileName) {
+    const html = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -39,77 +30,75 @@ function writeHtml() {
   </head>
   <body>
     <h1>Minting example</h1>
-    <script type="module" src="./${files.bundle}"></script>
+    <script type="module" src="./${bundleFileName}"></script>
   </body>
 </html>`;
-  fs.writeFileSync(path.resolve("public/index.html"), html, "utf8");
+    fs.writeFileSync(path.resolve('public/index.html'), html, 'utf8');
 }
 
-async function buildFirst() {
-  await esbuild.build({
-    entryPoints: ["src/index.ts"],
-    bundle: true,
-    outfile: `public/${files.bundle}`,
-    format: "esm",
-    define,
-    banner: { js: banner },
-  });
+async function buildWorkers() {
+    // Build first workers
+    const firstMintWorker = `first.mintWorker.${HASH}.js`;
+    const firstZkappWorker = `first.zkappWorker.${HASH}.js`;
 
-  await esbuild.build({
-    entryPoints: ["src/first/mintWorker.ts"],
-    bundle: true,
-    outfile: `public/${files.mintWorker}`,
-    format: "esm",
-    define,
-    banner: { js: banner },
-  });
+    await esbuild.build({
+        entryPoints: ['src/first/mintWorker.ts'],
+        bundle: true,
+        outfile: `public/${firstMintWorker}`,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
 
-  await esbuild.build({
-    entryPoints: ["src/first/zkappWorker.ts"],
-    bundle: true,
-    outfile: `public/${files.zkappWorker}`,
-    format: "esm",
-    define,
-    banner: { js: banner },
-  });
+    await esbuild.build({
+        entryPoints: ['src/first/zkappWorker.ts'],
+        bundle: true,
+        outfile: `public/${firstZkappWorker}`,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
 
-  writeHtml();
-  console.log("Build completed successfully.");
+    // Build slim workers
+    const slimMintWorker = `slim.mintWorker.${HASH}.js`;
+    const slimZkappWorker = `slim.zkappWorker.${HASH}.js`;
+
+    await esbuild.build({
+        entryPoints: ['src/slim/mintWorker.ts'],
+        bundle: true,
+        outfile: `public/${slimMintWorker}`,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
+
+    await esbuild.build({
+        entryPoints: ['src/slim/zkappWorker.ts'],
+        bundle: true,
+        outfile: `public/${slimZkappWorker}`,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
 }
 
-async function buildSlim() {
-  await esbuild.build({
-    entryPoints: ["src/index.ts"],
-    bundle: true,
-    outfile: `public/${files.bundle}`,
-    format: "esm",
-    define,
-    banner: { js: banner },
-  });
-
-  await esbuild.build({
-    entryPoints: ["src/slim/mintWorker.ts"],
-    bundle: true,
-    outfile: `public/${files.mintWorker}`,
-    format: "esm",
-    define,
-    banner: { js: banner },
-  });
-
-  await esbuild.build({
-    entryPoints: ["src/slim/zkappWorker.ts"],
-    bundle: true,
-    outfile: `public/${files.zkappWorker}`,
-    format: "esm",
-    define,
-    banner: { js: banner },
-  });
-
-  writeHtml();
-  console.log("Build completed successfully.");
+async function buildIndex() {
+    const bundleFileName = `bundle.${HASH}.js`;
+    await esbuild.build({
+        entryPoints: ['src/index.ts'],
+        bundle: true,
+        outfile: `public/${bundleFileName}`,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
+    writeHtml(bundleFileName);
+    console.log('Build completed successfully.');
 }
 
-buildFirst().catch((err) => {
-  console.error("Build failed:", err);
-  process.exit(1);
-});
+buildIndex()
+    .then(() => buildWorkers())
+    .catch((err) => {
+        console.error('Build failed:', err);
+        process.exit(1);
+    });

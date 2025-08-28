@@ -11,7 +11,7 @@ export const noriTokenControllerAddressBase58 =
 
 export function getCredentialWorker() {
     const worker = new Worker(
-        new URL(`./zkappWorker.${process.env.BUILD_HASH}.js`, import.meta.url),
+        new URL(`./first.zkappWorker.${process.env.BUILD_HASH}.js`, import.meta.url),
         {
             type: 'module',
         }

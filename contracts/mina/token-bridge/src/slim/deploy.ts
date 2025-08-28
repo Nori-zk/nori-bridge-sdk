@@ -1,7 +1,6 @@
+import 'dotenv/config';
 import { PrivateKey } from 'o1js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
-
-import 'dotenv/config';
 
 export async function deployTokenController() {
     console.log('Deploying Nori Token Controller...');
@@ -83,8 +82,13 @@ export async function deployTokenController() {
         decimals: 18,
         allowUpdates: true,
     });*/
+    let ethProcessorAddress: string = config.ethProcessorAddress;
+    if (!ethProcessorAddress) {
+        console.log('Inventing a random eth processor address.');
+        ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
+    }
 
-    console.log('Deploying contract.');
+    console.log('Constructing and compiling token deployer worker.');
     const TokenDeployerWorker = getTokenDeployerWorker();
     const tokenDeployer = new TokenDeployerWorker();
     const storageInterfaceVerificationKeySafe: {
@@ -96,16 +100,37 @@ export async function deployTokenController() {
     const contractSenderPrivateKeyBase58 = contractSenderPrivateKey.toBase58();
     const tokenControllerPrivateKey = PrivateKey.random();
     const tokenBasePrivateKey = PrivateKey.random();
-    const ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
-    await tokenDeployer.minaSetup(minaConfig);*/
+    
+    */
+    console.log('Calling minaSetup.');
+    await tokenDeployer.minaSetup({
+        networkId: network,
+        mina: networkUrl,
+    });
 
+    /*console.log('deployContracts call args:', {
+        senderPrivateKey: config.senderPrivateKey,
+        adminPublicKey: config.adminPublicKey,
+        noriTokenControllerPrivateKey: config.noriTokenControllerPrivateKey,
+        tokenBasePrivateKey: config.tokenBasePrivateKey,
+        ethProcessorAddress,
+        storageInterfaceVerificationKeySafe,
+        fee: 0.1 * 1e9,
+        tokenOptions: {
+            symbol: 'nETH',
+            decimals: 18,
+            allowUpdates: true,
+        },
+    });*/ // Was used for debugging
+
+    console.log('Deploying contract.');
     const { tokenBaseAddress, noriTokenControllerAddress, txHash } =
         await tokenDeployer.deployContracts(
             config.senderPrivateKey, //contractSenderPrivateKeyBase58,
             config.adminPublicKey, // contractSenderPrivateKeyBase58, // Admin
             config.noriTokenControllerPrivateKey, //tokenControllerPrivateKey.toBase58(),
             config.tokenBasePrivateKey, // tokenBasePrivateKey.toBase58(),
-            config.ethProcessorAddress, //ethProcessorAddress,
+            ethProcessorAddress, //ethProcessorAddress,
             storageInterfaceVerificationKeySafe,
             0.1 * 1e9,
             {
@@ -137,4 +162,4 @@ export async function deployTokenController() {
 deployTokenController().catch((err) => {
     console.error(err.stack);
     process.exit(1);
-})
+});

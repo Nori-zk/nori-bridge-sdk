@@ -18,7 +18,7 @@ import {
     readyToComputeMintProof,
 } from '../rx/deposit.js';
 import { signSecretWithEthWallet } from '../ethSignature.js';
-import { getSecretHashFromPresentationJson } from '../credentialAttestation.js';
+import { getSecretHashFromPresentationJson } from '../credentialAttestationUtils.js';
 import { getTokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 import { getCredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
@@ -58,7 +58,7 @@ describe('e2e', () => {
         const { tokenBaseAddress, noriTokenControllerAddress } =
             await tokenDeployer.deployContracts(
                 contractSenderPrivateKeyBase58,
-                contractSenderPrivateKeyBase58, // Admin
+                contractSenderPrivateKey.toPublicKey().toBase58(), // Admin
                 tokenControllerPrivateKey.toBase58(),
                 tokenBasePrivateKey.toBase58(),
                 ethProcessorAddress,
@@ -82,7 +82,8 @@ describe('e2e', () => {
 
         let depositProcessingStatusSubscription: Subscription;
         try {
-            // INIT WORKERS **************************************************
+            // INIT CRED WORKER **************************************************
+            console.log('Fetching cred worker.');
             const CredentialAttestationWorker =
                 getCredentialAttestationWorker();
             const credentialAttestationWorker =
@@ -245,9 +246,12 @@ describe('e2e', () => {
 
             // COMPUTE DEPOSIT ATTESTATION **************************************************
 
+            // INIT token mint WORKER **************************************************
+            console.log('Fetching token mint worker.');
+            const TokenMintWorker = getTokenMintWorker();
+
             // Compile tokenMintWorker dependancies
             console.log('Compiling dependancies of tokenMintWorker');
-            const TokenMintWorker = getTokenMintWorker();
             const tokenMintWorker = new TokenMintWorker();
             const tokenMintWorkerReady = tokenMintWorker.compileMinterDeps();
 
@@ -262,6 +266,7 @@ describe('e2e', () => {
             // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
             const noriTokenControllerVerificationKeySafe =
                 await tokenMintWorkerReady;
+            console.log('Awaited compilation of tokenMintWorkerReady');
 
             // Compute eth verifier and deposit witness
             console.log(
@@ -269,9 +274,9 @@ describe('e2e', () => {
             );
             const { ethVerifierProofJson, depositAttestationInput } =
                 await tokenMintWorker.computeDepositAttestationWitnessAndEthVerifier(
+                    presentationJsonStr,
                     depositBlockNumber,
                     ethAddressLowerHex,
-                    credentialAttestationBEHex
                 );
             console.log(
                 'Computed eth verifier and calculated deposit witness.'
@@ -295,8 +300,7 @@ describe('e2e', () => {
                 senderPrivateKeyBase58
             );
             await tokenMintWorker.minaSetup(minaConfig);
-
-            console.log('Awaited compilation of tokenMintWorkerReady');
+            console.log('Mint setup');
 
             // SETUP STORAGE **************************************************
 

@@ -5,11 +5,15 @@ import {
     createEcdsaMinaCredential,
     createEcdsaSigPresentation,
     createEcdsaSigPresentationRequest,
+    ProvableEcdsaSigPresentation,
+} from '../../credentialAttestation.js';
+
+import {
     EnforceMaxLength,
     getSecretHashFromPresentationJson,
-    ProvableEcdsaSigPresentation,
     SecretMaxLength,
-} from '../../credentialAttestation.js';
+} from '../../credentialAttestationUtils.js';
+
 import {
     EthDepositProgram,
     EthDepositProgramInput,
@@ -200,12 +204,12 @@ export class TokenMintWorker {
     }
 
     async computeEthDeposit(
-        presentationJson: string,
+        presentationJsonStr: string,
         depositBlockNumber: number,
         ethAddressLowerHex: string
     ) {
         const { credentialAttestationBEHex, credentialAttestationHashField } =
-            getSecretHashFromPresentationJson(presentationJson);
+            getSecretHashFromPresentationJson(presentationJsonStr);
 
         const { depositAttestationProof, ethVerifierProof, despositSlotRaw } =
             await computeDepositAttestation(

@@ -6,10 +6,12 @@ import {
     createEcdsaSigPresentation,
     createEcdsaSigPresentationRequest,
     EcdsaSigPresentationVerifier,
-    EnforceMaxLength,
     ProvableEcdsaSigPresentation,
-    SecretMaxLength,
 } from '../../credentialAttestation.js';
+import {
+    EnforceMaxLength,
+    SecretMaxLength,
+} from '../../credentialAttestationUtils.js';
 import { Presentation } from 'mina-attestations';
 
 export class CredentialAttestationWorker {

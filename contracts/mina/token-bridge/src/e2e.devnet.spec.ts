@@ -332,7 +332,7 @@ describe('e2e_testnet', () => {
             // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
             const noriTokenControllerVerificationKeySafe =
                 await tokenMintWorkerReady;
-            console.log('Awaited compilation of tokenMintWorkerReady');
+            console.log('Awaited compilation of tokenMintWorkerReady', noriTokenControllerVerificationKeySafe);
 
             // SETUP STORAGE **************************************************
             // TODO IMPROVE THIS

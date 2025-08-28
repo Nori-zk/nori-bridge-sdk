@@ -1,25 +1,31 @@
+import 'dotenv/config';
+import { Bytes, NetworkId, PrivateKey } from 'o1js';
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
-import { TransactionResponse, ethers, BigNumberish } from 'ethers';
-import { Bytes, Field, NetworkId, PrivateKey } from 'o1js';
-import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from '@nori-zk/mina-token-bridge/rx/topics';
+import { Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
     getDepositProcessingStatus$,
     readyToComputeMintProof,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
-import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { Subscription } from 'rxjs';
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { obtainDepositAttestationInputsJson } from '@nori-zk/mina-token-bridge/slim';
-
-import { getCredentialWorker } from './zkappWorkerClient.js';
 import { getTokenMintWorker } from './mintWorkerClient.js';
+import { getCredentialWorker } from './zkappWorkerClient.js';
+import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+import { BigNumberish, ethers, id, TransactionResponse, Wallet } from 'ethers';
+
+async function signSecretWithEthWallet<FixedString extends string>(
+    secret: string,
+    ethWallet: Wallet
+) {
+    const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
+    const hashMessage = (msg: string) => parseHex(id(msg));
+    return await ethWallet.signMessage(hashMessage(secret as string));
+}
 
 function validateEnv(): {
     ethPrivateKey: string;
@@ -144,9 +150,7 @@ try {
 
     // INIT WORKERS **************************************************
     console.log('Fetching workers.');
-    const TokenMintWorker = getTokenMintWorker();
     const CredentialAttestationWorker = getCredentialWorker();
-    const tokenMintWorker = new TokenMintWorker();
     const credentialAttestationWorker = new CredentialAttestationWorker();
 
     // READY CREDENTIAL ATTESTATION WORKER **************************************
@@ -218,13 +222,6 @@ try {
     const presentation = JSON.parse(presentationJsonStr);
     const messageHashString = presentation.outputClaim.value.messageHash.value;
     const credentialAttestationBigInt = BigInt(messageHashString);
-    const credentialAttestationHashField = Field.from(
-        credentialAttestationBigInt
-    );
-    const beAttestationHashBytes = Bytes.from(
-        wordToBytes(credentialAttestationHashField, 32).reverse()
-    );
-    const credentialAttestationBEHex = `0x${beAttestationHashBytes.toHex()}`;
 
     // CONNECT TO BRIDGE **************************************************
 
@@ -311,6 +308,8 @@ try {
 
     // Compile tokenMintWorker dependancies
     console.log('Compiling dependancies of tokenMintWorker');
+    const TokenMintWorker = getTokenMintWorker();
+    const tokenMintWorker = new TokenMintWorker();
     const tokenMintWorkerReady = tokenMintWorker.compileAll(); // ?? Can we move this earlier...
 
     // PREPARE FOR MINTING **************************************************
@@ -369,27 +368,15 @@ try {
     // Throws if we have missed our minting opportunity.
     await readyToComputeMintProof(depositProcessingStatus$);
 
-    console.log('Computing eth deposit proof.');
-    /*const { ethDepositProofJson } =
-                await tokenMintWorker.computeEthDeposit(
-                    presentationJsonStr,
-                    depositBlockNumber,
-                    ethAddressLowerHex
-                );*/
-    // Fetch proof deps
-    const proofInputs = await obtainDepositAttestationInputsJson(
-        depositBlockNumber,
-        ethAddressLowerHex,
-        credentialAttestationBEHex
-    );
-
-    console.log('Computing eth processor');
-    const ethVerifierProofJson = await tokenMintWorker.computeEthVerifier(
-        proofInputs.consensusMPTProofProof,
-        proofInputs.consensusMPTProofVerification
-    );
-
-    console.log('Computed eth verifier inputs');
+    // Compute eth verifier and deposit witness
+    console.log('Computing eth verifier and calculating deposit witness.');
+    const { ethVerifierProofJson, depositAttestationInput } =
+        await tokenMintWorker.computeDepositAttestationWitnessAndEthVerifier(
+            presentationJsonStr,
+            depositBlockNumber,
+            ethAddressLowerHex
+        );
+    console.log('Computed eth verifier and calculated deposit witness.');
 
     // PRE-COMPUTE MINT PROOF ****************************************************
 
@@ -410,7 +397,7 @@ try {
             ethVerifierProofJson,
             presentationProofStr: presentationJsonStr,
         },
-        proofInputs,
+        depositAttestationInput,
         1e9 * 0.1,
         needsToFundAccount
     );

@@ -4,10 +4,13 @@ import {
     createEcdsaMinaCredential,
     createEcdsaSigPresentation,
     createEcdsaSigPresentationRequest,
-    EnforceMaxLength,
     ProvableEcdsaSigPresentation,
-    SecretMaxLength,
 } from '../../../credentialAttestation.js';
+import {
+    SecretMaxLength,
+    EnforceMaxLength,
+    getSecretHashFromPresentationJson,
+} from '../../../credentialAttestationUtils.js';
 import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
@@ -190,15 +193,17 @@ export class TokenMintWorkerSlim {
     }
 
     async computeDepositAttestationWitnessAndEthVerifier(
+        presentationJsonStr: string,
         depositBlockNumber: number,
         ethAddressLowerHex: string,
-        attestationBEHex: string,
         domain = 'https://pcs.nori.it.com'
     ) {
+        const { credentialAttestationBEHex } =
+            getSecretHashFromPresentationJson(presentationJsonStr);
         return computeDepositAttestationWitnessAndEthVerifier(
             depositBlockNumber,
             ethAddressLowerHex,
-            attestationBEHex,
+            credentialAttestationBEHex,
             domain
         );
     }

@@ -18,7 +18,7 @@ import {
     readyToComputeMintProof,
 } from './rx/deposit.js';
 import { signSecretWithEthWallet } from './ethSignature.js';
-import { getSecretHashFromPresentationJson } from './credentialAttestation.js';
+import { getSecretHashFromPresentationJson } from './credentialAttestationUtils.js';
 import { TokenMintWorker } from './workers/tokenMint/node/parent.js';
 import { TokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 import { CredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';

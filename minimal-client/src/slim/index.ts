@@ -1,7 +1,6 @@
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
 import { TransactionResponse, ethers, BigNumberish } from 'ethers';
-import { Bytes, Field, NetworkId, PrivateKey } from 'o1js';
-import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
+import { Bytes, NetworkId, PrivateKey } from 'o1js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
@@ -17,11 +16,18 @@ import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { getCredentialWorker } from './zkappWorkerClient.js';
 import { getTokenMintWorker } from './mintWorkerClient.js';
 import { Subscription } from 'rxjs';
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { obtainDepositAttestationInputsJson } from '@nori-zk/mina-token-bridge/slim';
+import { id, Wallet } from 'ethers';
 
-console.log('should be somthing here that makes sense', process.env.BUILD_HASH);
+console.log('Running slim index.js', process.env.BUILD_HASH);
 
+async function signSecretWithEthWallet<FixedString extends string>(
+    secret: string,
+    ethWallet: Wallet
+) {
+    const parseHex = (hex: string) => Bytes.fromHex(hex.slice(2)).toBytes();
+    const hashMessage = (msg: string) => parseHex(id(msg));
+    return await ethWallet.signMessage(hashMessage(secret as string));
+}
 
 function validateEnv(): {
     ethPrivateKey: string;
@@ -108,15 +114,13 @@ function validateEnv(): {
         noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
         noriTokenControllerAddressBase58: NORI_CONTROLLER_PUBLIC_KEY,
         noriTokenBaseAddressBase58: NORI_TOKEN_PUBLIC_KEY,
-        minaRpcUrl: MINA_RPC_NETWORK_URL,
+        minaRpcUrl: MINA_RPC_NETWORK_URL, // Note this must be the proxy! MINA_RPC_NETWORK_URL=http://localhost:4003/graphql
         minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
     };
 }
 
 let depositProcessingStatusSubscription: Subscription;
 try {
-    const CredentialAttestationWorker = getCredentialWorker();
-
     // Get ENV VARS
     const {
         ethPrivateKey,
@@ -146,10 +150,9 @@ try {
     const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
     const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
-    // INIT WORKERS **************************************************
-    console.log('Fetching workers.');
-    const TokenMintWorker = getTokenMintWorker();
-    const tokenMintWorker = new TokenMintWorker();
+    // INIT CRED WORKER **************************************************
+    console.log('Fetching cred worker.');
+    const CredentialAttestationWorker = getCredentialWorker();
     const credentialAttestationWorker = new CredentialAttestationWorker();
 
     // READY CREDENTIAL ATTESTATION WORKER **************************************
@@ -212,8 +215,8 @@ try {
     console.timeEnd('getPresentation'); // 46.801s
 
     // Kill credentialAttestation worker to reclaim ram.
-    credentialAttestationWorker.terminate();
-    console.log('credentialAttestationWorker terminated');
+    credentialAttestationWorker.signalTerminate();
+    console.log('Signaled credentialAttestationWorker to terminate... asking nicely this time.');
 
     // CLIENT only logic from now on....
 
@@ -221,13 +224,6 @@ try {
     const presentation = JSON.parse(presentationJsonStr);
     const messageHashString = presentation.outputClaim.value.messageHash.value;
     const credentialAttestationBigInt = BigInt(messageHashString);
-    const credentialAttestationHashField = Field.from(
-        credentialAttestationBigInt
-    );
-    const beAttestationHashBytes = Bytes.from(
-        wordToBytes(credentialAttestationHashField, 32).reverse()
-    );
-    const credentialAttestationBEHex = `0x${beAttestationHashBytes.toHex()}`;
 
     // CONNECT TO BRIDGE **************************************************
 
@@ -312,8 +308,13 @@ try {
 
     // COMPUTE DEPOSIT ATTESTATION **************************************************
 
+    // INIT CRED WORKER **************************************************
+    console.log('Fetching token mint worker.');
+    const TokenMintWorker = getTokenMintWorker();
+
     // Compile tokenMintWorker dependancies
     console.log('Compiling dependancies of tokenMintWorker');
+    const tokenMintWorker = new TokenMintWorker();
     const tokenMintWorkerReady = tokenMintWorker.compileAll(); // ?? Can we move this earlier...
 
     // PREPARE FOR MINTING **************************************************
@@ -325,7 +326,7 @@ try {
 
     // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
     const noriTokenControllerVerificationKeySafe = await tokenMintWorkerReady;
-    console.log('Awaited compilation of tokenMintWorkerReady');
+    console.log('Awaited compilation of tokenMintWorkerReady', noriTokenControllerVerificationKeySafe);
 
     // SETUP STORAGE **************************************************
     // TODO IMPROVE THIS
@@ -372,27 +373,15 @@ try {
     // Throws if we have missed our minting opportunity.
     await readyToComputeMintProof(depositProcessingStatus$);
 
-    console.log('Computing eth deposit proof.');
-    /*const { ethDepositProofJson } =
-                await tokenMintWorker.computeEthDeposit(
-                    presentationJsonStr,
-                    depositBlockNumber,
-                    ethAddressLowerHex
-                );*/
-    // Fetch proof deps
-    const proofInputs = await obtainDepositAttestationInputsJson(
-        depositBlockNumber,
-        ethAddressLowerHex,
-        credentialAttestationBEHex
-    );
-
-    console.log('Computing eth processor');
-    const ethVerifierProofJson = await tokenMintWorker.computeEthVerifier(
-        proofInputs.consensusMPTProofProof,
-        proofInputs.consensusMPTProofVerification
-    );
-
-    console.log('Computed eth verifier inputs');
+    console.log('Computing eth verifier and calculating deposit witness.');
+    const { ethVerifierProofJson, depositAttestationInput } =
+        await tokenMintWorker.computeDepositAttestationWitnessAndEthVerifier(
+            presentationJsonStr,
+            depositBlockNumber,
+            ethAddressLowerHex,
+            "http://localhost:4003"
+        );
+    console.log('Computed eth verifier and calculated deposit witness.');
 
     // PRE-COMPUTE MINT PROOF ****************************************************
 
@@ -413,7 +402,7 @@ try {
             ethVerifierProofJson,
             presentationProofStr: presentationJsonStr,
         },
-        proofInputs,
+        depositAttestationInput,
         1e9 * 0.1,
         needsToFundAccount
     );

@@ -38,5 +38,6 @@ export class WorkerChild implements WorkerChildParentInterface {
 
     terminate(): void {
         this.proc.removeAllListeners();
+        this.proc.exit?.(0);
     }
 }

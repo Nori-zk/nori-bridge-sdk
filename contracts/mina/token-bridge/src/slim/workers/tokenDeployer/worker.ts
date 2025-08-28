@@ -16,7 +16,7 @@ import {
 import { NoriTokenController } from '../../NoriTokenController.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
-import { DeploymentResult } from '../../../NoriControllerSubmitter.js';
+import { type DeploymentResult } from '../../../NoriControllerSubmitter.js';
 
 export class TokenDeployerWorker {
     // Mina setup ******************************************************************************
@@ -97,7 +97,7 @@ export class TokenDeployerWorker {
 
     async deployContracts(
         senderPrivateKeyBase58: string,
-        adminPrivateKeyBase58: string,
+        adminPublicKeyBase58: string,
         tokenControllerPrivateKeyBase58: string,
         tokenBasePrivateKeyBase58: string,
         ethProcessorAddressBase58: string,
@@ -120,9 +120,7 @@ export class TokenDeployerWorker {
         );
         const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
         const storageInterfaceVerificationKey = { data, hash };
-        console.log('adminPrivateKeyBase58', !!adminPrivateKeyBase58);
-        const adminPrivateKey = PrivateKey.fromBase58(adminPrivateKeyBase58);
-        const adminPublicKey = adminPrivateKey.toPublicKey();
+        const adminPublicKey = PublicKey.fromBase58(adminPublicKeyBase58);
         console.log('senderPrivateKeyBase58', !!senderPrivateKeyBase58);
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
 
