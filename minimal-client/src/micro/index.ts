@@ -111,7 +111,7 @@ function validateEnv(): {
         noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
         noriTokenControllerAddressBase58: NORI_CONTROLLER_PUBLIC_KEY,
         noriTokenBaseAddressBase58: NORI_TOKEN_PUBLIC_KEY,
-        minaRpcUrl: MINA_RPC_NETWORK_URL, // Note this must be the proxy! MINA_RPC_NETWORK_URL=http://localhost:4003/graphql
+        minaRpcUrl: 'http://localhost:4003/graphql', // MINA_RPC_NETWORK_URL, // Note this must be the proxy! MINA_RPC_NETWORK_URL= hardcoding this to be the proxy
         minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
     };
 }
