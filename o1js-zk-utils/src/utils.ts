@@ -72,7 +72,8 @@ const proofTotalLength = 176;
 
 export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
     const proofData = new Uint8Array(
-        Buffer.from(ethSP1Proof.public_values.buffer.data)
+        ethSP1Proof.public_values.buffer.data
+        // Buffer.from() this is nodejs specific and seemingly redundant
     );
 
     if (proofData.length !== proofTotalLength) {

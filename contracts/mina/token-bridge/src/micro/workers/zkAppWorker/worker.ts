@@ -18,7 +18,7 @@ import {
     computeDepositAttestationWitnessAndEthVerifier,
     MerkleTreeContractDepositAttestorInputJson,
 } from '../../../slim/depositAttestation.js';
-import { codeChallengeFieldToBEHex } from '../../pkarm.js';
+import { codeChallengeFieldToBEHex, createCodeChallenge, generateRecipientPublicKeyHash, obtainCodeVerifierFromEthSignature, verifyCodeChallenge } from '../../pkarm.js';
 
 export class ZkAppWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -609,5 +609,76 @@ export class ZkAppWorker {
         const result = await tx.wait();
         console.log('Awaited tx');
         return { txHash: result.hash };
+    }
+
+    // In ZkAppWorker
+
+    // =============================
+    // PKARM Helpers (serialisable)
+    // =============================
+
+    /**
+     * Generate recipient public key hash (serialisable).
+     */
+    async PKARM_generateRecipientPublicKeyHash_Base58(
+        recipientPublicKeyBase58: string
+    ) {
+        const recipientPublicKey = PublicKey.fromBase58(
+            recipientPublicKeyBase58
+        );
+        const hPubK = generateRecipientPublicKeyHash(recipientPublicKey);
+        return hPubK.toBigInt().toString(); // serialisable string
+    }
+
+    /**
+     * Obtain codeVerifier from ETH signature (serialisable).
+     */
+    async PKARM_obtainCodeVerifierFromEthSignature(ethSignatureHex: string) {
+        const codeVerifier =
+            obtainCodeVerifierFromEthSignature(ethSignatureHex);
+        return codeVerifier.toBigInt().toString(); // serialisable string
+    }
+
+    /**
+     * Create codeChallenge from codeVerifier + recipient (serialisable).
+     */
+    async PKARM_createCodeChallenge(
+        codeVerifierStr: string,
+        recipientPublicKeyBase58: string
+    ) {
+        const codeVerifier = new Field(BigInt(codeVerifierStr));
+        const recipientPublicKey = PublicKey.fromBase58(
+            recipientPublicKeyBase58
+        );
+        const codeChallenge = createCodeChallenge(
+            codeVerifier,
+            recipientPublicKey
+        );
+        return codeChallenge.toBigInt().toString(); // serialisable string
+    }
+
+    /**
+     * Verify a codeChallenge against inputs (serialisable).
+     */
+    async PKARM_verifyCodeChallenge(
+        codeVerifierStr: string,
+        recipientPublicKeyBase58: string,
+        codeChallengeStr: string
+    ) {
+        const codeVerifier = new Field(BigInt(codeVerifierStr));
+        const recipientPublicKey = PublicKey.fromBase58(
+            recipientPublicKeyBase58
+        );
+        const codeChallenge = new Field(BigInt(codeChallengeStr));
+        verifyCodeChallenge(codeVerifier, recipientPublicKey, codeChallenge);
+        return true; // if assert passes, no error
+    }
+
+    /**
+     * Convert codeChallenge field into big-endian hex string.
+     */
+    async PKARM_codeChallengeToBEHex(codeChallengeStr: string) {
+        const codeChallenge = new Field(BigInt(codeChallengeStr));
+        return codeChallengeFieldToBEHex(codeChallenge); // already 0x-prefixed hex
     }
 }

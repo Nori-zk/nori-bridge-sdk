@@ -15,10 +15,6 @@ import {
 import { getZkAppWorker } from './zkAppWorkerClient.js';
 import { BigNumberish, ethers, id, TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import {
-    createCodeChallenge,
-    obtainCodeVerifierFromEthSignature,
-} from '@nori-zk/mina-token-bridge/micro';
 import { Wallet } from 'ethers';
 
 async function signSecretWithEthWallet<FixedString extends string>(
@@ -182,17 +178,26 @@ try {
 
     // CLIENT only logic from now on....
 
+    // INIT WORKER **************************************************
+    console.log('Fetching zkApp worker.');
+    const ZkAppWorker = getZkAppWorker();
+
+    // Compile zkAppWorker dependancies
+    console.log('Compiling dependancies of zkAppWorker');
+    const zkAppWorker = new ZkAppWorker();
+    const zkAppWorkerReady = zkAppWorker.compileAll(); // ?? Can we move this earlier...
+
     // Generate PKARM code challenge from signature and mina public key
-    const codeVerifierPKARMField =
-        obtainCodeVerifierFromEthSignature(ethSignatureSecret); // This is a secret field
-    const codeVerifierPKARMBigInt = codeVerifierPKARMField.toBigInt();
-    const codeVerifierPKARMStr = codeVerifierPKARMBigInt.toString();
-    const codeChallengePKARMField = createCodeChallenge(
+    const codeVerifierPKARMStr =
+        await zkAppWorker.PKARM_obtainCodeVerifierFromEthSignature(
+            ethSignatureSecret
+        ); // This is a secret field
+    // This is the code challenge witness which can be stored publically (on chain)
+    const codeChallengePKARMStr = await zkAppWorker.PKARM_createCodeChallenge(
         codeVerifierPKARMStr,
-        minaSenderPublicKey
-    ); // This is the code challenge witness which can be stored publically (on chain)
-    const codeChallengePKARMBigInt = codeChallengePKARMField.toBigInt();
-    const codeChallengePKARMStr = codeChallengePKARMBigInt.toString();
+        minaSenderPublicKeyBase58
+    );
+    const codeChallengePKARMBigInt = BigInt(codeChallengePKARMStr);
 
     // CONNECT TO BRIDGE **************************************************
 
@@ -276,15 +281,6 @@ try {
     });
 
     // COMPUTE DEPOSIT ATTESTATION **************************************************
-
-    // INIT WORKER **************************************************
-    console.log('Fetching zkApp worker.');
-    const ZkAppWorker = getZkAppWorker();
-
-    // Compile zkAppWorker dependancies
-    console.log('Compiling dependancies of zkAppWorker');
-    const zkAppWorker = new ZkAppWorker();
-    const zkAppWorkerReady = zkAppWorker.compileAll(); // ?? Can we move this earlier...
 
     // PREPARE FOR MINTING **************************************************
 
