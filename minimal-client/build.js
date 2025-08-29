@@ -80,6 +80,17 @@ async function buildWorkers() {
         define,
         banner: { js: banner },
     });
+
+    // Build micro worker
+    const microZkAppWorker = `micro.zkAppWorker.${HASH}.js`;
+    await esbuild.build({
+        entryPoints: ['src/micro/zkAppWorker.ts'],
+        bundle: true,
+        outfile: `public/${microZkAppWorker}`,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
 }
 
 async function buildIndex() {

@@ -1,2 +1,2 @@
 console.log(process.env.BUILD_HASH);
-import 'slim/index.js';
+import 'micro/index.js';

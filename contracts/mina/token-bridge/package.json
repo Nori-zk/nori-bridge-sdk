@@ -45,8 +45,13 @@
         },
         "./slim": {
             "import": "./target/src/slim/index.js"
+        },
+        "./micro/workers/defs": {
+            "import": "./target/src/micro/workers/defs.js"
+        },
+        "./micro": {
+            "import": "./target/src/micro/index.js"
         }
-
     },
     "scripts": {
         "clean": "rimraf target",
@@ -63,7 +68,8 @@
         "nori": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm --test-name-pattern='NoriCore' ",
         "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' ",
         "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js",
-        "deploy-slim": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/slim/deploy.js"
+        "deploy-slim": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/slim/deploy.js",
+        "deploy-micro": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/micro/deploy.js"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.16.4",
