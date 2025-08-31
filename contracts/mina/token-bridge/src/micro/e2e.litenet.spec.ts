@@ -24,6 +24,7 @@ import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
 } from './pkarm.js';
+import { TokenDeployerWorker } from './workers/tokenDeployer/worker.js';
 
 describe('e2e', () => {
     // Define litenet mina config
@@ -42,10 +43,8 @@ describe('e2e', () => {
         console.log('Deploying contract.');
         const TokenDeployerWorker = getTokenDeployerWorker();
         const tokenDeployer = new TokenDeployerWorker();
-        const storageInterfaceVerificationKeySafe: {
-            data: string;
-            hashStr: string;
-        } = await tokenDeployer.compile();
+        const { noriStorageInterfaceVerificationKeySafe } =
+            await tokenDeployer.compile();
         const contractsLitenetSk = await getNewMinaLiteNetAccountSK();
         const contractSenderPrivateKey =
             PrivateKey.fromBase58(contractsLitenetSk);
@@ -64,7 +63,7 @@ describe('e2e', () => {
                 tokenControllerPrivateKey.toBase58(),
                 tokenBasePrivateKey.toBase58(),
                 ethProcessorAddress,
-                storageInterfaceVerificationKeySafe,
+                noriStorageInterfaceVerificationKeySafe,
                 0.1 * 1e9,
                 {
                     symbol: 'nETH',
@@ -126,10 +125,9 @@ describe('e2e', () => {
                 obtainCodeVerifierFromEthSignature(ethSignatureSecret); // This is a secret field
             const codeVerifierPKARMBigInt = codeVerifierPKARMField.toBigInt();
             const codeVerifierPKARMStr = codeVerifierPKARMBigInt.toString();
-            
+
             const codeChallengePKARMField = createCodeChallenge(
-                codeVerifierPKARMField,
-                senderPublicKey
+                codeVerifierPKARMField
             ); // This is the code challenge witness which can be stored publically (on chain)
             const codeChallengePKARMBigInt = codeChallengePKARMField.toBigInt();
             const codeChallengePKARMStr = codeChallengePKARMBigInt.toString();
@@ -139,9 +137,10 @@ describe('e2e', () => {
             console.log('senderPublicKey.toBase58()', senderPublicKeyBase58);
             console.log('senderPrivateKey.toBase58()', senderPrivateKeyBase58);
             console.log('codeVerifierPKARMField', codeVerifierPKARMField);
+            console.log('codeVerifierPKARMBigInt', codeVerifierPKARMBigInt);
+            console.log('codeVerifierPKARMStr', codeVerifierPKARMStr);
             console.log('codeChallengePKARMBigInt', codeChallengePKARMBigInt);
             console.log('codeChallengePKARMStr', codeChallengePKARMStr);
-
 
             // CONNECT TO BRIDGE **************************************************
 
@@ -227,8 +226,8 @@ describe('e2e', () => {
             // Throws if we have missed our minting opportunity
             await readyToComputeMintProof(depositProcessingStatus$);
 
-            // Get noriTokenControllerVerificationKeySafe from zkAppWorkerReady resolution.
-            const noriTokenControllerVerificationKeySafe =
+            // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
+            const { noriStorageInterfaceVerificationKeySafe } =
                 await zkAppWorkerReady;
             console.log('Awaited compilation of zkAppWorkerReady');
 
@@ -271,7 +270,7 @@ describe('e2e', () => {
                 senderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
                 0.1 * 1e9,
-                noriTokenControllerVerificationKeySafe
+                noriStorageInterfaceVerificationKeySafe
             );
 
             // NOTE! ************

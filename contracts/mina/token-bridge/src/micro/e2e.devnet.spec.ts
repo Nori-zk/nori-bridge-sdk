@@ -186,11 +186,25 @@ describe('e2e_testnet', () => {
             const codeVerifierPKARMStr = codeVerifierPKARMBigInt.toString();
 
             const codeChallengePKARMField = createCodeChallenge(
-                codeVerifierPKARMField,
-                minaSenderPublicKey
+                codeVerifierPKARMField
             ); // This is the code challenge witness which can be stored publically (on chain)
             const codeChallengePKARMBigInt = codeChallengePKARMField.toBigInt();
             const codeChallengePKARMStr = codeChallengePKARMBigInt.toString();
+
+            console.log('ethSignatureSecret', ethSignatureSecret);
+            console.log(
+                'senderPublicKey.toBase58()',
+                minaSenderPublicKeyBase58
+            );
+            console.log(
+                'senderPrivateKey.toBase58()',
+                minaSenderPrivateKeyBase58
+            );
+            console.log('codeVerifierPKARMField', codeVerifierPKARMField);
+            console.log('codeVerifierPKARMBigInt', codeVerifierPKARMBigInt);
+            console.log('codeVerifierPKARMStr', codeVerifierPKARMStr);
+            console.log('codeChallengePKARMBigInt', codeChallengePKARMBigInt);
+            console.log('codeChallengePKARMStr', codeChallengePKARMStr);
 
             // CONNECT TO BRIDGE **************************************************
 
@@ -297,8 +311,8 @@ describe('e2e_testnet', () => {
             );
             await zkAppWorker.minaSetup(minaConfig);
 
-            // Get noriTokenControllerVerificationKeySafe from zkAppWorkerReady resolution.
-            const noriTokenControllerVerificationKeySafe =
+            // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
+            const { noriStorageInterfaceVerificationKeySafe } =
                 await zkAppWorkerReady;
             console.log('Awaited compilation of zkAppWorkerReady');
 
@@ -318,7 +332,7 @@ describe('e2e_testnet', () => {
                         minaSenderPublicKeyBase58,
                         noriTokenControllerAddressBase58,
                         0.1 * 1e9,
-                        noriTokenControllerVerificationKeySafe
+                        noriStorageInterfaceVerificationKeySafe
                     );
                 // NOTE! ************
                 // Really a client would use await zkAppWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing

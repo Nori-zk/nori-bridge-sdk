@@ -1,4 +1,9 @@
-import { EthVerifier } from '@nori-zk/o1js-zk-utils';
+import {
+    compileAndOptionallyVerifyContracts,
+    EthVerifier,
+    ethVerifierVkHash,
+    vkToVkSafe,
+} from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
     Bool,
@@ -31,54 +36,46 @@ export class TokenDeployerWorker {
     }
 
     async compile() {
-        console.log('Compiling prerequisites...');
+        console.log('Compiling all contracts/programs ...');
 
-        console.time('EthVerifier compile');
-        const { verificationKey: ethVerifierVerificationKey } =
-            await EthVerifier.compile({
-                forceRecompile: true,
-            });
-        console.timeEnd('EthVerifier compile');
-        console.log(
-            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+        const contracts = [
+            {
+                name: 'ethVerifier',
+                program: EthVerifier,
+                integrityHash: ethVerifierVkHash,
+            },
+            { name: 'NoriStorageInterface', program: NoriStorageInterface },
+            { name: 'FungibleToken', program: FungibleToken },
+            { name: 'NoriTokenController', program: NoriTokenController },
+        ] as const;
+
+        // Compile all contracts using the helper
+        const compiledVks = await compileAndOptionallyVerifyContracts(
+            console,
+            contracts
         );
 
-        console.log('Compiling contracts...');
-        // Compile all required contracts
-        console.time('NoriStorageInterface compile');
-        const { verificationKey: storageInterfaceVerificationKey } =
-            await NoriStorageInterface.compile({ forceRecompile: true });
-        console.timeEnd('NoriStorageInterface compile');
-        console.log(
-            `NoriStorageInterface compiled vk: '${storageInterfaceVerificationKey.hash}'.`
+        // Manually assign each VK to a Safe key
+        const ethVerifierVerificationKeySafe = vkToVkSafe(
+            compiledVks.ethVerifierVerificationKey
+        );
+        const noriStorageInterfaceVerificationKeySafe = vkToVkSafe(
+            compiledVks.NoriStorageInterfaceVerificationKey
+        );
+        const fungibleTokenVerificationKeySafe = vkToVkSafe(
+            compiledVks.FungibleTokenVerificationKey
+        );
+        const noriTokenControllerVerificationKeySafe = vkToVkSafe(
+            compiledVks.NoriTokenControllerVerificationKey
         );
 
-        console.time('FungibleToken compile');
-        const { verificationKey: tokenBaseVerificationKey } =
-            await FungibleToken.compile({ forceRecompile: true });
-        console.timeEnd('FungibleToken compile');
-        console.log(
-            `FungibleToken compiled vk: '${tokenBaseVerificationKey.hash}'.`
-        );
-
-        console.time('NoriTokenController compile');
-        const { verificationKey: noriTokenControllerVerificationKey } =
-            await NoriTokenController.compile({ forceRecompile: true });
-        console.timeEnd('NoriTokenController compile');
-        console.log(
-            `NoriTokenController compiled vk: '${noriTokenControllerVerificationKey.hash}'.`
-        );
-
-        const noriStorageInterfaceVerificationKeyHashField =
-            storageInterfaceVerificationKey.hash;
-        const noriStorageInterfaceVerificationKeyHashBigInt =
-            noriStorageInterfaceVerificationKeyHashField.toBigInt();
-        const noriStorageInterfaceVerificationKeyHashStr =
-            noriStorageInterfaceVerificationKeyHashBigInt.toString();
+        console.log('All contracts/programs compiled successfully.');
 
         return {
-            data: storageInterfaceVerificationKey.data,
-            hashStr: noriStorageInterfaceVerificationKeyHashStr,
+            ethVerifierVerificationKeySafe,
+            noriStorageInterfaceVerificationKeySafe,
+            fungibleTokenVerificationKeySafe,
+            noriTokenControllerVerificationKeySafe,
         };
     }
 
@@ -122,7 +119,6 @@ export class TokenDeployerWorker {
         const allowUpdates = options.allowUpdates ?? true;
         const startPaused = Bool(options.startPaused ?? false);
 
-        
         const senderPublicKey = senderPrivateKey.toPublicKey();
 
         const noriTokenControllerPrivateKey = PrivateKey.fromBase58(

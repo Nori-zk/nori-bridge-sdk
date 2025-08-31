@@ -1,4 +1,9 @@
-import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import {
+    compileAndOptionallyVerifyContracts,
+    EthProofType,
+    EthVerifier,
+    ethVerifierVkHash,
+} from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
     fetchAccount,
@@ -9,6 +14,7 @@ import {
     PrivateKey,
     PublicKey,
     Transaction,
+    VerificationKey,
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
@@ -17,8 +23,14 @@ import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
     MerkleTreeContractDepositAttestorInputJson,
-} from '../../../slim/depositAttestation.js';
-import { codeChallengeFieldToBEHex, createCodeChallenge, generateRecipientPublicKeyHash, obtainCodeVerifierFromEthSignature, verifyCodeChallenge } from '../../pkarm.js';
+} from '../../depositAttestation.js';
+import {
+    codeChallengeFieldToBEHex,
+    createCodeChallenge,
+    generateRecipientPublicKeyHash,
+    obtainCodeVerifierFromEthSignature,
+    verifyCodeChallenge,
+} from '../../pkarm.js';
 
 export class ZkAppWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -289,6 +301,12 @@ export class ZkAppWorker {
         txFee: number,
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
     ) {
+        console.log('MOCK_setupStorage called with', {
+            userPublicKeyBase58,
+            noriTokenControllerAddressBase58,
+            txFee,
+            storageInterfaceVerificationKeySafe,
+        });
         //const userPrivateKey = PrivateKey.fromBase58(userPrivateKeyBase58);
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58); // userPrivateKey.toPublicKey();
         const noriTokenControllerAddress = PublicKey.fromBase58(
@@ -371,46 +389,56 @@ export class ZkAppWorker {
         }
     }
 
-    async compileMinterDeps() {
-        await this.compileEthVerifier();
-
-        console.log('Compiling NoriStorageInterface');
-        console.time('compileNoriStorageInterface');
-        const { verificationKey: noriStorageInterfaceVerificationKey } =
-            await NoriStorageInterface.compile();
-        console.timeEnd('compileNoriStorageInterface');
-        console.log(
-            `NoriStorageInterface compiled vk: '${noriStorageInterfaceVerificationKey.hash}'.`
-        );
-
-        console.log('Compiling FungibleToken');
-        console.time('compileFungibleToken');
-        const { verificationKey: fungibleTokenVerificationKey } =
-            await FungibleToken.compile();
-        console.timeEnd('compileFungibleToken');
-        console.log(
-            `FungibleToken compiled vk: '${fungibleTokenVerificationKey.hash}'.`
-        );
-
-        console.log('Compiling NoriTokenController');
-        console.time('compileNoriTokenController');
-        const { verificationKey: noriTokenControllerVerificationKey } =
-            await NoriTokenController.compile();
-        console.timeEnd('compileNoriTokenController');
-        console.log(
-            `NoriTokenController compiled vk: '${noriTokenControllerVerificationKey.hash}'.`
-        );
-
-        const noriStorageInterfaceVerificationKeyHashField =
-            noriStorageInterfaceVerificationKey.hash;
-        const noriStorageInterfaceVerificationKeyHashBigInt =
-            noriStorageInterfaceVerificationKeyHashField.toBigInt();
-        const noriStorageInterfaceVerificationKeyHashStr =
-            noriStorageInterfaceVerificationKeyHashBigInt.toString();
-
+    private vkToVkSafe(vk: VerificationKey) {
+        const { data, hash } = vk;
         return {
-            data: noriStorageInterfaceVerificationKey.data,
-            hashStr: noriStorageInterfaceVerificationKeyHashStr,
+            hashStr: hash.toBigInt().toString(),
+            data,
+        };
+    }
+
+    async compileMinterDeps() {
+        console.log('Compiling all minter dependencies...');
+
+        const contracts = [
+            {
+                name: 'ethVerifier',
+                program: EthVerifier,
+                integrityHash: ethVerifierVkHash,
+            },
+            { name: 'NoriStorageInterface', program: NoriStorageInterface },
+            { name: 'FungibleToken', program: FungibleToken },
+            { name: 'NoriTokenController', program: NoriTokenController },
+        ] as const;
+
+        // Compile all contracts
+        const compiledVks = await compileAndOptionallyVerifyContracts(
+            console,
+            contracts
+        );
+
+        // Convert all verification keys to safe format
+        const safeVks = {} as {
+            [K in keyof typeof compiledVks]: { hashStr: string; data: string };
+        };
+
+        (Object.keys(compiledVks) as Array<keyof typeof compiledVks>).forEach(
+            (key) => {
+                safeVks[key] = this.vkToVkSafe(compiledVks[key]);
+            }
+        );
+
+        console.log('All minter dependency contracts compiled successfully.');
+
+        // Return the safe VKs along with the NoriStorageInterface hash string separately if needed
+        return {
+            ethVerifierVerificationKeySafe: safeVks.ethVerifierVerificationKey,
+            noriStorageInterfaceVerificationKeySafe:
+                safeVks.NoriStorageInterfaceVerificationKey,
+            fungibleTokenVerificationKeySafe:
+                safeVks.FungibleTokenVerificationKey,
+            noriTokenControllerVerificationKeySafe:
+                safeVks.NoriTokenControllerVerificationKey,
         };
     }
 
@@ -642,18 +670,9 @@ export class ZkAppWorker {
     /**
      * Create codeChallenge from codeVerifier + recipient (serialisable).
      */
-    async PKARM_createCodeChallenge(
-        codeVerifierStr: string,
-        recipientPublicKeyBase58: string
-    ) {
+    async PKARM_createCodeChallenge(codeVerifierStr: string) {
         const codeVerifier = new Field(BigInt(codeVerifierStr));
-        const recipientPublicKey = PublicKey.fromBase58(
-            recipientPublicKeyBase58
-        );
-        const codeChallenge = createCodeChallenge(
-            codeVerifier,
-            recipientPublicKey
-        );
+        const codeChallenge = createCodeChallenge(codeVerifier);
         return codeChallenge.toBigInt().toString(); // serialisable string
     }
 
@@ -662,15 +681,11 @@ export class ZkAppWorker {
      */
     async PKARM_verifyCodeChallenge(
         codeVerifierStr: string,
-        recipientPublicKeyBase58: string,
         codeChallengeStr: string
     ) {
         const codeVerifier = new Field(BigInt(codeVerifierStr));
-        const recipientPublicKey = PublicKey.fromBase58(
-            recipientPublicKeyBase58
-        );
         const codeChallenge = new Field(BigInt(codeChallengeStr));
-        verifyCodeChallenge(codeVerifier, recipientPublicKey, codeChallenge);
+        verifyCodeChallenge(codeVerifier, codeChallenge);
         return true; // if assert passes, no error
     }
 

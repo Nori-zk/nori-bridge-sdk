@@ -18,6 +18,8 @@ export {
     uint8ArrayToBigIntBE,
     decodeConsensusMptProof,
     compileAndVerifyContracts,
+    compileAndOptionallyVerifyContracts,
+    vkToVkSafe,
 } from './utils.js';
 
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';

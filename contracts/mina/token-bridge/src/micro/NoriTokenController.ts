@@ -146,7 +146,7 @@ export class NoriTokenController
             );
 
         // Verify the code challenge
-        verifyCodeChallenge(codeVerifierPKARM, userAddress, codeChallengePKARM);
+        verifyCodeChallenge(codeVerifierPKARM, codeChallengePKARM);
 
         //TODO when add ethProcessor
         // assert ethDepositProof.publicOutput.storageDepositRoot;

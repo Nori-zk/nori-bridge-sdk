@@ -397,7 +397,7 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
     const nLeaves = leaves.length;
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
     const path = getMerklePathFromLeaves(
-        leaves,
+        [...leaves],
         paddedSize,
         depth,
         depositIndex,

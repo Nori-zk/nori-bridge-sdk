@@ -99,7 +99,9 @@ export function obtainCodeVerifierFromEthSignature(ethSignature: string) {
  */
 export function createCodeChallenge(
     codeVerifier: Field,
+    recipientPublicKey: PublicKey
 ) {
+    const hPubK = generateRecipientPublicKeyHash(recipientPublicKey);
     /*Provable.asProver(() => {
         console.log(
             'createCodeChallenge recipientPublicKey',
@@ -111,7 +113,7 @@ export function createCodeChallenge(
         );
         console.log('createCodeChallenge hPubK', hPubK.toBigInt());
     });*/
-    return Poseidon.hash([codeVerifier]);
+    return Poseidon.hash([codeVerifier, hPubK]);
 }
 
 /**
@@ -127,10 +129,12 @@ export function createCodeChallenge(
  */
 export function verifyCodeChallenge(
     codeVerifier: Field,
+    recipientPublicKey: PublicKey,
     codeChallenge: Field
 ) {
     const computedChallenge = createCodeChallenge(
         codeVerifier,
+        recipientPublicKey
     );
 
     /*Provable.asProver(() => {

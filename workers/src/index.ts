@@ -318,7 +318,7 @@ export class WorkerChildBase {
             const result = await fn.apply(this.workerInstance, args);
             this.sendResponse(id, methodName, result);
         } catch (err: any) {
-            this.sendError(id, methodName, err?.message ?? String(err));
+            this.sendError(id, methodName, err?.stack ?? err?.message ?? String(err));
         }
     }
 

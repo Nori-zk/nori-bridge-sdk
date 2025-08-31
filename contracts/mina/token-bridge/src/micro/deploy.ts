@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrivateKey } from 'o1js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+//import { TokenDeployerWorker } from './workers/tokenDeployer/worker.js';
 
 export async function deployTokenController() {
     console.log('Deploying Nori Token Controller...');
@@ -91,10 +92,8 @@ export async function deployTokenController() {
     console.log('Constructing and compiling token deployer worker.');
     const TokenDeployerWorker = getTokenDeployerWorker();
     const tokenDeployer = new TokenDeployerWorker();
-    const storageInterfaceVerificationKeySafe: {
-        data: string;
-        hashStr: string;
-    } = await tokenDeployer.compile();
+    const { noriStorageInterfaceVerificationKeySafe } =
+        await tokenDeployer.compile();
 
     /*const contractSenderPrivateKey = PrivateKey.fromBase58(contractsLitenetSk);
     const contractSenderPrivateKeyBase58 = contractSenderPrivateKey.toBase58();
@@ -131,7 +130,7 @@ export async function deployTokenController() {
             config.noriTokenControllerPrivateKey, //tokenControllerPrivateKey.toBase58(),
             config.tokenBasePrivateKey, // tokenBasePrivateKey.toBase58(),
             ethProcessorAddress, //ethProcessorAddress,
-            storageInterfaceVerificationKeySafe,
+            noriStorageInterfaceVerificationKeySafe,
             0.1 * 1e9,
             {
                 symbol: 'nETH',
@@ -139,7 +138,7 @@ export async function deployTokenController() {
                 allowUpdates: true,
             }
         );
-    tokenDeployer.terminate();
+    //tokenDeployer.terminate();
 
     console.log('🎉 Deployment completed successfully!');
     console.log(`Contract addresses:
@@ -159,7 +158,9 @@ export async function deployTokenController() {
         noriTokenControllerAddress,
     };
 }
-deployTokenController().catch((err) => {
-    console.error(err.stack);
-    process.exit(1);
-});
+deployTokenController()
+    .then(() => process.exit(0))
+    .catch((err) => {
+        console.error(err.stack);
+        process.exit(1);
+    });

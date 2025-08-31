@@ -1,6 +1,11 @@
-import { Field, SmartContract, UInt64, UInt8 } from 'o1js';
+import { Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { PlonkProof, Bytes32, ZkProgram, CompilableZkProgram } from './types.js';
+import {
+    PlonkProof,
+    Bytes32,
+    ZkProgram,
+    CompilableZkProgram,
+} from './types.js';
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -13,23 +18,27 @@ export function uint8ArrayToBigIntLE(bytes: Uint8Array): bigint {
 export function fieldToHexBE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
-    return `0x${bytesBE.map((byte) => byte.toBigInt().toString(16).padStart(2, '0')).join('')}`
+    return `0x${bytesBE
+        .map((byte) => byte.toBigInt().toString(16).padStart(2, '0'))
+        .join('')}`;
 }
 
 export function fieldToBigIntBE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
-    return bytesBE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n)
+    return bytesBE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
 }
 
 export function fieldToHexLE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
-    return `0x${bytesLE.map((byte) => byte.toBigInt().toString(16).padStart(2, '0')).join('')}`
+    return `0x${bytesLE
+        .map((byte) => byte.toBigInt().toString(16).padStart(2, '0'))
+        .join('')}`;
 }
 
 export function fieldToBigIntLE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
-    return bytesLE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n)
+    return bytesLE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
 }
 
 // DEPRECATED
@@ -158,7 +167,9 @@ export async function compileAndVerifyContracts(
 
         for (const { name, program, integrityHash } of contracts) {
             logger.log(`Compiling ${name} contract.`);
+            console.time(`${name} compile`);
             const compiled = await program.compile();
+            console.timeEnd(`${name} compile`);
             const verificationKey = compiled.verificationKey;
             const calculatedHash = verificationKey.hash.toString();
 
@@ -196,5 +207,66 @@ export async function compileAndVerifyContracts(
     }
 }
 
+export function vkToVkSafe(vk: VerificationKey) {
+  const { data, hash } = vk;
+  return {
+    hashStr: hash.toBigInt().toString(),
+    data,
+  };
+}
+export async function compileAndOptionallyVerifyContracts<
+  T extends readonly {
+    name: string;
+    program: typeof SmartContract | CompilableZkProgram;
+    integrityHash?: string;
+  }[]
+>(
+  logger: any,
+  contracts: T
+): Promise<
+  { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey }
+> {
+  type ReturnMap = { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey };
 
+  const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
+  const mismatches: string[] = [];
 
+  for (const c of contracts) {
+    const { name, program, integrityHash } = c;
+
+    logger.log(`Compiling ${name} contract/program.`);
+    console.time(`${name} compiled`);
+    const compiled = await program.compile();
+    console.timeEnd(`${name} compiled`);
+
+    const vk = compiled.verificationKey;
+    const hashStr = vk.hash.toBigInt().toString();
+
+    logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
+
+    // Validate only if integrityHash is provided
+    if (integrityHash && hashStr !== integrityHash) {
+      mismatches.push(
+        `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
+      );
+    }
+
+    const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
+    entries.push([mappedKey, vk]);
+  }
+
+  if (mismatches.length > 0) {
+    const errorMessage = [
+      'Verification key hash mismatch detected:',
+      ...mismatches,
+      '',
+      `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
+    ].join('\n');
+
+    throw new Error(errorMessage);
+  }
+
+  logger.log('All contracts compiled successfully.');
+
+  return Object.fromEntries(entries) as ReturnMap;
+}
