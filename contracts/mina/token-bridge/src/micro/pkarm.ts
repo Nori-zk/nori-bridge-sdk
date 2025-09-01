@@ -1,3 +1,6 @@
+// NOTE DOCS NEED A CLEAN UP AS THIS IS INACCURATE 
+// The scheme is the same as in pkarm_old.ts however we removed the mina public key in order to make MVCE test cases
+
 /**
  * PKARM — Proof Key Authorisation for Recipient Minting (PKCE-style)
  *

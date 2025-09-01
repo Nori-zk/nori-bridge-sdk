@@ -42,7 +42,7 @@ export class TokenDeployerWorker {
             {
                 name: 'ethVerifier',
                 program: EthVerifier,
-                integrityHash: ethVerifierVkHash,
+                // integrityHash: ethVerifierVkHash, // disabled to see if we can prove 65 works and 24 does not
             },
             { name: 'NoriStorageInterface', program: NoriStorageInterface },
             { name: 'FungibleToken', program: FungibleToken },
