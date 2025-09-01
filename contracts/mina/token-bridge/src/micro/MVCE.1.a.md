@@ -45,4 +45,4 @@ This is interesting because the vks of the smart contracts / zk programs between
 
 Also interesting that `zkAppWorker.MOCK_setupStorage` method can and does work, and thus perhaps we may conclude that NoriTokenController is not the cause.
 
-I personally think the issue may related to EthVerifier and internal logic within o1js. The issue may or may not be related to the issues described [here](./MVCE.2.md)
+I personally think the issue may related to EthVerifier and internal logic within o1js. The issue may be related to the issues described [here](./MVCE.2.md)
