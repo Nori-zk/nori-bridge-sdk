@@ -16,7 +16,6 @@ describe('e2e-without-infra', () => {
 
     test('e2e_complete', async () => {
         // DEPLOY TEST CONTRACTS **************************************************
-        // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
         // Use the worker to be able to reclaim some ram
         const useDeployerWorkerSubProcess = true;
         console.log('Deploying contract.');
