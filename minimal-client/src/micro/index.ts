@@ -195,7 +195,7 @@ try {
     // This is the code challenge witness which can be stored publically (on chain)
     const codeChallengePKARMStr = await zkAppWorker.PKARM_createCodeChallenge(
         codeVerifierPKARMStr,
-        minaSenderPublicKeyBase58
+        //minaSenderPublicKeyBase58
     );
     const codeChallengePKARMBigInt = BigInt(codeChallengePKARMStr);
 
@@ -290,7 +290,7 @@ try {
     await zkAppWorker.minaSetup(minaConfig);
 
     // Get noriTokenControllerVerificationKeySafe from zkAppWorkerReady resolution.
-    const noriTokenControllerVerificationKeySafe = await zkAppWorkerReady;
+    const zkVerificationKeys = await zkAppWorkerReady;
     console.log('Awaited compilation of zkAppWorkerReady');
 
     // SETUP STORAGE **************************************************
@@ -308,7 +308,7 @@ try {
             minaSenderPublicKeyBase58,
             noriTokenControllerAddressBase58,
             0.1 * 1e9,
-            noriTokenControllerVerificationKeySafe
+            zkVerificationKeys.noriTokenControllerVerificationKeySafe
         );
         // NOTE! ************
         // Really a client would use await zkAppWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
