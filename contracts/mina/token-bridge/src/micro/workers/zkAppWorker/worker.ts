@@ -11,6 +11,7 @@ import {
     JsonProof,
     Mina,
     NetworkId,
+    Poseidon,
     PrivateKey,
     PublicKey,
     Transaction,
@@ -18,7 +19,12 @@ import {
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
-import { NoriTokenController } from '../../NoriTokenController.js';
+import {
+    MockConsenusProof,
+    MockDepositAttesterProof,
+    MockMinaAttestationProof,
+    NoriTokenController,
+} from '../../NoriTokenController.js';
 import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
@@ -31,6 +37,20 @@ import {
     obtainCodeVerifierFromEthSignature,
     verifyCodeChallenge,
 } from '../../pkarm.js';
+
+// Construct dummy inputs because we are gonna use a mock temporariliy
+const mockConsenusProof = new MockConsenusProof({
+    storeHash: new Field(0),
+    attesterRoot: new Field(0),
+});
+const mockDepositAttesterProof = new MockDepositAttesterProof({
+    attesterRoot: new Field(0),
+    minaAttestHash: Poseidon.hash([new Field(0)]),
+    lockedSoFar: new Field(1),
+});
+const mockMinaAttestationProof = new MockMinaAttestationProof({
+    proof: new Field(0),
+});
 
 export class ZkAppWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -488,9 +508,12 @@ export class ZkAppWorker {
                     AccountUpdate.fundNewAccount(userPublicKey, 1);
                 }
                 await noriTokenControllerInst.noriMint(
-                    ethVerifierProof,
+                    /*ethVerifierProof,
                     merkleTreeContractDepositAttestorInput,
-                    codeVerifierPKARMField
+                    codeVerifierPKARMField*/
+                    mockConsenusProof,
+                    mockDepositAttesterProof,
+                    mockMinaAttestationProof
                 );
             }
         );
@@ -546,9 +569,12 @@ export class ZkAppWorker {
                     AccountUpdate.fundNewAccount(userPublicKey, 1);
                 }
                 await noriTokenControllerInst.noriMint(
-                    ethVerifierProof,
+                    /*ethVerifierProof,
                     merkleTreeContractDepositAttestorInput,
-                    codeVerifierPKARMField
+                    codeVerifierPKARMField*/
+                    mockConsenusProof,
+                    mockDepositAttesterProof,
+                    mockMinaAttestationProof
                 );
             }
         );
@@ -617,9 +643,12 @@ export class ZkAppWorker {
                     AccountUpdate.fundNewAccount(userPublicKey, 1);
                 }
                 await noriTokenControllerInst.noriMint(
-                    ethVerifierProof,
+                    /*ethVerifierProof,
                     merkleTreeContractDepositAttestorInput,
-                    codeVerifierPKARMField
+                    codeVerifierPKARMField*/
+                    mockConsenusProof,
+                    mockDepositAttesterProof,
+                    mockMinaAttestationProof
                 );
             }
         );

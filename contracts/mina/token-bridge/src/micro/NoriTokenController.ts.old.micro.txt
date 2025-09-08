@@ -3,60 +3,32 @@ import {
     AccountUpdateForest,
     assert,
     Bool,
-    DeployArgs,
     Field,
     method,
     Permissions,
     Poseidon,
     Provable,
     PublicKey,
-    SmartContract,
     State,
     state,
-    Struct,
     TokenContract,
     UInt64,
     VerificationKey,
 } from 'o1js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-import { FungibleTokenAdminBase, NoriTokenControllerDeployProps } from '../types.js';
-
-export interface MockMintProofData {
-    ethConsensusProof: MockConsenusProof;
-    depositAttesterProof: MockDepositAttesterProof;
-    minaAttestationProof: MockMinaAttestationProof;
-}
-
-export class MockConsenusProof extends Struct({
-    storeHash: Field,
-    attesterRoot: Field,
-}) {
-    async verify() {
-        return Bool(true);
-    }
-}
-
-export class MockDepositAttesterProof extends Struct({
-    attesterRoot: Field,
-    minaAttestHash: Field,
-    lockedSoFar: Field,
-}) {
-    async verify() {
-        return Bool(true);
-    }
-}
-export class MockMinaAttestationProof extends Struct({
-    proof: Field,
-}) {
-    async verify() {
-        return Bool(true);
-    }
-    async hash() {
-        return Poseidon.hash([this.proof]);
-    }
-}
-
+import {
+    FungibleTokenAdminBase,
+    NoriTokenControllerDeployProps,
+} from '../types.js';
+import { EthProofType } from '@nori-zk/o1js-zk-utils';
+import {
+    getContractDepositSlotRootFromContractDepositAndWitness,
+    contractDepositCredentialAndTotalLockedToFields,
+    MerkleTreeContractDepositAttestorInput,
+    verifyDepositSlotRoot,
+} from './depositAttestation.js';
+import { verifyCodeChallenge } from './pkarm.js';
 
 export class NoriTokenController
     extends TokenContract
@@ -93,6 +65,7 @@ export class NoriTokenController
             user,
             this.deriveTokenId()
         );
+
         // TODO: what if someone sent token to this address before?
         tokenAccUpdate.account.isNew.requireEquals(Bool(true));
 
@@ -141,53 +114,76 @@ export class NoriTokenController
         this.adminPublicKey.requireEquals(admin);
         return AccountUpdate.createSigned(admin);
     }
+
     @method public async noriMint(
-        ethConsensusProof: MockConsenusProof,
-        depositAttesterProof: MockDepositAttesterProof,
-        minaAttestationProof: MockMinaAttestationProof
+        ethVerifierProof: EthProofType,
+        merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
+        codeVerifierPKARM: Field        
     ) {
         const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
-        await ethConsensusProof.verify();
-        await depositAttesterProof.verify(); // Eth address is defo here its a public input! + attestationHash
-        await minaAttestationProof.verify(); // Eth address kina here ? output claim from presentation.verify() => {claim: OpType({owner: Byte})}
-        // from here we get issuer, and message
 
-        // minaAttestationProof presentation gives us message which is
+        // Validate consensus mpt proof which includes the deposit contract slot root.
+        ethVerifierProof.verify();
 
-        // on the mina attestation re verify attestationHash (deposit matches the  presentation.verify() => {claim: OpType({owner: Byte})})
+        // Calculate the deposit slot root
+        // This just proves that the index and value with the witness yield a root
+        // Aka some value exists at some index and yields a certain root
+        const contractDepositSlotRoot = getContractDepositSlotRootFromContractDepositAndWitness(
+            merkleTreeContractDepositAttestorInput
+        );
+
+        // Validates that the generated root and the contractDepositSlotRoot within the eth proof match.
+        verifyDepositSlotRoot(
+            contractDepositSlotRoot,
+            ethVerifierProof
+        );
+
+        // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
+        const { totalLocked, attestationHash: codeChallengePKARM } =
+            contractDepositCredentialAndTotalLockedToFields(
+                merkleTreeContractDepositAttestorInput
+            );
+
+        // Verify the code challenge
+        verifyCodeChallenge(codeVerifierPKARM, codeChallengePKARM);
+
         //TODO when add ethProcessor
-        // ethConsensusProof.storeHash.assertEquals(ethProcessor.storeHash);
-        depositAttesterProof.attesterRoot.assertEquals(
-            ethConsensusProof.attesterRoot
-        );
-        depositAttesterProof.minaAttestHash.assertEquals(
-            await minaAttestationProof.hash() // minaAttestationProof.message.value (hash(secret)) This would really be a presentation
-        );
+        // assert ethDepositProof.publicOutput.storageDepositRoot;
+
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
 
         storage.account.isNew.requireEquals(Bool(false)); // that somehow allows to getState without index out of bounds
         storage.userKeyHash
             .getAndRequireEquals()
-            .assertEquals(Poseidon.hash(userAddress.toFields()));
+            .assertEquals(
+                Poseidon.hash(userAddress.toFields()),
+                ' userKeyHash mismatch'
+            );
 
         // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
         const amountToMint = await storage.increaseMintedAmount(
-            depositAttesterProof.lockedSoFar
-        );
-        // Provable.log(amountToMint, 'amount to mint');
+            totalLocked
+        ); // TODO test mint amount is sane.
+        Provable.log(amountToMint, 'amount to mint');
 
         // Here we have only one destination there is only m1.....
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
-        const mintAccountUpdate = await token.mint(
-            userAddress,
-            UInt64.Unsafe.fromField(amountToMint)
-        );
+
+        Provable.asProver(() => {
+            console.log(
+                'UInt64.Unsafe.fromField(amountToMint)',
+                UInt64.Unsafe.fromField(amountToMint).toBigInt()
+            );
+        });
+
+        // Mint!
+        await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
     }
 
     @method.returns(Bool)
