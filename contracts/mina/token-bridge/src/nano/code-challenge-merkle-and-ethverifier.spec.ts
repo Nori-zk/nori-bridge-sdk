@@ -1,13 +1,14 @@
 import { AccountUpdate, Field, Mina, NetworkId, PrivateKey } from 'o1js';
-import {
-    CodeChallengeAndMerkleSmartContract,
-    computeDepositAttestationWitness,
-} from './code-challenge-and-merkle.js';
+import { CodeChallengeMerkleAndEthVerifierSmartContract } from './code-challenge-merkle-and-ethverifier.js';
+import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
 import { codeChallengeFieldToBEHex } from '../micro/pkarm.js';
-import { buildMerkleTreeContractDepositAttestorInput } from '../micro/depositAttestation.js';
+import {
+    buildMerkleTreeContractDepositAttestorInput,
+    computeDepositAttestationWitnessAndEthVerifier,
+} from '../micro/depositAttestation.js';
 
-describe('should_test_code_challenge_and_merkle', () => {
-    test('should_verify_code_challenge_and_merkle', async () => {
+describe('should_test_code_challenge_merkle_and_ethverifier', () => {
+    test('should_verify_code_challenge_merkle_and_ethverifier', async () => {
         // These are throw away devnet creds
         const minaSenderPrivateKeyBase58 =
             'EKDxnahxEV3y2FG66ZzF97qBQANAoVBbQqqXWCSSDsVJwdeWEV9G';
@@ -32,17 +33,30 @@ describe('should_test_code_challenge_and_merkle', () => {
         const Network = Mina.Network(minaConfig);
         Mina.setActiveInstance(Network);
 
-        // compile contract
-        const vk = await CodeChallengeAndMerkleSmartContract.compile();
-
-        const { verificationKey } = vk;
-        console.log('Compiled code challenge and merkle smart contract', {
-            data: verificationKey.data,
-            hash: verificationKey.hash.toString(),
+        // compile eth verifier VK
+        const ethVerifierVk = await EthVerifier.compile();
+        console.log('Compile eth verifier', {
+            data: ethVerifierVk.verificationKey.data,
+            hash: ethVerifierVk.verificationKey.hash.toString(),
         });
 
-        const codeChallengeAndMerkleSmartContract =
-            new CodeChallengeAndMerkleSmartContract(smartContractAddress);
+        // compile contract
+        const vk =
+            await CodeChallengeMerkleAndEthVerifierSmartContract.compile();
+
+        const { verificationKey } = vk;
+        console.log(
+            'Compiled code challenge merkle and eth verifier smart contract',
+            {
+                data: verificationKey.data,
+                hash: verificationKey.hash.toString(),
+            }
+        );
+
+        const codeChallengeMerkleAndEthVerifierSmartContract =
+            new CodeChallengeMerkleAndEthVerifierSmartContract(
+                smartContractAddress
+            );
 
         const deployTx = await Mina.transaction(
             { sender: minaSenderPublicKey, fee: 0.1 * 1e9 },
@@ -50,7 +64,7 @@ describe('should_test_code_challenge_and_merkle', () => {
                 AccountUpdate.fundNewAccount(minaSenderPublicKey);
 
                 // Deploy CodeChallengeSmartContract
-                await codeChallengeAndMerkleSmartContract.deploy();
+                await codeChallengeMerkleAndEthVerifierSmartContract.deploy();
             }
         );
 
@@ -68,7 +82,10 @@ describe('should_test_code_challenge_and_merkle', () => {
             .send();
 
         const deployResult = await tx.wait();
-        console.log('Deployed simple code challenge contract.', deployResult);
+        console.log(
+            'Deployed code challenge merkle and eth verifier contract.',
+            deployResult
+        );
 
         // START MAIN FLOW
 
@@ -86,23 +103,32 @@ describe('should_test_code_challenge_and_merkle', () => {
         const codeChallengeField = new Field(codeChallengeBigInt);
         const codeChallengeFieldBEHex =
             codeChallengeFieldToBEHex(codeChallengeField);
+        console.log('Computing eth verifier');
 
-        const computedDepositAttestationWitness =
-            await computeDepositAttestationWitness(
+        const ethVerifierProofJsonAndDepositInput =
+            await computeDepositAttestationWitnessAndEthVerifier(
                 depositBlockNumber,
                 ethAddressLowerHex,
                 codeChallengeFieldBEHex
             );
+        console.log('Doing the code challenge merkle and eth verifier tx');
 
         const codeChallengeTx = await Mina.transaction(
             { sender: minaSenderPublicKey, fee: 0.1 * 1e9 },
             async () => {
+                // Reconstruct ethVerifierProof
+                const ethVerifierProof = await EthProofType.fromJSON(
+                    ethVerifierProofJsonAndDepositInput.ethVerifierProofJson
+                );
+
+                // Reconstruct deposit input
                 const merkleTreeContractDepositAttestorInput =
                     buildMerkleTreeContractDepositAttestorInput(
-                        computedDepositAttestationWitness.depositAttestationInput
+                        ethVerifierProofJsonAndDepositInput.depositAttestationInput
                     );
 
-                await codeChallengeAndMerkleSmartContract.verifyMerkleAndChallenge(
+                await codeChallengeMerkleAndEthVerifierSmartContract.noriMint(
+                    ethVerifierProof,
                     merkleTreeContractDepositAttestorInput,
                     new Field(BigInt(codeVerifierPKARMStr))
                 );
@@ -114,6 +140,9 @@ describe('should_test_code_challenge_and_merkle', () => {
             .sign([minaSenderPrivateKey])
             .send();
         const codeChallengeResult = await signedProvedCodeChallengeTx.wait();
-        console.log('Did the code challenge and merkle', codeChallengeResult);
+        console.log(
+            'Did the code challenge merkle and eth verifier',
+            codeChallengeResult
+        );
     });
 });
