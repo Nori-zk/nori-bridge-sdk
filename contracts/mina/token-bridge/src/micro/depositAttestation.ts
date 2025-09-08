@@ -311,7 +311,7 @@ async function proofConversionServiceRequest(
     return json;
 }
 
-async function fetchContractWindowSlotProofs(
+export async function fetchContractWindowSlotProofs(
     depositBlockNumber: number,
     domain = 'https://pcs.nori.it.com'
 ) {
