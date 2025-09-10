@@ -16,7 +16,7 @@ import {
     VerificationKey,
 } from 'o1js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { FungibleToken } from './TokenBase.js';
+import { type FungibleToken } from './TokenBase.js';
 import {
     FungibleTokenAdminBase,
     NoriTokenControllerDeployProps,
@@ -115,10 +115,12 @@ export class NoriTokenController
         return AccountUpdate.createSigned(admin);
     }
 
+    static TokenContract: typeof FungibleToken;
+
     @method public async noriMint(
         ethVerifierProof: EthProofType,
         merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
-        codeVerifierPKARM: Field        
+        codeVerifierPKARM: Field
     ) {
         const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
@@ -129,15 +131,13 @@ export class NoriTokenController
         // Calculate the deposit slot root
         // This just proves that the index and value with the witness yield a root
         // Aka some value exists at some index and yields a certain root
-        const contractDepositSlotRoot = getContractDepositSlotRootFromContractDepositAndWitness(
-            merkleTreeContractDepositAttestorInput
-        );
+        const contractDepositSlotRoot =
+            getContractDepositSlotRootFromContractDepositAndWitness(
+                merkleTreeContractDepositAttestorInput
+            );
 
         // Validates that the generated root and the contractDepositSlotRoot within the eth proof match.
-        verifyDepositSlotRoot(
-            contractDepositSlotRoot,
-            ethVerifierProof
-        );
+        verifyDepositSlotRoot(contractDepositSlotRoot, ethVerifierProof);
 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
         const { totalLocked, attestationHash: codeChallengePKARM } =
@@ -166,13 +166,17 @@ export class NoriTokenController
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
-        const amountToMint = await storage.increaseMintedAmount(
-            totalLocked
-        ); // TODO test mint amount is sane.
+        const amountToMint = await storage.increaseMintedAmount(totalLocked); // TODO test mint amount is sane.
         Provable.log(amountToMint, 'amount to mint');
 
         // Here we have only one destination there is only m1.....
-        let token = new FungibleToken(tokenAddress);
+        Provable.asProver(() => {
+            console.log(
+                'NoriTokenController.TokenContract._verificationKey',
+                NoriTokenController.TokenContract._verificationKey.hash.toString()
+            );
+        });
+        let token = new NoriTokenController.TokenContract(tokenAddress);
         this.mintLock.set(Bool(false));
 
         Provable.asProver(() => {

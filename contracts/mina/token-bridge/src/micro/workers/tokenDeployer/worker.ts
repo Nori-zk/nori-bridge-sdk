@@ -14,9 +14,8 @@ import {
     PublicKey,
     UInt8,
 } from 'o1js';
-import { NoriTokenController } from '../../NoriTokenController.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
-import { FungibleToken } from '../../TokenBase.js';
+import { NoriTokenController, FungibleToken } from '../../contracts.js';
 import { type DeploymentResult } from '../../../NoriControllerSubmitter.js';
 
 export class TokenDeployerWorker {

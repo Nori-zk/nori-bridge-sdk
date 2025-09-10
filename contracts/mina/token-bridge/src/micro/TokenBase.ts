@@ -18,7 +18,7 @@ import {
     UInt8,
     VerificationKey,
 } from 'o1js';
-import { NoriTokenController } from './NoriTokenController.js';
+import { type NoriTokenController } from './NoriTokenController.js';
 
 interface FungibleTokenDeployProps extends Exclude<DeployArgs, undefined> {
     /** The token symbol. */
@@ -57,7 +57,7 @@ export class FungibleToken extends TokenContract {
     // This defines the type of the contract that is used to control access to administrative actions.
     // If you want to have a custom contract, overwrite this by setting FungibleToken.AdminContract to
     // your own implementation of FungibleTokenAdminBase.
-    static AdminContract: new (...args: any) => NoriTokenController;
+    static AdminContract: typeof NoriTokenController;
 
     readonly events = {
         SetAdmin: SetAdminEvent,
@@ -131,7 +131,15 @@ export class FungibleToken extends TokenContract {
             return pk;
         });
         this.admin.requireEquals(admin);
-        return new NoriTokenController(admin);
+
+        Provable.asProver(() => {
+            console.log(
+                'FungibleToken.AdminContract._verificationKey',
+                FungibleToken.AdminContract._verificationKey.hash.toString()
+            );
+        });
+
+        return new FungibleToken.AdminContract(admin);
     }
 
     @method
@@ -155,6 +163,7 @@ export class FungibleToken extends TokenContract {
             amount,
         });
         const adminContract = await this.getAdminContract();
+        // This seems to break on nori mint submit of proved tx 
         const canMint = await adminContract.canMint(accountUpdate);
         canMint.assertTrue(FungibleTokenErrors.noPermissionToMint);
         recipient

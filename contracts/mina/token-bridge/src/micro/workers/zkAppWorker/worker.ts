@@ -17,8 +17,7 @@ import {
     VerificationKey,
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
-import { FungibleToken } from '../../TokenBase.js';
-import { NoriTokenController } from '../../NoriTokenController.js';
+import { NoriTokenController, FungibleToken } from '../../contracts.js';
 import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
