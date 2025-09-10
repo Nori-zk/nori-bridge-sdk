@@ -18,7 +18,7 @@
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
-    "o1js": "^2.3.0"
+    "o1js": "2.3.0"
   },
   "dependencies": {
     "@nori-zk/ethereum-token-bridge": "*",
