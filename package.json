@@ -2,6 +2,7 @@
     "name": "@nori-zk/nori-bridge-sdk",
     "private": true,
     "version": "0.0.18",
+    "type": "module",
     "workspaces": [
         "workers",
         "o1js-zk-utils",
@@ -19,7 +20,8 @@
         "test": "npm run test --workspaces --if-present",
         "test-ci": "npm run test-ci --workspaces --if-present",
         "bake-vk-hashes": "npm run bake-vk-hashes --workspaces --if-present",
-        "publish": "nw-publish"
+        "publish": "nw-publish",
+        "determine-breakage:o1js": "node determine-o1js-breaking-changes.js"
     },
     "overrides": {
         "o1js": "2.3.0"
