@@ -20,5 +20,8 @@
         "test-ci": "npm run test-ci --workspaces --if-present",
         "bake-vk-hashes": "npm run bake-vk-hashes --workspaces --if-present",
         "publish": "nw-publish"
+    },
+    "overrides": {
+        "o1js": "2.3.0"
     }
 }
