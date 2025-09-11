@@ -18,10 +18,12 @@ describe('e2e_testnet_without_infra', () => {
         const depositBlockNumber = 4432732;
 
         // Other configs
-        const minaRpcUrl = 'https://devnet.minaprotocol.network/graphql';
+        const minaRpcUrl = 'http://84.32.59.126:3085/graphql';
         const minaConfig = {
             networkId: 'testnet' as NetworkId,
-            mina: minaRpcUrl,
+            // mina: minaRpcUrl,
+
+            mina: 'http://localhost:8080/graphql',
         };
 
         // Init mina creds

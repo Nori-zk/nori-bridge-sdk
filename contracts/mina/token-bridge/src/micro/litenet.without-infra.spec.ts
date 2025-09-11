@@ -1,6 +1,6 @@
 import { NetworkId, PrivateKey } from 'o1js';
 import { getNewMinaLiteNetAccountSK } from '../testUtils.js';
-import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
+// import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from './workers/tokenDeployer/worker.js';
 
@@ -17,13 +17,13 @@ describe('e2e-without-infra', () => {
     test('e2e_complete', async () => {
         // DEPLOY TEST CONTRACTS **************************************************
         // Use the worker to be able to reclaim some ram
-        const useDeployerWorkerSubProcess = true;
+        const useDeployerWorkerSubProcess = false;
         console.log('Deploying contract.');
         const TokenDeployerWorker = useDeployerWorkerSubProcess
             ? getTokenDeployerWorker()
             : TokenDeployerWorkerPure;
         const tokenDeployer = new TokenDeployerWorker();
-        const deployedVks = await tokenDeployer.compile();
+        const deployedVks = await tokenDeployer.compileMinterDeps();
         const contractsLitenetSk = await getNewMinaLiteNetAccountSK();
         const contractSenderPrivateKey =
             PrivateKey.fromBase58(contractsLitenetSk);
@@ -87,15 +87,16 @@ describe('e2e-without-infra', () => {
 
         // INIT zkApp WORKER **************************************************
         console.log('Fetching zkApp worker.');
-        const ZkAppWorker = getZkAppWorker();
+        // const ZkAppWorker = getZkAppWorker();
 
         // Compile zkAppWorker dependancies
         console.log('Compiling dependancies of zkAppWorker');
-        const zkAppWorker = new ZkAppWorker();
-        const zkAppWorkerReady = zkAppWorker.compileMinterDeps();
+        // const zkAppWorker = new ZkAppWorker();
+        const zkAppWorker = tokenDeployer;
+        // const zkAppWorkerReady = zkAppWorker.compileMinterDeps();
 
         // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
-        const zkWorkerVks = await zkAppWorkerReady;
+        const zkWorkerVks = deployedVks;
         console.log('Awaited compilation of zkAppWorkerReady');
 
         // Compare the keys

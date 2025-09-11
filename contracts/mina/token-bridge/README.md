@@ -192,7 +192,7 @@ This command builds the project and runs the deployment script with Node.js usin
 ## How to run the tests
 
 1. `npm install -g zkapp-cli`
-2. `zk lightnet start`
+2. `zk lightnet start -p full -t real -l Debug`
 
 ### Configure the .env file in the contracts/ethereum workspace
 

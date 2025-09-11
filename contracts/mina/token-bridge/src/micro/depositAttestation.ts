@@ -470,6 +470,10 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
         await EthVerifier.compute(ethVerifierInput, rawProof)
     ).proof;
     console.timeEnd('EthVerifier.compute');
+    // Verify EthVerifier
+    console.log('Verifying EthVerifier proof');
+    await EthVerifier.verify(ethVerifierProof);
+    console.log('Verified EthVerifier proof');
 
     console.log(`All proofs inputs built needed to compute mint proof!`);
 

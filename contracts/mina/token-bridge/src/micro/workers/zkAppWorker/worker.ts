@@ -460,7 +460,9 @@ export class ZkAppWorker {
         const ethVerifierProof = await EthProofType.fromJSON(
             ethVerifierProofJson
         );
-
+        console.log('verify proof...');
+        await ethVerifierProof.verify();
+        console.log('proof verified');
         // Reconstruct deposit input
         const merkleTreeContractDepositAttestorInput =
             buildMerkleTreeContractDepositAttestorInput(
@@ -519,7 +521,9 @@ export class ZkAppWorker {
         const ethVerifierProof = await EthProofType.fromJSON(
             ethVerifierProofJson
         );
-
+        console.log('verify proof...');
+        await ethVerifierProof.verify();
+        console.log('proof verified');
         // Reconstruct deposit input
         const merkleTreeContractDepositAttestorInput =
             buildMerkleTreeContractDepositAttestorInput(
@@ -610,6 +614,10 @@ export class ZkAppWorker {
             noriTokenControllerAddress
         );
 
+        console.log('verify proof...');
+        await ethVerifierProof.verify();
+        console.log('proof verified');
+
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
             async () => {
@@ -632,6 +640,11 @@ export class ZkAppWorker {
     async WALLET_MOCK_signAndSendMintProofCache() {
         const signedTx = this.#mintProofCache.sign([this.#minaPrivateKey]);
         console.log('signedTx...sending', signedTx);
+        console.log('here --------------------------------');
+        console.log(signedTx.toGraphqlQuery());
+        console.log(
+            '------- end toGraphqlQuery --------------------------------'
+        );
         const tx = await signedTx.send();
         console.log('Sent tx...waiting', tx);
         const result = await tx.wait();
