@@ -93,14 +93,14 @@ describe('e2e-without-infra', () => {
         // Compile zkAppWorker dependancies
         console.log('Compiling dependancies of zkAppWorker');
         const zkAppWorker = new ZkAppWorker();
-        //const zkAppWorkerReady = zkAppWorker.compileMinterDeps();
+        const zkAppWorkerReady = zkAppWorker.compileMinterDeps();
 
         // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
-        //const zkWorkerVks = await zkAppWorkerReady;
+        const zkWorkerVks = await zkAppWorkerReady;
         console.log('Awaited compilation of zkAppWorkerReady');
 
         // Compare the keys
-        /*type VkKey =
+        type VkKey =
             | 'ethVerifierVerificationKeySafe'
             | 'noriStorageInterfaceVerificationKeySafe'
             | 'fungibleTokenVerificationKeySafe'
@@ -127,7 +127,7 @@ describe('e2e-without-infra', () => {
             throw new Error(
                 `Verification key mismatches:\n${errors.join('\n')}`
             );
-        }*/
+        }
 
         // Compute eth verifier and deposit witness
         console.log('Computing eth verifier and calculating deposit witness.');
