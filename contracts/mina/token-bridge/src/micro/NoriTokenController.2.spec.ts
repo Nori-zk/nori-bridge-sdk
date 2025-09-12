@@ -143,10 +143,10 @@ describe('NoriTokenController', () => {
 
         // reconstruct VKs from safe form
         tokenBaseVK = {
-            data: deployedVks.noriTokenControllerVerificationKeySafe.data,
+            data: deployedVks.fungibleTokenVerificationKeySafe.data,
             hash: new Field(
                 BigInt(
-                    deployedVks.noriTokenControllerVerificationKeySafe.hashStr
+                    deployedVks.fungibleTokenVerificationKeySafe.hashStr
                 )
             ),
         };

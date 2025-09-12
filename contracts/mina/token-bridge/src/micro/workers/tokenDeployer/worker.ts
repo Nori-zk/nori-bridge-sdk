@@ -159,7 +159,7 @@ export class TokenDeployerWorker {
 
                 // Initialize TokenBase
                 await tokenBase.initialize(
-                    tokenBaseAddress,
+                    noriTokenControllerPublicKey,
                     decimals,
                     startPaused
                 );
