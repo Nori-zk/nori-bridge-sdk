@@ -23,7 +23,7 @@
         "buildw": "tsc --watch",
         "coverage": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage",
         "format": "prettier --write --ignore-unknown **/*",
-        "test": "npm run build && node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js",
+        "test": "npm run build && node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --",
         "testw": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --watch",
         "lint": "npx eslint src/* --fix",
         "testn": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm",
