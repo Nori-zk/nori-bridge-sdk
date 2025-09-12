@@ -15,7 +15,8 @@ import {
     UInt8,
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
-import { NoriTokenController, FungibleToken } from '../../contracts.js';
+import { FungibleToken } from '../../TokenBase.js';
+import { NoriTokenController,  } from '../../NoriTokenController.js';
 import { type DeploymentResult } from '../../../NoriControllerSubmitter.js';
 
 export class TokenDeployerWorker {
