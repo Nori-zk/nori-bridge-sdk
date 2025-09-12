@@ -308,7 +308,7 @@ try {
             minaSenderPublicKeyBase58,
             noriTokenControllerAddressBase58,
             0.1 * 1e9,
-            zkVerificationKeys.noriTokenControllerVerificationKeySafe
+            zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
         );
         // NOTE! ************
         // Really a client would use await zkAppWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
