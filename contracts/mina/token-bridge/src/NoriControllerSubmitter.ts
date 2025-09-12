@@ -24,6 +24,7 @@ import {
     NoriTokenControllerDeployProps,
 } from './NoriTokenController.js';
 import { EthProofType } from '@nori-zk/o1js-zk-utils';
+import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
 
 export interface NoriTokenControllerConfig {
     senderPrivateKey: string; //TODO make client side version
@@ -43,8 +44,8 @@ export interface NoriTokenControllerConfig {
 export interface MintProofData {
     //ethConsensusProof: MockConsenusProof;
     ethVerifierProof: EthProofType;
-    depositAttesterProof: MockDepositAttesterProof;
-    minaAttestationProof: MockMinaAttestationProof;
+    merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput;
+    codeVerifierPKARM: Field;
 }
 
 export interface DeploymentResult {
@@ -55,7 +56,7 @@ export interface DeploymentResult {
 
 export interface MintResult {
     txHash: string;
-    mintedAmount: string;
+    //mintedAmount: string;
     userBalance: string;
 }
 
@@ -327,8 +328,8 @@ export class NoriTokenControllerSubmitter {
                 }
                 await this.#noriTokenController.noriMint(
                     proofData.ethVerifierProof,
-                    proofData.depositAttesterProof,
-                    proofData.minaAttestationProof
+                    proofData.merkleTreeContractDepositAttestorInput,
+                    proofData.codeVerifierPKARM
                 );
             }
         );
@@ -350,7 +351,7 @@ export class NoriTokenControllerSubmitter {
         console.log('Minting completed successfully');
         return {
             txHash: result.hash,
-            mintedAmount: proofData.depositAttesterProof.lockedSoFar.toString(),
+            //mintedAmount: proofData.depositAttesterProof.lockedSoFar.toString(),
             userBalance: balance.toString(),
         };
     }

@@ -32,11 +32,11 @@ type Keypair = {
     privateKey: PrivateKey;
 };
 
-import { computeDepositAttestationWitnessAndEthVerifier } from './depositAttestation.js';
 import {
-    EthProofType,
-    EthVerifier,
-} from '@nori-zk/o1js-zk-utils';
+    buildMerkleTreeContractDepositAttestorInput,
+    computeDepositAttestationWitnessAndEthVerifier,
+} from './depositAttestation.js';
+import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
 
 async function computeDepositAttestationWitnessAndEthVerifier2(
     codeChallengePKARM: string,
@@ -269,20 +269,6 @@ describe('NoriTokenController', () => {
     });
 
     test('should mint tokens for Alice only once', async () => {
-        const amount = Field(3000);
-        const attesterRoot = Field(2);
-        const mockProof = Field(3);
-        const minaAttestHash = Poseidon.hash([mockProof]);
-
-        const depositAttesterProof = new MockDepositAttesterProof({
-            attesterRoot,
-            minaAttestHash,
-            lockedSoFar: amount,
-        });
-        const minaAttestationProof = new MockMinaAttestationProof({
-            proof: mockProof,
-        });
-
         // compute prerequisites
 
         const codeVerifierPKARMStr =
@@ -308,13 +294,18 @@ describe('NoriTokenController', () => {
             ethVerifierProofJson
         );
 
+        const merkleTreeContractDepositAttestorInput =
+            buildMerkleTreeContractDepositAttestorInput(
+                depositAttestationInput
+            );
+
         const tx = await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
                 await noriTokenController.noriMint(
                     ethVerifierProof,
-                    depositAttesterProof,
-                    minaAttestationProof
+                    merkleTreeContractDepositAttestorInput,
+                    new Field(BigInt(codeVerifierPKARMStr))
                 );
             },
             sender: alice.publicKey,
@@ -329,7 +320,7 @@ describe('NoriTokenController', () => {
         console.log('balance of alice', balance.toString());
         assert.equal(
             balance.toBigInt(),
-            amount.toBigInt(),
+            11000000000000n,
             'balance of alice does not match minted amount'
         );
 
@@ -339,8 +330,8 @@ describe('NoriTokenController', () => {
                 body: async () => {
                     await noriTokenController.noriMint(
                         ethVerifierProof,
-                        depositAttesterProof,
-                        minaAttestationProof
+                        merkleTreeContractDepositAttestorInput,
+                        new Field(BigInt(codeVerifierPKARMStr))
                     );
                 },
                 sender: alice.publicKey,
