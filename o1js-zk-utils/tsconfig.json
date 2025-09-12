@@ -2,7 +2,15 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "build",
-    "rootDir": "src"
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "rootDir": "src",
+    "baseUrl": ".", 
+    "isolatedModules": true,
+    "paths": {
+      "o1js": ["../node_modules/o1js"],
+      "*": ["*", "src/*", "../node_modules/*"]
+    }
   },
   "include": ["./src", "./src/proofs/*.json", "src/integrity/*.json"],
 }

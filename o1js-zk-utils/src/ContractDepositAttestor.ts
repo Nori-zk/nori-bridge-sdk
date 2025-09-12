@@ -1,4 +1,4 @@
-import { Bytes, Field, Poseidon, Provable, Struct, UInt8 } from 'o1js';
+import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
 import { Bytes20, Bytes32 } from './types.js';
 import { merkleLeafAttestorGenerator } from './merkle-attestor/merkleLeafAttestor.js';
 

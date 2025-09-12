@@ -15,13 +15,16 @@ export {
     fieldToHexLE,
     fieldToBigIntBE,
     fieldToBigIntLE,
+    uint8ArrayToBigIntBE,
     decodeConsensusMptProof,
     compileAndVerifyContracts,
+    compileAndOptionallyVerifyContracts,
+    vkToVkSafe,
 } from './utils.js';
 
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
 
-export { EthVerifier, EthProof, EthInput } from './ethVerifier.js';
+export { EthVerifier, EthProof, EthInput, EthProofType } from './ethVerifier.js';
 
 export * from './types.js';
 
@@ -32,6 +35,6 @@ export {
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
-} from './contractDepositAttestor.js';
+} from './ContractDepositAttestor.js';
 
 export * from './nodeProofLeft.patch.js';

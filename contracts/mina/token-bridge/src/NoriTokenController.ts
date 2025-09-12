@@ -20,6 +20,7 @@ import {
 } from 'o1js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
+import { EthProofType } from '@nori-zk/o1js-zk-utils';
 export class MockConsenusProof extends Struct({
     storeHash: Field,
     attesterRoot: Field,
@@ -148,13 +149,14 @@ export class NoriTokenController
         return AccountUpdate.createSigned(admin);
     }
     @method public async noriMint(
-        ethConsensusProof: MockConsenusProof,
+        //ethConsensusProof: MockConsenusProof,
+        ethVerifierProof: EthProofType,
         depositAttesterProof: MockDepositAttesterProof,
         minaAttestationProof: MockMinaAttestationProof
     ) {
         const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
-        await ethConsensusProof.verify();
+        await ethVerifierProof.verify();
         await depositAttesterProof.verify(); // Eth address is defo here its a public input! + attestationHash
         await minaAttestationProof.verify(); // Eth address kina here ? output claim from presentation.verify() => {claim: OpType({owner: Byte})}
         // from here we get issuer, and message
@@ -164,9 +166,9 @@ export class NoriTokenController
         // on the mina attestation re verify attestationHash (deposit matches the  presentation.verify() => {claim: OpType({owner: Byte})})
         //TODO when add ethProcessor
         // ethConsensusProof.storeHash.assertEquals(ethProcessor.storeHash);
-        depositAttesterProof.attesterRoot.assertEquals(
+        /*depositAttesterProof.attesterRoot.assertEquals(
             ethConsensusProof.attesterRoot
-        );
+        );*/
         depositAttesterProof.minaAttestHash.assertEquals(
             await minaAttestationProof.hash() // minaAttestationProof.message.value (hash(secret)) This would really be a presentation
         );

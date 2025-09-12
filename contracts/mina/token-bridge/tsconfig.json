@@ -36,6 +36,7 @@
     "allowJs": true, // to use JSDoc in some places where TS would be too cumbersome
     "sourceMap": true,
     "paths": {
+      "xstate": ["../../../node_modules/xstate"],
       "o1js": ["../../../node_modules/o1js"],
       "*": ["*", "src/*", "../../../node_modules/*"]
     }

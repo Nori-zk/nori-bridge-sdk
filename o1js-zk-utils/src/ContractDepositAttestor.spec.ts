@@ -6,7 +6,7 @@ import {
     getContractDepositWitness,
     ContractDeposit,
     provableStorageSlotLeafHash,
-} from './contractDepositAttestor.js';
+} from './ContractDepositAttestor.js';
 import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 import { Bytes20, Bytes32 } from './types.js';
 import {

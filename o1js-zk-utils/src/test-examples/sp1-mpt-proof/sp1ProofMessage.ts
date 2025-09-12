@@ -1,7 +1,6 @@
-import { PlonkProof } from '../../types';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const sp1ConsensusMPTPlonkProof: ProofResultResultMessage = require('./4666560-v5.0.0.json');
+import { PlonkProof } from '../../types.js';
+import sp1ConsensusMPTPlonkProofRaw from './4666560-v5.0.0.json' with { type: 'json' };
+const sp1ConsensusMPTPlonkProof = sp1ConsensusMPTPlonkProofRaw as ProofResultResultMessage;
 
 type ContractStorageSlot = {
     slot_key_address: string;

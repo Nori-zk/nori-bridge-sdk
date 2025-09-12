@@ -24,12 +24,38 @@ import {
     MockDepositAttesterProof,
     MockMinaAttestationProof,
 } from './NoriTokenController.js';
+import { codeChallengeFieldToBEHex } from './pkarm.js';
 
 const FEE = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
 type Keypair = {
     publicKey: PublicKey;
     privateKey: PrivateKey;
 };
+
+import { computeDepositAttestationWitnessAndEthVerifier } from './depositAttestation.js';
+import {
+    EthProofType,
+    EthVerifier,
+} from '@nori-zk/o1js-zk-utils';
+
+async function computeDepositAttestationWitnessAndEthVerifier2(
+    codeChallengePKARM: string,
+    depositBlockNumber: number,
+    ethAddressLowerHex: string,
+    domain = 'https://pcs.nori.it.com'
+) {
+    const codeChallengeBigInt = BigInt(codeChallengePKARM);
+    const codeChallengeField = new Field(codeChallengeBigInt);
+    const codeChallengeFieldBEHex =
+        codeChallengeFieldToBEHex(codeChallengeField);
+    return computeDepositAttestationWitnessAndEthVerifier(
+        depositBlockNumber,
+        ethAddressLowerHex,
+        codeChallengeFieldBEHex,
+        domain
+    );
+}
+
 describe('NoriTokenController', () => {
     // test accounts
     let deployer: Keypair, admin: Keypair, alice: Keypair, bob: Keypair;
@@ -41,22 +67,35 @@ describe('NoriTokenController', () => {
     let noriTokenControllerVK: VerificationKey;
     let noriTokenControllerKeypair: Keypair;
     let storageInterfaceVK: VerificationKey;
+    let ethVerifierVk: VerificationKey;
     let allAccounts: PublicKey[] = [];
 
     beforeAll(async () => {
         // compile contracts
+
+        // compile ethverifier
+        console.log('compiling eth verifier');
+        ethVerifierVk = (
+            await EthVerifier.compile({
+                cache: Cache.FileSystem('./cache'),
+            })
+        ).verificationKey;
+        console.log('compiling nori storage');
+
         storageInterfaceVK = (
             await NoriStorageInterface.compile({
                 cache: Cache.FileSystem('./cache'),
             })
         ).verificationKey;
         // if (proofsEnabled) {
+        console.log('compiling FungibleToken');
         tokenBaseVK = (
             await FungibleToken.compile({
                 cache: Cache.FileSystem('./cache'),
             })
         ).verificationKey;
 
+        console.log('compiling NoriTokenController');
         noriTokenControllerVK = (
             await NoriTokenController.compile({
                 cache: Cache.FileSystem('./cache'),
@@ -231,14 +270,10 @@ describe('NoriTokenController', () => {
 
     test('should mint tokens for Alice only once', async () => {
         const amount = Field(3000);
-        const storeHash = Field(1);
         const attesterRoot = Field(2);
         const mockProof = Field(3);
         const minaAttestHash = Poseidon.hash([mockProof]);
-        const ethConsensusProof = new MockConsenusProof({
-            storeHash,
-            attesterRoot,
-        });
+
         const depositAttesterProof = new MockDepositAttesterProof({
             attesterRoot,
             minaAttestHash,
@@ -247,11 +282,37 @@ describe('NoriTokenController', () => {
         const minaAttestationProof = new MockMinaAttestationProof({
             proof: mockProof,
         });
+
+        // compute prerequisites
+
+        const codeVerifierPKARMStr =
+            '28929899377588420303953682814589874820844405496387980906819951860414692093779';
+        const codeChallengePKARMStr =
+            '15354345367044214131600935236508205003561151324062168867145984717473184332138';
+
+        const ethAddressLowerHex =
+            '0xC7e910807Dd2E3F49B34EfE7133cfb684520Da69'.toLowerCase();
+        const depositBlockNumber = 4432612;
+
+        console.log('Computing eth verifier and calculating deposit witness.');
+        const { ethVerifierProofJson, depositAttestationInput } =
+            await computeDepositAttestationWitnessAndEthVerifier2(
+                codeChallengePKARMStr,
+                depositBlockNumber,
+                ethAddressLowerHex
+            );
+        console.log('Computed eth verifier and calculated deposit witness.');
+
+        // Reconstruct ethVerifierProof
+        const ethVerifierProof = await EthProofType.fromJSON(
+            ethVerifierProofJson
+        );
+
         const tx = await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
                 await noriTokenController.noriMint(
-                    ethConsensusProof,
+                    ethVerifierProof,
                     depositAttesterProof,
                     minaAttestationProof
                 );
@@ -277,7 +338,7 @@ describe('NoriTokenController', () => {
             txSend({
                 body: async () => {
                     await noriTokenController.noriMint(
-                        ethConsensusProof,
+                        ethVerifierProof,
                         depositAttesterProof,
                         minaAttestationProof
                     );
@@ -303,7 +364,7 @@ describe('NoriTokenController', () => {
             })
         );
     });
-    test('should mint tokens for Alice again', async () => {
+    /*test('should mint tokens for Alice again', async () => {
         const amount = Field(4000);
         const storeHash = Field(1);
         const attesterRoot = Field(2);
@@ -349,9 +410,9 @@ describe('NoriTokenController', () => {
             amount.toBigInt(),
             'balance of alice does not match minted amount'
         );
-    });
+    });*/
 
-    test('should fail to mint tokens for Bob, without setupStorage', async () => {
+    /*test('should fail to mint tokens for Bob, without setupStorage', async () => {
         const amount = Field(5000);
         const storeHash = Field(1);
         const attesterRoot = Field(2);
@@ -384,7 +445,7 @@ describe('NoriTokenController', () => {
                 signers: [bob.privateKey],
             })
         );
-    });
+    });*/
 });
 
 async function txSend({

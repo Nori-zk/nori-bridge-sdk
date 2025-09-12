@@ -4,7 +4,7 @@ import { Cache } from 'o1js';
 import { randomBytes } from 'crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { EthVerifier } from '../ethVerifier.js';
-import { rootDir } from '../utils.js';
+import { rootDir } from '../rootDir.js';
 
 new LogPrinter('[NoriEthVerifier]', [
     'log',

@@ -13,7 +13,7 @@ import {
     FrC,
     NodeProofLeft,
     parsePlonkPublicInputsProvable,
-} from '@nori-zk/proof-conversion';
+} from '@nori-zk/proof-conversion/min';
 import { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP1HeliosProgram.pi0.js';
 import { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
 import { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js';
@@ -51,7 +51,7 @@ const EthVerifier = ZkProgram({
                 // vk = proofConversionOutput.vkData
                 // this is also from nodeVK
                 const vk = VerificationKey.fromJSON(
-                    proofConversionSP1ToPlonkVkData
+                    proofConversionSP1ToPlonkVkData as unknown as string
                 );
 
                 // [zkProgram / circuit][eth processor /  contract ie on-chain state]
@@ -98,5 +98,7 @@ const EthVerifier = ZkProgram({
 });
 
 const EthProof = ZkProgram.Proof(EthVerifier);
+
+export class EthProofType extends EthProof {}
 
 export { EthVerifier, EthProof, EthInput };

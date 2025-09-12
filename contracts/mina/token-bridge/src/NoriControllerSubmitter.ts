@@ -23,6 +23,7 @@ import {
     MockMinaAttestationProof,
     NoriTokenControllerDeployProps,
 } from './NoriTokenController.js';
+import { EthProofType } from '@nori-zk/o1js-zk-utils';
 
 export interface NoriTokenControllerConfig {
     senderPrivateKey: string; //TODO make client side version
@@ -40,7 +41,8 @@ export interface NoriTokenControllerConfig {
 }
 
 export interface MintProofData {
-    ethConsensusProof: MockConsenusProof;
+    //ethConsensusProof: MockConsenusProof;
+    ethVerifierProof: EthProofType;
     depositAttesterProof: MockDepositAttesterProof;
     minaAttestationProof: MockMinaAttestationProof;
 }
@@ -324,7 +326,7 @@ export class NoriTokenControllerSubmitter {
                     AccountUpdate.fundNewAccount(userPublicKey, 1);
                 }
                 await this.#noriTokenController.noriMint(
-                    proofData.ethConsensusProof,
+                    proofData.ethVerifierProof,
                     proofData.depositAttesterProof,
                     proofData.minaAttestationProof
                 );

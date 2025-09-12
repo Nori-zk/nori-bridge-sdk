@@ -21,7 +21,7 @@ import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHea
 import proofArgument from './test_examples/4666560/index.js';
 import { Field, UInt64, Bytes } from 'o1js';
 import { NodeProofLeft, wordToBytes } from '@nori-zk/proof-conversion';
-import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils/build/utils.js';
+import { uint8ArrayToBigIntBE } from '@nori-zk/o1js-zk-utils';
 import {
     E2ePrerequisitesInput,
     E2EPrerequisitesProgram,

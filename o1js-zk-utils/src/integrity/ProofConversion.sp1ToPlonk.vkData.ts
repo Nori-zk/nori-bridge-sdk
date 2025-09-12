@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const proofConversionSP1ToPlonkVkData: string = require('./ProofConversion.sp1ToPlonk.vkData.json');
+import proofConversionSP1ToPlonkVkDataRaw from './ProofConversion.sp1ToPlonk.vkData.json' with { type: 'json'};
+const proofConversionSP1ToPlonkVkData = proofConversionSP1ToPlonkVkDataRaw as {data: string, hash : string};
 export { proofConversionSP1ToPlonkVkData };
