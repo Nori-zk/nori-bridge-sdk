@@ -73,7 +73,7 @@ export class EchoWorker {
         console.log(upper); // { upper: 'HELLO' }
 
         // Clean up
-        echoWorker.terminate();
+        echoWorker.signalTerminate();
     }
 
     main();
@@ -130,7 +130,7 @@ export class EchoWorker {
         console.log(upper); // { upper: 'HI' }
 
         // Terminate when done
-        echoWorker.terminate();
+        echoWorker.signalTerminate();
     }
 
     runBrowserCode();
