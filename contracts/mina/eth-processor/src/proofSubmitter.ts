@@ -130,8 +130,8 @@ export class MinaEthProcessorSubmitter {
                 [
                     //prettier-ignore
                     `Deploy is only supported in test mode, test mode was set to 'false'. Test mode is only possible when the configured network is 'lightnet' and the configured network is '${this.#network}'.`,
-                    `Please see the README.md within the 'contracts/mina/eth-processor' workspace of the 'nori-bridge-sdk' repository and use the deploy script 'npm run deploy <storeHash>' instead of this method.`
-                ].join('\n')               
+                    `Please see the README.md within the 'contracts/mina/eth-processor' workspace of the 'nori-bridge-sdk' repository and use the deploy script 'npm run deploy <storeHash>' instead of this method.`,
+                ].join('\n')
             );
         }
         logger.log('Creating deploy update transaction.');
@@ -142,9 +142,8 @@ export class MinaEthProcessorSubmitter {
             async () => {
                 AccountUpdate.fundNewAccount(senderPublicKey);
                 logger.log(
-                    `Deploying smart contract with verification key hash: '${
-                        this.#ethProcessorVerificationKey.hash
-                    }'`
+                    //prettier-ignore
+                    `Deploying smart contract with verification key hash: '${this.#ethProcessorVerificationKey.hash}'`
                 );
                 await this.#zkApp.deploy({
                     verificationKey: this.#ethProcessorVerificationKey,

@@ -24,6 +24,6 @@
         "determine-breakage:o1js": "node determine-o1js-breaking-changes.js"
     },
     "overrides": {
-        "o1js": "2.3.0"
+        "o1js": "2.9.0"
     }
 }

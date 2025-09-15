@@ -7,6 +7,7 @@ import { MinaEthProcessorSubmitter } from './proofSubmitter.js';
 import { wait } from './txWait.js';
 import { PrivateKey } from 'o1js';
 import { decodeConsensusMptProof } from '@nori-zk/o1js-zk-utils';
+import { getNewMinaLiteNetAccountSK } from './testUtils.js';
 
 new LogPrinter('[TestEthProcessor]', [
     'log',
@@ -18,12 +19,16 @@ new LogPrinter('[TestEthProcessor]', [
     'verbose',
 ]);
 
-// Fix testing network to lightnet
-process.env.NETWORK = 'lightnet';
-
 const logger = new Logger('JestEthProcessor');
 
 describe('MinaEthProcessorSubmittor Integration Test', () => {
+    beforeAll(async () => {
+        // Fix testing network to lightnet
+        process.env.NETWORK = 'lightnet';
+        process.env.MINA_RPC_NETWORK_URL = 'http://localhost:8080/graphql';
+        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
+    });
+
     test('should run the proof submission process correctly', async () => {
         // Generate a random contract key
         process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
