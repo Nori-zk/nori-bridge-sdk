@@ -62,7 +62,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         await wait(result.txId, process.env.MINA_RPC_NETWORK_URL!);
 
         logger.log('Awaited finalization succesfully.');
-    });
+    }, 1000000000);
 
     test('should perform a series of proof submissions', async () => {
         // Generate a random contract key
@@ -105,7 +105,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
             await wait(result.txId, process.env.MINA_RPC_NETWORK_URL as string);
             i++;
         }
-    });
+    }, 1000000000);
 
     test('should invoke a hash validation issue when we skip transition proofs', async () => {
         // Generate a random contract key
@@ -159,7 +159,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
 
         // Submit proof 2.
         await expect(proofSubmitter.submit(ethProof2.proof)).rejects.toThrow();
-    });
+    }, 1000000000);
 
     // TODO add integration test for redeploy FIXME
 });

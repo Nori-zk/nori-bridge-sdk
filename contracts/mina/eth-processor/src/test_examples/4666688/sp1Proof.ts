@@ -1,5 +1,4 @@
 import { PlonkProof } from '@nori-zk/o1js-zk-utils';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-const sp1PlonkProof: PlonkProof = require('./sp1Proof.json');
+import sp1PlonkProofRaw from './sp1Proof.json' with { type: "json" };
+const sp1PlonkProof = sp1PlonkProofRaw as PlonkProof;
 export { sp1PlonkProof };
