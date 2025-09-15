@@ -21,8 +21,8 @@ USAGE
    - ETH_PRIVATE_KEY=private key from which you wish to lock ETH to claim nETH
    - ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<apiKey>
    - NORI_TOKEN_BRIDGE_ADDRESS=0x3EEACD9caa1aDdBA939FF041C43020b516A51dcF
-   - NORI_TOKEN_CONTROLLER_ADDRESS=B62qjgjGUXwYt4TLnAFu6cfcYGas3NzBP3P9ZNsaL14CKF2uM9GrZFi
-   - TOKEN_BASE_ADDRESS=B62qmvTd6LRDRRRQk3TLBsw376UsVrr9wYfRwbNhfkYYwSyJFVTcZ4X
+   - NORI_TOKEN_CONTROLLER_ADDRESS=B62qrMnJiMerBXb1469Q3qr1jkhFk92MMgk8orNNfXP3fFFWvjKsEja
+   - TOKEN_BASE_ADDRESS=B62qrqiUcXEAqTaQPW8tqwaBx3trx36yAeFzsiPigHXvou86APsY6gV
    - MINA_RPC_NETWORK_URL=https://devnet.minaprotocol.network/graphql
    - SENDER_PRIVATE_KEY=private key of the Mina address for which you wish to claim nETH
 
