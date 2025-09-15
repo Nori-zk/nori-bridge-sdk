@@ -102,7 +102,7 @@ describe('e2e', () => {
 
             // Note this value is used to restrict the domain of the signature but could
             // also be a user provided secret for extra security.
-            const fixedValueOrSecret = 'NoriZK';
+            const fixedValueOrSecret = 'NoriZK25';
             // Get signature secret, this is used simply used such that we can deterministically
             // derive our secret used for the PKARM code exchange without the user having to store
             // any secret, when a fixed field is used.

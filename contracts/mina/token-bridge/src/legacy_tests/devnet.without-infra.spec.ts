@@ -16,7 +16,7 @@ describe('e2e_testnet_without_infra', () => {
         // Eth details
         const ethAddressLowerHex =
             '0xC7e910807Dd2E3F49B34EfE7133cfb684520Da69'.toLowerCase();
-        const depositBlockNumber = 4432732;
+        const depositBlockNumber = 4515528;
 
         // Other configs
         const minaRpcUrl = 'https://devnet.minaprotocol.network/graphql';
@@ -89,7 +89,7 @@ describe('e2e_testnet_without_infra', () => {
         const codeVerifierPKARMStr =
             '28929899377588420303953682814589874820844405496387980906819951860414692093779';
         const codeChallengePKARMStr =
-            '15354345367044214131600935236508205003561151324062168867145984717473184332138';
+            '12986808969824587176339986437728649315208654166925450390141437174280872846073';
 
         // COMPUTE DEPOSIT ATTESTATION **************************************************
 
