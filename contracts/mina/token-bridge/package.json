@@ -28,29 +28,11 @@
         "./rx/topics": {
             "import": "./target/src/rx/topics.js"
         },
+        "./node/workers/zkAppWorker": {
+            "import": "./target/src/workers/zkAppWorker/node/parent.js"
+        },
         "./workers/defs": {
             "import": "./target/src/workers/defs.js"
-        },
-        "./node/workers/tokenMint": {
-            "import": "./target/src/workers/tokenMint/node/parent.js"
-        },
-        "./node/workers/depositAttestation": {
-            "import": "./target/src/workers/depositAttestation/node/parent.js"
-        },
-        "./node/workers/credentialAttestation": {
-            "import": "./target/src/workers/credentialAttestation/node/parent.js"
-        },
-        "./slim/workers/defs": {
-            "import": "./target/src/slim/workers/defs.js"
-        },
-        "./slim": {
-            "import": "./target/src/slim/index.js"
-        },
-        "./micro/workers/defs": {
-            "import": "./target/src/micro/workers/defs.js"
-        },
-        "./micro": {
-            "import": "./target/src/micro/index.js"
         }
     },
     "scripts": {
@@ -67,9 +49,7 @@
         "controller": "tsc && NODE_NO_WARNINGS=1 node --test ./target/src/NoriTokenController.test.js --loader ts-node/esm",
         "nori": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm --test-name-pattern='NoriCore' ",
         "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' ",
-        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js",
-        "deploy-slim": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/slim/deploy.js",
-        "deploy-micro": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/micro/deploy.js"
+        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.16.4",

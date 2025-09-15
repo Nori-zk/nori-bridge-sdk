@@ -4,20 +4,7 @@ import {
     ContractDepositAttestor,
     EthVerifier,
 } from '@nori-zk/o1js-zk-utils';
-import {
-    AccountUpdate,
-    Field,
-    Mina,
-    PrivateKey,
-    Provable,
-    Struct,
-    ZkProgram,
-} from 'o1js';
-import {
-    EcdsaSigPresentationVerifier,
-    ProvableEcdsaSigPresentation,
-} from './credentialAttestation.js';
-import { Presentation } from 'mina-attestations';
+import { Field, Provable, Struct, ZkProgram } from 'o1js';
 
 export class EthDepositProgramInput extends Struct({
     credentialAttestationHash: Field,
@@ -98,15 +85,24 @@ export const EthDepositProgram = ZkProgram({
                 }
 
                 Provable.asProver(() => {
-                    Provable.log('input.credentialAttestationHash', 'contractDepositAttestorProofCredential', input.credentialAttestationHash, contractDepositAttestorProofCredential)
+                    Provable.log(
+                        'input.credentialAttestationHash',
+                        'contractDepositAttestorProofCredential',
+                        input.credentialAttestationHash,
+                        contractDepositAttestorProofCredential
+                    );
                 });
 
                 input.credentialAttestationHash.assertEquals(
                     contractDepositAttestorProofCredential
                 );
 
-                Provable.asProver(()=>{
-                    console.log(contractDepositAttestorPublicInputs.value.bytes.map((byte)=>byte.toBigInt()));
+                Provable.asProver(() => {
+                    console.log(
+                        contractDepositAttestorPublicInputs.value.bytes.map(
+                            (byte) => byte.toBigInt()
+                        )
+                    );
                 });
 
                 // Turn totalLocked into a field
@@ -143,9 +139,7 @@ export const EthDepositProgram = ZkProgram({
 });
 
 // E2EPrerequisitesProgram
-export const EthDepositProgramProof = ZkProgram.Proof(
-    EthDepositProgram
-);
+export const EthDepositProgramProof = ZkProgram.Proof(EthDepositProgram);
 export class EthDepositProgramProofType extends EthDepositProgramProof {}
 
 export async function compilePreRequisites() {
@@ -173,38 +167,5 @@ export async function compilePreRequisites() {
     console.timeEnd('E2EPrerequisitesProgram compile');
     console.log(
         `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
-    );
-}
-
-export async function deployAndVerifyEcdsaSigPresentationVerifier(
-    zkAppPrivateKey: PrivateKey,
-    senderPrivateKey: PrivateKey,
-    presentationJSON: string
-) {
-    console.log('senderPrivateKey', senderPrivateKey);
-    console.log('zkAppPrivateKey', zkAppPrivateKey);
-    const senderPublicKey = senderPrivateKey.toPublicKey();
-    const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
-    const zkApp = new EcdsaSigPresentationVerifier(zkAppPublicKey);
-    const deployTx = await Mina.transaction(
-        { sender: senderPublicKey, fee: 0.01 * 1e9 },
-        async () => {
-            AccountUpdate.fundNewAccount(senderPublicKey);
-            await zkApp.deploy();
-            const presentation = Presentation.fromJSON(presentationJSON);
-            const provablePresentation =
-                ProvableEcdsaSigPresentation.from(presentation);
-            const claims = await zkApp.verifyPresentation(provablePresentation);
-            console.log('✅ ProvablePresentation verified!');
-            console.log('ProvableEcdsaSigPresentation claims:', claims);
-        }
-    );
-
-    console.log('Deploy transaction created successfully. Proving...');
-    await deployTx.prove();
-    console.log('Transaction proved. Signing and sending the transaction...');
-    await deployTx.sign([senderPrivateKey, zkAppPrivateKey]).send().wait();
-    console.log(
-        '✅ EcdsaSigPresentationVerifier deployed and verified successfully.'
     );
 }

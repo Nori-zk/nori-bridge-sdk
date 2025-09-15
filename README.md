@@ -24,6 +24,8 @@ A collection of smart/zk contracts, o1js programs and utilities for Nori Bridge.
    `package: @nori-zk/workers`  
    A node.js / browser worker abstraction.
 
+6. **[Minimal client](./minimal-client)**   
+   An e2e browser devnet test for the whole locking and minting process.
 
 ## Usage
 

@@ -14,10 +14,13 @@ import {
     readyToComputeMintProof,
 } from './rx/deposit.js';
 import { signSecretWithEthWallet } from './ethSignature.js';
-import { TokenMintWorker } from './workers/tokenMint/node/parent.js';
-import { CredentialAttestationWorker } from './workers/credentialAttestation/node/parent.js';
+import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
 import { BigNumberish, ethers, TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+import {
+    createCodeChallenge,
+    obtainCodeVerifierFromEthSignature,
+} from './pkarm.js';
 
 function validateEnv(): {
     ethPrivateKey: string;
@@ -34,10 +37,10 @@ function validateEnv(): {
         ETH_PRIVATE_KEY,
         ETH_RPC_URL,
         NORI_TOKEN_BRIDGE_ADDRESS,
-        NORI_CONTROLLER_PUBLIC_KEY,
+        NORI_TOKEN_CONTROLLER_ADDRESS,
         MINA_RPC_NETWORK_URL,
         SENDER_PRIVATE_KEY,
-        NORI_TOKEN_PUBLIC_KEY,
+        TOKEN_BASE_ADDRESS,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -60,20 +63,20 @@ function validateEnv(): {
     }
 
     if (
-        !NORI_CONTROLLER_PUBLIC_KEY ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_CONTROLLER_PUBLIC_KEY)
+        !NORI_TOKEN_CONTROLLER_ADDRESS ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_TOKEN_CONTROLLER_ADDRESS)
     ) {
         errors.push(
-            'NORI_CONTROLLER_PUBLIC_KEY missing or invalid (expected Base58 string)'
+            'NORI_TOKEN_CONTROLLER_ADDRESS missing or invalid (expected Base58 string)'
         );
     }
 
     if (
-        !NORI_TOKEN_PUBLIC_KEY ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_TOKEN_PUBLIC_KEY)
+        !TOKEN_BASE_ADDRESS ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(TOKEN_BASE_ADDRESS)
     ) {
         errors.push(
-            'NORI_TOKEN_PUBLIC_KEY missing or invalid (expected Base58 string)'
+            'TOKEN_BASE_ADDRESS missing or invalid (expected Base58 string)'
         );
     }
 
@@ -102,8 +105,8 @@ function validateEnv(): {
         ethPrivateKey: ETH_PRIVATE_KEY,
         ethRpcUrl: ETH_RPC_URL,
         noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
-        noriTokenControllerAddressBase58: NORI_CONTROLLER_PUBLIC_KEY,
-        noriTokenBaseAddressBase58: NORI_TOKEN_PUBLIC_KEY,
+        noriTokenControllerAddressBase58: NORI_TOKEN_CONTROLLER_ADDRESS,
+        noriTokenBaseAddressBase58: TOKEN_BASE_ADDRESS,
         minaRpcUrl: MINA_RPC_NETWORK_URL,
         minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
     };
@@ -144,90 +147,65 @@ describe('e2e_testnet', () => {
             const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
             const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
-            // INIT WORKERS **************************************************
-            console.log('Fetching workers.');
-            const tokenMintWorker = new TokenMintWorker();
-            const credentialAttestationWorker =
-                new CredentialAttestationWorker();
-
-            // READY CREDENTIAL ATTESTATION WORKER **************************************
-            console.log('Compiling credentialAttestationWorker dependancies.');
-            const credentialAttestationReady =
-                credentialAttestationWorker.compile();
-
             // START MAIN FLOW
 
             // OBTAIN CREDENTIAL **************************************************
 
             // CLIENT *******************
-            const secret = 'IAmASecretOfLength20';
-            // Get signature
-            console.log('Creating eth signature of our secret');
-            console.time('ethSecretSignature');
-            const ethSecretSignature = await signSecretWithEthWallet(
-                secret,
+
+            // Note this value is used to restrict the domain of the signature but could
+            // also be a user provided secret for extra security.
+            const fixedValueOrSecret = 'NoriZK';
+            // Get signature secret, this is used simply used such that we can deterministically
+            // derive our secret used for the PKARM code exchange without the user having to store
+            // any secret, when a fixed field is used.
+            // If the user uses a fixed value then they could use their eth wallet to re generate
+            // their codeVerifier (secret) on another machine.
+            // If they provided a secret then they would have to keep this themselves and provide it when minting.
+            console.log('Creating eth signature of our secret / fixed field');
+            console.time('ethSignatureSecret');
+            const ethSignatureSecret = await signSecretWithEthWallet(
+                fixedValueOrSecret,
                 ethWallet
             );
-            console.timeEnd('ethSecretSignature');
+            console.timeEnd('ethSignatureSecret');
 
             // These prints are just for testing purposes.
-            console.log('ethSecretSignature', ethSecretSignature);
+            console.log('ethSignatureSecret', ethSignatureSecret);
             console.log(
                 'senderPublicKey.toBase58()',
                 minaSenderPublicKeyBase58
             );
 
-            // CLIENT *******************
-            console.log('Awaiting credentialAttestation compile.');
-            await credentialAttestationReady;
-            // Create credential
-            console.log('Creating credential');
-            console.time('createCredential');
-            // This would be sent from the CLIENT to the WALLET to store.
-            const credentialJson =
-                await credentialAttestationWorker.computeCredential(
-                    secret,
-                    ethSecretSignature,
-                    ethWallet.address,
-                    minaSenderPublicKeyBase58
-                );
-            console.timeEnd('createCredential'); // 2:02.513 (m:ss.mmm)
-
-            // CLIENT *******************
-            // Create a presentation request
-            // This is sent from the CLIENT to the WALLET
-            console.log('Creating presentation request');
-            console.time('getPresentationRequest');
-            const presentationRequestJson =
-                await credentialAttestationWorker.computeEcdsaSigPresentationRequest(
-                    noriTokenControllerAddressBase58
-                );
-            console.timeEnd('getPresentationRequest'); // 1.348ms
-
-            // WALLET ********************
-            // WALLET takes a presentation request and the WALLET can retrieve the stored credential
-            // From this it creates a presentation and sends this to the CLIENT
-            console.log('Creating presentation');
-            console.time('getPresentation');
-            const presentationJsonStr =
-                await credentialAttestationWorker.WALLET_computeEcdsaSigPresentation(
-                    presentationRequestJson,
-                    credentialJson,
-                    minaSenderPrivateKeyBase58
-                );
-            console.timeEnd('getPresentation'); // 46.801s
-
-            // Kill credentialAttestation worker to reclaim ram.
-            credentialAttestationWorker.terminate();
-            console.log('credentialAttestationWorker terminated');
-
             // CLIENT only logic from now on....
 
-            // Extract hashed secret from presentation
-            const presentation = JSON.parse(presentationJsonStr);
-            const messageHashString =
-                presentation.outputClaim.value.messageHash.value;
-            const credentialAttestationBigInt = BigInt(messageHashString);
+            // Generate PKARM code challenge from signature and mina public key
+            const codeVerifierPKARMField =
+                obtainCodeVerifierFromEthSignature(ethSignatureSecret); // This is a secret field
+            const codeVerifierPKARMBigInt = codeVerifierPKARMField.toBigInt();
+            const codeVerifierPKARMStr = codeVerifierPKARMBigInt.toString();
+
+            const codeChallengePKARMField = createCodeChallenge(
+                codeVerifierPKARMField,
+                minaSenderPublicKey
+            ); // This is the code challenge witness which can be stored publically (on chain)
+            const codeChallengePKARMBigInt = codeChallengePKARMField.toBigInt();
+            const codeChallengePKARMStr = codeChallengePKARMBigInt.toString();
+
+            console.log('ethSignatureSecret', ethSignatureSecret);
+            console.log(
+                'senderPublicKey.toBase58()',
+                minaSenderPublicKeyBase58
+            );
+            console.log(
+                'senderPrivateKey.toBase58()',
+                minaSenderPrivateKeyBase58
+            );
+            console.log('codeVerifierPKARMField', codeVerifierPKARMField);
+            console.log('codeVerifierPKARMBigInt', codeVerifierPKARMBigInt);
+            console.log('codeVerifierPKARMStr', codeVerifierPKARMStr);
+            console.log('codeChallengePKARMBigInt', codeChallengePKARMBigInt);
+            console.log('codeChallengePKARMStr', codeChallengePKARMStr);
 
             // CONNECT TO BRIDGE **************************************************
 
@@ -272,7 +250,7 @@ describe('e2e_testnet', () => {
                 ethWallet
             );
             const credentialAttestationBigNumberIsh: BigNumberish =
-                credentialAttestationBigInt;
+                codeChallengePKARMBigInt;
             const depositAmountStr = '0.000001';
             console.log('depositAmountStr', depositAmountStr);
             const depositAmount = ethers.parseEther(depositAmountStr);
@@ -316,27 +294,32 @@ describe('e2e_testnet', () => {
 
             // COMPUTE DEPOSIT ATTESTATION **************************************************
 
-            // Compile tokenMintWorker dependancies
-            console.log('Compiling dependancies of tokenMintWorker');
-            const tokenMintWorkerReady = tokenMintWorker.compileAll(); // ?? Can we move this earlier...
+            // INIT WORKER **************************************************
+            console.log('Fetching zkApp worker.');
+            const ZkAppWorker = getZkAppWorker();
+
+            // Compile zkAppWorker dependancies
+            console.log('Compiling dependancies of zkAppWorker');
+            const zkAppWorker = new ZkAppWorker();
+            const zkAppWorkerReady = zkAppWorker.compileAll(); // ?? Can we move this earlier...
 
             // PREPARE FOR MINTING **************************************************
 
             // Configure wallet
             // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
-            await tokenMintWorker.WALLET_setMinaPrivateKey(
+            await zkAppWorker.WALLET_setMinaPrivateKey(
                 minaSenderPrivateKeyBase58
             );
-            await tokenMintWorker.minaSetup(minaConfig);
+            await zkAppWorker.minaSetup(minaConfig);
 
-            // Get noriTokenControllerVerificationKeySafe from tokenMintWorkerReady resolution.
-            const noriTokenControllerVerificationKeySafe =
-                await tokenMintWorkerReady;
-            console.log('Awaited compilation of tokenMintWorkerReady', noriTokenControllerVerificationKeySafe);
+            // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
+            const { noriStorageInterfaceVerificationKeySafe } =
+                await zkAppWorkerReady;
+            console.log('Awaited compilation of zkAppWorkerReady');
 
             // SETUP STORAGE **************************************************
             // TODO IMPROVE THIS
-            const setupRequired = await tokenMintWorker.needsToSetupStorage(
+            const setupRequired = await zkAppWorker.needsToSetupStorage(
                 noriTokenControllerAddressBase58,
                 minaSenderPublicKeyBase58
             );
@@ -346,17 +329,17 @@ describe('e2e_testnet', () => {
                 console.log('Setting up storage');
                 console.time('noriMinter.setupStorage');
                 const { txHash: setupTxHash } =
-                    await tokenMintWorker.MOCK_setupStorage(
+                    await zkAppWorker.MOCK_setupStorage(
                         minaSenderPublicKeyBase58,
                         noriTokenControllerAddressBase58,
                         0.1 * 1e9,
-                        noriTokenControllerVerificationKeySafe
+                        noriStorageInterfaceVerificationKeySafe
                     );
                 // NOTE! ************
-                // Really a client would use await tokenMintWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
-                // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenMintWorker.setupStorage should be used on the
+                // Really a client would use await zkAppWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
+                // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.setupStorage should be used on the
                 // frontend.
-                /*const provedSetupTxStr = await tokenMintWorker.setupStorage(
+                /*const provedSetupTxStr = await zkAppWorker.setupStorage(
                     senderPublicKeyBase58,
                     noriTokenControllerAddressBase58,
                     0.1 * 1e9,
@@ -365,7 +348,7 @@ describe('e2e_testnet', () => {
                 console.log('provedSetupTxStr', provedSetupTxStr);*/
                 // The below should use a real wallets signAndSend method.
                 /*const { txHash: setupTxHash } =
-                await tokenMintWorker.WALLET_signAndSend(provedSetupTxStr);*/
+                await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
                 console.log('setupTxHash', setupTxHash);
                 console.timeEnd('noriMinter.setupStorage');
@@ -380,43 +363,47 @@ describe('e2e_testnet', () => {
             // Throws if we have missed our minting opportunity.
             await readyToComputeMintProof(depositProcessingStatus$);
 
-            console.log('Computing eth deposit proof.');
-            const { ethDepositProofJson } =
-                await tokenMintWorker.computeEthDeposit(
-                    presentationJsonStr,
+            // Compute eth verifier and deposit witness
+            console.log(
+                'Computing eth verifier and calculating deposit witness.'
+            );
+            const { ethVerifierProofJson, depositAttestationInput } =
+                await zkAppWorker.computeDepositAttestationWitnessAndEthVerifier(
+                    codeChallengePKARMStr,
                     depositBlockNumber,
                     ethAddressLowerHex
                 );
+            console.log(
+                'Computed eth verifier and calculated deposit witness.'
+            );
 
             // PRE-COMPUTE MINT PROOF ****************************************************
 
             console.log('Determining user funding status.');
-            const needsToFundAccount = await tokenMintWorker
-                .needsToFundAccount(
-                    noriTokenBaseAddressBase58,
-                    minaSenderPublicKeyBase58
-                );
+            const needsToFundAccount = await zkAppWorker.needsToFundAccount(
+                noriTokenBaseAddressBase58,
+                minaSenderPublicKeyBase58
+            );
             console.log('needsToFundAccount', needsToFundAccount);
 
             console.log('Computing mint proof.');
 
             console.time('Mint proof computation');
-            await tokenMintWorker.MOCK_computeMintProofAndCache(
+            await zkAppWorker.MOCK_computeMintProofAndCache(
                 minaSenderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
-                {
-                    ethDepositProofJson: ethDepositProofJson,
-                    presentationProofStr: presentationJsonStr,
-                },
+                ethVerifierProofJson,
+                depositAttestationInput,
+                codeVerifierPKARMStr,
                 1e9 * 0.1,
                 needsToFundAccount
             );
             console.timeEnd('Mint proof computation');
             // NOTE!
-            // Really a client would use await tokenMintWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
-            // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenMintWorker.mint should be used on the
+            // Really a client would use await zkAppWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
+            // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.mint should be used on the
             // frontend, and at this stage, instead of the above:
-            /*const provedMintTxStr = await tokenMintWorker.mint(
+            /*const provedMintTxStr = await zkAppWorker.mint(
                 senderPublicKeyBase58,
                 noriTokenControllerAddressBase58, // CHECKME @Karol
                 {
@@ -445,23 +432,23 @@ describe('e2e_testnet', () => {
 
             console.time('Mint transaction finalized');
             const { txHash: mintTxHash } =
-                await tokenMintWorker.WALLET_MOCK_signAndSendMintProofCache();
+                await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();
             // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
             // And ideally when WALLET_signAndSend works properly we would replace the above(within this test only!) with the below MOCK for wallet behaviour.
             /*const { txHash: mintTxHash } =
-            await tokenMintWorker.WALLET_signAndSend(provedMintTxStr);*/
+            await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
             console.log('mintTxHash', mintTxHash);
             console.timeEnd('Mint transaction finalized');
             console.log('Minted!');
 
             // Get the amount minted so far and print it
-            const mintedSoFar = await tokenMintWorker.mintedSoFar(
+            const mintedSoFar = await zkAppWorker.mintedSoFar(
                 noriTokenControllerAddressBase58,
                 minaSenderPublicKeyBase58
             );
             console.log('mintedSoFar', mintedSoFar);
 
-            const balanceOfUser = await tokenMintWorker.getBalanceOf(
+            const balanceOfUser = await zkAppWorker.getBalanceOf(
                 noriTokenBaseAddressBase58,
                 minaSenderPublicKeyBase58
             );
@@ -469,7 +456,8 @@ describe('e2e_testnet', () => {
 
             // END MAIN FLOW
         } finally {
-            if (depositProcessingStatusSubscription) depositProcessingStatusSubscription.unsubscribe();
+            if (depositProcessingStatusSubscription)
+                depositProcessingStatusSubscription.unsubscribe();
         }
     }, 1000000000);
 });

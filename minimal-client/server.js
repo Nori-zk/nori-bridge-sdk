@@ -25,23 +25,11 @@ app.use(express.static(path.resolve('public')));
 
 // HTTP + WS proxy to Mina devnet
 const proxy = httpProxy.createProxyServer({
-    //target: 'https://devnet.minaprotocol.network',
     changeOrigin: true,
     ws: true, // enable WebSocket proxying
     secure: true,
 });
 
-// Handle HTTP requests to /api/graphql
-/*app.use("/graphql", (req, res) => {
-  // Add CORS headers for browser
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") return res.sendStatus(204); // preflight
-
-  proxy.web(req, res);
-});*/
 // Proxy for pcs.nori.it.com
 app.use('/converted-consensus-mpt-proofs', (req, res) => {
     proxy.web(req, res, {
@@ -59,14 +47,6 @@ app.use((req, res) => {
 // Create HTTP server (needed for WS upgrade)
 const server = http.createServer(app);
 
-// Handle WebSocket upgrade for /api/graphql
-/*server.on("upgrade", (req, socket, head) => {
-  if (req.url?.startsWith("/graphql")) {
-    proxy.ws(req, socket, head);
-  } else {
-    socket.destroy();
-  }
-});*/
 server.on('upgrade', (req, socket, head) => {
     console.log('Upgrade attempt detected:', req.url);
     proxy.ws(req, socket, head);

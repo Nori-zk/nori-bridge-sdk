@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "private": "true",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rm -rf public && mkdir -p public && node build.js",
     "serve": "node server.js"
   },
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "description": "",
   "devDependencies": {
     "dotenv": "^17.2.1",

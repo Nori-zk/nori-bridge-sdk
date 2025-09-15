@@ -2,7 +2,7 @@ import { Bytes } from 'o1js';
 import {
     type EnforceMaxLength,
     type SecretMaxLength,
-} from './credentialAttestationUtils.js';
+} from './types.js';
 import { id, Wallet } from 'ethers';
 
 export async function signSecretWithEthWallet<FixedString extends string>(

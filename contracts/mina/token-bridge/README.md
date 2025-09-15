@@ -19,18 +19,14 @@ You have two options depending on your environment:
 #### 1. **Use Node.js workers directly**  
 > Only valid in a Node.js environment (e.g., backend services, CLI tools)
 
-```typescript
-import { TokenMintWorker } from '@nori-zk/mina-token-bridge/node/workers/tokenMint';
-import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/node/workers/credentialAttestation';
-```
-
 Node.js Worker Usage:
 
 ```typescript
-import { TokenMintWorker } from '@nori-zk/mina-token-bridge/node/workers/tokenMint';
-import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/node/workers/credentialAttestation';
+import { getZkAppWorker } from '@nori-zk/mina-token-bridge/node/workers/zkAppWorker';
+
 async function main() {
-    const tokenMintWorker = new TokenMintWorker();
+    const ZkAppWorker = getZkAppWorker();
+    const tokenMintWorker = new ZkAppWorker();
     // Optional as method calls are buffered
     await tokenMintWorker.ready;
     await tokenMintWorker.compileAll();
@@ -39,54 +35,57 @@ main();
 ```
 ---
 
-#### 2. **For the browser, import pure logic worker classes and lift them into workers manually**  
+#### 2. **For the browser, import pure logic worker class and lift it into a usable workers manually**  
 > Use this if you're building your own worker pipeline in a front-end
 
 ```typescript
 import {
-    CredentialAttestationWorker,
-    TokenMintWorker,
+    ZkAppWorker
 } from '@nori-zk/mina-token-bridge/workers/defs';
 ```
 
-You must lift these pure classes into actual workers. Example:
+You must lift this pure class into an actual worker. Example:
 
 ```typescript
-// workers/credentialAttestation/browser/parent.ts
+// workers/zkAppWorker/browser/parent.ts
 import { WorkerParent } from '@nori-zk/workers/browser/parent';
-import { type CredentialAttestationWorker as CredentialAttestationWorkerType } from '@nori-zk/mina-token-bridge/workers/defs';
+import { type ZkAppWorker as ZkAppWorkerType } from '@nori-zk/mina-token-bridge/workers/defs';
 import { createProxy } from '@nori-zk/workers';
 
-const worker = new Worker(new URL('./child.ts', import.meta.url), {
-    type: 'module',
-});
-
-const workerParent = new WorkerParent(worker);
-
-export const CredentialAttestationWorker = createProxy<typeof CredentialAttestationWorkerType>(workerParent);
+export function getZkAppWorker() {
+    const worker = new Worker(new URL('./child.ts', import.meta.url), {
+        type: 'module',
+    });
+    const workerParent = new WorkerParent(worker);
+    return createProxy<typeof ZkAppWorkerType>(workerParent);
+}
 ```
 
 ```typescript
-// workers/credentialAttestation/browser/child.ts
-import { CredentialAttestationWorker } from '@nori-zk/mina-token-bridge/workers/defs';
+// workers/zkAppWorker/browser/child.ts
+import { ZkAppWorker } from '@nori-zk/mina-token-bridge/workers/defs';
 import { WorkerChild } from '@nori-zk/workers/browser/child';
 import { createWorker } from '@nori-zk/workers';
 
 createWorker(
     new WorkerChild(),
-    CredentialAttestationWorker
+    ZkAppWorker
 );
 ```
 
 Browser Worker Usage:
 
 ```typescript
-import { CredentialAttestationWorker } from './.workers/credentialAttestation/browser/parent.ts';
+import { getZkAppWorker } from './workers/zkAppWorker/browser/parent.ts';
 async function main() {
-    const credentialAttestationWorker = new CredentialAttestationWorker();
+    const ZkAppWorker = getZkAppWorker();
+    const zkAppWorkerWorker = new ZkAppWorker();
     // Optional as method calls are buffered
-    await credentialAttestationWorker.ready;
-    await credentialAttestationWorker.compile();
+    await zkAppWorkerWorker.ready;
+    await zkAppWorkerWorker.compile();
+    // Do other operations...
+    // Cleanup the worker when your finished with it...
+    zkAppWorkerWorker.signalTerminate();
 }
 
 // run main etc
@@ -122,7 +121,7 @@ import {
 } from '@nori-zk/mina-token-bridge/rx/deposit'
 import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge'
 // Import your worker getter function here to support minting, e.g.:
-// import { getCredentialAttestationWorker } from './workers/credentialAttestation/parent'
+// import { getZkAppWorker } from './workers/zkAppWorker/browser/parent.ts'
 // Do other logic such as retrieving user balance etc.
 ```
 
@@ -130,35 +129,6 @@ import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWit
 
 See the [E2E test](src/e2e.devnet.spec.ts) for a comprehensive example.
 
-### Example of token contracts usage
-
-#### Get user balance
-
-```typescript
-const tokenBase = new FungibleToken(tokenAddress);
-await fetchAccount({
-    publicKey: userPublicKey,
-    tokenId: tokenBase.deriveTokenId(),
-})
-const balance = await tokenBase.getBalanceOf(userPublicKey);
-```
-
-#### Get user storage info
-
-```typescript
-const noriTokenController = new NoriTokenController(noriAddress);
-const storage = new NoriStorageInterface(
-    userPublicKey,
-    noriTokenController.deriveTokenId()
-)
-await fetchAccount({
-    publicKey: userPublicKey,
-    tokenId: noriTokenController.deriveTokenId(),
-})
-const userKeyHash = await storage.userKeyHash.fetch();
-const mintedSoFar = await storage.mintedSoFar.fetch();
-
-```
 ## Token Contract Deployment
 
 In order to deploy the contract, a script has been provided as an npm command:
@@ -192,7 +162,7 @@ This command builds the project and runs the deployment script with Node.js usin
 ## How to run the tests
 
 1. `npm install -g zkapp-cli`
-2. `zk lightnet start`
+2. `zk lightnet start -p full -t real -l Debug`
 
 ### Configure the .env file in the contracts/ethereum workspace
 
@@ -220,10 +190,10 @@ Configure your contracts/mina/token-bridge/.env file:
     ETH_PRIVATE_KEY=<Holesky ETH private key>
     ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<apiKey>
     NORI_TOKEN_BRIDGE_ADDRESS=<Holesky ETH Nori Token Bridge address>
-    NORI_CONTROLLER_PUBLIC_KEY=<Nori Mina TestNet Token controller base58 address>
+    NORI_TOKEN_CONTROLLER_ADDRESS=<Nori Mina TestNet Token controller base58 address>
     MINA_RPC_NETWORK_URL=https://devnet.minaprotocol.network/graphql
     SENDER_PRIVATE_KEY=<Nori Mina TestNet private key>
-    NORI_TOKEN_PUBLIC_KEY=<Nori Mina TestNet Token base base58 address>
+    TOKEN_BASE_ADDRESS=<Nori Mina TestNet Token base base58 address>
 
 Run the E2E test procedure with a deployed devnet contract:
 

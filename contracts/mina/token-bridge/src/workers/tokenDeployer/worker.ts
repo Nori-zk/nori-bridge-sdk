@@ -1,4 +1,9 @@
-import { ContractDepositAttestor, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import {
+    compileAndOptionallyVerifyContracts,
+    EthVerifier,
+    ethVerifierVkHash,
+    vkToVkSafe,
+} from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
     Bool,
@@ -9,15 +14,15 @@ import {
     PublicKey,
     UInt8,
 } from 'o1js';
-import {
-    compileEcdsaEthereum,
-    compileEcdsaSigPresentationVerifier,
-} from '../../credentialAttestation.js';
-import { EthDepositProgram } from '../../EthDepositProgram.js';
-import { NoriTokenController } from '../../NoriTokenController.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
-import { DeploymentResult } from '../../NoriControllerSubmitter.js';
+import { NoriTokenController,  } from '../../NoriTokenController.js';
+
+export interface DeploymentResult {
+    noriTokenControllerAddress: string;
+    tokenBaseAddress: string;
+    txHash: string;
+}
 
 export class TokenDeployerWorker {
     // Mina setup ******************************************************************************
@@ -36,89 +41,52 @@ export class TokenDeployerWorker {
     }
 
     async compile() {
-        console.log('Compiling prerequisites...');
+        console.log('Compiling all contracts/programs ...');
 
-        // Compile programs / contracts
-        console.time('compileEcdsaEthereum');
-        await compileEcdsaEthereum();
-        console.timeEnd('compileEcdsaEthereum'); // 1:20.330 (m:ss.mmm)
+        const contracts = [
+            {
+                name: 'ethVerifier',
+                program: EthVerifier,
+                // integrityHash: ethVerifierVkHash, // disabled to see if we can prove 65 works and 24 does not
+            },
+            { name: 'NoriStorageInterface', program: NoriStorageInterface },
+            { name: 'FungibleToken', program: FungibleToken },
+            { name: 'NoriTokenController', program: NoriTokenController },
+        ] as const;
 
-        console.time('compilePresentationVerifier');
-        await compileEcdsaSigPresentationVerifier();
-        console.timeEnd('compilePresentationVerifier'); // 11.507s
-
-        console.time('ContractDepositAttestor compile');
-        const { verificationKey: contractDepositAttestorVerificationKey } =
-            await ContractDepositAttestor.compile({
-                forceRecompile: true,
-            });
-        console.timeEnd('ContractDepositAttestor compile');
-        console.log(
-            `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
+        // Compile all contracts using the helper
+        const compiledVks = await compileAndOptionallyVerifyContracts(
+            console,
+            contracts
         );
 
-        console.time('EthVerifier compile');
-        const { verificationKey: ethVerifierVerificationKey } =
-            await EthVerifier.compile({
-                forceRecompile: true,
-            });
-        console.timeEnd('EthVerifier compile');
-        console.log(
-            `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
+        // Manually assign each VK to a Safe key
+        const ethVerifierVerificationKeySafe = vkToVkSafe(
+            compiledVks.ethVerifierVerificationKey
+        );
+        const noriStorageInterfaceVerificationKeySafe = vkToVkSafe(
+            compiledVks.NoriStorageInterfaceVerificationKey
+        );
+        const fungibleTokenVerificationKeySafe = vkToVkSafe(
+            compiledVks.FungibleTokenVerificationKey
+        );
+        const noriTokenControllerVerificationKeySafe = vkToVkSafe(
+            compiledVks.NoriTokenControllerVerificationKey
         );
 
-        console.time('EthDepositProgram compile');
-        const { verificationKey: EthDepositProgramVerificationKey } =
-            await EthDepositProgram.compile({
-                forceRecompile: true,
-            });
-        console.timeEnd('EthDepositProgram compile');
-        console.log(
-            `EthDepositProgram compiled vk: '${EthDepositProgramVerificationKey.hash}'.`
-        );
-
-        console.log('Compiling contracts...');
-        // Compile all required contracts
-        console.time('NoriStorageInterface compile');
-        const { verificationKey: storageInterfaceVerificationKey } =
-            await NoriStorageInterface.compile({ forceRecompile: true });
-        console.timeEnd('NoriStorageInterface compile');
-        console.log(
-            `NoriStorageInterface compiled vk: '${storageInterfaceVerificationKey.hash}'.`
-        );
-
-        console.time('FungibleToken compile');
-        const { verificationKey: tokenBaseVerificationKey } =
-            await FungibleToken.compile({ forceRecompile: true });
-        console.timeEnd('FungibleToken compile');
-        console.log(
-            `FungibleToken compiled vk: '${tokenBaseVerificationKey.hash}'.`
-        );
-
-        console.time('NoriTokenController compile');
-        const { verificationKey: noriTokenControllerVerificationKey } =
-            await NoriTokenController.compile({ forceRecompile: true });
-        console.timeEnd('NoriTokenController compile');
-        console.log(
-            `NoriTokenController compiled vk: '${noriTokenControllerVerificationKey.hash}'.`
-        );
-
-        const noriStorageInterfaceVerificationKeyHashField =
-            storageInterfaceVerificationKey.hash;
-        const noriStorageInterfaceVerificationKeyHashBigInt =
-            noriStorageInterfaceVerificationKeyHashField.toBigInt();
-        const noriStorageInterfaceVerificationKeyHashStr =
-            noriStorageInterfaceVerificationKeyHashBigInt.toString();
+        console.log('All contracts/programs compiled successfully.');
 
         return {
-            data: storageInterfaceVerificationKey.data,
-            hashStr: noriStorageInterfaceVerificationKeyHashStr,
+            ethVerifierVerificationKeySafe,
+            noriStorageInterfaceVerificationKeySafe,
+            fungibleTokenVerificationKeySafe,
+            noriTokenControllerVerificationKeySafe,
         };
     }
 
     async deployContracts(
         senderPrivateKeyBase58: string,
-        adminPrivateKeyBase58: string,
+        adminPublicKeyBase58: string,
         tokenControllerPrivateKeyBase58: string,
         tokenBasePrivateKeyBase58: string,
         ethProcessorAddressBase58: string,
@@ -141,9 +109,8 @@ export class TokenDeployerWorker {
         );
         const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
         const storageInterfaceVerificationKey = { data, hash };
-
-        const adminPrivateKey = PrivateKey.fromBase58(adminPrivateKeyBase58);
-        const adminPublicKey = adminPrivateKey.toPublicKey();
+        const adminPublicKey = PublicKey.fromBase58(adminPublicKeyBase58);
+        console.log('senderPrivateKeyBase58', !!senderPrivateKeyBase58);
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
 
         const ethProcessorAddress = PublicKey.fromBase58(
@@ -197,7 +164,7 @@ export class TokenDeployerWorker {
 
                 // Initialize TokenBase
                 await tokenBase.initialize(
-                    tokenBaseAddress,
+                    noriTokenControllerPublicKey,
                     decimals,
                     startPaused
                 );

@@ -37,56 +37,12 @@ function writeHtml(bundleFileName) {
 }
 
 async function buildWorkers() {
-    // Build first workers
-    const firstMintWorker = `first.mintWorker.${HASH}.js`;
-    const firstZkappWorker = `first.zkappWorker.${HASH}.js`;
-
+    // Build zkApp worker
+    const zkAppWorker = `zkAppWorker.${HASH}.js`;
     await esbuild.build({
-        entryPoints: ['src/first/mintWorker.ts'],
+        entryPoints: ['src/zkAppWorker.ts'],
         bundle: true,
-        outfile: `public/${firstMintWorker}`,
-        format: 'esm',
-        define,
-        banner: { js: banner },
-    });
-
-    await esbuild.build({
-        entryPoints: ['src/first/zkappWorker.ts'],
-        bundle: true,
-        outfile: `public/${firstZkappWorker}`,
-        format: 'esm',
-        define,
-        banner: { js: banner },
-    });
-
-    // Build slim workers
-    const slimMintWorker = `slim.mintWorker.${HASH}.js`;
-    const slimZkappWorker = `slim.zkappWorker.${HASH}.js`;
-
-    await esbuild.build({
-        entryPoints: ['src/slim/mintWorker.ts'],
-        bundle: true,
-        outfile: `public/${slimMintWorker}`,
-        format: 'esm',
-        define,
-        banner: { js: banner },
-    });
-
-    await esbuild.build({
-        entryPoints: ['src/slim/zkappWorker.ts'],
-        bundle: true,
-        outfile: `public/${slimZkappWorker}`,
-        format: 'esm',
-        define,
-        banner: { js: banner },
-    });
-
-    // Build micro worker
-    const microZkAppWorker = `micro.zkAppWorker.${HASH}.js`;
-    await esbuild.build({
-        entryPoints: ['src/micro/zkAppWorker.ts'],
-        bundle: true,
-        outfile: `public/${microZkAppWorker}`,
+        outfile: `public/${zkAppWorker}`,
         format: 'esm',
         define,
         banner: { js: banner },

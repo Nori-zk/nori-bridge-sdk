@@ -1,8 +1,4 @@
-import { FungibleToken } from './TokenBase.js';
-import { NoriStorageInterface } from './NoriStorageInterface.js';
-//import { MockNoriTokenController } from './NoriTokenControllerMock.js';
-import { NoriTokenController } from './NoriTokenController.js';
-export { FungibleToken, NoriStorageInterface, NoriTokenController }; // MockNoriTokenController
-
-export * from './credentialAttestation.js';
-export * from './ethSignature.js';
+export { NoriStorageInterface } from "./NoriStorageInterface.js";
+export { NoriTokenController } from "./NoriTokenController.js";
+export { FungibleToken } from "./TokenBase.js";
+export { signSecretWithEthWallet } from "./ethSignature.js";

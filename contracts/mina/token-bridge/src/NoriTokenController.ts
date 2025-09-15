@@ -5,7 +5,6 @@ import {
     Bool,
     DeployArgs,
     Field,
-    JsonProof,
     method,
     Permissions,
     Poseidon,
@@ -14,28 +13,35 @@ import {
     SmartContract,
     State,
     state,
-    Struct,
     TokenContract,
     UInt64,
     VerificationKey,
 } from 'o1js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
+import { EthProofType } from '@nori-zk/o1js-zk-utils';
 import {
-    FungibleTokenAdminBase,
-    NoriTokenControllerDeployProps,
-} from './types.js';
-import { EthDepositProgramProofType } from './EthDepositProgram.js';
-import { ProvableEcdsaSigPresentation } from './credentialAttestation.js';
+    contractDepositCredentialAndTotalLockedToFields,
+    getContractDepositSlotRootFromContractDepositAndWitness,
+    MerkleTreeContractDepositAttestorInput,
+    verifyDepositSlotRoot,
+} from './depositAttestation.js';
+import { verifyCodeChallenge } from './pkarm.js';
 
-export interface MintProofData {
-    ethDepositProof: EthDepositProgramProofType,
-    presentationProof: ProvableEcdsaSigPresentation
-}
+export type FungibleTokenAdminBase = SmartContract & {
+    canMint(accountUpdate: AccountUpdate): Promise<Bool>;
+    canChangeAdmin(admin: PublicKey): Promise<Bool>;
+    canPause(): Promise<Bool>;
+    canResume(): Promise<Bool>;
+    canChangeVerificationKey(vk: VerificationKey): Promise<Bool>;
+};
 
-export interface MintProofDataJson {
-    ethDepositProofJson: JsonProof,
-    presentationProofStr: string
+export interface NoriTokenControllerDeployProps
+    extends Exclude<DeployArgs, undefined> {
+    adminPublicKey: PublicKey;
+    tokenBaseAddress: PublicKey;
+    ethProcessorAddress: PublicKey;
+    storageVKHash: Field;
 }
 
 export class NoriTokenController
@@ -122,66 +128,68 @@ export class NoriTokenController
         return AccountUpdate.createSigned(admin);
     }
     @method public async noriMint(
-        ethDepositProof: EthDepositProgramProofType,
-        presentationProof: ProvableEcdsaSigPresentation
+        //ethConsensusProof: MockConsenusProof,
+        ethVerifierProof: EthProofType,
+        merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
+        codeVerifierPKARM: Field
     ) {
         const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
 
-        let { claims, outputClaim } = presentationProof.verify({
-            publicKey: this.address,
-            tokenId: this.tokenId,
-            methodName: 'verifyPresentation', // TODO RENAME
-        });
+        // Verify consensus transition mpt proof
+        await ethVerifierProof.verify();
 
-        Provable.asProver(() => {
-            Provable.log(
-                'ethDepositProof.publicOutput.attestationHash',
-                'outputClaim.messageHash',
-                ethDepositProof.publicOutput.attestationHash,
-                outputClaim.messageHash
+        // Calculate the deposit slot root
+        // This just proves that the index and value with the witness yield a root
+        // Aka some value exists at some index and yields a certain root
+        const contractDepositSlotRoot =
+            getContractDepositSlotRootFromContractDepositAndWitness(
+                merkleTreeContractDepositAttestorInput
             );
-        });
-        ethDepositProof.publicOutput.attestationHash.assertEquals(
-            outputClaim.messageHash
-        );
 
-        //TODO when add ethProcessor
-        // assert ethDepositProof.publicOutput.storageDepositRoot;
+        // Validates that the generated root and the contractDepositSlotRoot within the eth proof match.
+        verifyDepositSlotRoot(contractDepositSlotRoot, ethVerifierProof);
 
+        // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
+        const { totalLocked, attestationHash: codeChallengePKARM } =
+            contractDepositCredentialAndTotalLockedToFields(
+                merkleTreeContractDepositAttestorInput
+            );
+
+        // Verify the code challenge
+        verifyCodeChallenge(codeVerifierPKARM, userAddress, codeChallengePKARM);
+
+        // Construct storage interface
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
 
         storage.account.isNew.requireEquals(Bool(false)); // that somehow allows to getState without index out of bounds
         storage.userKeyHash
             .getAndRequireEquals()
-            .assertEquals(
-                Poseidon.hash(userAddress.toFields()),
-                ' userKeyHash mismatch'
-            );
+            .assertEquals(Poseidon.hash(userAddress.toFields()));
 
         // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
+        // Derive amount to mint based of the total locked so far.
         const amountToMint = await storage.increaseMintedAmount(
-            ethDepositProof.publicOutput.totalLocked
-        ); // TODO test mint amount is sane.
+            totalLocked
+        );
         Provable.log(amountToMint, 'amount to mint');
 
         // Here we have only one destination there is only m1.....
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
-
         Provable.asProver(() => {
-            console.log('UInt64.Unsafe.fromField(amountToMint)', UInt64.Unsafe.fromField(amountToMint).toBigInt());
+            console.log(
+                'UInt64.Unsafe.fromField(amountToMint)',
+                UInt64.Unsafe.fromField(amountToMint).toBigInt()
+            );
         });
 
         // Mint!
-        await token.mint(
-            userAddress,
-            UInt64.Unsafe.fromField(amountToMint)
-        );
+        await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
     }
 
     @method.returns(Bool)

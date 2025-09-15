@@ -1,7 +1,7 @@
-import { deployTokenController } from '../NoriTokenControllerDeploy.js';
+import { deployTokenController } from '../deploy.js';
 
 deployTokenController()
-    .then(console.log)
+    .then(() => process.exit(0))
     .catch((e: unknown) => {
         const error = e as Error;
         console.error(`Deployment failed: ${error.stack}`);
