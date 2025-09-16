@@ -270,6 +270,8 @@ b96c14057a61c5a86322100ba3bfd9033c3b5d4a45d4b0a9aa6470f2e125789e
 
 ------------------------------------
 
+## Observations:
+
 Trying to make some conclusion out of this, it seems clear that with o1js 2.9.0 it is not possible within a single runtime and without clearing caches to get more than one cycle of `createProof` and `submit`. Attempts have been made to modify the `MinaEthProcessorSubmittor` class to accept a cache directory within its constructor and to enable the use of an ephemeral cache directory such that a modified version of the [proofSubmitter.spec test namely proofSubmitter.drastic.cache.removal.spec.ts](https://github.com/Nori-zk/nori-bridge-sdk/blob/MAJOR/alpha-o1-29/contracts/mina/eth-processor/src/proofSubmitter.drastic.cache.removal.spec.ts) can be used and this test explicitly recompiles EthProcessor and EthVerifier and removes the cache directory after each cycles of `createProof` and `submit`. But thus far these attempts have failed and it seems like we may not be able to preserve the use of this integration test.
 
 Currently our server process solution mitigation strategy will likely not work as if after one cycle of `createProof` and `submit` as the cache is corrupted it is likely that future workers will be spawned (using a common cache) in such a state that they will no be able to run `createProof` and `submit`, it is likely we will have to modify the strategy so that each worker is given its own ephemeral cache to compile within, before waiting to be invoked to do their `createProof` and `submit` before subsequent termination. This is likely to consume a siginificantly larger amount of cpu and require a hardware upgrade in order to get back to a working system. 
