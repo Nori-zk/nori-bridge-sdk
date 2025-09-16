@@ -47,7 +47,7 @@ Next we used a [private repository](https://github.com/Nori-zk/proof-conversion-
 From the output directory the `npm run create-integration-test-data` script creates we updated nori-bridge-sdk's `contract/mina/eth-processor/src/proofs` and `contract/mina/eth-processor/src/test_examples` directories with the fresh integration test data, while also extracting the data from the converted proof outputs needed to correct the `ProofConversion.sp1ToPlonk.vkData.json` (the vk data with data and hash string from the last stage of the proof conversion sp1ToPlonkk zk program) and `ProofConversion.sp1ToPlonk.po2.json` (the 3rd public output of a converted proof) files. When all the integrity data was updated we rebuild all workspaces and ran `npm run bake-vk-hashes` within the `contract/mina/eth-processor` and `o1js-zk-utils` workspaces to recompile EthVerifier and EthProcessor and update the vk hashes for these programs within the respective integrity folders.
 
 --------------------
-## Test case 1
+## Test run 1 (fails)
 
 At this point and after careful review that the procedure was conducted without error, we run the `npm run test-ci` script (after following the readme steps concerning lightnet and clearing our cache directory) within the `contracts/mina/eth-processor` workspace, this time we were hopeful of test completion. The outcome of the test was that Scenario completed with success and then during Scenario 2 it failed with the error:
 
@@ -93,7 +93,7 @@ At this point and after careful review that the procedure was conducted without 
 
 --------------------
 
-## Test case 2
+## Test run 2 (passes)
 
 Next we again cleared the cache directory and now this time attempted to run Scenario 1 by itself (without running the other tests) `npm run test -- -t 'should run the proof submission process correctly'`, it passed like before, I listed the contents of the cache directory and did a sha256sum of the contents.
 
@@ -129,7 +129,7 @@ b96c14057a61c5a86322100ba3bfd9033c3b5d4a45d4b0a9aa6470f2e125789e
 
 --------------------
 
-## Test case 3
+## Test run 3 (fails)
 
 Next WITHOUT removing the cache directory we run the same test scenario 1 again `npm run test -- -t 'should run the proof submission process correctly'` 
 
@@ -226,7 +226,7 @@ process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
 
 --------------------
 
-## Test case 4
+## Test run 4 (passes)
 
 In light of this an other problems we have had previously with o1js I decided to clear the cache and run Scenario test 1 again with:
 
