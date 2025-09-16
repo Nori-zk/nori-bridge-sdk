@@ -35,7 +35,7 @@ export class MinaEthProcessorSubmitter {
         return this.ethVerifierVerificationKey;
     }
 
-    constructor(private type: 'plonk' = 'plonk') {
+    constructor(private cacheDir: string = undefined) {
         logger.info(`🛠 MinaEthProcessorSubmitter constructor called!`);
         const errors: string[] = [];
 

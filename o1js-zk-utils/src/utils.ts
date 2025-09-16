@@ -1,4 +1,4 @@
-import { Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
+import { Cache, Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import {
     PlonkProof,
@@ -153,7 +153,8 @@ export async function compileAndVerifyContracts(
         name: string;
         program: typeof SmartContract | CompilableZkProgram; // Ideally we would use CompilableZkProgram
         integrityHash: string;
-    }[]
+    }[],
+    cacheDir: string = undefined
 ) {
     try {
         const results: Record<
@@ -168,7 +169,13 @@ export async function compileAndVerifyContracts(
         for (const { name, program, integrityHash } of contracts) {
             logger.log(`Compiling ${name} contract.`);
             console.time(`${name} compile`);
-            const compiled = await program.compile();
+            let compiled: Awaited<ReturnType<typeof program.compile>>;
+            if (cacheDir) {
+                compiled = await program.compile({cache: Cache.FileSystem(cacheDir)});
+            }
+            else {
+                compiled = await program.compile();
+            }
             console.timeEnd(`${name} compile`);
             const verificationKey = compiled.verificationKey;
             const calculatedHash = verificationKey.hash.toString();
