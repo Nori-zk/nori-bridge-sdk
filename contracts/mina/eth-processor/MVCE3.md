@@ -39,6 +39,7 @@ This mitigation strategy has worked reliably for 7 months without a single failu
 # o1js-2.9 behaviour:
 
 [Link to upgrade attempt](https://github.com/Nori-zk/nori-bridge-sdk/tree/MAJOR/alpha-o1-29)
+If testing remove node_modules and reinstall. If you get errors about conflicting o1js verions clear you package-lock.json and node_modules and try again.
 
 An upgrade to EthProcessor, EthVerifier has been attempted within this repository in this branch. We set the `overrides` property of the root package.json to override all workspace members o1js peer dependancy to o1js v2.9.0 and regenerated the package-lock.json by deleting the old one, removing the node_modules folder in the root directory, and doing an npm install. The package-lock.json was manually inspected along with the contents of the node_modules folder as well as other thorough checks to ensure o1js v2.9.0 was the only installed version. Note the `overrides` also apply to dependancies where o1js is a peer dependancy such as [proof conversion](https://github.com/Nori-zk/proof-conversion), without having to re-release those packages.
 
