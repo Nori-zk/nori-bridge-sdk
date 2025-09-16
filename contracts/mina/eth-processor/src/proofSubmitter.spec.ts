@@ -89,7 +89,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         await proofSubmitter.deployContract(decoded.inputStoreHash);
 
         // Build and submit proofs
-        let i = 1;
+        let i = 1; // This is set to 1 because if we do more than 3 cycles it hangs and never completes.
         for (const example of seriesExamples) {
             logger.log(
                 `Running Example ${i} -------------------------------------------------------`
