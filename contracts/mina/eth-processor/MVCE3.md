@@ -25,7 +25,7 @@ Scenarios:
 
 # o1js-2.3 behaviour:
 
-Currently develop branch of nori-bridge-sdk is pinned to o1js v2.3. 
+Currently [develop branch](https://github.com/Nori-zk/nori-bridge-sdk/tree/develop) of nori-bridge-sdk is pinned to o1js v2.3. 
 
 When running via `npm run test` (after following the README.md instructions) within the `contracts/mina/eth-processor` workspace, the test will eventually hang (*) without completion, one of the methods (an o1js function which returns a promise) does not resolve, nor does it reject, it remains unfulfilled indefinitely blocking the procedures completion. The test will hang without resolution after completing the 1st scenario and after 2->3 cycles of `createProof` and `submit` within the 2nd scenario, for reasons unknown to us.  The hanging behaviour is also evident in other situations as described later.
 
@@ -37,6 +37,8 @@ the hanging behaviour (*) as also seen with `npm run test`. We mitigated this (i
 This mitigation strategy has worked reliably for 7 months without a single failure (hanging/stalling event).
 
 # o1js-2.9 behaviour:
+
+[Link to upgrade attempt](https://github.com/Nori-zk/nori-bridge-sdk/tree/MAJOR/alpha-o1-29)
 
 An upgrade to EthProcessor, EthVerifier has been attempted within this repository in this branch. We set the `overrides` property of the root package.json to override all workspace members o1js peer dependancy to o1js v2.9.0 and regenerated the package-lock.json by deleting the old one, removing the node_modules folder in the root directory, and doing an npm install. The package-lock.json was manually inspected along with the contents of the node_modules folder as well as other thorough checks to ensure o1js v2.9.0 was the only installed version. Note the `overrides` also apply to dependancies where o1js is a peer dependancy such as [proof conversion](https://github.com/Nori-zk/proof-conversion), without having to re-release those packages.
 
