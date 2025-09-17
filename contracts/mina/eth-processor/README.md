@@ -161,9 +161,3 @@ npm run coverage
 ## License
 
 [Apache-2.0](LICENSE)
-
-## Troubleshooting 
-
-### o1js cache dir concat hash
-
-find . -type f -print0 | sort -z | xargs -0 cat | sha256sum

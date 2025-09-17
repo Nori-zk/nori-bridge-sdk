@@ -98,18 +98,22 @@ export class MinaEthProcessorSubmitter {
 
     async compileContracts() {
         const { ethVerifierVerificationKey, ethProcessorVerificationKey } =
-            await compileAndVerifyContracts(logger, [
-                {
-                    name: 'ethVerifier',
-                    program: EthVerifier,
-                    integrityHash: ethVerifierVkHash,
-                },
-                {
-                    name: 'ethProcessor',
-                    program: EthProcessor,
-                    integrityHash: ethProcessorVkHash,
-                },
-            ]);
+            await compileAndVerifyContracts(
+                logger,
+                [
+                    {
+                        name: 'ethVerifier',
+                        program: EthVerifier,
+                        integrityHash: ethVerifierVkHash,
+                    },
+                    {
+                        name: 'ethProcessor',
+                        program: EthProcessor,
+                        integrityHash: ethProcessorVkHash,
+                    },
+                ],
+                this.cacheDir
+            );
         Object.defineProperty(this, 'ethVerifierVerificationKey', {
             value: ethVerifierVerificationKey,
             writable: false,

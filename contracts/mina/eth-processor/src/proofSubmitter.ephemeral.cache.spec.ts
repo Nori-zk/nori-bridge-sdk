@@ -40,16 +40,12 @@ async function doTestAndCleanup(test: (cacheDir: string) => Promise<void>) {
     }
 }
 
-async function cleanCache(cacheDir: string) {
-    await fs.rm(cacheDir, { recursive: true, force: true });
-}
-
 /*
 
-    o1js 2.9 does not seem to pass proofSubmitter.spec.ts tests, whereas before (with 2.3) we could only do as many as 3 cycles of prove and submit
-    with the proof submitter before the o1js instance was ruined now we cannot do more than one cycle of prove and submit, and this time it seems
-    like the cache get ruined as well. So I've implemented cleaning up the cache after every prove / submit cycle. This is less than ideal.
-
+    o1js 2.9 does not seem to pass proofSubmitter.spec.ts tests, whereas before (with 2.3) we could some cycles of prove and submit
+    with the proof submitter before the o1js instance was ruined so long as these were done in a unique runtime and exited after each.
+    now we cannot do multiple compilations of any programs sharing a common cache directory.
+    So I've implemented a noval cache directory for each test, and we need to run each test in a new runtime before exiting.
 */
 
 describe('MinaEthProcessorSubmittor Integration Test', () => {
@@ -61,14 +57,14 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
     });
 
     test('cache_removal_should_run_the_proof_submission_process_correctly', async () => {
-        await doTestAndCleanup(async () => {
+        await doTestAndCleanup(async (cacheDir) => {
             // Generate a random contract key
             process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
                 PrivateKey.random()
             );
 
             // Construct a MinaEthProcessorSubmittor
-            const proofSubmitter = new MinaEthProcessorSubmitter();
+            const proofSubmitter = new MinaEthProcessorSubmitter(cacheDir);
 
             // Establish the network
             await proofSubmitter.networkSetUp();
@@ -143,8 +139,6 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
                     process.env.MINA_RPC_NETWORK_URL as string
                 );
 
-                await cleanCache(cacheDir);
-                await proofSubmitter.compileContracts();
                 i++;
             }
         });
@@ -192,9 +186,6 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
             // Wait for finalization
             await wait(result0.txId, process.env.MINA_RPC_NETWORK_URL!);
 
-            await cleanCache(cacheDir);
-            await proofSubmitter.compileContracts();
-
             logger.log(
                 `Running Example 3 -------------------------------------------------------`
             );
@@ -214,6 +205,5 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
             ).rejects.toThrow();
         });
     }, 1000000000);
-
     // TODO add integration test for redeploy FIXME
 });

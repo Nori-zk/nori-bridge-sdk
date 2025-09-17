@@ -52,7 +52,7 @@ The `npm run create-integration-test-data` script creates an output directory, f
 
 ## Test run 1 (fails)
 
-At this point and after careful review that the procedure was conducted without error, we run the `npm run test-ci` script (after following the readme steps concerning lightnet and clearing our cache directory) within the `contracts/mina/eth-processor` workspace, this time we were hopeful of test completion. The outcome of the test was that Scenario completed with success and then during Scenario 2 it failed with the error:
+At this point and after careful review that the procedure was conducted without error, we run the `npm run test-ci` script (after following the readme steps concerning lightnet and clearing our cache directory) within the `contracts/mina/eth-processor` workspace, this time we were hopeful of test completion. The outcome of the test was that Scenario 1 completed with success and then during Scenario 2 (during the first `createProof`) it failed with the error:
 
 ```
     Constraint unsatisfied (unreduced):
@@ -275,7 +275,7 @@ b96c14057a61c5a86322100ba3bfd9033c3b5d4a45d4b0a9aa6470f2e125789e
 
 ## Test run 5 (passes):
 
-We decided to run single compile, as we see that running it more than once in the same test causes problems. So we run sequence of proof submissions (Scenario 2). 1 compile, 4 cycles of createProof and submit without compiling in between.
+We decided to run single compile with multiplle cycles of `createProof` and `submit`, as we see that running it more than once in the same test causes problems. So we run sequence of proof submissions (Scenario 2). 1 compile, 4 cycles of createProof and submit without compiling in between.
 Note this was running on mac just so we have a different environment tested.
 
 ```sh
@@ -308,6 +308,8 @@ step-pk-ethprocessor-initialize.header		step-vk-ethprocessor-update			wrap-vk-et
 step-pk-ethprocessor-setverificationkey		step-vk-ethprocessor-update.header
 ```
 
+Cache directory looks similar to test run 4 and 2.
+
 ```sh
 cd /Users/<userName>/Library/Caches/o1js
 find . -type f -print0 | sort -z | xargs -0 cat | sha256sum
@@ -319,6 +321,8 @@ Output:
 38bbafc6d4d9755afc97969b73592f466b2113d1296659bf90a5a61c74c4c946
 ```
 
+Hash of the cache dir is different from run 4 and 2 but due to the platform differences Ubuntu vs Mac this is not totally unexpected.
+
 ---
 
 ## Test run 6 (fails):
@@ -329,7 +333,7 @@ Straight after running the previous test we run it again without clearing the ca
 npm run test -- -t 'should perform a series of proof submissions'
 ```
 
-That straight up fails on the very 1st `createProof`. Validating the fact that consequtive compile run of the same contracts within the same default directory causes problems.
+That straight up fails on the very 1st `createProof`. Validating the fact that consequtive compile run of the same contracts within the same default directory causes problems, regardless of if they run in a seperate runtime instance.
 
 It failed with the same error as before:
 
@@ -400,6 +404,8 @@ srs-fp-65536					step-vk-ethprocessor-setverificationkey
 srs-fp-65536.header				step-vk-ethprocessor-setverificationkey.header
 ```
 
+Additional lagrange-basis-fq files observed again.
+
 ```sh
 cd /Users/<userName>/Library/Caches/o1js
 find . -type f -print0 | sort -z | xargs -0 cat | sha256sum
@@ -411,14 +417,33 @@ Output:
 da49437134f00544ce2fb7a09d2f70486b0f43af38254f2fec2285b63422c1c0
 ```
 
+Hash of cache dir files has changed compared to test run 6.
+
 ---
 
-## Observations:
+## Conclusions:
 
-Trying to make some conclusion out of this, it seems clear that with o1js 2.9.0 it is not possible within a single runtime and without clearing caches to get more than one cycle of `createProof` and `submit`. Attempts have been made to modify the `MinaEthProcessorSubmittor` class to accept a cache directory within its constructor and to enable the use of an ephemeral cache directory such that a modified version of the [proofSubmitter.spec test namely proofSubmitter.drastic.cache.removal.spec.ts](https://github.com/Nori-zk/nori-bridge-sdk/blob/MAJOR/alpha-o1-29/contracts/mina/eth-processor/src/proofSubmitter.drastic.cache.removal.spec.ts) can be used and this test explicitly recompiles EthProcessor and EthVerifier and removes the cache directory after each cycles of `createProof` and `submit`. But thus far these attempts have failed and it seems like we may not be able to preserve the use of this integration test.
+In comparison to 2.3, with o1js 2.9.0; it is no longer possible to have multiple `MinaEthProcessorSubmittor` class instances in different runtimes share a common cache. After any Contract/ZKProgram re-compilation (regardless of being in a new runtime or not) the `createProof` will always immediately fail on the next invocation of it. After each unique cache directory is populated, it should never be used again by subsequent processes/instances due to some sort of corruption (perhaps the differing cache dir contents is a clue).
 
-Currently our server process solution mitigation strategy will likely not work as if after one cycle of `createProof` and `submit` as the cache is corrupted it is likely that future workers will be spawned (using a common cache) in such a state that they will no be able to run `createProof` and `submit`, it is likely we will have to modify the strategy so that each worker is given its own ephemeral cache to compile within, before waiting to be invoked to do their `createProof` and `submit` before subsequent termination. This is likely to consume a siginificantly larger amount of cpu and require a hardware upgrade in order to get back to a working system.
+While using an ephemeral cache directory, for each noval instance of our programs is wasteful in terms of CPU, it is not determined to be a substantive blocker at this time. We do however need to refactor various components of our stack to account for this new behaviour and this will take some time.
 
-Moreover if on every upgrade of o1js we need to tinker with our strategy (and we are getting to the limits of what is possible to mitigate) then we will never be able to create the continuous integration pipeline we are hoping to achieve for reliable operations. Nor will we be able to validate via integration tests that vk upgrades have occured correctly (patching the integration directory files / recompilation/ rebaking of vk hashes) such that we will never be confident that without extensive manual testing that upgrades to our solution will work and be viable release candidates.
+1. `MinaEthProcessorSubmittor` needs to be modified to take a cache directory as a constructor argument and each instance given a unique directory to compile into (DONE).
+2. `compileAndVerifyContracts` one of our utilities which compiles programs and validates integrity hashes also needed to be re-written to support an optional cache directory (DONE). 
+3. Our integration test `proofSubmitter.spec` is no longer viable, as on each subsequent `compile` of the Contracts/ZKPrograms the `createProof` methods always immediately fail. Meaning not even the mitigation test runner script `npm run test-ci` (which exited the runtime after each individual test scenario to avoid hanging in 2.3 when running `npm run test`) will work anymore.
+4. [proofSubmitter.ephemeral.cache.spec.ts](https://github.com/Nori-zk/nori-bridge-sdk/blob/MAJOR/alpha-o1-29/contracts/mina/eth-processor/src/proofSubmitter.ephemeral.cache.spec.ts) is introduced replacing the previous integration test, it uses a helper function `doTestAndCleanup` to create and remove a noval cache directory for each test (scenario 1->3), and I needed to write a new test runner script `test-ci:cache-removal` to again exit the runtime after each individual test is completed (DONE).
+5. Our current mitigation strategy used in the server variant needs a rewrite, we no longer should use a single worker to pre-populate a common cache, as this cache will be ruined after re-use by the subsequently spawned worker pool. Instead we need to adapt the workers, to each have their own cache directory and to clean this up after they run a cycle of `createProof` and `submit`. We will continue to only use a worker for only a single cycle as I dont hold much faith that some cycle will not eventually hang (*) as with the 2.3 behaviour and finding out this practically by removing the single cycle strategy in our deployment, later to find out that it may stall like with 2.3, would have a large impact in time spent deploying, monitoring and re-deploying (TODO).
+6. We need to run our additional integration tests to ensure the modified mitigation strategy is successful (TODO).
+7. Re-release of stack and subsequent deployment (TODO).
+8. Updates to token-bridge and running tests of lightnet, devnet and minimal client (TODO).
 
-We are uncertain at this time is updates to our server varient of EthProcessor repository will be succesful with the updates to the mitigation strategy (emphemeral cache directory per worker) + the normal single cycle of `createProof` and `submit` before worker disposal.
+We are uncertain at this time is updates to our server varient of EthProcessor repository will be succesful, but think it quite likely that there will be a viable way forward; with the updates to the mitigation strategy (emphemeral cache directory per worker) + the normal single cycle of `createProof` and `submit` before worker disposal. We have additional integration tests which will be done, in the near term to attempt to determine this.
+
+Similary we remain somewhat uncertain that when EthProcessor is re-integrated with the TokenController logic that that will be successful, we need to update the entire stack first before doing this, due to the proximity to our target testnet event this will likely be delayed for some time.
+
+## Opinions / experience:
+
+These particular behaviours of o1js have been hard, idiosyncratic and expensive to mitigate with creative strategies which shouldn't really be necessary. I.e. solutions to check verification key integrity due to nondeterministic vk derivations in various scenarios, disposing of runtimes after particular sequences of operations, need for ephemeral cache directories, changes to vk during non major version upgrades of o1js. It puts a high burden on maintenance and domain knowledge of undocumented behaviours within o1js for the developers wishing to build their solutions and to make them reliable.
+
+If on every upgrade of o1js we need to tinker with our mitigation strategies / update integration tests, then we will never be able to create the continuous integration/deployment pipeline we are hoping to achieve for reliable operations, and will incur great expense in maintaining our solution. Without extensive manual testing, we lack confidence that upgrades to our solution will function properly and be viable release candidates, this is somewhat disappointing.
+
+The mutable cache within o1js is not currently a working strategy and needs attention.

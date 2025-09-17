@@ -33,7 +33,7 @@
         "format": "prettier --write --ignore-unknown **/*",
         "test": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --runInBand --forceExit",
         "test-ci": "npm run test -- -t \"should run the proof submission process correctly\" && npm run test -- -t \"should perform a series of proof submissions\" && npm run test -- -t \"should invoke a hash validation issue when we skip transition proofs\"",
-        "test-ci-with-cache-removal": "npm run test -- -t \"cache_removal_should_run_the_proof_submission_process_correctly\" && npm run test -- -t \"cache_removal_should_perform_a_series_of_proof_submissions\" && npm run test -- -t \"cache_removal_should_invoke_a_hash_validation_issue_when_we_skip_transition_proofs\"",
+        "test-ci:cache-removal": "npm run test -- -t \"cache_removal_should_run_the_proof_submission_process_correctly\" && npm run test -- -t \"cache_removal_should_perform_a_series_of_proof_submissions\" && npm run test -- -t \"cache_removal_should_invoke_a_hash_validation_issue_when_we_skip_transition_proofs\"",
         "testw": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --watch --runInBand",
         "lint": "npx eslint src/* --fix",
         "deploy": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
