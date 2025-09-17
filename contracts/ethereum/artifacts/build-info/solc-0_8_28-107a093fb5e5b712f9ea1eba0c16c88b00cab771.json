@@ -1,0 +1,35 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-107a093fb5e5b712f9ea1eba0c16c88b00cab771",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/NoriTokenBridge.sol": "project/contracts/NoriTokenBridge.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/NoriTokenBridge.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\ncontract NoriTokenBridge {\n    address public bridgeOperator;\n    mapping(address => mapping(uint256 => uint256)) public lockedTokens; // address => attestationHash => amount\n\n    event TokensLocked(address indexed user, uint256 attestationHash, uint256 amount, uint256 when);\n\n    constructor() {\n        bridgeOperator = msg.sender;\n    }\n\n    function lockTokens(uint256 attestationHash) public payable {\n        require(msg.value > 0, \"You must send some Ether to lock\");\n\n        lockedTokens[msg.sender][attestationHash] += msg.value;\n\n        emit TokensLocked(msg.sender, attestationHash, msg.value, block.timestamp);\n    }\n}\n"
+      }
+    }
+  }
+}

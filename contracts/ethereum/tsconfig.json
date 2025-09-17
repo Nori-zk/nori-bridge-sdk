@@ -1,14 +1,45 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "esModuleInterop": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
+    "incremental": true,
+    "lib": ["DOM", "ES2022"],
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUncheckedIndexedAccess": true,
+    "outDir": "target",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": false,
+    "typeRoots": ["../../node_modules/@types"],
+    "rootDir": ".",
+    "baseUrl": ".", // affects where output files end up
+    "target": "es2021", // goal: ship *the most modern syntax* that is supported by *all* browsers that support our Wasm
+    "module": "nodenext", // allow top-level await
+    "moduleResolution": "nodenext", // comply with node + "type": "module"
+    "esModuleInterop": true, // to silence jest
+
+    "experimentalDecorators": true, // needed for decorators
+    "emitDecoratorMetadata": true, // needed for decorators
+    "useDefineForClassFields": false, // ensure correct behaviour of class fields with decorators
+
+    "strict": true, // for the full TypeScript experience
+    "strictPropertyInitialization": false, // to enable generic constructors, e.g. on CircuitValue
+    "importHelpers": true, // reduces size
+    "declaration": true, // declaration files are how library consumers get our types
+    "noEmitOnError": false, // avoid accidentally shipping with type errors
+    "allowJs": true, // to use JSDoc in some places where TS would be too cumbersome
+    "sourceMap": true,
+    "paths": {
+      "hardhat": ["../../node_modules/hardhat"],
+      "*": ["*", "src/*", "../../node_modules/*"]
+    }
   },
-  "exclude": [
-    "index.ts"
-  ]
+  "exclude": ["node_modules", "build"],
+  "include": ["*", "*/*", "**/*.json", "./hardhat.config.ts"]
 }

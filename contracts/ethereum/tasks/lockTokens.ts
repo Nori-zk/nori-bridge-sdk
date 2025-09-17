@@ -1,4 +1,4 @@
-import { task, types } from 'hardhat/config';
+/*import { task, types } from 'hardhat/config';
 
 task('lockTokens', 'Lock tokens with attestation hash and optional amount')
     .addPositionalParam(
@@ -79,3 +79,4 @@ task('lockTokens', 'Lock tokens with attestation hash and optional amount')
             `Transaction included in block number: ${receipt.blockNumber}`
         );
     });
+*/

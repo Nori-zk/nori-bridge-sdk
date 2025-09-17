@@ -7,6 +7,7 @@
         "registry": "https://registry.npmjs.org/",
         "access": "public"
     },
+    "type": "module",
     "scripts": {
         "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
@@ -20,13 +21,13 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
-        "dotenv-cli": "^8.0.0",
-        "hardhat": "^2.24.0",
-        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
+        "@nomicfoundation/hardhat-typechain": "^3.0.0",
         "dotenv": "^16.5.0",
+        "dotenv-cli": "^8.0.0",
+        "hardhat": "^3.0.6",
         "npm-workspaces-publish-tool": "^0.0.8"
     },
-    "dependencies": {},
     "files": [
         "build/",
         "package.json",

@@ -14,8 +14,7 @@ import {
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { getZkAppWorker } from './zkAppWorkerClient.js';
 import { BigNumberish, ethers, id, TransactionResponse } from 'ethers';
-import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { Wallet } from 'ethers';
+import { NoriTokenBridge__factory } from '@nori-zk/ethereum-token-bridge';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 
 function validateEnv(): {
@@ -226,10 +225,8 @@ try {
 
     console.log('Locking eth tokens');
     console.time('lockingTokens');
-    const abi = noriTokenBridgeJson.abi;
-    const contract = new ethers.Contract(
+    const contract = NoriTokenBridge__factory.connect(
         noriETHBridgeAddressHex,
-        abi,
         ethWallet
     );
     const credentialAttestationBigNumberIsh: BigNumberish =

@@ -1,15 +1,62 @@
 import { task } from 'hardhat/config';
 
 task('getTotalDeposited', 'Get the total deposited/locked')
-    .addPositionalParam(
-        'address',
-        '20-byte attestation hash (0x-prefixed hex string)'
-    )
-    .addPositionalParam(
-        'attestationHash',
-        '32-byte attestation hash (0x-prefixed hex string)'
-    )
-    .setAction(async (taskArgs, hre) => {
+    .addPositionalArgument({
+        name: 'address',
+        description: '20-byte attestation hash (0x-prefixed hex string)',
+    })
+    .addPositionalArgument({
+        name: 'attestationHash',
+        description: '32-byte attestation hash (0x-prefixed hex string)',
+    })
+    .setAction(
+        async (
+            taskArgs: { address: string; attestationHash: string },
+            hre: HardhatRuntimeEnvironment
+        ) => {
+            const { address, attestationHash } = taskArgs;
+
+            // Validate address
+            if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+                throw new Error('Address must be 20-byte hex (0x + 40 chars)');
+            }
+
+            // Validate attestationHash
+            if (!/^0x[a-fA-F0-9]{64}$/.test(attestationHash)) {
+                throw new Error(
+                    'AttestationHash must be 32-byte hex (0x + 64 chars)'
+                );
+            }
+
+            const deployedAddress = process.env.NORI_TOKEN_BRIDGE_ADDRESS;
+            if (
+                !deployedAddress ||
+                !/^0x[a-fA-F0-9]{40}$/.test(deployedAddress)
+            ) {
+                throw new Error(
+                    'Invalid or missing environment variable NORI_TOKEN_BRIDGE_ADDRESS'
+                );
+            }
+
+            const tokenBridge = await hre.ethers.getContractAt(
+                'NoriTokenBridge',
+                deployedAddress
+            );
+
+            const valueFromMapping = await tokenBridge.lockedTokens(
+                address,
+                attestationHash
+            );
+
+            console.log({
+                WEI: valueFromMapping.toString(),
+                ETH: hre.ethers.formatEther(valueFromMapping),
+                HEX: '0x' + valueFromMapping.toString(16),
+            });
+        }
+    );
+
+/*  .setAction(async (taskArgs, hre) => {
         let { address } = taskArgs;
         const { attestationHash } = taskArgs;
 
@@ -51,3 +98,4 @@ task('getTotalDeposited', 'Get the total deposited/locked')
             HEX: '0x' + valueFromMapping.toString(16),
         });
     });
+*/

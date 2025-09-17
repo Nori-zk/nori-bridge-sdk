@@ -1,50 +1,56 @@
 import 'dotenv/config';
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import "./tasks/lockTokens";
-import "./tasks/getTotalDeposited";
+import { HardhatUserConfig } from 'hardhat/config';
+import hardhatTypechain from "@nomicfoundation/hardhat-typechain";
+import './tasks/lockTokens';
+import './tasks/getTotalDeposited';
 
 function assertEnvVar(name: string): string {
-  const val = process.env[name];
-  if (!val || val.trim() === "") {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return val;
+    const val = process.env[name];
+    if (!val || val.trim() === '') {
+        throw new Error(`Missing required environment variable: ${name}`);
+    }
+    return val;
 }
 
 const networkName = process.env.ETH_NETWORK;
 if (!networkName) {
-  throw new Error("Environment variable ETH_NETWORK is required.");
+    throw new Error('Environment variable ETH_NETWORK is required.');
 }
 
+// import { NetworkUserConfig } from 'hardhat/dist/src/types/config.js';
+//const x: NetworkUserConfig;
+
 interface NetworkConfig {
-  url: string;
-  accounts: string[];
+    url: string;
+    accounts: string[];
+    type: "http"
 }
 
 const networks: Record<string, NetworkConfig> = {};
 
-if (networkName !== "hardhat") {
-  const rpcUrl = assertEnvVar("ETH_RPC_URL");
-  const privateKey = assertEnvVar("ETH_PRIVATE_KEY");
+if (networkName !== 'hardhat') {
+    const rpcUrl = assertEnvVar('ETH_RPC_URL');
+    const privateKey = assertEnvVar('ETH_PRIVATE_KEY');
 
-  networks[networkName] = {
-    url: rpcUrl,
-    accounts: [privateKey],
-  };
+    networks[networkName] = {
+        url: rpcUrl,
+        accounts: [privateKey],
+        type: "http",
+    };
 }
 
 console.log(`Running on network "${networkName}"`);
-if (networkName === "hardhat") {
-  console.log(`Using built-in Hardhat network for local testing.`);
+if (networkName === 'hardhat') {
+    console.log(`Using built-in Hardhat network for local testing.`);
 } else {
-  console.log(`Using RPC URL: ${networks[networkName].url}`);
-  console.log(`One private key loaded for deployment.`);
+    console.log(`Using RPC URL: ${networks[networkName].url}`);
+    console.log(`One private key loaded for deployment.`);
 }
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.28",
-  networks,
+    solidity: '0.8.28',
+    plugins: [hardhatTypechain],
+    networks,
 };
 
 export default config;
