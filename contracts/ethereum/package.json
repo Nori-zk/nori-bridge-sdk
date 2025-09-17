@@ -21,6 +21,7 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
+        "@nomicfoundation/hardhat-ethers": "^4.0.1",
         "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
         "@nomicfoundation/hardhat-typechain": "^3.0.0",
         "dotenv": "^16.5.0",
