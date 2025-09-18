@@ -1,7 +1,5 @@
-import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers';
 import { expect } from 'chai';
 import { getRandomValues } from 'crypto';
-import hre from 'hardhat';
 
 const attestationHashBytes = new Uint8Array(32);
 getRandomValues(attestationHashBytes);
@@ -16,13 +14,19 @@ const attestationHashHex = `0x${Array.from(attestationHashBytes)
 console.log('attestationHashBigInt', attestationHashBigInt);
 console.log('attestationHashHex', attestationHashHex);
 
+import hre from 'hardhat';
+const { ethers } = await hre.network.connect();
+
 describe('NoriTokenBridge', function () {
     async function deployTokenBridgeFixture() {
-        const [owner, otherAccount] = await hre.ethers.getSigners();
+        const [owner, otherAccount] = await ethers.getSigners();
 
-        const TokenBridge = await hre.ethers.getContractFactory(
+        const TokenBridge = await ethers.getContractFactory(
             'NoriTokenBridge'
         );
+
+        const a = await TokenBridge.deploy()
+        
         const tokenBridge = await TokenBridge.deploy();
 
         return { tokenBridge, owner, otherAccount };
@@ -30,20 +34,16 @@ describe('NoriTokenBridge', function () {
 
     describe('Deployment', function () {
         it('Should set the deployer as the bridge operator', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
             expect(await tokenBridge.bridgeOperator()).to.equal(owner.address);
         });
     });
 
     describe('Locking Tokens', function () {
         it('Should allow users to lock tokens and update mapping (BigInt)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } =  await deployTokenBridgeFixture();
 
-            const sendValue = hre.ethers.parseEther('1.0');
+            const sendValue = ethers.parseEther('1.0');
             await tokenBridge
                 .connect(owner)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
@@ -60,7 +60,7 @@ describe('NoriTokenBridge', function () {
                 deployTokenBridgeFixture
             );
 
-            const sendValue = hre.ethers.parseEther('1.0');
+            const sendValue = ethers.parseEther('1.0');
             await tokenBridge
                 .connect(owner)
                 .lockTokens(attestationHashHex, { value: sendValue });
@@ -76,7 +76,7 @@ describe('NoriTokenBridge', function () {
             const { tokenBridge, owner } = await loadFixture(
                 deployTokenBridgeFixture
             );
-            const sendValue = hre.ethers.parseEther('0.5');
+            const sendValue = ethers.parseEther('0.5');
 
             const tx = await tokenBridge
                 .connect(owner)
@@ -85,7 +85,7 @@ describe('NoriTokenBridge', function () {
 
             if (!receipt) throw new Error('Transaction was not mined in time');
 
-            const block = await hre.ethers.provider.getBlock(
+            const block = await ethers.provider.getBlock(
                 receipt.blockNumber
             );
             if (!block)
@@ -123,7 +123,7 @@ describe('NoriTokenBridge', function () {
             const { tokenBridge, owner } = await loadFixture(
                 deployTokenBridgeFixture
             );
-            const sendValue = hre.ethers.parseEther('0.5');
+            const sendValue = ethers.parseEther('0.5');
 
             const tx = await tokenBridge
                 .connect(owner)
@@ -132,7 +132,7 @@ describe('NoriTokenBridge', function () {
 
             if (!receipt) throw new Error('Transaction was not mined in time');
 
-            const block = await hre.ethers.provider.getBlock(
+            const block = await ethers.provider.getBlock(
                 receipt.blockNumber
             );
             if (!block)
@@ -195,8 +195,8 @@ describe('NoriTokenBridge', function () {
                 deployTokenBridgeFixture
             );
 
-            const value1 = hre.ethers.parseEther('0.2');
-            const value2 = hre.ethers.parseEther('0.8');
+            const value1 = ethers.parseEther('0.2');
+            const value2 = ethers.parseEther('0.8');
 
             await tokenBridge
                 .connect(owner)
@@ -217,8 +217,8 @@ describe('NoriTokenBridge', function () {
                 deployTokenBridgeFixture
             );
 
-            const value1 = hre.ethers.parseEther('0.2');
-            const value2 = hre.ethers.parseEther('0.8');
+            const value1 = ethers.parseEther('0.2');
+            const value2 = ethers.parseEther('0.8');
 
             await tokenBridge
                 .connect(owner)
@@ -239,40 +239,40 @@ describe('NoriTokenBridge', function () {
                 deployTokenBridgeFixture
             );
 
-            const value = hre.ethers.parseEther('1.0');
+            const value = ethers.parseEther('1.0');
             await tokenBridge.connect(owner).lockTokens(attestationHashBigInt, {
                 value,
             });
 
             const outerSlot = 1; // lockedTokens mapping is at slot 1
 
-            const paddedAddress = hre.ethers.zeroPadValue(owner.address, 32);
-            const slotAsBytes = hre.ethers.toBeArray(
-                hre.ethers.toQuantity(outerSlot)
+            const paddedAddress = ethers.zeroPadValue(owner.address, 32);
+            const slotAsBytes = ethers.toBeArray(
+                ethers.toQuantity(outerSlot)
             );
-            const paddedSlot = hre.ethers.zeroPadValue(slotAsBytes, 32);
-            const packedOuter = hre.ethers.concat([paddedAddress, paddedSlot]);
-            const outerHash = hre.ethers.keccak256(packedOuter);
+            const paddedSlot = ethers.zeroPadValue(slotAsBytes, 32);
+            const packedOuter = ethers.concat([paddedAddress, paddedSlot]);
+            const outerHash = ethers.keccak256(packedOuter);
 
-            const attestationBytes = hre.ethers.toBeArray(
+            const attestationBytes = ethers.toBeArray(
                 attestationHashBigInt
             );
-            const paddedAttestation = hre.ethers.zeroPadValue(
+            const paddedAttestation = ethers.zeroPadValue(
                 attestationBytes,
                 32
             );
-            const packedInner = hre.ethers.concat([
+            const packedInner = ethers.concat([
                 paddedAttestation,
                 outerHash,
             ]);
-            const finalSlot = hre.ethers.keccak256(packedInner);
+            const finalSlot = ethers.keccak256(packedInner);
 
             const raw = await hre.network.provider.send('eth_getStorageAt', [
                 tokenBridge.target,
                 finalSlot,
                 'latest',
             ]);
-            const decoded = hre.ethers.toBigInt(raw);
+            const decoded = ethers.toBigInt(raw);
 
             const valueFromMapping = await tokenBridge.lockedTokens(
                 owner.address,

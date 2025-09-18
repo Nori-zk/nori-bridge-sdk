@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { HardhatUserConfig } from 'hardhat/config';
 import hardhatTypechain from "@nomicfoundation/hardhat-typechain";
 import hardhatEthers from "@nomicfoundation/hardhat-ethers";
+import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+
 import './tasks/lockTokens';
 import './tasks/getTotalDeposited';
 
@@ -50,7 +52,7 @@ if (networkName === 'hardhat') {
 
 const config: HardhatUserConfig = {
     solidity: '0.8.28',
-    plugins: [hardhatTypechain, hardhatEthers],
+    plugins: [hardhatTypechain, hardhatEthers, hardhatToolboxMochaEthers],
     networks,
 };
 
