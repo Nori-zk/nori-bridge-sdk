@@ -96,12 +96,12 @@ async function main() {
 ### Main imports
 ```typescript
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
-import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket'
+import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
-} from '@nori-zk/mina-token-bridge/rx/topics'
+} from '@nori-zk/mina-token-bridge/rx/topics';
 import {
     BridgeDepositProcessingStatus,
     getDepositProcessingStatus$,
@@ -118,8 +118,8 @@ import {
     // CanComputeEthProof observable:
     getCanComputeEthProof$, // cycles through states of 'Waiting', 'CanCompute', or 'MissedMintingOpportunity'
     CanComputEthProof,
-} from '@nori-zk/mina-token-bridge/rx/deposit'
-import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge'
+} from '@nori-zk/mina-token-bridge/rx/deposit';
+import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 // Import your worker getter function here to support minting, e.g.:
 // import { getZkAppWorker } from './workers/zkAppWorker/browser/parent.ts'
 // Do other logic such as retrieving user balance etc.
@@ -128,6 +128,10 @@ import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWit
 ### Example of mint flow
 
 See the [E2E test](src/e2e.devnet.spec.ts) for a comprehensive example.
+
+## Bake integrity hashes
+
+If the smart contracts have been updated please run `npm run bake-vk-hashes` to update the integrity files. All workers will validate these after contract/program compilation.
 
 ## Token Contract Deployment
 
