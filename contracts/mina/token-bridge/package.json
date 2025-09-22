@@ -81,11 +81,12 @@
     "dependencies": {
         "@nori-zk/ethprocessor": "*",
         "@nori-zk/o1js-zk-utils": "*",
-        "@nori-zk/workers": "*",
         "@nori-zk/proof-conversion": "^0.5.14",
+        "@nori-zk/workers": "*",
         "autrace": "^0.0.22",
         "mina-attestations": "^0.5.3",
         "rxjs": "^7.8.2",
+        "tslib": "^2.8.1",
         "xstate": "^5.20.1"
     }
 }
