@@ -14,7 +14,7 @@ test('get_wallet_address_and_code_challenge_hex', async () => {
         validateEnv();
     const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
     const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
-    const ethAddressLowerHex = ethWallet.address.toLowerCase();
+    //const ethAddressLowerHex = ethWallet.address.toLowerCase();
     const fixedValueOrSecret = 'NoriZK25';
     const ethSignatureSecret = await signSecretWithEthWallet(
         fixedValueOrSecret,

@@ -51,8 +51,8 @@ import { Bytes, Field, Poseidon, PublicKey, UInt8 } from 'o1js';
  */
 export function generateRecipientPublicKeyHash(recipientPublicKey: PublicKey) {
     const pubKeyFields = recipientPublicKey.toFields();
-    console.log('recipientPublicKey.toFields().length', pubKeyFields.length); // This is two fields
-    console.log('pubKeyFields', pubKeyFields, 'about to do hash');
+    //console.log('recipientPublicKey.toFields().length', pubKeyFields.length); // This is two fields
+    //console.log('pubKeyFields', pubKeyFields, 'about to do hash');
     return Poseidon.hash(pubKeyFields);
 }
 
@@ -82,7 +82,7 @@ export function obtainCodeVerifierFromEthSignature(ethSignature: string) {
     if (hex.length !== 130) throw new Error('Expected 65-byte signature');
     const bytes = Bytes65.fromHex(hex);
     const fields = bytes.toFields();
-    console.log('ethSignature.bytes.toFields().length', fields.length); // One field per byte (should optimise this but not sure of performance hit)
+    //console.log('ethSignature.bytes.toFields().length', fields.length); // One field per byte (should optimise this but not sure of performance hit)
     return Poseidon.hash(fields);
 }
 
@@ -175,6 +175,6 @@ export function codeChallengeFieldToBEHex(codeChallenge: Field) {
         wordToBytes(codeChallenge, 32).reverse()
     );
     const codeChallengeBEHex = `0x${beCodeChallengeBytes.toHex()}`;
-    console.log('codeChallengeBEHex', codeChallengeBEHex);
+    //console.log('codeChallengeBEHex', codeChallengeBEHex);
     return codeChallengeBEHex;
 }

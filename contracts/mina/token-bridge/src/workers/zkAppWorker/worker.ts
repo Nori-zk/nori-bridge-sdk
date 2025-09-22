@@ -31,6 +31,9 @@ import {
     obtainCodeVerifierFromEthSignature,
     verifyCodeChallenge,
 } from '../../pkarm.js';
+import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
+import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
+import { noriTokenControllerVkHash } from '../../integrity/NoriTokenController.VkHash.js';
 
 export class ZkAppWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -406,9 +409,21 @@ export class ZkAppWorker {
                 program: EthVerifier,
                 integrityHash: ethVerifierVkHash,
             },
-            { name: 'NoriStorageInterface', program: NoriStorageInterface },
-            { name: 'FungibleToken', program: FungibleToken },
-            { name: 'NoriTokenController', program: NoriTokenController },
+            {
+                name: 'NoriStorageInterface',
+                program: NoriStorageInterface,
+                integrityHash: noriStorageInterfaceVkHash,
+            },
+            {
+                name: 'FungibleToken',
+                program: FungibleToken,
+                integrityHash: fungibleTokenVkHash,
+            },
+            {
+                name: 'NoriTokenController',
+                program: NoriTokenController,
+                integrityHash: noriTokenControllerVkHash,
+            },
         ] as const;
 
         // Compile all contracts

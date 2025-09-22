@@ -16,7 +16,10 @@ import {
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
-import { NoriTokenController,  } from '../../NoriTokenController.js';
+import { NoriTokenController } from '../../NoriTokenController.js';
+import { noriTokenControllerVkHash } from '../../integrity/NoriTokenController.VkHash.js';
+import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
+import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 
 export interface DeploymentResult {
     noriTokenControllerAddress: string;
@@ -47,11 +50,23 @@ export class TokenDeployerWorker {
             {
                 name: 'ethVerifier',
                 program: EthVerifier,
-                // integrityHash: ethVerifierVkHash, // disabled to see if we can prove 65 works and 24 does not
+                integrityHash: ethVerifierVkHash,
             },
-            { name: 'NoriStorageInterface', program: NoriStorageInterface },
-            { name: 'FungibleToken', program: FungibleToken },
-            { name: 'NoriTokenController', program: NoriTokenController },
+            {
+                name: 'NoriStorageInterface',
+                program: NoriStorageInterface,
+                integrityHash: noriStorageInterfaceVkHash,
+            },
+            {
+                name: 'FungibleToken',
+                program: FungibleToken,
+                integrityHash: fungibleTokenVkHash,
+            },
+            {
+                name: 'NoriTokenController',
+                program: NoriTokenController,
+                integrityHash: noriTokenControllerVkHash,
+            },
         ] as const;
 
         // Compile all contracts using the helper

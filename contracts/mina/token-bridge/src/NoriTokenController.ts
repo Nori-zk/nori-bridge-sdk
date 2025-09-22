@@ -127,6 +127,7 @@ export class NoriTokenController
         this.adminPublicKey.requireEquals(admin);
         return AccountUpdate.createSigned(admin);
     }
+
     @method public async noriMint(
         //ethConsensusProof: MockConsenusProof,
         ethVerifierProof: EthProofType,
