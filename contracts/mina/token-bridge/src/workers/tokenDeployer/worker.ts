@@ -158,7 +158,7 @@ export class TokenDeployerWorker {
                 // Deploy TokenBase
                 await tokenBase.deploy({
                     symbol,
-                    src: 'https://nori',
+                    src: 'https://nori', // change me
                     allowUpdates,
                 });
 

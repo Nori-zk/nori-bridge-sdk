@@ -1,6 +1,96 @@
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { Bytes, Field, Mina } from 'o1js';
 
+export function validateEnv(): {
+    ethPrivateKey: string;
+    ethRpcUrl: string;
+    noriETHBridgeAddressHex: string;
+    noriTokenControllerAddressBase58: string;
+    minaRpcUrl: string;
+    minaSenderPrivateKeyBase58: string;
+    noriTokenBaseAddressBase58: string;
+} {
+    const errors: string[] = [];
+
+    const {
+        ETH_PRIVATE_KEY,
+        ETH_RPC_URL,
+        NORI_TOKEN_BRIDGE_ADDRESS,
+        NORI_TOKEN_CONTROLLER_ADDRESS,
+        MINA_RPC_NETWORK_URL,
+        SENDER_PRIVATE_KEY,
+        TOKEN_BASE_ADDRESS,
+    } = process.env;
+
+    if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
+        errors.push(
+            'ETH_PRIVATE_KEY missing or invalid (expected 64 hex chars, no 0x prefix)'
+        );
+    }
+
+    if (!ETH_RPC_URL || !/^https?:\/\//.test(ETH_RPC_URL)) {
+        errors.push('ETH_RPC_URL missing or invalid (expected http(s) URL)');
+    }
+
+    if (
+        !NORI_TOKEN_BRIDGE_ADDRESS ||
+        !/^0x[a-fA-F0-9]{40}$/.test(NORI_TOKEN_BRIDGE_ADDRESS)
+    ) {
+        errors.push(
+            'NORI_TOKEN_BRIDGE_ADDRESS missing or invalid (expected 0x-prefixed 40 hex chars)'
+        );
+    }
+
+    if (
+        !NORI_TOKEN_CONTROLLER_ADDRESS ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_TOKEN_CONTROLLER_ADDRESS)
+    ) {
+        errors.push(
+            'NORI_TOKEN_CONTROLLER_ADDRESS missing or invalid (expected Base58 string)'
+        );
+    }
+
+    if (
+        !TOKEN_BASE_ADDRESS ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(TOKEN_BASE_ADDRESS)
+    ) {
+        errors.push(
+            'TOKEN_BASE_ADDRESS missing or invalid (expected Base58 string)'
+        );
+    }
+
+    if (!MINA_RPC_NETWORK_URL || !/^https?:\/\//.test(MINA_RPC_NETWORK_URL)) {
+        errors.push(
+            'MINA_RPC_NETWORK_URL missing or invalid (expected http(s) URL)'
+        );
+    }
+
+    if (
+        !SENDER_PRIVATE_KEY ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(SENDER_PRIVATE_KEY)
+    ) {
+        errors.push(
+            'SENDER_PRIVATE_KEY missing or invalid (expected Base58 string)'
+        );
+    }
+
+    if (errors.length) {
+        console.error('Environment validation errors:');
+        errors.forEach((e) => console.error(' - ' + e));
+        process.exit(1);
+    }
+
+    return {
+        ethPrivateKey: ETH_PRIVATE_KEY,
+        ethRpcUrl: ETH_RPC_URL,
+        noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
+        noriTokenControllerAddressBase58: NORI_TOKEN_CONTROLLER_ADDRESS,
+        noriTokenBaseAddressBase58: TOKEN_BASE_ADDRESS,
+        minaRpcUrl: MINA_RPC_NETWORK_URL,
+        minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
+    };
+}
+
 export async function getNewMinaLiteNetAccountSK(): Promise<string> {
     const { request } = await import('http');
     return new Promise((resolve, reject) => {
