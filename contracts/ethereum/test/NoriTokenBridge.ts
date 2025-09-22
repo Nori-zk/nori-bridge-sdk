@@ -103,7 +103,7 @@ describe('NoriTokenBridge', () => {
             );
 
             await expect(tx)
-                .to.emit(tokenBridge, 'TokensLocked')
+                .to.emit(tokenBridge, 'TokensLocked') // this isnt being recognised!
                 .withArgs(
                     owner.address,
                     attestationHashHex,
@@ -148,7 +148,7 @@ describe('NoriTokenBridge', () => {
             );
 
             await expect(tx)
-                .to.emit(tokenBridge, 'TokensLocked')
+                .to.emit(tokenBridge, 'TokensLocked') // this isnt being recognised!
                 .withArgs(
                     owner.address,
                     attestationHashBigInt,
