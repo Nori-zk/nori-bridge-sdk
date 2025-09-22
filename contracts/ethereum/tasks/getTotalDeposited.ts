@@ -1,6 +1,6 @@
 import { task } from 'hardhat/config';
 
-task('getTotalDeposited', 'Get the total deposited/locked')
+export const getTotalDeposited = task('getTotalDeposited', 'Get the total deposited/locked')
     .addPositionalArgument({
         name: 'address',
         description: '20-byte attestation hash (0x-prefixed hex string)',
@@ -56,4 +56,4 @@ task('getTotalDeposited', 'Get the total deposited/locked')
                 HEX: '0x' + valueFromMapping.toString(16),
             });
         },
-    }));
+    })).build();

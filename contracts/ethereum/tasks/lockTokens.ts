@@ -1,6 +1,6 @@
 import { task } from 'hardhat/config';
 
-task('lockTokens', 'Lock tokens with attestation hash and optional amount')
+export const lockTokens = task('lockTokens', 'Lock tokens with attestation hash and optional amount')
     .addPositionalArgument({
         name: 'attestationHash',
         description: '32-byte attestation hash (0x-prefixed hex string)',
@@ -77,4 +77,4 @@ task('lockTokens', 'Lock tokens with attestation hash and optional amount')
                 `Transaction included in block number: ${receipt.blockNumber}`
             );
         },
-    }));
+    })).build();

@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import { HardhatUserConfig } from 'hardhat/config';
-import hardhatTypechain from "@nomicfoundation/hardhat-typechain";
-import hardhatEthers from "@nomicfoundation/hardhat-ethers";
-import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import hardhatTypechain from '@nomicfoundation/hardhat-typechain';
+import hardhatEthers from '@nomicfoundation/hardhat-ethers';
+import hardhatToolboxMochaEthers from '@nomicfoundation/hardhat-toolbox-mocha-ethers';
+import hardhatEthersChaiMatchers from '@nomicfoundation/hardhat-ethers-chai-matchers';
+import hardhatMocha from '@nomicfoundation/hardhat-mocha';
 
-import './tasks/lockTokens';
-import './tasks/getTotalDeposited';
+import { lockTokens } from './tasks/lockTokens.js';
+import { getTotalDeposited } from './tasks/getTotalDeposited.js';
 
 function assertEnvVar(name: string): string {
     const val = process.env[name];
@@ -26,7 +28,7 @@ if (!networkName) {
 interface NetworkConfig {
     url: string;
     accounts: string[];
-    type: "http"
+    type: 'http';
 }
 
 const networks: Record<string, NetworkConfig> = {};
@@ -38,7 +40,7 @@ if (networkName !== 'hardhat') {
     networks[networkName] = {
         url: rpcUrl,
         accounts: [privateKey],
-        type: "http",
+        type: 'http',
     };
 }
 
@@ -52,8 +54,15 @@ if (networkName === 'hardhat') {
 
 const config: HardhatUserConfig = {
     solidity: '0.8.28',
-    plugins: [hardhatTypechain, hardhatEthers, hardhatToolboxMochaEthers],
+    plugins: [
+        hardhatMocha,
+        hardhatTypechain,
+        hardhatEthers,
+        hardhatToolboxMochaEthers,
+        hardhatEthersChaiMatchers,
+    ],
     networks,
+    tasks: [lockTokens, getTotalDeposited],
 };
 
 export default config;
