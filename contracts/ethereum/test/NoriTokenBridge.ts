@@ -41,6 +41,7 @@ describe('NoriTokenBridge', () => {
             const { tokenBridge, owner } =  await deployTokenBridgeFixture();
 
             const sendValue = ethers.parseEther('1.0');
+
             await tokenBridge
                 .connect(owner)
                 .lockTokens(attestationHashBigInt, { value: sendValue });

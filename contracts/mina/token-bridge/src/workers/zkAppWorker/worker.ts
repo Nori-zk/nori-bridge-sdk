@@ -242,7 +242,7 @@ export class ZkAppWorker {
             return false;
         } catch (e) {
             const error = e as Error;
-            console.error(
+            console.log(
                 `Error determining if we needed to setup storage. Going to assume that we do need to.`,
                 error
             );
