@@ -1,6 +1,6 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+//import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
 import { resolve } from 'path';
-import { Cache, ProofBase, SmartContract } from 'o1js';
+import { Cache, SmartContract } from 'o1js'; // ProofBase
 import { randomBytes } from 'crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import {
@@ -12,10 +12,10 @@ import { rootDir } from '../rootDir.js';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriTokenController } from '../NoriTokenController.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
-import { type Gate } from 'o1js/dist/node/snarky.js';
-import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
+//import { type Gate } from 'o1js/dist/node/snarky.js';
+//import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
 
-new LogPrinter('[NoriMinaTokenBridge]', [
+/*new LogPrinter('[NoriMinaTokenBridge]', [
     'log',
     'info',
     'warn',
@@ -25,9 +25,10 @@ new LogPrinter('[NoriMinaTokenBridge]', [
     'verbose',
 ]);
 
-const logger = new Logger('CompileZks');
+const logger = new Logger('CompileZks');*/
+const logger = console;
 
-type ProofClass = Subclass<typeof ProofBase>;
+//type ProofClass = Subclass<typeof ProofBase>;
 type CompilableZkProgramWithAnalyze = CompilableZkProgram & {
     analyzeMethods: () => Promise<
         Record<
@@ -36,8 +37,8 @@ type CompilableZkProgramWithAnalyze = CompilableZkProgram & {
                 actions: number;
                 rows: number;
                 digest: string;
-                gates: Gate[];
-                proofs: ProofClass[];
+                gates: any[]; //Gate[];
+                proofs: any[]; // ProofClass[];
             }
         >
     >;
@@ -137,7 +138,7 @@ async function main() {
 }
 
 main().catch((err) => {
-    logger.fatal(`Main function had an error:\n${String(err.stack)}`);
+    logger.error(`Main function had an error:\n${String(err.stack)}`); // fatal
     rmSync(ephemeralCacheDir, { recursive: true, force: true });
     process.exit(1);
 });

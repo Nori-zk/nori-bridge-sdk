@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/mina-token-bridge",
-    "version": "0.2.17",
+    "version": "0.2.18",
     "description": "",
     "author": "",
     "license": "Apache-2.0",
@@ -33,6 +33,9 @@
         },
         "./workers/defs": {
             "import": "./target/src/workers/defs.js"
+        },
+        "./env": {
+            "import": "./target/src/env.js"
         }
     },
     "scripts": {
