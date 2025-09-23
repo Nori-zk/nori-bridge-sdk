@@ -119,7 +119,7 @@ import {
     getCanComputeEthProof$, // cycles through states of 'Waiting', 'CanCompute', or 'MissedMintingOpportunity'
     CanComputEthProof,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
-import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
+import { FungibleToken, NoriStorageInterface, NoriTokenController, signSecretWithEthWallet, env } from '@nori-zk/mina-token-bridge';
 // Import your worker getter function here to support minting, e.g.:
 // import { getZkAppWorker } from './workers/zkAppWorker/browser/parent.ts'
 // Do other logic such as retrieving user balance etc.
