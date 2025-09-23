@@ -3,6 +3,8 @@ import { filter, interval, map, Subscription } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { reconnectingWebSocket, ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
+export { type ReconnectingWebSocketSubject };
+
 // Pong response.
 const pongReplyStr = '{"data":"pong"}';
 
