@@ -70,6 +70,10 @@ export const ${name}Layout: ZKCacheLayout = ${name}Json;
         layoutNames
             .map((name) => `import { ${name}Layout } from './${name}.js';`)
             .join('\n') +
+        '\n' +
+        layoutNames
+            .map((name) => `export { ${name}Layout } from './${name}.js';`)
+            .join('\n') +
         `\n\nexport const allCacheLayouts: ZKCacheLayout[] = [${layoutNames
             .map((n) => n + 'Layout')
             .join(', ')}];\n`;
