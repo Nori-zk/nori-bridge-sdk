@@ -9,7 +9,8 @@
         "contracts/mina/eth-processor",
         "contracts/mina/token-bridge",
         "contracts/ethereum",
-        "minimal-client"
+        "minimal-client",
+        "cache-server"
     ],
     "devDependencies": {
         "npm-workspaces-publish-tool": "^0.0.9",

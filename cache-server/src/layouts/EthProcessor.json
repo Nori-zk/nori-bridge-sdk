@@ -1,0 +1,16 @@
+{
+  "name": "EthProcessor",
+  "integrityHash": "12019075580548402762218057380079836522120736026948651997953511616064144888813",
+  "files": [
+    "step-pk-ethprocessor-initialize",
+    "step-pk-ethprocessor-setverificationkey",
+    "step-pk-ethprocessor-update",
+    "step-pk-ethprocessor-updatestorehash",
+    "step-vk-ethprocessor-initialize",
+    "step-vk-ethprocessor-setverificationkey",
+    "step-vk-ethprocessor-update",
+    "step-vk-ethprocessor-updatestorehash",
+    "wrap-pk-ethprocessor",
+    "wrap-vk-ethprocessor"
+  ]
+}

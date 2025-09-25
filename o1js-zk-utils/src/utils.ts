@@ -1,4 +1,4 @@
-import { Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
+import { Cache, Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import {
     PlonkProof,
@@ -6,6 +6,8 @@ import {
     ZkProgram,
     CompilableZkProgram,
 } from './types.js';
+import { CacheConfig } from './o1js-cache/types.js';
+import { cacheFactory } from './o1js-cache/index.js';
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -147,6 +149,7 @@ export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
 
 // Compile and verify contracts utility
 
+// Deprecate this!
 export async function compileAndVerifyContracts(
     logger: any, // Logger fix this later
     contracts: {
@@ -214,6 +217,40 @@ export function vkToVkSafe(vk: VerificationKey) {
     data,
   };
 }
+
+/**
+ * Compiles a list of SmartContracts or CompilableZkPrograms and optionally verifies their
+ * verification key hashes against provided integrity hashes.
+ *
+ * @template T - An array of contract descriptors. Each descriptor must include:
+ *  - `name`: The contract/program name (used as a key for the returned verification key).
+ *  - `program`: Either a `SmartContract` class or a `CompilableZkProgram`.
+ *  - `integrityHash` (optional): The expected verification key hash to validate against.
+ *
+ * @param logger - Logger object with a `.log(string)` method for outputting progress messages.
+ *                 Type: `{ log: (msg: string) => void }`.
+ * @param contracts - Array of contract/program descriptors to compile and optionally verify.
+ * @param cacheConfig - Optional cache configuration (`FileSystem` or `Network`) to use during compilation.
+ *
+ * @returns A Promise resolving to an object mapping each contract name to its `VerificationKey`.
+ *          Keys are of the form `${name}VerificationKey`.
+ *
+ * @throws Will throw an Error if any computed verification key hash does not match
+ *         its expected `integrityHash`, including a helpful message on clearing the cache
+ *         or regenerating verification keys.
+ *
+ * Example usage:
+ * ```ts
+ * const vks = await compileAndOptionallyVerifyContracts(
+ *   { log: console.log },
+ *   [
+ *     { name: 'MyContract', program: MyContract, integrityHash: '12345' },
+ *     { name: 'MyProgram', program: MyZkProgram },
+ *   ],
+ *   cacheConfig
+ * );
+ * ```
+ */
 export async function compileAndOptionallyVerifyContracts<
   T extends readonly {
     name: string;
@@ -221,12 +258,15 @@ export async function compileAndOptionallyVerifyContracts<
     integrityHash?: string;
   }[]
 >(
-  logger: any,
-  contracts: T
+  logger: { log: (msg: string) => void },
+  contracts: T,
+  cacheConfig?: CacheConfig
 ): Promise<
   { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey }
 > {
   type ReturnMap = { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey };
+
+  const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
 
   const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
   const mismatches: string[] = [];
@@ -236,7 +276,7 @@ export async function compileAndOptionallyVerifyContracts<
 
     logger.log(`Compiling ${name} contract/program.`);
     console.time(`${name} compiled`);
-    const compiled = await program.compile();
+    const compiled = await (cache ? program.compile({cache}) : program.compile());
     console.timeEnd(`${name} compiled`);
 
     const vk = compiled.verificationKey;
@@ -269,4 +309,17 @@ export async function compileAndOptionallyVerifyContracts<
   logger.log('All contracts compiled successfully.');
 
   return Object.fromEntries(entries) as ReturnMap;
+}
+
+export type ZKCache = {
+    name: string;
+    integrityHash?: string;
+}
+
+export type ZKCacheWithProgram = ZKCache & {
+    program: typeof SmartContract | CompilableZkProgram;
+}
+
+export type ZKCacheLayout = ZKCache & {
+    files: string[];
 }

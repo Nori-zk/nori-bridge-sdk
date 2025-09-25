@@ -1,0 +1,15 @@
+{
+  "name": "EthVerifier",
+  "integrityHash": "18898419980749081858185627310467310990096965437609867313373155526674043887824",
+  "files": [
+    "lagrange-basis-fq-16384",
+    "lagrange-basis-fq-32768",
+    "lagrange-basis-fq-8192",
+    "srs-fp-65536",
+    "srs-fq-32768",
+    "step-pk-ethverifier-compute",
+    "step-vk-ethverifier-compute",
+    "wrap-pk-ethverifier",
+    "wrap-vk-ethverifier"
+  ]
+}
