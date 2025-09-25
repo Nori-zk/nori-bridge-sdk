@@ -37,7 +37,8 @@
         "rimraf": "^6.0.1",
         "ts-jest": "^29.2.4",
         "ts-node": "^10.9.2",
-        "typescript": "^5.4.5"
+        "typescript": "^5.4.5",
+        "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0"
     },
     "peerDependencies": {
         "o1js": "2.3.0"
@@ -46,8 +47,8 @@
         "node": ">=18.14.0"
     },
     "dependencies": {
-        "@nori-zk/mina-token-bridge": "*",
         "@nori-zk/ethprocessor": "*",
+        "@nori-zk/mina-token-bridge": "*",
         "@nori-zk/o1js-zk-utils": "*"
     }
 }
