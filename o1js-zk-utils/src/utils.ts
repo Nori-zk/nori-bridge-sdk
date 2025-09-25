@@ -260,13 +260,14 @@ export async function compileAndOptionallyVerifyContracts<
 >(
   logger: { log: (msg: string) => void },
   contracts: T,
-  cacheConfig?: CacheConfig
+  cache?: Cache,
+  //cacheConfig?: CacheConfig
 ): Promise<
   { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey }
 > {
   type ReturnMap = { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey };
 
-  const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
+  //const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
 
   const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
   const mismatches: string[] = [];

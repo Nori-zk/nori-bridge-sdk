@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@nori-zk/ethereum-token-bridge": "*",
-    "@nori-zk/mina-token-bridge": "*",
     "@nori-zk/workers": "*",
     "@nori-zk/proof-conversion": "^0.5.15",
     "@nori-zk/pts-types": "^4.0.0",

@@ -5,6 +5,8 @@ import {
 import {
     NoriStorageInterface,
     noriStorageInterfaceVkHash,
+    FungibleToken,
+    fungibleTokenVkHash,
     NoriTokenController,
     noriTokenControllerVkHash,
 } from '@nori-zk/mina-token-bridge';
@@ -31,6 +33,11 @@ const caches: ZKCacheWithProgram[] = [
         name: 'NoriStorageInterface',
         program: NoriStorageInterface,
         integrityHash: noriStorageInterfaceVkHash,
+    },
+    {
+        name: 'FungibleToken',
+        program: FungibleToken,
+        integrityHash: fungibleTokenVkHash,
     },
     {
         name: 'NoriTokenController',

@@ -12,7 +12,7 @@ import { type CacheType } from './types.js';
 export interface NetworkCacheConfig {
     type: CacheType.Network;
     baseUrl: string;
-    path: string; 
+    path: string;
     files: string[];
 }
 

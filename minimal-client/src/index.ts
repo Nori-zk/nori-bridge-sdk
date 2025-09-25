@@ -177,7 +177,7 @@ try {
     // Compile zkAppWorker dependancies
     console.log('Compiling dependancies of zkAppWorker');
     const zkAppWorker = new ZkAppWorker();
-    const zkAppWorkerReady = zkAppWorker.compileAll(); // ?? Can we move this earlier...
+    const zkAppWorkerReady = zkAppWorker.compileAll('http://localhost:4210'); // ?? Can we move this earlier...
 
     // Generate PKARM code challenge from signature and mina public key
     const codeVerifierPKARMStr =

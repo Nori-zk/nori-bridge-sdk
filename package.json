@@ -7,10 +7,10 @@
         "workers",
         "o1js-zk-utils",
         "contracts/mina/eth-processor",
+        "cache-server",
         "contracts/mina/token-bridge",
         "contracts/ethereum",
-        "minimal-client",
-        "cache-server"
+        "minimal-client"
     ],
     "devDependencies": {
         "npm-workspaces-publish-tool": "^0.0.9",

@@ -8,6 +8,7 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import path from 'path';
 import fs from 'fs/promises';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils';
 
 export async function cacheBuilder(
     caches: ZKCacheWithProgram[],
@@ -31,10 +32,12 @@ export async function cacheBuilder(
             dir: cacheSubDir,
         };
 
+        const fileSystemCache = await cacheFactory(fileSystemCacheConfig);
+
         const vks = await compileAndOptionallyVerifyContracts(
             console,
             [{ name, program, integrityHash }],
-            fileSystemCacheConfig
+            fileSystemCache
         );
 
         if (!integrityHash) {
@@ -56,7 +59,7 @@ export async function cacheBuilder(
         const tsContent = `import ${name}Json from './${name}.json' with { type: "json" };
 import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils';
 
-export const ${name}Layout: ZKCacheLayout = ${name}Json;
+export const ${name}CacheLayout: ZKCacheLayout = ${name}Json;
 `;
         await fs.writeFile(tsPath, tsContent, 'utf-8');
 
@@ -68,14 +71,14 @@ export const ${name}Layout: ZKCacheLayout = ${name}Json;
     const indexContent =
         `import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils';\n` +
         layoutNames
-            .map((name) => `import { ${name}Layout } from './${name}.js';`)
+            .map((name) => `import { ${name}CacheLayout } from './${name}.js';`)
             .join('\n') +
         '\n' +
         layoutNames
-            .map((name) => `export { ${name}Layout } from './${name}.js';`)
+            .map((name) => `export { ${name}CacheLayout } from './${name}.js';`)
             .join('\n') +
         `\n\nexport const allCacheLayouts: ZKCacheLayout[] = [${layoutNames
-            .map((n) => n + 'Layout')
+            .map((n) => n + 'CacheLayout')
             .join(', ')}];\n`;
 
     await fs.writeFile(indexTsPath, indexContent, 'utf-8');
