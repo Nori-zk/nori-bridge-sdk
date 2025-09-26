@@ -41,6 +41,7 @@ import {
     NoriStorageInterfaceCacheLayout,
     FungibleTokenCacheLayout,
     NoriTokenControllerCacheLayout,
+    EthVerifierCacheLayout,
 } from '@nori-zk/cache-server';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils';
 export {
@@ -433,11 +434,11 @@ export class ZkAppWorker {
         console.log('Compiling all minter dependencies [Browser]...');
 
         // Create NetworkCacheConfig for EthVerifier first
-        /*const ethVerifierNetworkCacheConfig: NetworkCacheConfig = {
+        const ethVerifierNetworkCacheConfig: NetworkCacheConfig = {
             type: CacheType.Network,
             baseUrl: cacheServer,
-            path: EthProcessorCacheLayout.name,
-            files: EthProcessorCacheLayout.files,
+            path: EthVerifierCacheLayout.name,
+            files: EthVerifierCacheLayout.files,
         };
         const ethVerifierCache = await cacheFactory(
             ethVerifierNetworkCacheConfig
@@ -454,17 +455,17 @@ export class ZkAppWorker {
                 },
             ],
             ethVerifierCache
-        );*/
+        );
 
         // Compile eth verifier normally.
-        const { ethVerifierVerificationKey } = await compileAndOptionallyVerifyContracts(
+        /*const { ethVerifierVerificationKey } = await compileAndOptionallyVerifyContracts(
             console,
             [{
                 name: 'ethVerifier',
                 program: EthVerifier,
                 integrityHash: ethVerifierVkHash,
             }]
-        );
+        );*/
 
         // Now fetch other caches in parallel
         const noriStorageInterfaceCache = cacheFactory({
