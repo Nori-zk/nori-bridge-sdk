@@ -12,11 +12,11 @@ type Env = {
 
 export const env: Partial<Record<EnvName, Env>> = {
     staging: {
-        NORI_TOKEN_BRIDGE_ADDRESS: '0x3EEACD9caa1aDdBA939FF041C43020b516A51dcF',
+        NORI_TOKEN_BRIDGE_ADDRESS: '0x716e124a864a466814C29e55A898f7F005B0Cd46',
         NORI_TOKEN_CONTROLLER_ADDRESS:
-            'B62qqRRNz7pGh29GmTYmJrk5RFieZnCTv5cUE4zBse8tNdR5NayUL7G',
+            'B62qjymLWRpQhwWa91ET5b9FqrLmB6CtBQ1ZbHcj8wSbAGcLRmUExzt',
         TOKEN_BASE_ADDRESS:
-            'B62qphX4CxksMDHKuJLXyBLc5MdMNjQGSRNg8kU2Z3J7QQ5dpDcLxDk',
+            'B62qp1YBCbuvBsXFVLGMU5ASmv1r4BbTRW4epHuEz3CHbLL8wfjje4F',
         MINA_RPC_NETWORK_URL: 'https://api.minascan.io/node/devnet/v1/graphql',
         MINA_RPC_NETWORK_ID: 'devnet',
     },
