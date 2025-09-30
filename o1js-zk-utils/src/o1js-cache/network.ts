@@ -103,7 +103,7 @@ export const MinaFileSystem = (cacheFiles: CacheMap): Cache => ({
         // No-op in this implementation
     },
 
-    canWrite: true,
+    canWrite: false,
 });
 
 
