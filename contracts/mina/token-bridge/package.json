@@ -18,6 +18,7 @@
     "main": "target/src/index.js",
     "types": "target/src/index.d.ts",
     "scripts": {
+        "sorryDeniz": "npm run build && node target/src/test.js",
         "clean": "rimraf target",
         "build": "npm run clean && tsc",
         "buildw": "tsc --watch",
