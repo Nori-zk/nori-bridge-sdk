@@ -1,0 +1,25 @@
+{
+  "name": "NoriTokenController",
+  "integrityHash": "6461291881641649689574403237209034528354405784719820600512387573340176745875",
+  "files": [
+    "lagrange-basis-fp-32768",
+    "step-pk-noritokencontroller-canchangeadmin",
+    "step-pk-noritokencontroller-canchangeverificationkey",
+    "step-pk-noritokencontroller-canmint",
+    "step-pk-noritokencontroller-canpause",
+    "step-pk-noritokencontroller-canresume",
+    "step-pk-noritokencontroller-norimint",
+    "step-pk-noritokencontroller-setupstorage",
+    "step-pk-noritokencontroller-updateverificationkey",
+    "step-vk-noritokencontroller-canchangeadmin",
+    "step-vk-noritokencontroller-canchangeverificationkey",
+    "step-vk-noritokencontroller-canmint",
+    "step-vk-noritokencontroller-canpause",
+    "step-vk-noritokencontroller-canresume",
+    "step-vk-noritokencontroller-norimint",
+    "step-vk-noritokencontroller-setupstorage",
+    "step-vk-noritokencontroller-updateverificationkey",
+    "wrap-pk-noritokencontroller",
+    "wrap-vk-noritokencontroller"
+  ]
+}

@@ -41,6 +41,7 @@
     "scripts": {
         "clean": "rimraf target",
         "build": "npm run clean && tsc",
+        "build:cache-layouts": "node --experimental-vm-modules target/src/bin/buildCacheServerLayouts.js",
         "buildw": "tsc --watch",
         "coverage": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage",
         "format": "prettier --write --ignore-unknown **/*",
@@ -59,7 +60,7 @@
         "@babel/preset-env": "^7.16.4",
         "@babel/preset-typescript": "^7.16.0",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-        "@nori-zk/ethereum-token-bridge": "^0.0.7",
+        "@nori-zk/ethereum-token-bridge": "*",
         "@nori-zk/pts-types": "^4.0.0",
         "@types/jest": "^29.5.12",
         "@typescript-eslint/eslint-plugin": "^5.5.0",

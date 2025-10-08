@@ -20,6 +20,9 @@
     "exports": {
         ".": {
             "import": "./build/index.js"
+        },
+        "./node": {
+            "import": "./build/index.node.js"
         }
     },
     "scripts": {

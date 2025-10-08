@@ -10,17 +10,7 @@ export {
     getMerklePathFromTree,
 } from './merkle-attestor/merkleTree.js';
 
-export {
-    fieldToHexBE,
-    fieldToHexLE,
-    fieldToBigIntBE,
-    fieldToBigIntLE,
-    uint8ArrayToBigIntBE,
-    decodeConsensusMptProof,
-    compileAndVerifyContracts,
-    compileAndOptionallyVerifyContracts,
-    vkToVkSafe,
-} from './utils.js';
+export * from './utils.js';
 
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
 
@@ -38,3 +28,5 @@ export {
 } from './ContractDepositAttestor.js';
 
 export * from './nodeProofLeft.patch.js';
+
+export * from './o1js-cache/index.js';

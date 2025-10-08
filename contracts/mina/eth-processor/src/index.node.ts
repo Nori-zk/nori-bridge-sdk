@@ -1,3 +1,4 @@
+export { ethProcessorVkHash } from './integrity/EthProcessor.VKHash.js';
 export { EthProcessor } from './ethProcessor.js';
 export { MinaEthProcessorSubmitter } from './proofSubmitter.js';
 export { wait } from './txWait.js';

@@ -8,6 +8,7 @@
         "o1js-zk-utils",
         "contracts/mina/eth-processor",
         "contracts/mina/token-bridge",
+        "cache-server",
         "contracts/ethereum",
         "minimal-client"
     ],
