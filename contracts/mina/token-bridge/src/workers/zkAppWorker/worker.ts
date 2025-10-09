@@ -423,7 +423,8 @@ export class ZkAppWorker {
     }
 
     async compileMinterDeps(cacheServer?: string) {
-        if (!cacheServer || !isBrowser()) return this.compileMinterDepsNoCache();
+        return this.compileMinterDepsNoCache(); // FORCE COMPILE WITHOUT CACHE
+        //if (!cacheServer || !isBrowser()) return this.compileMinterDepsNoCache();
 
         console.log('Compiling all minter dependencies [Browser]...');
 

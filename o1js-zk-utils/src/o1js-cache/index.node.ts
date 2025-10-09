@@ -1,14 +1,15 @@
 import { CacheConfig, CacheType } from './types.js';
+import { fileSystemCacheFactory, readOnlyFileSystemCacheFactory } from './fileSystem.js';
 import { networkCacheFactory } from './network.js';
 
 export async function cacheFactory(cacheConfig: CacheConfig) {
     if (cacheConfig.type === CacheType.FileSystem) {
-        throw new Error('FileSystem cache is only available in Node.js');
-    } else if (cacheConfig.type === CacheType.ReadOnlyFileSystem) {
-        throw new Error(
-            'ReadOnlyFileSystem cache is only available in Node.js'
-        );
-    } else if (cacheConfig.type === CacheType.Network) {
+        return fileSystemCacheFactory(cacheConfig);
+    } 
+    else if (cacheConfig.type === CacheType.ReadOnlyFileSystem) {
+        return readOnlyFileSystemCacheFactory(cacheConfig)
+    }
+    else if (cacheConfig.type === CacheType.Network) {
         return networkCacheFactory(cacheConfig);
     }
     throw new Error(

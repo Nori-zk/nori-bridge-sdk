@@ -1,9 +1,12 @@
 import {
+    CacheType,
     compileAndOptionallyVerifyContracts,
     EthVerifier,
     ethVerifierVkHash,
+    FileSystemCacheConfig,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
 import {
     AccountUpdate,
     Bool,
@@ -20,6 +23,9 @@ import { NoriTokenController } from '../../NoriTokenController.js';
 import { noriTokenControllerVkHash } from '../../integrity/NoriTokenController.VkHash.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
+import { resolve } from 'path';
+import { mkdirSync, rmSync } from 'fs';
+import os from 'os';
 
 export interface DeploymentResult {
     noriTokenControllerAddress: string;
@@ -27,7 +33,25 @@ export interface DeploymentResult {
     txHash: string;
 }
 
+function getRandomCacheDir(prefix = 'mina-eth-processor-cache') {
+    const randomSuffix = `${Date.now()}-${Math.floor(
+        Math.random() * 1_000_000
+    )}`;
+    const cacheDir = resolve(os.tmpdir(), `${prefix}-${randomSuffix}`);
+    mkdirSync(cacheDir, { recursive: true });
+    const cacheConfig: FileSystemCacheConfig = {
+        type: CacheType.FileSystem,
+        dir: cacheDir,
+    };
+    return cacheConfig;
+}
+
+function removeCacheDir(cacheConfig: FileSystemCacheConfig) {
+    rmSync(cacheConfig.dir, { recursive: true, force: true });
+}
+
 export class TokenDeployerWorker {
+    #cacheConfig: FileSystemCacheConfig | undefined;
     // Mina setup ******************************************************************************
 
     async minaSetup(options: {
@@ -45,6 +69,10 @@ export class TokenDeployerWorker {
 
     async compile() {
         console.log('Compiling all contracts/programs ...');
+
+        const randomFileSystemCacheConfig = getRandomCacheDir();
+        this.#cacheConfig = randomFileSystemCacheConfig;
+        const fileSystemCache = await cacheFactory(randomFileSystemCacheConfig);
 
         const contracts = [
             {
@@ -72,7 +100,8 @@ export class TokenDeployerWorker {
         // Compile all contracts using the helper
         const compiledVks = await compileAndOptionallyVerifyContracts(
             console,
-            contracts
+            contracts,
+            fileSystemCache
         );
 
         // Manually assign each VK to a Safe key
@@ -201,6 +230,8 @@ export class TokenDeployerWorker {
         const result = await tx.wait();
 
         console.log('Contracts deployed successfully');
+
+        removeCacheDir(this.#cacheConfig);
 
         return {
             noriTokenControllerAddress: noriTokenController.address.toBase58(),

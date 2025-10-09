@@ -13,12 +13,15 @@ export class StaticServer {
     }
 
     private serveStaticFile(requestedPath: string, res: HttpResponse) {
+        let aborted = false;
         res.onAborted(() => {
+            aborted = true;
             console.warn('Request aborted by client');
         });
         const filePath = path.join(this.baseDir, requestedPath);
 
         access(filePath, constants.F_OK, (err) => {
+            if (aborted) return;
             if (err) {
                 res.cork(() => {
                     res.writeStatus('404 Not Found')
@@ -31,6 +34,7 @@ export class StaticServer {
 
             readFile(filePath, (err, fileData) => {
                 res.cork(() => {
+                    if (aborted) return;
                     if (err) {
                         res.writeStatus('500 Internal Server Error')
                             .writeHeader('Content-Type', 'text/plain')

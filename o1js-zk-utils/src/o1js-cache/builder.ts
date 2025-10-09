@@ -4,10 +4,10 @@ import {
     FileSystemCacheConfig,
     CacheType,
     compileAndOptionallyVerifyContracts,
-} from '@nori-zk/o1js-zk-utils';
+} from '../index.js';
 import path from 'path';
 import fs from 'fs/promises';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '../index.node.js';
 
 export async function cacheBuilder(
     caches: ZKCacheWithProgram[],

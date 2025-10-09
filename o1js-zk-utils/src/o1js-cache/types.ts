@@ -3,6 +3,7 @@ import { type NetworkCacheConfig } from './network.js';
 
 export enum CacheType {
     FileSystem = 'FileSystem',
+    ReadOnlyFileSystem = 'ReadOnlyFileSystem',
     Network = 'Network',
 }
 

@@ -8,11 +8,13 @@ import {
     ethVerifierVkHash,
     CreateProofArgument,
     VerificationKey,
-    compileAndVerifyContracts,
     decodeConsensusMptProof,
     Bytes32,
     Bytes32FieldPair,
     NodeProofLeft,
+    FileSystemCacheConfig,
+    compileAndOptionallyVerifyContracts,
+    cacheFactory,
 } from '@nori-zk/o1js-zk-utils';
 import { ethProcessorVkHash } from './integrity/EthProcessor.VKHash.js';
 
@@ -35,7 +37,7 @@ export class MinaEthProcessorSubmitter {
         return this.ethVerifierVerificationKey;
     }
 
-    constructor(private type: 'plonk' = 'plonk') {
+    constructor(private cache: FileSystemCacheConfig = undefined) {
         logger.info(`🛠 MinaEthProcessorSubmitter constructor called!`);
         const errors: string[] = [];
 
@@ -97,19 +99,29 @@ export class MinaEthProcessorSubmitter {
     }
 
     async compileContracts() {
+        const fileSystemCache = this.cache
+            ? await cacheFactory(this.cache)
+            : undefined;
+
+        console.log('fileSystemCache', fileSystemCache, this.cache);
+
         const { ethVerifierVerificationKey, ethProcessorVerificationKey } =
-            await compileAndVerifyContracts(logger, [
-                {
-                    name: 'ethVerifier',
-                    program: EthVerifier,
-                    integrityHash: ethVerifierVkHash,
-                },
-                {
-                    name: 'ethProcessor',
-                    program: EthProcessor,
-                    integrityHash: ethProcessorVkHash,
-                },
-            ]);
+            await compileAndOptionallyVerifyContracts(
+                logger,
+                [
+                    {
+                        name: 'ethVerifier',
+                        program: EthVerifier,
+                        integrityHash: ethVerifierVkHash,
+                    },
+                    {
+                        name: 'ethProcessor',
+                        program: EthProcessor,
+                        integrityHash: ethProcessorVkHash,
+                    },
+                ],
+                fileSystemCache
+            );
         Object.defineProperty(this, 'ethVerifierVerificationKey', {
             value: ethVerifierVerificationKey,
             writable: false,
@@ -130,8 +142,8 @@ export class MinaEthProcessorSubmitter {
                 [
                     //prettier-ignore
                     `Deploy is only supported in test mode, test mode was set to 'false'. Test mode is only possible when the configured network is 'lightnet' and the configured network is '${this.#network}'.`,
-                    `Please see the README.md within the 'contracts/mina/eth-processor' workspace of the 'nori-bridge-sdk' repository and use the deploy script 'npm run deploy <storeHash>' instead of this method.`
-                ].join('\n')               
+                    `Please see the README.md within the 'contracts/mina/eth-processor' workspace of the 'nori-bridge-sdk' repository and use the deploy script 'npm run deploy <storeHash>' instead of this method.`,
+                ].join('\n')
             );
         }
         logger.log('Creating deploy update transaction.');
