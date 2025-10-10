@@ -94,7 +94,7 @@ export async function deployTokenController() {
             0.1 * 1e9,
             {
                 symbol: 'nETH',
-                decimals: 12,
+                decimals: 6,
                 allowUpdates: true,
             }
         );
