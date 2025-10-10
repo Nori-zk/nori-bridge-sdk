@@ -177,18 +177,19 @@ export class NoriTokenController
 
         // Ensure totalLockedWei is at least one bridge unit
         totalLockedWei.assertGreaterThanOrEqual(
-            new Field(1_000_000),
+            new Field(1_000_000_000_000n),
             'Cannot mint: total locked wei is less than one bridge unit (atleast 1e6 wei is needed)'
         );
 
         // Convert totalLockedWei to bridge units
-        // Divide by number of decimals in this case 6 scaling factor. (Not sure which is better)
-        const totalLockedBridgeUnits = totalLockedWei.div(new Field(1_000_000));
+        // Divide by number bridge scale factor, we have min deposit of 1e-6 ETH (6dp) and 1 ETH is 1e18 wei
+        // So factor is 18-6=12 1e12
+        const totalLockedBridgeUnits = totalLockedWei.div(new Field(1_000_000_000_000n));
         /*const totalLockedBridgeUnits = Provable.witness(
             Field,
-            () => new Field(totalLockedWei.toBigInt() / 1_000_000n)
+            () => new Field(totalLockedWei.toBigInt() / 1_000_000_000_000n)
         );
-        totalLockedBridgeUnits.mul(new Field(1_000_000)).assertEquals(totalLockedWei);*/
+        totalLockedBridgeUnits.mul(new Field(1_000_000_000_000n)).assertEquals(totalLockedWei);*/
 
 
         // Derive amount to mint based of the total locked so far.
