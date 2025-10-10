@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/ethprocessor",
-    "version": "5.0.5",
+    "version": "6.0.0",
     "description": "zkApp for verifying SP1 Helios Nori proof and storing latest execution state root on Mina",
     "author": "Nori",
     "license": "Apache-2.0",
