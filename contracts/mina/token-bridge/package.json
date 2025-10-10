@@ -78,7 +78,7 @@
         "typescript": "^5.4.5"
     },
     "peerDependencies": {
-        "o1js": "2.3.0"
+        "o1js": "2.10.0"
     },
     "engines": {
         "node": ">=18.14.0"
@@ -92,5 +92,8 @@
         "mina-attestations": "^0.5.3",
         "rxjs": "^7.8.2",
         "xstate": "^5.20.1"
+    },
+    "overrides": {
+        "o1js": "2.10.0"
     }
 }

@@ -14,8 +14,8 @@ import {
     NodeProofLeft,
     FileSystemCacheConfig,
     compileAndOptionallyVerifyContracts,
-    cacheFactory,
 } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
 import { ethProcessorVkHash } from './integrity/EthProcessor.VKHash.js';
 
 const logger = new Logger('EthProcessorSubmitter');
