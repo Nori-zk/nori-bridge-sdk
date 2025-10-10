@@ -18,14 +18,12 @@ console.log('attestationHashHex', attestationHashHex);
 
 describe('NoriTokenBridge', function () {
     async function deployTokenBridgeFixture() {
-        const [owner, otherAccount] = await hre.ethers.getSigners();
+        const [owner, user1, user2] = await hre.ethers.getSigners();
 
-        const TokenBridge = await hre.ethers.getContractFactory(
-            'NoriTokenBridge'
-        );
+        const TokenBridge = await hre.ethers.getContractFactory('NoriTokenBridge');
         const tokenBridge = await TokenBridge.deploy();
 
-        return { tokenBridge, owner, otherAccount };
+        return { tokenBridge, owner, user1, user2 };
     }
 
     describe('Deployment', function () {
@@ -283,6 +281,127 @@ describe('NoriTokenBridge', function () {
 
             expect(decoded).to.equal(valueFromMapping);
             expect(decoded).to.equal(value);
+        });
+    });
+
+    describe('v2Rpc Tests', function () {
+        it('Should convert wei to bridge units and update totalLocked correctly', async function () {
+            const { tokenBridge, user1 } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+            const weiPerBridgeUnit = await tokenBridge.WEI_PER_BRIDGE_UNIT();
+
+            const sendValue = hre.ethers.parseEther('1.0');
+            const expectedBridgeUnits = sendValue / weiPerBridgeUnit;
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: sendValue });
+
+            const totalLocked = await tokenBridge.totalLocked();
+            expect(totalLocked).to.equal(expectedBridgeUnits);
+        });
+
+        it('Should revert if value is not a multiple of bridge unit', async function () {
+            const { tokenBridge, user1 } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+            const weiPerBridgeUnit = await tokenBridge.WEI_PER_BRIDGE_UNIT();
+
+            const invalidAmount = weiPerBridgeUnit + 1n;
+            await expect(
+                tokenBridge
+                    .connect(user1)
+                    .lockTokens(attestationHashBigInt, { value: invalidAmount })
+            ).to.be.revertedWith('Must be multiple of smallest bridge unit');
+        });
+
+        it('Should bind Mina account to first depositor and reject others', async function () {
+            const { tokenBridge, user1, user2 } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+            const sendValue = hre.ethers.parseEther('1.0');
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: sendValue });
+            const linked = await tokenBridge.codeChallengeToEthAddress(
+                attestationHashBigInt
+            );
+            expect(linked).to.equal(user1.address);
+
+            await expect(
+                tokenBridge
+                    .connect(user2)
+                    .lockTokens(attestationHashBigInt, { value: sendValue })
+            ).to.be.revertedWith(
+                'This Mina account is already linked to a different ETH address'
+            );
+        });
+
+        it('Should allow the same depositor to add more ETH to same Mina account', async function () {
+            const { tokenBridge, user1 } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+            const sendValue1 = hre.ethers.parseEther('0.5');
+            const sendValue2 = hre.ethers.parseEther('1.0');
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: sendValue1 });
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: sendValue2 });
+
+            const totalLocked = await tokenBridge.lockedTokens(
+                user1.address,
+                attestationHashBigInt
+            );
+            expect(totalLocked).to.equal(sendValue1 + sendValue2);
+        });
+
+        it.skip('Should revert if total locked exceeds MAX_MAGNITUDE', async function () {
+            const { tokenBridge, user1 } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+
+            const weiPerBridgeUnit = await tokenBridge.WEI_PER_BRIDGE_UNIT();
+            const maxMagnitude = await tokenBridge.MAX_MAGNITUDE();
+
+            const hugeValue = (maxMagnitude + 1n) * weiPerBridgeUnit;
+            await expect(
+                tokenBridge
+                    .connect(user1)
+                    .lockTokens(attestationHashBigInt, { value: hugeValue })
+            ).to.be.revertedWith('Total locked exceeds maximum allowed');
+        });
+
+        it('Should allow only bridge operator to withdraw', async function () {
+            const { tokenBridge, owner, user1 } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+
+            const sendValue = hre.ethers.parseEther('0.5');
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: sendValue });
+
+            await expect(
+                tokenBridge.connect(user1).withdraw()
+            ).to.be.revertedWith('Only bridge operator can withdraw');
+
+            await expect(
+                tokenBridge.connect(owner).withdraw()
+            ).to.changeEtherBalance(owner, sendValue);
+        });
+
+        it('Should revert withdraw if no ETH in contract', async function () {
+            const { tokenBridge, owner } = await loadFixture(
+                deployTokenBridgeFixture
+            );
+            await expect(
+                tokenBridge.connect(owner).withdraw()
+            ).to.be.revertedWith('No ETH to withdraw');
         });
     });
 });

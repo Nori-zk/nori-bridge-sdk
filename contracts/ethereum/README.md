@@ -38,7 +38,7 @@ Make sure your .env is set to deploy to the correct network.
 
 `npm run deploy`
 
-You will see output like:
+You will see output something like:
 
 ```sh
 Running on network "holesky"
@@ -75,6 +75,12 @@ Ensure NORI_TOKEN_BRIDGE_ADDRESS is within your .env file.
 `npm run get-deposited <depositorAddressHex> <attestationHashHex>`
 
 e.g. `npm run get-deposited 0xc7e910807dd2e3f49b34efe7133cfb684520da69 0x13cceb5b591e742c13fd7f3894f97139c964606f2928eefdc234e8a3a55c10b1`
+
+## Withdraw
+
+Ensure NORI_TOKEN_BRIDGE_ADDRESS and ETH_PRIVATE_KEY are within your .env file.
+
+`npm run withdraw`
 
 ## Package details
 

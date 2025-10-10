@@ -13,6 +13,7 @@
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
         "deploy": "dotenv -e .env -- sh -c 'npx hardhat run bin/deploy.ts --network $ETH_NETWORK'",
+        "withdraw": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK withdrawAll \"$@\"' --",
         "test:lock": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK lockTokens \"$@\"' --",
         "test:lock-loop": "dotenv -e .env -- sh -c 'while true; do npx hardhat --network \"$ETH_NETWORK\" lockTokens \"$@\" || break; sleep 384; done' --",
         "get-deposited": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK getTotalDeposited \"$@\"' --"
