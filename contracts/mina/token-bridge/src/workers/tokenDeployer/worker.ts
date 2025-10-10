@@ -202,7 +202,7 @@ export class TokenDeployerWorker {
                 // Deploy TokenBase
                 await tokenBase.deploy({
                     symbol,
-                    src: 'https://nori', // change me
+                    src: 'https://x.com/nori_zk',
                     allowUpdates,
                 });
 

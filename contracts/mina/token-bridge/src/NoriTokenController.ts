@@ -152,10 +152,12 @@ export class NoriTokenController
         verifyDepositSlotRoot(contractDepositSlotRoot, ethVerifierProof);
 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
-        const { totalLocked, attestationHash: codeChallengePKARM } =
-            contractDepositCredentialAndTotalLockedToFields(
-                merkleTreeContractDepositAttestorInput
-            );
+        const {
+            totalLocked: totalLockedWei,
+            attestationHash: codeChallengePKARM,
+        } = contractDepositCredentialAndTotalLockedToFields(
+            merkleTreeContractDepositAttestorInput
+        );
 
         // Verify the code challenge
         verifyCodeChallenge(codeVerifierPKARM, userAddress, codeChallengePKARM);
@@ -173,9 +175,25 @@ export class NoriTokenController
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
+        // Ensure totalLockedWei is at least one bridge unit
+        totalLockedWei.assertGreaterThanOrEqual(
+            new Field(1_000_000),
+            'Cannot mint: total locked wei is less than one bridge unit (atleast 1e6 wei is needed)'
+        );
+
+        // Convert totalLockedWei to bridge units
+        // Divide by number of decimals in this case 6 scaling factor. (Not sure which is better)
+        const totalLockedBridgeUnits = totalLockedWei.div(new Field(1_000_000));
+        /*const totalLockedBridgeUnits = Provable.witness(
+            Field,
+            () => new Field(totalLockedWei.toBigInt() / 1_000_000n)
+        );
+        totalLockedBridgeUnits.mul(new Field(1_000_000)).assertEquals(totalLockedWei);*/
+
+
         // Derive amount to mint based of the total locked so far.
         const amountToMint = await storage.increaseMintedAmount(
-            totalLocked
+            totalLockedBridgeUnits
         );
         Provable.log(amountToMint, 'amount to mint');
 
