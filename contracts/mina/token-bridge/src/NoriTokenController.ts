@@ -178,7 +178,7 @@ export class NoriTokenController
         // Ensure totalLockedWei is at least one bridge unit
         totalLockedWei.assertGreaterThanOrEqual(
             new Field(1_000_000_000_000n),
-            'Cannot mint: total locked wei is less than one bridge unit (atleast 1e6 wei is needed)'
+            'Cannot mint: total locked wei is less than one bridge unit (atleast 1e12 wei is needed)'
         );
 
         // Convert totalLockedWei to bridge units
