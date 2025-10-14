@@ -14,9 +14,9 @@ export const env: Partial<Record<EnvName, Env>> = {
     staging: {
         NORI_TOKEN_BRIDGE_ADDRESS: '0xc69dc348594168cAfD003F7D2340264DBcBEA40b',
         NORI_TOKEN_CONTROLLER_ADDRESS:
-            'B62qru91kVHQ9tGQo8BvGeJsvqiisu53jSUMuutMJr9xGdQ2q63PiL9',
+            'B62qnQmGKK48aUeM8DdDmA6kGNR1oD9cMg3DXs9RuyC4gvR2A3MKVJV',
         TOKEN_BASE_ADDRESS:
-            'B62qpLMW5vAxkxsxyCmtWVkgG2Qp98mdRtACe4YNgqQFft9P16kwpM6',
+            'B62qmkVtMBbCnSEzC14Ym5ekJGMXGru6qV4pT6HvXH3FKNomjop5Syc',
         MINA_RPC_NETWORK_URL: 'https://api.minascan.io/node/devnet/v1/graphql',
         MINA_RPC_NETWORK_ID: 'devnet',
     },
