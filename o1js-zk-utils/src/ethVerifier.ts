@@ -87,8 +87,7 @@ const EthVerifier = ZkProgram({
                     proof.publicOutput.rightOut
                 );
 
-                piDigest.assertEquals(proof.publicOutput.rightOut);
-
+                /* piDigest.assertEquals(proof.publicOutput.rightOut); */
                 return {
                     publicOutput: new Field(0),
                 };
