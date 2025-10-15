@@ -1,5 +1,5 @@
-import { NoriTokenController } from './NoriTokenController.js';
-import { FungibleToken } from './TokenBase.js';
+import { NoriTokenController } from '../NoriTokenController.js';
+import { FungibleToken } from '../TokenBase.js';
 
 describe('Work out number of gates for core ZKs', () => {
     async function analyzeZK(zk: any) {

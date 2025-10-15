@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { fieldToHexBE } from '@nori-zk/o1js-zk-utils';
-import { validateEnv } from './testUtils.js';
+import { validateEnv } from '../testUtils.js';
 import { ethers } from 'ethers';
-import { signSecretWithEthWallet } from './ethSignature.js';
+import { signSecretWithEthWallet } from '../ethSignature.js';
 import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
-} from './pkarm.js';
+} from '../pkarm.js';
 import { PrivateKey } from 'o1js';
 
 test('get_wallet_address_and_code_challenge_hex', async () => {

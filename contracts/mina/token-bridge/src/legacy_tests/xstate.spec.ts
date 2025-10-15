@@ -6,13 +6,13 @@ import {
     canMint,
     getCanComputeEthProof$,
     getCanMint$,
-} from './rx/deposit.js';
-import { getReconnectingBridgeSocket$ } from './rx/socket.js';
+} from '../rx/deposit.js';
+import { getReconnectingBridgeSocket$ } from '../rx/socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
-} from './rx/topics.js';
+} from '../rx/topics.js';
 import { createActor, fromObservable, fromPromise } from 'xstate';
 import { DeferredPromise } from '@nori-zk/workers';
 
