@@ -212,9 +212,39 @@ export class NoriTokenController
         await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
     }
 
+    /**
+     *  This function directly mints nETH tokens, bypassing normal Ethereum deposit flow. It’s intended for testing, not production use.
+     * @param amountToMint 
+     */
+    @method
+    public async alignedMint(amountToMint: Field) {
+        const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
+        const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
+
+        // FOR TEST PURPOSE. Setting value here is intended for smoothly exec `canMint()` later.
+        this.mintLock.set(Bool(false));
+
+        let token = new FungibleToken(tokenAddress);
+
+        const controllerTokenId = this.deriveTokenId();
+        let storage = new NoriStorageInterface(userAddress, controllerTokenId);
+
+        storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
+        // storage.userKeyHash.getAndRequireEquals().assertEquals(Poseidon.hash(userAddress.toFields()));
+        const _lockSoFar = storage.mintedSoFar.getAndRequireEquals().add(amountToMint);
+        // TODO As a just test, do I need follow this manner to maintain `mintSoFar` with the cost of extra constraints?
+        await storage.increaseMintedAmount(_lockSoFar);
+        Provable.log(amountToMint, 'amount to mint');
+
+        // Mint!
+        await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
+    }
+
     @method.returns(Bool)
     public async canMint(_accountUpdate: AccountUpdate) {
-        this.mintLock.requireEquals(Bool(false));
+        const _mintLock = this.mintLock.getAndRequireEquals();
+        _mintLock.assertEquals(Bool(false));
+
         this.mintLock.set(Bool(true));
         return Bool(true);
     }
