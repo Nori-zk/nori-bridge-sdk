@@ -1,4 +1,4 @@
-import { Field, SmartContract, state, State, method } from 'o1js';
+import { Field, SmartContract, state, State, method, Provable, Types, assert, Permissions } from 'o1js';
 
 const UNDERFLOW_PROTECTION_MESSAGE = `lockedSoFar is less than mintedSoFar. 
 This would cause a negative mint amount (underflow), so minting is blocked. 
@@ -8,7 +8,6 @@ which is outside the supported design and must be avoided.`;
 const ZERO_MINT_ERROR_MESSAGE = `No new amount to mint. The requested lockedSoFar equals mintedSoFar, minting zero tokens is not allowed.`;
 
 const PERMISSION_CHECK_ERROR_MESSAGE  = `\`editState\` MUST be by proof and \`setPermissions\` MUST be by proof `;
-
 
 /**
  * The contract stores the cumulative amount of token user has minted or burned. 
@@ -20,6 +19,7 @@ const PERMISSION_CHECK_ERROR_MESSAGE  = `\`editState\` MUST be by proof and \`se
 export class NoriStorageInterface extends SmartContract {
   @state(Field) userKeyHash = State<Field>();
   @state(Field) mintedSoFar = State<Field>();
+  @state(Field) burnedSoFar = State<Field>();
 
   /**
    * calc amount to Mint and maintain `mintedSoFar`
@@ -33,10 +33,10 @@ export class NoriStorageInterface extends SmartContract {
   async increaseMintedAmount(lockedSoFar: Field) {
 
     let mintedSoFar = this.mintedSoFar.getAndRequireEquals();
-    
+
     // Underflow protection (amountToMint cannot be negative)
-    lockedSoFar.assertGreaterThanOrEqual(mintedSoFar, UNDERFLOW_PROTECTION_MESSAGE);
-    
+    lockedSoFar.assertGreaterThanOrEqual(mintedSoFar, UNDERFLOW_PROTECTION_MESSAGE );
+
     // Calculate amount to mint
     const amountToMint = lockedSoFar.sub(mintedSoFar);
 
@@ -53,7 +53,25 @@ export class NoriStorageInterface extends SmartContract {
     // this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
     // return this.self;
   }
-  
+
+  /**
+   * maintain `burnedSoFar` by adding amount to burn
+   * @param amountToBurn 
+   * @returns 
+   */
+  @method.returns(Field)
+  async increaseBurnedAmount(amountToBurn: Field) {
+    let burnedSoFar = this.burnedSoFar.getAndRequireEquals();
+
+    // Assert that we actually have something to burn (make sure amountToBurn is not zero)
+    amountToBurn.assertGreaterThan(0, ZERO_MINT_ERROR_MESSAGE);
+
+    // Set burnedSoFar to the new burn amount plus the original amountToBurn.
+    this.burnedSoFar.set(burnedSoFar.add(amountToBurn));
+
+    return amountToBurn;
+  }
+
   public checkPermissionsValidity() {
     let permissions = this.self.update.permissions;
 

@@ -250,6 +250,33 @@ export class NoriTokenController
         await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
     }
 
+    /**
+     * 
+     * @param user 
+     * @param amountToMint 
+     */
+    @method public async alignedLock(
+        amountToBurn: Field
+    ) {
+        const userAddress = this.sender.getUnconstrained();
+        const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
+
+        const controllerTokenId = this.deriveTokenId();
+
+        // maintain Storage
+        let storage = new NoriStorageInterface(userAddress, controllerTokenId);
+        storage.requireSignature();// MUST require user's signature
+        storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
+        storage.checkPermissionsValidity();// Garuantee evil users cannot tamper zkappstate by signature
+
+        // record amount to be burned
+        await storage.increaseBurnedAmount(amountToBurn);
+
+        // burn it
+        let token = new FungibleToken(tokenAddress);
+        await token.burn(userAddress, UInt64.fromFields(amountToBurn.toFields()));
+    }
+
     @method.returns(Bool)
     public async canMint(_accountUpdate: AccountUpdate) {
         const _mintLock = this.mintLock.getAndRequireEquals();
