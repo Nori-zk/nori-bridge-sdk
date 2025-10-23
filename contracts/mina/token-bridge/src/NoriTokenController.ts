@@ -178,6 +178,7 @@ export class NoriTokenController
             .assertEquals(Poseidon.hash(userAddress.toFields()));
 
         storage.checkPermissionsValidity();
+
                 // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
@@ -235,6 +236,8 @@ export class NoriTokenController
 
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
+        
+        storage.requireSignature();
 
         storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
         // storage.userKeyHash.getAndRequireEquals().assertEquals(Poseidon.hash(userAddress.toFields()));
