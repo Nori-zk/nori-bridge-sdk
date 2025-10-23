@@ -71,6 +71,10 @@ export class NoriTokenController
         });
     }
 
+    /**
+     * NOTE: MUST BE EMPTY, otherwise results in attacks. See `NoriStorageInterface` for reasons
+     * @param forest 
+     */
     approveBase(forest: AccountUpdateForest): Promise<void> {
         throw Error('block updates');
     }
@@ -166,6 +170,8 @@ export class NoriTokenController
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
 
+        storage.requireSignature();
+        
         storage.account.isNew.requireEquals(Bool(false)); // that somehow allows to getState without index out of bounds
         storage.userKeyHash
             .getAndRequireEquals()
