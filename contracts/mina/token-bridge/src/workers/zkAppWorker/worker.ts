@@ -1,8 +1,10 @@
 import {
+    CacheType,
     compileAndOptionallyVerifyContracts,
     EthProofType,
     EthVerifier,
     ethVerifierVkHash,
+    NetworkCacheConfig,
 } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
@@ -18,7 +20,7 @@ import {
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
-import { NoriTokenController,  } from '../../NoriTokenController.js';
+import { NoriTokenController } from '../../NoriTokenController.js';
 import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
@@ -34,6 +36,32 @@ import {
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 import { noriTokenControllerVkHash } from '../../integrity/NoriTokenController.VkHash.js';
+import {
+    EthProcessorCacheLayout,
+    NoriStorageInterfaceCacheLayout,
+    FungibleTokenCacheLayout,
+    NoriTokenControllerCacheLayout,
+    EthVerifierCacheLayout,
+} from '@nori-zk/cache-server';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils';
+export {
+    NoriTokenControllerCacheLayout,
+    EthVerifierCacheLayout,
+    NoriStorageInterfaceCacheLayout,
+    EthProcessorCacheLayout,
+} from '@nori-zk/cache-server';
+
+export function isBrowser(): boolean {
+    return (
+        typeof self !== 'undefined' &&
+        ((typeof window !== 'undefined' &&
+            typeof window.document !== 'undefined') || // main thread
+            (typeof self !== 'undefined' &&
+                typeof (self as any).importScripts === 'function')) // worker
+    );
+}
+
+console.log('Constructing ZkAppWorker. isBrowser:', isBrowser());
 
 export class ZkAppWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -115,7 +143,7 @@ export class ZkAppWorker {
     }
 
     // Eth verifier methods **********************************************************************
-    async compileEthVerifier() {
+    /*async compileEthVerifier() {
         console.log('Compiling EthVerifier');
         console.time('EthVerifier compile');
         const { verificationKey: ethVerifierVerificationKey } =
@@ -124,7 +152,7 @@ export class ZkAppWorker {
         console.log(
             `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
         );
-    }
+    }*/
 
     async computeDepositAttestationWitnessAndEthVerifier(
         codeChallengePKARM: string,
@@ -400,7 +428,144 @@ export class ZkAppWorker {
         };
     }
 
-    async compileMinterDeps() {
+    async compileMinterDeps(cacheServer?: string) {
+        if (!cacheServer || !isBrowser()) return this.compileMinterDepsNoCache();
+
+        console.log('Compiling all minter dependencies [Browser]...');
+
+        // Create NetworkCacheConfig for EthVerifier first
+        const ethVerifierNetworkCacheConfig: NetworkCacheConfig = {
+            type: CacheType.Network,
+            baseUrl: cacheServer,
+            path: EthVerifierCacheLayout.name,
+            files: EthVerifierCacheLayout.files,
+        };
+        const ethVerifierCache = await cacheFactory(
+            ethVerifierNetworkCacheConfig
+        );
+
+        // Compile EthVerifier first
+        const { ethVerifierVerificationKey } = await compileAndOptionallyVerifyContracts(
+            console,
+            [
+                {
+                    name: 'ethVerifier',
+                    program: EthVerifier,
+                    integrityHash: ethVerifierVkHash,
+                },
+            ],
+            ethVerifierCache
+        );
+
+        // Compile eth verifier normally.
+        /*const { ethVerifierVerificationKey } = await compileAndOptionallyVerifyContracts(
+            console,
+            [{
+                name: 'ethVerifier',
+                program: EthVerifier,
+                integrityHash: ethVerifierVkHash,
+            }]
+        );*/
+
+        // Now fetch other caches in parallel
+        const noriStorageInterfaceCache = cacheFactory({
+            type: CacheType.Network,
+            baseUrl: cacheServer,
+            path: NoriStorageInterfaceCacheLayout.name,
+            files: NoriStorageInterfaceCacheLayout.files,
+        });
+        const noriTokenControllerCache = cacheFactory({
+            type: CacheType.Network,
+            baseUrl: cacheServer,
+            path: NoriTokenControllerCacheLayout.name,
+            files: NoriTokenControllerCacheLayout.files,
+        });
+        const fungibleTokenCache = cacheFactory({
+            type: CacheType.Network,
+            baseUrl: cacheServer,
+            path: FungibleTokenCacheLayout.name,
+            files: FungibleTokenCacheLayout.files,
+        });
+
+        // Compile remaining contracts sequentially
+        const noriStorageInterfaceVks =
+            await compileAndOptionallyVerifyContracts(
+                console,
+                [
+                    {
+                        name: 'NoriStorageInterface',
+                        program: NoriStorageInterface,
+                        integrityHash: noriStorageInterfaceVkHash,
+                    },
+                ],
+                await noriStorageInterfaceCache
+            );
+        const noriTokenControllerVks =
+            await compileAndOptionallyVerifyContracts(
+                console,
+                [
+                    {
+                        name: 'NoriTokenController',
+                        program: NoriTokenController,
+                        integrityHash: noriTokenControllerVkHash,
+                    },
+                ],
+                await noriTokenControllerCache
+            );
+        const fungibleTokenVks = await compileAndOptionallyVerifyContracts(
+            console,
+            [
+                {
+                    name: 'FungibleToken',
+                    program: FungibleToken,
+                    integrityHash: fungibleTokenVkHash,
+                },
+            ],
+            await fungibleTokenCache
+        );
+
+        const compiledVks: {
+            ethVerifierVerificationKey: VerificationKey;
+            NoriStorageInterfaceVerificationKey: VerificationKey;
+            NoriTokenControllerVerificationKey: VerificationKey;
+            FungibleTokenVerificationKey: VerificationKey;
+        } = {
+            ethVerifierVerificationKey:
+                ethVerifierVerificationKey,
+            NoriStorageInterfaceVerificationKey:
+                noriStorageInterfaceVks.NoriStorageInterfaceVerificationKey,
+            NoriTokenControllerVerificationKey:
+                noriTokenControllerVks.NoriTokenControllerVerificationKey,
+            FungibleTokenVerificationKey:
+                fungibleTokenVks.FungibleTokenVerificationKey,
+        };
+
+        // Convert all verification keys to safe format
+        const safeVks = {} as {
+            [K in keyof typeof compiledVks]: { hashStr: string; data: string };
+        };
+        (Object.keys(compiledVks) as Array<keyof typeof compiledVks>).forEach(
+            (key) => {
+                safeVks[key] = this.vkToVkSafe(compiledVks[key]);
+            }
+        );
+
+        console.log('All minter dependency contracts compiled successfully.');
+
+        // Return safe VKs
+        return {
+            ethVerifierVerificationKeySafe: safeVks.ethVerifierVerificationKey,
+            noriStorageInterfaceVerificationKeySafe:
+                safeVks.NoriStorageInterfaceVerificationKey,
+            fungibleTokenVerificationKeySafe:
+                safeVks.FungibleTokenVerificationKey,
+            noriTokenControllerVerificationKeySafe:
+                safeVks.NoriTokenControllerVerificationKey,
+        };
+    }
+
+    // if the cache works then deprecate this
+    async compileMinterDepsNoCache() {
         console.log('Compiling all minter dependencies...');
 
         const contracts = [
@@ -577,8 +742,8 @@ export class ZkAppWorker {
     }
 
     // Compile all deps
-    async compileAll() {
-        return this.compileMinterDeps();
+    async compileAll(cacheServer?: string) {
+        return this.compileMinterDeps(cacheServer);
     }
 
     // Here another MOCK for mint but split into two stages statefulMintProof and signAndSendStatefulMintProof
@@ -686,12 +851,18 @@ export class ZkAppWorker {
     /**
      * Create codeChallenge from codeVerifier + recipient (serialisable).
      */
-    async PKARM_createCodeChallenge(codeVerifierStr: string, recipientPublicKeyBase58: string) {
+    async PKARM_createCodeChallenge(
+        codeVerifierStr: string,
+        recipientPublicKeyBase58: string
+    ) {
         const codeVerifier = new Field(BigInt(codeVerifierStr));
         const recipientPublicKey = PublicKey.fromBase58(
             recipientPublicKeyBase58
         );
-        const codeChallenge = createCodeChallenge(codeVerifier, recipientPublicKey);
+        const codeChallenge = createCodeChallenge(
+            codeVerifier,
+            recipientPublicKey
+        );
         return codeChallenge.toBigInt().toString();
     }
 
