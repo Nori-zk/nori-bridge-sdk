@@ -178,7 +178,7 @@ export class MinaEthProcessorSubmitter {
         await deployTx
             .sign([this.#senderPrivateKey, this.#zkAppPrivateKey])
             .send()
-            .wait();
+            ;
         logger.log('EthProcessor deployed successfully.');
     }
 

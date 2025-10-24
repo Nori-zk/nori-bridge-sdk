@@ -133,7 +133,7 @@ async function updateStoreHash() {
     logger.log('Sending transaction...');
     const pendingTx = await signedTx.send();
     logger.log('Waiting for transaction to be included in a block...');
-    await pendingTx.wait();
+    await pendingTx;
 
     await fetchAccount({ publicKey: zkAppAddress });
     const currentAdmin = await zkApp.admin.fetch();

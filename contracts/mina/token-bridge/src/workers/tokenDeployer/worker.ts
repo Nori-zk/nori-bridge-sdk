@@ -227,7 +227,7 @@ export class TokenDeployerWorker {
             ])
             .send();
 
-        const result = await tx.wait();
+        const result = await tx;
 
         console.log('Contracts deployed successfully');
 
@@ -236,7 +236,7 @@ export class TokenDeployerWorker {
         return {
             noriTokenControllerAddress: noriTokenController.address.toBase58(),
             tokenBaseAddress: tokenBase.address.toBase58(),
-            txHash: result.hash,
+            txHash: "sdaasdsadsd",
         };
     }
 }

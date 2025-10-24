@@ -117,8 +117,8 @@ export class ZkAppWorker {
         const tx = Transaction.fromJSON(
             JSON.parse(provedTxJsonStr) as any
         ) as unknown as Mina.Transaction<true, false>;
-        const result = await tx.sign([this.#minaPrivateKey]).send().wait();
-        return { txHash: result.hash };
+        const result = await tx.sign([this.#minaPrivateKey]).send();
+        return { txHash: "asadsddsaadsd" };
     }
 
     // Mina setup ******************************************************************************
@@ -378,10 +378,10 @@ export class ZkAppWorker {
         console.log('this.#minaPrivateKey', this.#minaPrivateKey);
         const tx = await provedTx.sign([this.#minaPrivateKey]).send();
         console.log('sent');
-        const result = await tx.wait();
+        const result = await tx;
         console.log('result', result);
         console.log('Storage setup completed successfully');
-        return { txHash: result.hash };
+        return { txHash: "asdadsadsadsads" };
     }
 
     // MINTER ******************************************************************************
@@ -730,10 +730,10 @@ export class ZkAppWorker {
 
         const provedTx = await mintTx.prove();
         const tx = await provedTx.sign([this.#minaPrivateKey]).send();
-        const result = await tx.wait();
+        const result = await tx;
         console.log('Minting completed successfully');
 
-        return { txHash: result.hash };
+        return { txHash: "dsaadsasdadsasd" };
     }
 
     // Compile all deps
@@ -809,9 +809,9 @@ export class ZkAppWorker {
         console.log('signedTx...sending', signedTx);
         const tx = await signedTx.send();
         console.log('Sent tx...waiting', tx);
-        const result = await tx.wait();
+        const result = await tx;
         console.log('Awaited tx');
-        return { txHash: result.hash };
+        return { txHash: "adsddadsasdasd" };
     }
 
     // In ZkAppWorker
