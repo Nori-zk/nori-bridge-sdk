@@ -56,6 +56,9 @@ export class NoriStorageInterface extends SmartContract {
 
   /**
    * maintain `burnedSoFar` by adding amount to burn
+   * 
+   * NOTE: Since all operations on `Token Holder Account` require token owner's approval, we migrate `operations validity check`(like signature check, etc.) into token owner's methods invoked by user.
+   * 
    * @param amountToBurn 
    * @returns 
    */
@@ -72,6 +75,9 @@ export class NoriStorageInterface extends SmartContract {
     return amountToBurn;
   }
 
+  /**
+   * check if permissions of Token Holder Account are properly set.
+   */
   public checkPermissionsValidity() {
     let permissions = this.self.update.permissions;
 
