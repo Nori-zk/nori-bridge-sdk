@@ -72,7 +72,10 @@ export class NoriTokenController
     }
 
     /**
-     * NOTE: MUST BE EMPTY, otherwise results in attacks. See `NoriStorageInterface` for reasons
+     * NOTE: CANNOT BE A CIRCUIT METHOD AT CURRENT VERSION, otherwise results in attacks. See `NoriStorageInterface` for reasons
+     * 
+     * If it one day need to be transformed into a CIRCUIT METHOD (via decorating \@method), pls be beware of potential attacks. See `NoriStorageInterface` for reasons
+     * 
      * @param forest 
      */
     approveBase(forest: AccountUpdateForest): Promise<void> {
