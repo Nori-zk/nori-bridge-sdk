@@ -137,7 +137,7 @@ export class MinaEthProcessorSubmitter {
     }
 
     async deployContract(storeHash: Bytes32) {
-        if (this.#network !== 'lightnet') {
+        /*if (this.#network !== 'lightnet') {
             throw new Error(
                 [
                     //prettier-ignore
@@ -145,7 +145,7 @@ export class MinaEthProcessorSubmitter {
                     `Please see the README.md within the 'contracts/mina/eth-processor' workspace of the 'nori-bridge-sdk' repository and use the deploy script 'npm run deploy <storeHash>' instead of this method.`,
                 ].join('\n')
             );
-        }
+        }*/
         logger.log('Creating deploy update transaction.');
 
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();

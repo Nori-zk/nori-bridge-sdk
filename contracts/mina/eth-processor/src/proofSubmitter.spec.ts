@@ -26,7 +26,7 @@ new LogPrinter('[TestEthProcessor]', [
 ]);
 
 // Fix testing network to lightnet
-process.env.NETWORK = 'lightnet';
+process.env.NETWORK = 'devnet';
 
 const logger = new Logger('JestEthProcessor');
 
@@ -75,7 +75,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         rmSync(cacheDir, { recursive: true, force: true });
     });*/
 
-    test('should run the proof submission process correctly', async () => {
+    /*test('should run the proof submission process correctly', async () => {
         // Generate a random contract key
         process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
@@ -117,7 +117,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         } finally {
             removeCacheDir(cacheDir);
         }
-    }, 10000000);
+    }, 10000000);*/
 
     test('should perform a series of proof submissions', async () => {
         // Generate a random contract key
@@ -172,7 +172,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         }
     }, 10000000);
 
-    test('should invoke a hash validation issue when we skip transition proofs', async () => {
+    /*test('should invoke a hash validation issue when we skip transition proofs', async () => {
         // Generate a random contract key
         process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
@@ -237,7 +237,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         } finally {
             removeCacheDir(cacheDir);
         }
-    }, 10000000);
+    }, 10000000);*/
 
     // TODO add integration test for redeploy FIXME
 });

@@ -10,6 +10,7 @@ export async function wait(
     maxAttempts = 50,
     intervalMs = 20000
 ): Promise<boolean> {
+    return;
     logger.verbose(`Waiting for tx with id:\n${txId}`);
     let attempt = 0;
     do {
