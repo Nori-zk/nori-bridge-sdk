@@ -15,6 +15,7 @@ import {
     NetworkId,
     PrivateKey,
     PublicKey,
+    UInt64,
     UInt8,
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
@@ -186,10 +187,26 @@ export class TokenDeployerWorker {
         );
         const tokenBase = new FungibleToken(tokenBaseAddress);
 
+        function fundNewAccount(feePayer: PublicKey, numberOfAccounts = 1) {
+            try {
+                const isZeko = Mina.getNetworkConstants().accountCreationFee
+                // includes("zeko");
+                console.log("isZeko:", isZeko.toString())
+                const accountUpdate = AccountUpdate.createSigned(feePayer)
+                accountUpdate.label = "AccountUpdate.fundNewAccount()"
+                const fee =
+                    UInt64.from(10 ** 8).mul(numberOfAccounts)
+                accountUpdate.balance.subInPlace(fee)
+                return accountUpdate
+            } catch (error) {
+                console.error("fund new account", error)
+                return AccountUpdate.fundNewAccount(feePayer, numberOfAccounts)
+            }
+        }
         const deployTx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                AccountUpdate.fundNewAccount(senderPublicKey, 3);
+                fundNewAccount(senderPublicKey, 3);
 
                 // Deploy NoriTokenController
                 await noriTokenController.deploy({
@@ -227,7 +244,7 @@ export class TokenDeployerWorker {
             ])
             .send();
 
-        const result = await tx.wait();
+        // const result = await tx.wait();
 
         console.log('Contracts deployed successfully');
 
@@ -236,7 +253,7 @@ export class TokenDeployerWorker {
         return {
             noriTokenControllerAddress: noriTokenController.address.toBase58(),
             tokenBaseAddress: tokenBase.address.toBase58(),
-            txHash: result.hash,
+            txHash: 'result.hash',
         };
     }
 }
