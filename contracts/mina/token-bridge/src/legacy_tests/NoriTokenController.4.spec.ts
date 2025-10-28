@@ -87,6 +87,90 @@ describe('NoriTokenController', () => {
         await fetchAccounts(allAccounts);
     });
 
+    test('should deploy and initilise contracts', async () => {
+        const useDeployerWorkerSubProcess = true;
+        console.log('Deploying contract.');
+        const TokenDeployerWorker = useDeployerWorkerSubProcess
+            ? getTokenDeployerWorker()
+            : TokenDeployerWorkerPure;
+
+        const tokenDeployer = new TokenDeployerWorker();
+        await tokenDeployer.minaSetup({
+            networkId: 'testnet' as NetworkId,
+            mina: process.env.NETWORK_URL || 'http://localhost:8080/graphql',
+        });
+
+        const deployedVks = await tokenDeployer.compile();
+        const { tokenBaseAddress, noriTokenControllerAddress } =
+            await tokenDeployer.deployContracts(
+                deployer.privateKey.toBase58(),
+                admin.publicKey.toBase58(),
+                noriTokenControllerKeypair.privateKey.toBase58(),
+                tokenBaseKeypair.privateKey.toBase58(),
+                PrivateKey.random().toPublicKey().toBase58(),
+                deployedVks.noriStorageInterfaceVerificationKeySafe,
+                FEE,
+                {
+                    symbol: 'nETH',
+                    decimals: 18,
+                    allowUpdates: true,
+                }
+            );
+        if ('signalTerminate' in tokenDeployer && typeof tokenDeployer.signalTerminate === 'function') {
+            tokenDeployer.signalTerminate();
+        }
+
+        // reconstruct VKs from safe form
+        ethVerifierVk = {
+            data: deployedVks.ethVerifierVerificationKeySafe.data,
+            hash: new Field(
+                BigInt(deployedVks.ethVerifierVerificationKeySafe.hashStr)
+            ),
+        };
+        storageInterfaceVK = {
+            data: deployedVks.noriStorageInterfaceVerificationKeySafe.data,
+            hash: new Field(
+                BigInt(
+                    deployedVks.noriStorageInterfaceVerificationKeySafe.hashStr
+                )
+            ),
+        };
+        tokenBaseVK = {
+            data: deployedVks.fungibleTokenVerificationKeySafe.data,
+            hash: new Field(
+                BigInt(
+                    deployedVks.fungibleTokenVerificationKeySafe.hashStr
+                )
+            ),
+        };
+        noriTokenControllerVK = {
+            data: deployedVks.noriTokenControllerVerificationKeySafe.data,
+            hash: new Field(
+                BigInt(
+                    deployedVks.noriTokenControllerVerificationKeySafe.hashStr
+                )
+            ),
+        };
+
+        if (useDeployerWorkerSubProcess) {// if true, need compile them again within currenct (main) process
+            // compile ethverifier
+            console.log('compiling eth verifier');
+            ethVerifierVk = (await EthVerifier.compile()).verificationKey;
+            console.log('compiling nori storage');
+
+            storageInterfaceVK = (await NoriStorageInterface.compile())
+                .verificationKey;
+            // if (proofsEnabled) {
+            console.log('compiling FungibleToken');
+            tokenBaseVK = (await FungibleToken.compile()).verificationKey;
+
+            console.log('compiling NoriTokenController');
+            noriTokenControllerVK = (await NoriTokenController.compile())
+                .verificationKey;
+        }
+
+    });
+
 });
 
 async function txSend({
