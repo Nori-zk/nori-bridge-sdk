@@ -170,6 +170,7 @@ export class NoriTokenController
         storage.userKeyHash
             .getAndRequireEquals()
             .assertEquals(Poseidon.hash(userAddress.toFields()));
+        storage.checkPermissionsValidity();
 
         // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
