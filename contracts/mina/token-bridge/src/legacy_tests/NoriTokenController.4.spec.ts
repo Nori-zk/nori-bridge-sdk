@@ -171,6 +171,34 @@ describe('NoriTokenController', () => {
 
     });
 
+    test('should set up storage for Alice', async () => {
+        await txSend({
+            body: async () => {
+                AccountUpdate.fundNewAccount(alice.publicKey, 1);
+                await noriTokenController.setUpStorage(
+                    alice.publicKey,
+                    storageInterfaceVK
+                );
+            },
+            sender: alice.publicKey,
+            signers: [alice.privateKey],
+        });
+        let storage = new NoriStorageInterface(
+            alice.publicKey,
+            noriTokenController.deriveTokenId()
+        );
+        let userHash = await storage.userKeyHash.fetch(); // fetch here
+        assert.equal(
+            userHash.toBigInt(),
+            Poseidon.hash(alice.publicKey.toFields()).toBigInt()
+        );
+
+        let mintedSoFar = await storage.mintedSoFar.fetch();
+        assert.equal(mintedSoFar.toBigInt(), 0n, 'minted so far should be 0');
+
+        let burnedSoFar = await storage.burnedSoFar.fetch();
+        assert.equal(burnedSoFar.toBigInt(), 0n, 'burned so far should be 0');
+    });
 });
 
 async function txSend({
