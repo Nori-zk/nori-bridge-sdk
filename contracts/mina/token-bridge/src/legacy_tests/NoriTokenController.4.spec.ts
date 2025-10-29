@@ -199,6 +199,60 @@ describe('NoriTokenController', () => {
         let burnedSoFar = await storage.burnedSoFar.fetch();
         assert.equal(burnedSoFar.toBigInt(), 0n, 'burned so far should be 0');
     });
+
+
+        test("should mock mint token successfully for Alice by alignedMint", async () => {
+            // fetch storage account
+            await fetchAccount({
+                publicKey: alice.publicKey,
+                tokenId: noriTokenController.deriveTokenId(),
+            });
+            // check balance of FT
+            await fetchAccount({
+                publicKey: alice.publicKey,
+                tokenId: tokenBase.deriveTokenId(),
+            });
+            const balance0 = await tokenBase.getBalanceOf(alice.publicKey);
+            console.log('balance of alice', balance0.toString());
+    
+            // exec mock-mint
+            const amountToMint = Field(1000);
+            await txSend({
+                body: async () => {
+                    AccountUpdate.fundNewAccount(alice.publicKey, 1); // for the initialization of token-holder account based on FT
+                    await noriTokenController.alignedMint(amountToMint);
+                },
+                sender: alice.publicKey,
+                signers: [alice.privateKey],
+            });
+    
+            // fetch storage account
+            await fetchAccount({
+                publicKey: alice.publicKey,
+                tokenId: noriTokenController.deriveTokenId(),
+            });
+            // check mintedSoFar
+            let storage = new NoriStorageInterface(
+                alice.publicKey,
+                noriTokenController.deriveTokenId()
+            );
+            let mintedSoFar = await storage.mintedSoFar.fetch();
+            assert.equal(mintedSoFar.toBigInt(), amountToMint.toBigInt(), 'minted so far should be 1000');
+    
+            // check balance of FT
+            await fetchAccount({
+                publicKey: alice.publicKey,
+                tokenId: tokenBase.deriveTokenId(),
+            });
+            const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
+            console.log('balance of alice', balance1.toString());
+            assert.equal(
+                balance1.sub(balance0).toBigInt(),
+                amountToMint.toBigInt(),
+                'balance of alice does not match minted amount'
+            );
+        });
+    
 });
 
 async function txSend({
