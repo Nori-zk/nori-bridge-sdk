@@ -253,6 +253,66 @@ describe('NoriTokenController', () => {
             );
         });
     
+        test("should fail to burn token if user has not first set up storage", async () => {
+            // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
+            // Then bob tries to burn token without first setting up storage.
+    
+            // 1) alice transfers some token to bob.
+            // check balance of FT for Alice
+            await fetchAccount({
+                publicKey: alice.publicKey,
+                tokenId: tokenBase.deriveTokenId(),
+            });
+            const balance0_alice = await tokenBase.getBalanceOf(alice.publicKey);
+            console.log('balance of alice', balance0_alice.toString());
+            // check balance of FT for Bob, just for comparison
+            await fetchAccount({
+                publicKey: bob.publicKey,
+                tokenId: tokenBase.deriveTokenId(),
+            });
+            const balance0_bob = await tokenBase.getBalanceOf(bob.publicKey);
+            console.log('balance of bob', balance0_bob.toString());
+            assert.equal(
+                balance0_bob.toBigInt(),
+                0n,
+                'balance of bob should be 0'
+            );
+    
+            const transfered_amount = new UInt64(balance0_alice.toBigInt() / 10n);
+            transfered_amount.assertGreaterThan(UInt64.one, `transfered_amount must be > 1`); // >1: for the convinience of other following tests.
+            await txSend({
+                body: async () => {
+                    await tokenBase.transfer(alice.publicKey, bob.publicKey, transfered_amount);
+                },
+                sender: alice.publicKey,
+                signers: [alice.privateKey],
+            });
+            // check balance of FT for Bob, just for comparison
+            await fetchAccount({
+                publicKey: bob.publicKey,
+                tokenId: tokenBase.deriveTokenId(),
+            });
+            const balance1_bob = await tokenBase.getBalanceOf(bob.publicKey);
+            console.log('balance of bob', balance1_bob.toString());
+            assert.equal(
+                balance1_bob.toBigInt(),
+                transfered_amount.toBigInt(),
+                `balance of bob should be ${transfered_amount.toBigInt()}`
+            );
+    
+            // bob tries to burn token directly without first setting up storage.
+            const amountToBurn = Field(1);
+            await assert.rejects(() =>
+                txSend({
+                    body: async () => {
+                        await noriTokenController.alignedLock(amountToBurn);
+                    },
+                    sender: bob.publicKey,
+                    signers: [bob.privateKey],
+                })
+            );
+        });
+    
 });
 
 async function txSend({
