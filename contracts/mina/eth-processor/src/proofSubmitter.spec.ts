@@ -26,8 +26,8 @@ new LogPrinter('[TestEthProcessor]', [
     'verbose',
 ]);
 
-// Fix testing network to lightnet
-process.env.NETWORK = 'lightnet';
+process.env.NETWORK = process.env.NETWORK || 'lightnet';
+process.env.MINA_RPC_NETWORK_URL = process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
 
 const logger = new Logger('JestEthProcessor');
 
