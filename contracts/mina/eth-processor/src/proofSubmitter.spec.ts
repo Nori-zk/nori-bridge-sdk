@@ -14,6 +14,7 @@ import {
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
+import { getNewMinaLiteNetAccountSK } from './testUtils.js';
 
 new LogPrinter('[TestEthProcessor]', [
     'log',
@@ -81,6 +82,9 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
             PrivateKey.random()
         );
 
+        // Generate a random SENDER_PRIVATE_KEY
+        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
+
         const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
@@ -124,6 +128,9 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
+
+        // Generate a random SENDER_PRIVATE_KEY
+        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
         const cacheDir = getRandomCacheDir();
         try {
@@ -177,6 +184,9 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
+
+        // Generate a random SENDER_PRIVATE_KEY
+        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
         const cacheDir = getRandomCacheDir();
         try {
