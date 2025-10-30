@@ -201,182 +201,229 @@ describe('NoriTokenController', () => {
     });
 
 
-        test("should mock mint token successfully for Alice by alignedMint", async () => {
-            // fetch storage account
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: noriTokenController.deriveTokenId(),
-            });
-            // check balance of FT
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
-            const balance0 = await tokenBase.getBalanceOf(alice.publicKey);
-            console.log('balance of alice', balance0.toString());
-    
-            // exec mock-mint
-            const amountToMint = Field(1000);
-            await txSend({
-                body: async () => {
-                    AccountUpdate.fundNewAccount(alice.publicKey, 1); // for the initialization of token-holder account based on FT
-                    await noriTokenController.alignedMint(amountToMint);
-                },
-                sender: alice.publicKey,
-                signers: [alice.privateKey],
-            });
-    
-            // fetch storage account
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: noriTokenController.deriveTokenId(),
-            });
-            // check mintedSoFar
-            let storage = new NoriStorageInterface(
-                alice.publicKey,
-                noriTokenController.deriveTokenId()
-            );
-            let mintedSoFar = await storage.mintedSoFar.fetch();
-            assert.equal(mintedSoFar.toBigInt(), amountToMint.toBigInt(), 'minted so far should be 1000');
-    
-            // check balance of FT
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
-            const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
-            console.log('balance of alice', balance1.toString());
-            assert.equal(
-                balance1.sub(balance0).toBigInt(),
-                amountToMint.toBigInt(),
-                'balance of alice does not match minted amount'
-            );
+    test("should mock mint token successfully for Alice by alignedMint", async () => {
+        // fetch storage account
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: noriTokenController.deriveTokenId(),
         });
-    
-        test("should fail to burn token if user has not first set up storage", async () => {
-            // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
-            // Then bob tries to burn token without first setting up storage.
-    
-            // 1) alice transfers some token to bob.
-            // check balance of FT for Alice
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
-            const balance0_alice = await tokenBase.getBalanceOf(alice.publicKey);
-            console.log('balance of alice', balance0_alice.toString());
-            // check balance of FT for Bob, just for comparison
-            await fetchAccount({
-                publicKey: bob.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
-            const balance0_bob = await tokenBase.getBalanceOf(bob.publicKey);
-            console.log('balance of bob', balance0_bob.toString());
-            assert.equal(
-                balance0_bob.toBigInt(),
-                0n,
-                'balance of bob should be 0'
-            );
-    
-            const transfered_amount = new UInt64(balance0_alice.toBigInt() / 10n);
-            transfered_amount.assertGreaterThan(UInt64.one, `transfered_amount must be > 1`); // >1: for the convinience of other following tests.
-            await txSend({
-                body: async () => {
-                    await tokenBase.transfer(alice.publicKey, bob.publicKey, transfered_amount);
-                },
-                sender: alice.publicKey,
-                signers: [alice.privateKey],
-            });
-            // check balance of FT for Bob, just for comparison
-            await fetchAccount({
-                publicKey: bob.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
-            const balance1_bob = await tokenBase.getBalanceOf(bob.publicKey);
-            console.log('balance of bob', balance1_bob.toString());
-            assert.equal(
-                balance1_bob.toBigInt(),
-                transfered_amount.toBigInt(),
-                `balance of bob should be ${transfered_amount.toBigInt()}`
-            );
-    
-            // bob tries to burn token directly without first setting up storage.
-            const amountToBurn = Field(1);
-            await assert.rejects(() =>
-                txSend({
-                    body: async () => {
-                        await noriTokenController.alignedLock(amountToBurn);
-                    },
-                    sender: bob.publicKey,
-                    signers: [bob.privateKey],
-                })
-            );
+        // check balance of FT
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
         });
-    
-        // TODO Without NoriTokenController's Singature/Proof Approval, Could users themselves succeed evilly deploying tokenholder account invalid states & permissions?
-        test("should fail to burn token if user evilly sets up storage account with invalid states & permissions", async () => {
-            // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
-            // Then bob himself (EVILLY) set up storage with invalid states & permissions rather than via `noriTokenController.setUpStorage()`,
-            // !!! Since NoriTokenController's private-key holder could be evil to sign approval for creation of evil storage accounts  !!!
-    
-            // 1) bob himself (evilly) set up storage with invalid states & permissions
-            const tokenId_nori_controller = noriTokenController.deriveTokenId();
-            await txSend({
+        const balance0 = await tokenBase.getBalanceOf(alice.publicKey);
+        console.log('balance of alice', balance0.toString());
+
+        // exec mock-mint
+        const amountToMint = Field(1000);
+        await txSend({
+            body: async () => {
+                AccountUpdate.fundNewAccount(alice.publicKey, 1); // for the initialization of token-holder account based on FT
+                await noriTokenController.alignedMint(amountToMint);
+            },
+            sender: alice.publicKey,
+            signers: [alice.privateKey],
+        });
+
+        // fetch storage account
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: noriTokenController.deriveTokenId(),
+        });
+        // check mintedSoFar
+        let storage = new NoriStorageInterface(
+            alice.publicKey,
+            noriTokenController.deriveTokenId()
+        );
+        let mintedSoFar = await storage.mintedSoFar.fetch();
+        assert.equal(mintedSoFar.toBigInt(), amountToMint.toBigInt(), 'minted so far should be 1000');
+
+        // check balance of FT
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
+        });
+        const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
+        console.log('balance of alice', balance1.toString());
+        assert.equal(
+            balance1.sub(balance0).toBigInt(),
+            amountToMint.toBigInt(),
+            'balance of alice does not match minted amount'
+        );
+    });
+
+    test("should fail to burn token if user has not first set up storage", async () => {
+        // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
+        // Then bob tries to burn token without first setting up storage.
+
+        // 1) alice transfers some token to bob.
+        // check balance of FT for Alice
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
+        });
+        const balance0_alice = await tokenBase.getBalanceOf(alice.publicKey);
+        console.log('balance of alice', balance0_alice.toString());
+        // check balance of FT for Bob, just for comparison
+        await fetchAccount({
+            publicKey: bob.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
+        });
+        const balance0_bob = await tokenBase.getBalanceOf(bob.publicKey);
+        console.log('balance of bob', balance0_bob.toString());
+        assert.equal(
+            balance0_bob.toBigInt(),
+            0n,
+            'balance of bob should be 0'
+        );
+
+        const transfered_amount = new UInt64(balance0_alice.toBigInt() / 10n);
+        transfered_amount.assertGreaterThan(UInt64.one, `transfered_amount must be > 1`); // >1: for the convinience of other following tests.
+        await txSend({
+            body: async () => {
+                await tokenBase.transfer(alice.publicKey, bob.publicKey, transfered_amount);
+            },
+            sender: alice.publicKey,
+            signers: [alice.privateKey],
+        });
+        // check balance of FT for Bob, just for comparison
+        await fetchAccount({
+            publicKey: bob.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
+        });
+        const balance1_bob = await tokenBase.getBalanceOf(bob.publicKey);
+        console.log('balance of bob', balance1_bob.toString());
+        assert.equal(
+            balance1_bob.toBigInt(),
+            transfered_amount.toBigInt(),
+            `balance of bob should be ${transfered_amount.toBigInt()}`
+        );
+
+        // bob tries to burn token directly without first setting up storage.
+        const amountToBurn = Field(1);
+        await assert.rejects(() =>
+            txSend({
                 body: async () => {
-                    AccountUpdate.fundNewAccount(bob.publicKey, 1);
-    
-                    // compose AccountUpdate
-                    const acctUpt = AccountUpdate.createSigned(bob.publicKey, tokenId_nori_controller);
-                    acctUpt.body.update.verificationKey = {
-                        isSome: Bool(true),
-                        value: storageInterfaceVK,
-                    };
-                    acctUpt.body.update.permissions = {
-                        isSome: Bool(true),
-                        value: {
-                            ...Permissions.default(),
-                            editState: Permissions.signature(),//!! EVIL PERMISSION !!
-                            setVerificationKey:
-                                Permissions.VerificationKey.impossibleDuringCurrentVersion(),
-                            setPermissions: Permissions.signature(),//!! EVIL PERMISSION !!
-                        },
-                    };
-                    AccountUpdate.setValue(
-                        acctUpt.update.appState[0], //NoriStorageInterface.userKeyHash
-                        Poseidon.hash(bob.publicKey.toFields())
-                    );
-                    AccountUpdate.setValue(
-                        acctUpt.update.appState[1], //NoriStorageInterface.mintedSoFar
-                        Field(0)
-                    );
-    
-                    // TODO NEED Confirm if need token-owner's signature approval here. SHOULD NEED IT!
-                    //
-                    //
-    
+                    await noriTokenController.alignedLock(amountToBurn);
                 },
                 sender: bob.publicKey,
-                signers: [bob.privateKey], // TODO NEED Confirm If this tx could exec successfully without token-owner's signature/proof approval.
-            });
-    
-            await fetchAccount({
-                publicKey: bob.publicKey,
-                tokenId: tokenId_nori_controller,
-            });
-    
-    
-            // 2) bob tries to burn token evill, SHOULD FAIL.
-            const amountToBurn = Field(1);
-            await assert.rejects(() =>
-                txSend({
-                    body: async () => {
-                        await noriTokenController.alignedLock(amountToBurn);
+                signers: [bob.privateKey],
+            })
+        );
+    });
+
+    // TODO Without NoriTokenController's Singature/Proof Approval, Could users themselves succeed evilly deploying tokenholder account invalid states & permissions?
+    test("should fail to burn token if user evilly sets up storage account with invalid states & permissions", async () => {
+        // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
+        // Then bob himself (EVILLY) set up storage with invalid states & permissions rather than via `noriTokenController.setUpStorage()`,
+        // !!! Since NoriTokenController's private-key holder could be evil to sign approval for creation of evil storage accounts  !!!
+
+        // 1) bob himself (evilly) set up storage with invalid states & permissions
+        const tokenId_nori_controller = noriTokenController.deriveTokenId();
+        await txSend({
+            body: async () => {
+                AccountUpdate.fundNewAccount(bob.publicKey, 1);
+
+                // compose AccountUpdate
+                const acctUpt = AccountUpdate.createSigned(bob.publicKey, tokenId_nori_controller);
+                acctUpt.body.update.verificationKey = {
+                    isSome: Bool(true),
+                    value: storageInterfaceVK,
+                };
+                acctUpt.body.update.permissions = {
+                    isSome: Bool(true),
+                    value: {
+                        ...Permissions.default(),
+                        editState: Permissions.signature(),//!! EVIL PERMISSION !!
+                        setVerificationKey:
+                            Permissions.VerificationKey.impossibleDuringCurrentVersion(),
+                        setPermissions: Permissions.signature(),//!! EVIL PERMISSION !!
                     },
-                    sender: bob.publicKey,
-                    signers: [bob.privateKey],
-                })
-            );
+                };
+                AccountUpdate.setValue(
+                    acctUpt.update.appState[0], //NoriStorageInterface.userKeyHash
+                    Poseidon.hash(bob.publicKey.toFields())
+                );
+                AccountUpdate.setValue(
+                    acctUpt.update.appState[1], //NoriStorageInterface.mintedSoFar
+                    Field(0)
+                );
+
+                // TODO NEED Confirm if need token-owner's signature approval here. SHOULD NEED IT!
+                //
+                //
+
+            },
+            sender: bob.publicKey,
+            signers: [bob.privateKey], // TODO NEED Confirm If this tx could exec successfully without token-owner's signature/proof approval.
         });
+
+        await fetchAccount({
+            publicKey: bob.publicKey,
+            tokenId: tokenId_nori_controller,
+        });
+
+
+        // 2) bob tries to burn token evill, SHOULD FAIL.
+        const amountToBurn = Field(1);
+        await assert.rejects(() =>
+            txSend({
+                body: async () => {
+                    await noriTokenController.alignedLock(amountToBurn);
+                },
+                sender: bob.publicKey,
+                signers: [bob.privateKey],
+            })
+        );
+    });
+
+
+    test("should burn tokens successfully", async () => {
+        // fetch storage account
+        let storage = new NoriStorageInterface(
+            alice.publicKey,
+            noriTokenController.deriveTokenId()
+        );
+        let burnedSoFar0 = await storage.burnedSoFar.fetch();
+        console.log('burnedSoFar0', burnedSoFar0.toString());
+
+        // check balance of FT
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
+        });
+        const balance0 = await tokenBase.getBalanceOf(alice.publicKey);
+        console.log('balance of alice', balance0.toString());
+
+        // exec burn
+        const amountToBurn = Field(1);
+        await txSend({
+            body: async () => {
+                await noriTokenController.alignedLock(amountToBurn);
+            },
+            sender: alice.publicKey,
+            signers: [alice.privateKey],
+        });
+
+        // check burnedSoFar
+        let burnedSoFar1 = await storage.burnedSoFar.fetch();
+        console.log('burnedSoFar1', burnedSoFar1.toString());
+        assert.equal(burnedSoFar1.sub(burnedSoFar0).toBigInt(), amountToBurn.toBigInt(), `burned so far should be ${amountToBurn.toBigInt()}`);
+
+        // check balance of FT
+        await fetchAccount({
+            publicKey: alice.publicKey,
+            tokenId: tokenBase.deriveTokenId(),
+        });
+        const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
+        console.log('balance of alice', balance1.toString());
+        assert.equal(
+            balance1.sub(balance0).toBigInt(),
+            amountToBurn.toBigInt(),
+            'balance of alice does not match minted amount'
+        );
+    });
 });
 
 async function txSend({
