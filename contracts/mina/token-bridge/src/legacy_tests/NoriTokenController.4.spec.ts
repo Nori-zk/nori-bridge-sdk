@@ -313,6 +313,70 @@ describe('NoriTokenController', () => {
             );
         });
     
+        // TODO Without NoriTokenController's Singature/Proof Approval, Could users themselves succeed evilly deploying tokenholder account invalid states & permissions?
+        test("should fail to burn token if user evilly sets up storage account with invalid states & permissions", async () => {
+            // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
+            // Then bob himself (EVILLY) set up storage with invalid states & permissions rather than via `noriTokenController.setUpStorage()`,
+            // !!! Since NoriTokenController's private-key holder could be evil to sign approval for creation of evil storage accounts  !!!
+    
+            // 1) bob himself (evilly) set up storage with invalid states & permissions
+            const tokenId_nori_controller = noriTokenController.deriveTokenId();
+            await txSend({
+                body: async () => {
+                    AccountUpdate.fundNewAccount(bob.publicKey, 1);
+    
+                    // compose AccountUpdate
+                    const acctUpt = AccountUpdate.createSigned(bob.publicKey, tokenId_nori_controller);
+                    acctUpt.body.update.verificationKey = {
+                        isSome: Bool(true),
+                        value: storageInterfaceVK,
+                    };
+                    acctUpt.body.update.permissions = {
+                        isSome: Bool(true),
+                        value: {
+                            ...Permissions.default(),
+                            editState: Permissions.signature(),//!! EVIL PERMISSION !!
+                            setVerificationKey:
+                                Permissions.VerificationKey.impossibleDuringCurrentVersion(),
+                            setPermissions: Permissions.signature(),//!! EVIL PERMISSION !!
+                        },
+                    };
+                    AccountUpdate.setValue(
+                        acctUpt.update.appState[0], //NoriStorageInterface.userKeyHash
+                        Poseidon.hash(bob.publicKey.toFields())
+                    );
+                    AccountUpdate.setValue(
+                        acctUpt.update.appState[1], //NoriStorageInterface.mintedSoFar
+                        Field(0)
+                    );
+    
+                    // TODO NEED Confirm if need token-owner's signature approval here. SHOULD NEED IT!
+                    //
+                    //
+    
+                },
+                sender: bob.publicKey,
+                signers: [bob.privateKey], // TODO NEED Confirm If this tx could exec successfully without token-owner's signature/proof approval.
+            });
+    
+            await fetchAccount({
+                publicKey: bob.publicKey,
+                tokenId: tokenId_nori_controller,
+            });
+    
+    
+            // 2) bob tries to burn token evill, SHOULD FAIL.
+            const amountToBurn = Field(1);
+            await assert.rejects(() =>
+                txSend({
+                    body: async () => {
+                        await noriTokenController.alignedLock(amountToBurn);
+                    },
+                    sender: bob.publicKey,
+                    signers: [bob.privateKey],
+                })
+            );
+        });
 });
 
 async function txSend({
