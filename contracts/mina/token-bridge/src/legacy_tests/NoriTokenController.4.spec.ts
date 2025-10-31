@@ -353,7 +353,7 @@ describe('NoriTokenController', () => {
                 // TODO NEED Confirm if need token-owner's signature approval here. SHOULD NEED IT!
                 //
                 //
-
+                // see https://github.com/o1-labs/o1js/blob/49a0181f061effef26c9fbef2b0fa7e34d093e22/src/lib/mina/v1/account-update.ts#L361
             },
             sender: bob.publicKey,
             signers: [bob.privateKey], // TODO NEED Confirm If this tx could exec successfully without token-owner's signature/proof approval.
