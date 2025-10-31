@@ -313,11 +313,11 @@ describe('NoriTokenController', () => {
         );
     });
 
-    // TODO Without NoriTokenController's Singature/Proof Approval, Could users themselves succeed evilly deploying tokenholder account invalid states & permissions?
     test("should fail to burn token if user evilly sets up storage account with invalid states & permissions", async () => {
         // this test is for the case when a user recieved token from who minted tokens successfully, e.g. alice transfered token to bob. 
         // Then bob himself (EVILLY) set up storage with invalid states & permissions rather than via `noriTokenController.setUpStorage()`,
         // !!! Since NoriTokenController's private-key holder could be evil to sign approval for creation of evil storage accounts  !!!
+        // reference to 'Access' permission:  see https://github.com/o1-labs/o1js/blob/49a0181f061effef26c9fbef2b0fa7e34d093e22/src/lib/mina/v1/account-update.ts#L361
 
         // 1) bob himself (evilly) set up storage with invalid states & permissions
         const tokenId_nori_controller = noriTokenController.deriveTokenId();
