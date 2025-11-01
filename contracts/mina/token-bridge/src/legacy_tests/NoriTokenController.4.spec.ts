@@ -354,7 +354,7 @@ describe('NoriTokenController', () => {
                 acctUpt_nori_controller.approve(acctUpt);
             },
             sender: bob.publicKey,
-            signers: [bob.privateKey, noriTokenControllerKeypair.privateKey], // TODO NEED Confirm If this tx could exec successfully without token-owner's signature/proof approval.
+            signers: [bob.privateKey, noriTokenControllerKeypair.privateKey],
         });
 
         await fetchAccount({
