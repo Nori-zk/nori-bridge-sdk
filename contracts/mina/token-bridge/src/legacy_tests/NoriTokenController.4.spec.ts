@@ -350,8 +350,6 @@ describe('NoriTokenController', () => {
                     Field(0)
                 );
 
-                // TODO NEED Confirm if need token-owner's signature approval here. SHOULD NEED IT!
-                // reference https://github.com/o1-labs/o1js/blob/49a0181f061effef26c9fbef2b0fa7e34d093e22/src/lib/mina/v1/account-update.ts#L361
                 const acctUpt_nori_controller = AccountUpdate.createSigned(noriTokenControllerKeypair.publicKey, tokenId_nori_controller);
                 acctUpt_nori_controller.approve(acctUpt);
             },
