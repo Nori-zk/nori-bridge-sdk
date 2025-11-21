@@ -20,6 +20,10 @@
         "build": "npm run build --workspaces --if-present",
         "test": "npm run test --workspaces --if-present",
         "test-ci": "npm run test-ci --workspaces --if-present",
+        "test:unit": "npm run test:unit --workspaces --if-present",
+        "test:integration": "npm run test:integration --workspaces --if-present",
+        "test:e2e": "npm run test:e2e --workspaces --if-present",
+        "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
         "bake-vk-hashes": "npm run bake-vk-hashes --workspaces --if-present",
         "publish": "nw-publish",
         "determine-breakage:o1js": "node determine-o1js-breaking-changes.js"
