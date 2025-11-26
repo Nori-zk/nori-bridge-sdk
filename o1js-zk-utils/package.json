@@ -56,7 +56,7 @@
         "npm-workspaces-publish-tool": "^0.0.14"
     },
     "peerDependencies": {
-        "o1js": "2.10.0"
+        "o1js": "https://pkg.pr.new/o1-labs/o1js@e2d5762"
     },
     "engines": {
         "node": ">=22.0.0"
@@ -70,6 +70,6 @@
         "build"
     ],
     "overrides": {
-        "o1js": "2.10.0"
+        "o1js": "https://pkg.pr.new/o1-labs/o1js@e2d5762"
     }
 }

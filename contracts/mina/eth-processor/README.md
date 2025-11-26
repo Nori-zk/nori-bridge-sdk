@@ -139,10 +139,6 @@ Obtain your SENDER_PRIVATE_KEY environment variable:
 
 1. `npm install -g zkapp-cli`
 2. `zk lightnet start`
-3. `curl localhost:8181/acquire-account`
-4. Put the `sk` in your `.env` file: SENDER_PRIVATE_KEY=......
-5. Put `MINA_RPC_NETWORK_URL=http://localhost:8080/graphql` in your `.env` file.
-6. Put `NETWORK=lightnet` in your `.env` file.
 
 ```sh
 npm run test # all tests (hangs due to multiple instances of o1js deps)

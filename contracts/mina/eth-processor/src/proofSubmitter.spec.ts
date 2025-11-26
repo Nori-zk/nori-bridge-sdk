@@ -85,11 +85,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         // Generate a random SENDER_PRIVATE_KEY
         process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
-        const cacheDir = getRandomCacheDir();
+        //const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
             const proofSubmitter = new MinaEthProcessorSubmitter(
-                cacheDir // readOnlyCacheConfig
+                //cacheDir // readOnlyCacheConfig
             );
 
             // Establish the network
@@ -119,7 +119,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
 
             logger.log('Awaited finalization succesfully.');
         } finally {
-            removeCacheDir(cacheDir);
+            // removeCacheDir(cacheDir);
         }
     }, 10000000);
 
@@ -132,11 +132,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         // Generate a random SENDER_PRIVATE_KEY
         process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
-        const cacheDir = getRandomCacheDir();
+        // const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
             const proofSubmitter = new MinaEthProcessorSubmitter(
-                cacheDir // readOnlyCacheConfig
+                // cacheDir // readOnlyCacheConfig
             );
 
             // Establish the network
@@ -175,7 +175,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
                 i++;
             }
         } finally {
-            removeCacheDir(cacheDir);
+            // removeCacheDir(cacheDir);
         }
     }, 10000000);
 
@@ -188,11 +188,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         // Generate a random SENDER_PRIVATE_KEY
         process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
-        const cacheDir = getRandomCacheDir();
+        // const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
             const proofSubmitter = new MinaEthProcessorSubmitter(
-                cacheDir // readOnlyCacheConfig
+                // cacheDir // readOnlyCacheConfig
             );
 
             // Establish the network
@@ -245,7 +245,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
                 proofSubmitter.submit(ethProof2.proof)
             ).rejects.toThrow();
         } finally {
-            removeCacheDir(cacheDir);
+            // removeCacheDir(cacheDir);
         }
     }, 10000000);
 
