@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/workers",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "An abstraction to enable workers which operate on node and the browser.",
     "author": "Jonathan Kelsey",
     "license": "Apache-2.0",
