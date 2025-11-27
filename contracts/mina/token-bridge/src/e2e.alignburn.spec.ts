@@ -247,7 +247,7 @@ assert.equal(
 
 //// should burn tokens successfully
 // fetch storage account
-let storage = new NoriStorageInterface(
+storage = new NoriStorageInterface(
     alice.publicKey,
     noriTokenController.deriveTokenId()
 );
