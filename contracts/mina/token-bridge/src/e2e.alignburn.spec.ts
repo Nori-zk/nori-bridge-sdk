@@ -205,7 +205,7 @@ await fetchAccount({
     publicKey: alice.publicKey,
     tokenId: tokenBase.deriveTokenId(),
 });
-const balance0 = await tokenBase.getBalanceOf(alice.publicKey);
+let balance0 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance0.toString());
 
 // exec mock-mint
@@ -225,11 +225,11 @@ await fetchAccount({
     tokenId: noriTokenController.deriveTokenId(),
 });
 // check mintedSoFar
-let storage = new NoriStorageInterface(
+storage = new NoriStorageInterface(
     alice.publicKey,
     noriTokenController.deriveTokenId()
 );
-let mintedSoFar = await storage.mintedSoFar.fetch();
+mintedSoFar = await storage.mintedSoFar.fetch();
 assert.equal(mintedSoFar.toBigInt(), amountToMint.toBigInt(), 'minted so far should be 1000');
 
 // check balance of FT
@@ -237,7 +237,7 @@ await fetchAccount({
     publicKey: alice.publicKey,
     tokenId: tokenBase.deriveTokenId(),
 });
-const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
+let balance1 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance1.toString());
 assert.equal(
     balance1.sub(balance0).toBigInt(),
@@ -259,7 +259,7 @@ await fetchAccount({
     publicKey: alice.publicKey,
     tokenId: tokenBase.deriveTokenId(),
 });
-const balance0 = await tokenBase.getBalanceOf(alice.publicKey);
+balance0 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance0.toString());
 
 // exec burn
@@ -282,7 +282,7 @@ await fetchAccount({
     publicKey: alice.publicKey,
     tokenId: tokenBase.deriveTokenId(),
 });
-const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
+balance1 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance1.toString());
 assert.equal(
     balance1.sub(balance0).toBigInt(),
