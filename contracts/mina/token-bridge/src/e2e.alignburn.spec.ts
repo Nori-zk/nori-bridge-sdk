@@ -85,7 +85,7 @@ await fetchAccounts(allAccounts);
 
 
 //// should deploy and initilise contracts
-const useDeployerWorkerSubProcess = true;
+const useDeployerWorkerSubProcess = false;
 console.log('Deploying contract.');
 const TokenDeployerWorker = useDeployerWorkerSubProcess
     ? getTokenDeployerWorker()
@@ -97,7 +97,10 @@ await tokenDeployer.minaSetup({
     mina: 'https://api.minascan.io/node/devnet/v1/graphql',
 });
 
+// compile
 const deployedVks = await tokenDeployer.compile();
+
+// deploy
 const { tokenBaseAddress, noriTokenControllerAddress } =
     await tokenDeployer.deployContracts(
         deployer.privateKey.toBase58(),
@@ -116,6 +119,9 @@ const { tokenBaseAddress, noriTokenControllerAddress } =
 if ('signalTerminate' in tokenDeployer && typeof tokenDeployer.signalTerminate === 'function') {
     tokenDeployer.signalTerminate();
 }
+
+// wait for 2mins
+await new Promise(resolve => setTimeout(resolve, 60 * 1000 * 2));
 
 // reconstruct VKs from safe form
 ethVerifierVk = {
@@ -149,22 +155,8 @@ noriTokenControllerVK = {
     ),
 };
 
-if (useDeployerWorkerSubProcess) {// if true, need compile them again within currenct (main) process
-    // compile ethverifier
-    console.log('compiling eth verifier');
-    ethVerifierVk = (await EthVerifier.compile()).verificationKey;
-    console.log('compiling nori storage');
 
-    storageInterfaceVK = (await NoriStorageInterface.compile())
-        .verificationKey;
-    // if (proofsEnabled) {
-    console.log('compiling FungibleToken');
-    tokenBaseVK = (await FungibleToken.compile()).verificationKey;
 
-    console.log('compiling NoriTokenController');
-    noriTokenControllerVK = (await NoriTokenController.compile())
-        .verificationKey;
-}
 
 //// should set up storage for Alice
 await txSend({
@@ -306,6 +298,10 @@ async function txSend({
     tx.sign(signers);
     const pendingTx = await tx.send();
     const transaction = await pendingTx.wait();
+    
+    // wait for 2mins
+    await new Promise(resolve => setTimeout(resolve, 60 * 1000 * 2));
+
     return transaction;
 }
 
