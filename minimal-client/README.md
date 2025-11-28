@@ -7,37 +7,32 @@ In production, clients should instead integrate with real wallets such as MetaMa
 
 This setup exists only to:
 - Facilitate debugging of workers.
+- Provide an e2e test for CI.
 - Demonstrate overall flow within the browser.
 - Provide a browser-based clone of the e2e.devnet.spec.ts test located in `<repo root directory>/contracts/mina/token-bridge/src`.
 
 ------------------------------------------------------------
 
-USAGE
+## Setup:
 
-1. Install dependencies:
-   npm install
+1. Install dependencies (within the root directory of the repository):
+   `cd .. && npm install`
 
 2. Configure your .env file:
    - ETH_PRIVATE_KEY=private key from which you wish to lock ETH to claim nETH
    - ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<apiKey>
    - NORI_TOKEN_BRIDGE_ADDRESS=0x3EEACD9caa1aDdBA939FF041C43020b516A51dcF
-   - NORI_TOKEN_CONTROLLER_ADDRESS=B62qqRRNz7pGh29GmTYmJrk5RFieZnCTv5cUE4zBse8tNdR5NayUL7G
-   - TOKEN_BASE_ADDRESS=B62qphX4CxksMDHKuJLXyBLc5MdMNjQGSRNg8kU2Z3J7QQ5dpDcLxDk
-   - MINA_RPC_NETWORK_URL=https://devnet.minaprotocol.network/graphql
+   - NORI_TOKEN_CONTROLLER_ADDRESS=B62qnQmGKK48aUeM8DdDmA6kGNR1oD9cMg3DXs9RuyC4gvR2A3MKVJV
+   - TOKEN_BASE_ADDRESS=B62qmkVtMBbCnSEzC14Ym5ekJGMXGru6qV4pT6HvXH3FKNomjop5Syc
+   - MINA_RPC_NETWORK_URL=https://api.minascan.io/node/devnet/v1/graphql
    - SENDER_PRIVATE_KEY=private key of the Mina address for which you wish to claim nETH
 
-3. Bake the credentials into the bundle:
-   `npm run build`
+## Testing:
 
-4. Start the webserver:
-   `npm run serve`
+Run the headless test (note needs Chrome, Chromium or Brave installed):
 
-   This will:
-   - Serve the test HTML file from the public directory.
-   - Create a localhost proxy for:
-     - The Nori proof service
-     - The devnet.minaprotocol.network/graphql endpoint.
+`npm run test:e2e`
 
-5. Visit the webpage emitted in stdout from the serve command.
-   - Open browser DevTools console to monitor progress of the lock + mint operation.
-   - Process can take ~35 minutes.
+Run the tests by launching a browser:
+
+`npm run test:e2e:browser`

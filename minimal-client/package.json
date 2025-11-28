@@ -1,31 +1,37 @@
 {
     "name": "nori-client-minimal",
-    "version": "1.0.3",
+    "version": "2.0.0",
     "main": "index.js",
     "type": "module",
     "private": "true",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "rm -rf public && mkdir -p public && node build.js",
-        "serve": "node server.js"
+        "build": "tsc",
+        "test:e2e": "npm run build && node target/src/test-utils/browserNoriTestRunnerCli.js",
+        "test:e2e:browser": "npm run build && node target/src/test-utils/browserNoriTestRunner.js"
     },
     "author": "",
     "license": "Apache-2.0",
     "description": "",
     "devDependencies": {
+        "@types/http-proxy": "^1.17.17",
         "dotenv": "^17.2.1",
         "esbuild": "^0.25.9",
         "express": "^5.1.0",
+        "puppeteer": "^24.31.0",
         "typescript": "^5.9.2"
     },
     "peerDependencies": {
+        "@types/chai": "^5.2.2",
+        "@types/express": "^5.0.3",
+        "@types/mocha": "^10.0.10",
+        "@types/node": "^24.7.2",
         "o1js": "https://pkg.pr.new/o1-labs/o1js@e2d5762"
     },
     "dependencies": {
         "@nori-zk/ethereum-token-bridge": "*",
-        "@nori-zk/workers": "*",
         "@nori-zk/proof-conversion": "^0.5.15",
         "@nori-zk/pts-types": "^4.0.0",
+        "@nori-zk/workers": "*",
         "ethers": "^6.15.0",
         "http-proxy": "^1.18.1",
         "rxjs": "^7.8.2"
