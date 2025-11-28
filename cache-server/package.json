@@ -8,6 +8,7 @@
         "server"
     ],
     "type": "module",
+    "private": "true",
     "main": "target/src/index.js",
     "types": "target/src/index.d.ts",
     "publishConfig": {
@@ -17,7 +18,7 @@
     "scripts": {
         "clean": "rimraf target",
         "build": "npm run clean && tsc",
-        "build:cache": "npm run build && node target/src/bin/build.js",
+        "build:cache": "cd ../contracts/mina/token-bridge/ && npm run build:cache-layouts",
         "serve": "npm run build && node target/src/bin/server.js"
     },
     "exports": {
