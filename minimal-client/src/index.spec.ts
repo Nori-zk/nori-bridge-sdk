@@ -333,10 +333,10 @@ describe('e2e_testnet', () => {
                 // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.setupStorage should be used on the
                 // frontend.
                 /*const provedSetupTxStr = await zkAppWorker.setupStorage(
-                    senderPublicKeyBase58,
+                    minaSenderPublicKeyBase58,
                     noriTokenControllerAddressBase58,
                     0.1 * 1e9,
-                    noriTokenControllerVerificationKeySafe
+                    zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
                 );
                 console.log('provedSetupTxStr', provedSetupTxStr);*/
                 // The below should use a real wallets signAndSend method.
