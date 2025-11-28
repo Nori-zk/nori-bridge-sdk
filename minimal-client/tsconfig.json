@@ -27,7 +27,7 @@
     "emitDecoratorMetadata": true, // needed for decorators
     "useDefineForClassFields": false, // ensure correct behaviour of class fields with decorators
 
-    "types": ["chai", "mocha"],
+    "types": ["chai"],
 
     "strict": true, // for the full TypeScript experience
     "strictPropertyInitialization": false, // to enable generic constructors, e.g. on CircuitValue
