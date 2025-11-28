@@ -99,7 +99,7 @@ export async function startServer(port = 4003) {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
             console.log(
-                `Server running at: ${url}. Please open this in brave with the necessary flags.`
+                `Server running at: ${url}.`
             );
             resolve({ server, url });
         });

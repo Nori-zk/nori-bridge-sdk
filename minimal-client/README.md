@@ -29,10 +29,10 @@ This setup exists only to:
 
 ## Testing:
 
-Run the headless test (note needs Chrome, Chromium or Brave installed):
+Run the headless test:
 
 `npm run test:e2e`
 
-Run the tests by launching a browser:
+Run the tests by launching a browser (note needs Chrome, Chromium or Brave installed - Linux or Mac supported):
 
 `npm run test:e2e:browser`

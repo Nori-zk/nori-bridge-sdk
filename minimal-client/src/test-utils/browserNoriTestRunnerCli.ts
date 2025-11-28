@@ -38,12 +38,10 @@ async function main() {
 
     const { url } = await startServer();
 
-    const browserPath = findBrowser();
     console.log('Launching headless browser for tests');
 
     const browser = await puppeteer.launch({
         headless: true,
-        executablePath: browserPath,
         protocolTimeout: 0
     });
 

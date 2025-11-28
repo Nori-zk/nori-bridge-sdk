@@ -253,7 +253,7 @@ describe('e2e_testnet', () => {
             console.log('Eth deposit made', result.toJSON());
             console.log('Waiting for 1 confirmation');
             const confirmedResult = await result.wait();
-            console.log('Confirmed Eth Deposit', confirmedResult);
+            console.log('Confirmed Eth Deposit', confirmedResult.toJSON());
             const depositBlockNumber = confirmedResult.blockNumber;
             if (!depositBlockNumber) {
                 console.error('depositBlockNumber was falsey');
