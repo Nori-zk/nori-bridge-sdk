@@ -18,6 +18,7 @@ import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { Wallet } from 'ethers';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 import { expect } from 'chai';
+import { describe, test } from './test-utils/browserTestRunner.js'
 
 function validateEnv(): {
     ethPrivateKey: string;
@@ -25,6 +26,7 @@ function validateEnv(): {
     noriETHBridgeAddressHex: string;
     noriTokenControllerAddressBase58: string;
     minaRpcUrl: string;
+    proofConversionServiceUrl: string;
     minaSenderPrivateKeyBase58: string;
     noriTokenBaseAddressBase58: string;
 } {
@@ -38,6 +40,7 @@ function validateEnv(): {
         MINA_RPC_NETWORK_URL,
         SENDER_PRIVATE_KEY,
         TOKEN_BASE_ADDRESS,
+        PROOF_CONVERSION_SERVICE_URL,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -83,6 +86,12 @@ function validateEnv(): {
         );
     }
 
+    if (!PROOF_CONVERSION_SERVICE_URL || !/^https?:\/\//.test(PROOF_CONVERSION_SERVICE_URL)) {
+        errors.push(
+            'PROOF_CONVERSION_SERVICE_URL missing or invalid (expected http(s) URL)'
+        );
+    }
+
     if (
         !SENDER_PRIVATE_KEY ||
         !/^[1-9A-HJ-NP-Za-km-z]+$/.test(SENDER_PRIVATE_KEY)
@@ -104,7 +113,8 @@ function validateEnv(): {
         noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
         noriTokenControllerAddressBase58: NORI_TOKEN_CONTROLLER_ADDRESS,
         noriTokenBaseAddressBase58: TOKEN_BASE_ADDRESS,
-        minaRpcUrl: 'http://localhost:4003/graphql', // MINA_RPC_NETWORK_URL, // Note this must be the proxy! MINA_RPC_NETWORK_URL= hardcoding this to be the proxy
+        minaRpcUrl: 'http://localhost:4003/graphql', // Note this must be the proxy! MINA_RPC_NETWORK_URL= hardcoding this to be the proxy
+        proofConversionServiceUrl: 'http://localhost:4003', // Note this must also be the proxy!
         minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
     };
 }
@@ -123,6 +133,7 @@ describe('e2e_testnet', () => {
                 minaRpcUrl,
                 minaSenderPrivateKeyBase58,
                 noriTokenBaseAddressBase58,
+                proofConversionServiceUrl,
             } = validateEnv();
 
             const minaSenderPrivateKey = PrivateKey.fromBase58(
@@ -357,7 +368,7 @@ describe('e2e_testnet', () => {
                     codeChallengePKARMStr,
                     depositBlockNumber,
                     ethAddressLowerHex,
-                    'http://localhost:4003'
+                    proofConversionServiceUrl
                 );
             console.timeEnd(
                 'zkAppWorker.computeDepositAttestationWitnessAndEthVerifier'
@@ -448,5 +459,5 @@ describe('e2e_testnet', () => {
             if (depositProcessingStatusSubscription)
                 depositProcessingStatusSubscription.unsubscribe();
         }
-    });
+    }, 3_600_000); // 1 hour timeout
 });

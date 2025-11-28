@@ -7,6 +7,12 @@ import * as esbuild from 'esbuild';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import httpProxy from 'http-proxy';
+// Load environment variables from .env file
+import 'dotenv/config';
+
+// Extract envs
+const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
+const proofConversionServiceUrl = process.env.PROOF_CONVERSION_SERVICE_URL || 'https://pcs.nori.it.com';
 
 export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
@@ -76,14 +82,14 @@ export async function startServer(port = 4003) {
     // Proxy for pcs.nori.it.com
     app.use('/converted-consensus-mpt-proofs', (req, res) => {
         proxy.web(req, res, {
-            target: 'https://pcs.nori.it.com/converted-consensus-mpt-proofs',
+            target: `${proofConversionServiceUrl}/converted-consensus-mpt-proofs`, //'https://pcs.nori.it.com/converted-consensus-mpt-proofs',
         });
     });
 
     // Catch-all proxy for Mina devnet
     app.use((req, res) => {
         proxy.web(req, res, {
-            target: 'https://api.minascan.io/node/devnet/v1/graphql',
+            target: minaRpcNetworkUrl, // 'https://api.minascan.io/node/devnet/v1/graphql',
         });
     });
 
