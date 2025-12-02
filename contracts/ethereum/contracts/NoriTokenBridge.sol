@@ -135,6 +135,7 @@ contract NoriTokenBridge {
             revert IncorrectZkappAccount(verificationKeyHash);
         }
 
+/* TODO do we need this check?
         // check if msg.sender == original depositor
         address linkedEth = codeChallengeToEthAddress[attestationHash];
         if (linkedEth == address(0)) {
@@ -142,7 +143,7 @@ contract NoriTokenBridge {
         } else {
             require(linkedEth == msg.sender, "The ETH address linked by given Mina account is different from msg.sender");
         }
-
+*/
         // check if burnedSoFar at Mina account is greater than burnSoFar
         uint256 burnSoFar = unlockedTokens[msg.sender][attestationHash];
         if (account.zkapp.appState[2] <= burnSoFar) {
