@@ -1,15 +1,2 @@
-# Code owners for Nori Bridge SDK
-# These users have full access and can approve/merge PRs
-
+# Global owners - applies to everything in the repo unless overridden
 * @jk89 @Kirol54
-
-# SDK source code
-src/ @jk89 @Kirol54
-contracts/ @jk89 @Kirol54
-*.ts @jk89 @Kirol54
-*.js @jk89 @Kirol54
-
-# Build and config files
-package.json @jk89 @Kirol54
-tsconfig.json @jk89 @Kirol54
-*.config.js @jk89 @Kirol54
