@@ -286,17 +286,25 @@ async function runSuite(
             titleEl.style.margin = '5px 0 7px 20px';
             titleEl.style.color = '#388e3c'; // green
             testEl.appendChild(titleEl);
-        } catch (err) {
+        } catch (err: unknown) {
+            const error: Error | any = err;
+            const errorMessage =
+                error instanceof Error
+                    ? error?.stack || error?.message
+                    : typeof error === 'object' && error !== null
+                    ? JSON.stringify(error)
+                    : String(error);
+
             const testEnd = performance.now();
             const duration = (testEnd - testStart).toFixed(2);
 
             originalConsole.error(
                 `${prefix}❌ ${t.name} (${duration} ms)`,
-                err
+                errorMessage
             );
 
             const titleEl = document.createElement('div');
-            titleEl.textContent = `❌ Failed in (${duration} ms): ${err}`; // ${t.name}
+            titleEl.textContent = `❌ Failed in (${duration} ms): ${errorMessage}`; // ${t.name}
             titleEl.style.margin = '5px 0 7px 20px';
             titleEl.style.color = '#e57373'; // red
             testEl.appendChild(titleEl);
