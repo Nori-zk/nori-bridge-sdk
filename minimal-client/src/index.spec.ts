@@ -18,7 +18,7 @@ import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { Wallet } from 'ethers';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 import { expect } from 'chai';
-import { describe, test } from './test-utils/browserTestRunner.js'
+import { describe, test } from './test-utils/browserTestRunner.js';
 
 function validateEnv(): {
     ethPrivateKey: string;
@@ -86,7 +86,10 @@ function validateEnv(): {
         );
     }
 
-    if (!PROOF_CONVERSION_SERVICE_URL || !/^https?:\/\//.test(PROOF_CONVERSION_SERVICE_URL)) {
+    if (
+        !PROOF_CONVERSION_SERVICE_URL ||
+        !/^https?:\/\//.test(PROOF_CONVERSION_SERVICE_URL)
+    ) {
         errors.push(
             'PROOF_CONVERSION_SERVICE_URL missing or invalid (expected http(s) URL)'
         );
@@ -321,27 +324,27 @@ describe('e2e_testnet', () => {
             if (setupRequired) {
                 console.log('Setting up storage');
                 console.time('noriMinter.setupStorage');
-                const { txHash: setupTxHash } =
+                /*const { txHash: setupTxHash } =
                     await zkAppWorker.MOCK_setupStorage(
                         minaSenderPublicKeyBase58,
                         noriTokenControllerAddressBase58,
                         0.1 * 1e9,
                         zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
-                    );
+                    );*/
                 // NOTE! ************
                 // Really a client would use await zkAppWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
                 // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.setupStorage should be used on the
                 // frontend.
-                /*const provedSetupTxStr = await zkAppWorker.setupStorage(
+                const provedSetupTxStr = await zkAppWorker.setupStorage(
                     minaSenderPublicKeyBase58,
                     noriTokenControllerAddressBase58,
                     0.1 * 1e9,
                     zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
                 );
-                console.log('provedSetupTxStr', provedSetupTxStr);*/
+                console.log('provedSetupTxStr', provedSetupTxStr);
                 // The below should use a real wallets signAndSend method.
-                /*const { txHash: setupTxHash } =
-                await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
+                const { txHash: setupTxHash } =
+                    await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);
 
                 console.log('setupTxHash', setupTxHash);
                 console.timeEnd('noriMinter.setupStorage');
@@ -389,7 +392,7 @@ describe('e2e_testnet', () => {
             console.log('Computing mint proof.');
 
             console.time('Mint proof computation');
-            await zkAppWorker.MOCK_computeMintProofAndCache(
+            /*await zkAppWorker.MOCK_computeMintProofAndCache(
                 minaSenderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
                 ethVerifierProofJson,
@@ -397,23 +400,27 @@ describe('e2e_testnet', () => {
                 codeVerifierPKARMStr,
                 1e9 * 0.1,
                 needsToFundAccount
-            );
-            console.timeEnd('Mint proof computation');
+            );*/
+
             // NOTE!
             // Really a client would use await zkAppWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
             // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.mint should be used on the
             // frontend, and at this stage, instead of the above:
-            /*const provedMintTxStr = await zkAppWorker.mint(
-                senderPublicKeyBase58,
+            const provedMintTxStr = await zkAppWorker.mint(
+                minaSenderPublicKeyBase58,
                 noriTokenControllerAddressBase58, // CHECKME @Karol
-                {
-                    ethDepositProofJson: ethDepositProofJson,
-                    presentationProofStr: presentationJsonStr,
-                },
+                ethVerifierProofJson,
+                depositAttestationInput,
+                codeVerifierPKARMStr,
                 1e9 * 0.1,
-                true
+                needsToFundAccount
             );
-            console.log('provedMintTxStr', provedMintTxStr);*/
+            console.timeEnd('Mint proof computation');
+
+            /*
+userPublicKeyBase58: string, noriTokenControllerAddressBase58: string, ethVerifierProofJson: JsonProof, merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson, codeVerifierPKARMStr: string, txFee: number, fundNewAccount: boolean
+            */
+            console.log('provedMintTxStr', provedMintTxStr);
 
             // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
 
@@ -431,12 +438,13 @@ describe('e2e_testnet', () => {
             // SIGN AND SEND MINT PROOF **************************************************
 
             console.time('Mint transaction finalized');
-            const { txHash: mintTxHash } =
-                await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();
+            /*const { txHash: mintTxHash } =
+                await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();*/
             // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
             // And ideally when WALLET_signAndSend works properly we would replace the above(within this test only!) with the below MOCK for wallet behaviour.
-            /*const { txHash: mintTxHash } =
-            await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
+            const { txHash: mintTxHash } = await zkAppWorker.WALLET_signAndSend(
+                provedMintTxStr
+            );
             console.log('mintTxHash', mintTxHash);
             console.timeEnd('Mint transaction finalized');
             console.log('Minted!');
