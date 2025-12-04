@@ -107,6 +107,20 @@ export class ZkAppWorker {
         };
     }*/
 
+    private deserializeTransaction(serializedTransaction: string) {
+        /*const txJSON = JSON.parse(serializedTransaction);
+        const payload = {
+            transaction,
+            onlySign: true,
+            feePayer: {
+                fee: fee,
+                memo: memo,
+            },
+        };*/
+        serializedTransaction;
+        return Transaction.fromJSON(serializedTransaction);
+    }
+
     // Sign and send transaction
     // THIS DOES NOT WORK ATM
     async WALLET_signAndSend(provedTxJsonStr: string) {
@@ -115,7 +129,7 @@ export class ZkAppWorker {
                 '#minaPrivateKey is undefined please call setMinaPrivateKey first'
             );
         const tx = Transaction.fromJSON(
-            JSON.parse(provedTxJsonStr) as any
+            provedTxJsonStr
         ) as unknown as Mina.Transaction<true, false>;
         const result = await tx.sign([this.#minaPrivateKey]).send().wait();
         return { txHash: result.hash };
