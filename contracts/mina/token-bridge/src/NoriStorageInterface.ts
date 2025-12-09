@@ -20,6 +20,7 @@ export class NoriStorageInterface extends SmartContract {
   @state(Field) userKeyHash = State<Field>();
   @state(Field) mintedSoFar = State<Field>();
   @state(Field) burnedSoFar = State<Field>();
+  @state(Field) receiver = State<Field>();
 
   /**
    * calc amount to Mint and maintain `mintedSoFar`
@@ -63,7 +64,7 @@ export class NoriStorageInterface extends SmartContract {
    * @returns 
    */
   @method.returns(Field)
-  async increaseBurnedAmount(amountToBurn: Field) {
+  async increaseBurnedAmount(amountToBurn: Field, receiver: Field) {
     let burnedSoFar = this.burnedSoFar.getAndRequireEquals();
 
     // Assert that we actually have something to burn (make sure amountToBurn is not zero)
@@ -71,6 +72,8 @@ export class NoriStorageInterface extends SmartContract {
 
     // Set burnedSoFar to the new burn amount plus the original amountToBurn.
     this.burnedSoFar.set(burnedSoFar.add(amountToBurn));
+
+    this.receiver.set(receiver);
 
     return amountToBurn;
   }

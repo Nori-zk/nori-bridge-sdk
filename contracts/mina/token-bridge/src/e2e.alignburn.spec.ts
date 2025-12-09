@@ -157,8 +157,8 @@ noriTokenControllerVK = {
 
 
 
-
 //// should set up storage for Alice
+console.log(`set up storage for Alice...`);
 await txSend({
     body: async () => {
         AccountUpdate.fundNewAccount(alice.publicKey, 1);
@@ -185,6 +185,8 @@ assert.equal(mintedSoFar.toBigInt(), 0n, 'minted so far should be 0');
 
 let burnedSoFar = await storage.burnedSoFar.fetch();
 assert.equal(burnedSoFar.toBigInt(), 0n, 'burned so far should be 0');
+console.log('');
+
 
 //// should mock mint token successfully for Alice by alignedMint
 // fetch storage account
@@ -201,7 +203,7 @@ let balance0 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance0.toString());
 
 // exec mock-mint
-const amountToMint = Field(1000);
+const amountToMint = Field(10 * 1e18);
 await txSend({
     body: async () => {
         AccountUpdate.fundNewAccount(alice.publicKey, 1); // for the initialization of token-holder account based on FT
@@ -255,10 +257,11 @@ balance0 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance0.toString());
 
 // exec burn
-const amountToBurn = Field(1);
+const amountToBurn = Field(2 * 1e18);
+const eth_receiver = Field(BigInt('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'));
 await txSend({
     body: async () => {
-        await noriTokenController.alignedLock(amountToBurn);
+        await noriTokenController.alignedLock(amountToBurn, eth_receiver);
     },
     sender: alice.publicKey,
     signers: [alice.privateKey],
@@ -298,9 +301,8 @@ async function txSend({
     tx.sign(signers);
     const pendingTx = await tx.send();
     const transaction = await pendingTx.wait();
-    
-    // wait for 2mins
-    await new Promise(resolve => setTimeout(resolve, 60 * 1000 * 2));
+
+    console.log(`transaction.hash: ${transaction.hash}`);
 
     return transaction;
 }

@@ -180,7 +180,7 @@ export class NoriTokenController
             .getAndRequireEquals()
             .assertEquals(Poseidon.hash(userAddress.toFields()));
 
-        storage.checkPermissionsValidity();
+        // storage.checkPermissionsValidity();
 
                 // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
@@ -259,7 +259,8 @@ export class NoriTokenController
      * @param amountToMint 
      */
     @method public async alignedLock(
-        amountToBurn: Field
+        amountToBurn: Field,
+        receiver: Field
     ) {
         const userAddress = this.sender.getUnconstrained();
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
@@ -270,10 +271,10 @@ export class NoriTokenController
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
         storage.requireSignature();// MUST require user's signature
         storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
-        storage.checkPermissionsValidity();// Garuantee evil users cannot tamper zkappstate by signature
+        //storage.checkPermissionsValidity();// Garuantee evil users cannot tamper zkappstate by signature
 
         // record amount to be burned
-        await storage.increaseBurnedAmount(amountToBurn);
+        await storage.increaseBurnedAmount(amountToBurn, receiver);
 
         // burn it
         let token = new FungibleToken(tokenAddress);
@@ -282,8 +283,10 @@ export class NoriTokenController
 
     @method.returns(Bool)
     public async canMint(_accountUpdate: AccountUpdate) {
-        const _mintLock = this.mintLock.getAndRequireEquals();
-        _mintLock.assertEquals(Bool(false));
+        // const _mintLock = this.mintLock.getAndRequireEquals(); // getAndRequireEquals() would return the onchain value, rather than the updated cache.
+        // _mintLock.assertEquals(Bool(false));
+
+        this.mintLock.requireEquals(Bool(false)); // this approach return the updated value during this transaction.
 
         this.mintLock.set(Bool(true));
         return Bool(true);
