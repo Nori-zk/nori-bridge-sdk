@@ -302,10 +302,11 @@ describe('NoriTokenController', () => {
 
         // bob tries to burn token directly without first setting up storage.
         const amountToBurn = Field(1);
+        const ethReceiver = Field(BigInt('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'));
         await assert.rejects(() =>
             txSend({
                 body: async () => {
-                    await noriTokenController.alignedLock(amountToBurn);
+                    await noriTokenController.alignedLock(amountToBurn, ethReceiver);
                 },
                 sender: bob.publicKey,
                 signers: [bob.privateKey],
@@ -365,10 +366,11 @@ describe('NoriTokenController', () => {
 
         // 2) bob tries to burn token evill, SHOULD FAIL.
         const amountToBurn = Field(1);
+        const ethReceiver = Field(BigInt('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'));
         await assert.rejects(() =>
             txSend({
                 body: async () => {
-                    await noriTokenController.alignedLock(amountToBurn);
+                    await noriTokenController.alignedLock(amountToBurn, ethReceiver);
                 },
                 sender: bob.publicKey,
                 signers: [bob.privateKey],
@@ -396,9 +398,10 @@ describe('NoriTokenController', () => {
 
         // exec burn
         const amountToBurn = Field(1);
+        const ethReceiver = Field(BigInt('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'));
         await txSend({
             body: async () => {
-                await noriTokenController.alignedLock(amountToBurn);
+                await noriTokenController.alignedLock(amountToBurn, ethReceiver);
             },
             sender: alice.publicKey,
             signers: [alice.privateKey],
