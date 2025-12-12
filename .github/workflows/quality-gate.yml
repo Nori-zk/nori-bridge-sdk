@@ -55,10 +55,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        continue-on-error: true
         
       - name: Run Quality Gate and Post to PR
         uses: actions/github-script@v7
@@ -90,7 +86,8 @@ jobs:
               failed: 0,
               skipped: 0,
               hardFailures: [],
-              sections: []
+              sections: [],
+              usedLegacyPeerDeps: false
             };
             
             // Helper functions
@@ -113,6 +110,11 @@ jobs:
               console.log(`○ ${name}: SKIPPED - ${reason}`);
             }
             
+            function addWarning(name, message, hint = '', details = '') {
+              results.sections.push({ name, status: 'WARNING', type: 'Warning', message, hint, details });
+              console.log(`⚠ ${name}: WARNING - ${message}`);
+            }
+            
             function run(cmd) {
               try {
                 return { success: true, output: execSync(cmd, { encoding: 'utf8', stdio: 'pipe' }) };
@@ -129,9 +131,39 @@ jobs:
               return JSON.parse(fs.readFileSync('package.json', 'utf8'));
             }
             
+            function hasOverrides() {
+              if (!hasPackageJson()) return false;
+              const pkg = getPackageJson();
+              return !!(pkg.overrides && Object.keys(pkg.overrides).length > 0);
+            }
+            
             console.log('========================================');
             console.log('Quality Gate Starting');
             console.log('========================================\n');
+            
+            // Install dependencies - try without legacy first, then with if needed
+            console.log('Installing dependencies...');
+            let installResult = run('npm ci');
+            
+            if (!installResult.success) {
+              console.log('Standard npm ci failed, trying with --legacy-peer-deps...');
+              installResult = run('npm ci --legacy-peer-deps');
+              
+              if (installResult.success) {
+                results.usedLegacyPeerDeps = true;
+                addWarning('Dependencies', 
+                  'Dependencies installed with --legacy-peer-deps due to peer dependency conflicts', 
+                  'Consider resolving peer dependencies to avoid using --legacy-peer-deps',
+                  installResult.output);
+                addPass('Dependencies', 'Dependencies installed successfully (with --legacy-peer-deps)', true);
+              } else {
+                addFail('Dependencies', 'npm ci failed even with --legacy-peer-deps', true, 
+                  'Check npm error logs and resolve dependency conflicts', 
+                  installResult.output);
+              }
+            } else {
+              addPass('Dependencies', 'Dependencies installed successfully', true);
+            }
             
             // Check scripts
             if (config.checks.scripts.enabled) {
@@ -323,9 +355,23 @@ jobs:
             
             // Generate actionable insights
             const insights = [];
+            
+            // Check for legacy peer deps usage
+            if (results.usedLegacyPeerDeps) {
+              insights.push(`**Peer Dependency Conflicts:** Dependencies required \`--legacy-peer-deps\` to install. This indicates peer dependency version conflicts.`);
+              
+              if (hasOverrides()) {
+                insights.push(`**Overrides Detected:** Your package.json contains dependency overrides. Try removing overrides and updating dependencies to resolve conflicts properly: \`npm update\` then test without overrides.`);
+              } else {
+                insights.push(`**Resolve Peer Dependencies:** Update dependencies to compatible versions: \`npm update\` and check for breaking changes. Consider using \`npm ls <package-name>\` to identify conflict sources.`);
+              }
+            }
+            
             results.sections.forEach(section => {
               if (section.status === 'FAIL') {
-                if (section.name === 'Prettier' && section.message.includes('not installed')) {
+                if (section.name === 'Dependencies' && section.message.includes('failed even with')) {
+                  insights.push(`**Critical:** Dependencies cannot be installed. Check error details above and resolve package.json issues or network problems.`);
+                } else if (section.name === 'Prettier' && section.message.includes('not installed')) {
                   insights.push(`Install formatter: \`npm install --save-dev ${config.prettierDep}\``);
                 } else if (section.name === 'Linter' && section.message.includes('not installed')) {
                   insights.push(`Install linter: \`npm install --save-dev ${config.lintDep}\``);
@@ -367,6 +413,7 @@ jobs:
             
             report += `---\n\n## Configuration\n\nQuality gate configured via environment variables.\n\n`;
             report += `| Check | Enabled | Required |\n|-------|---------|----------|\n`;
+            report += `| Dependencies | true | true |\n`;
             report += `| Build | ${config.checks.build.enabled} | ${config.checks.build.required} |\n`;
             report += `| Scripts | ${config.checks.scripts.enabled} | ${config.checks.scripts.required} |\n`;
             report += `| npm audit | ${config.checks.audit.enabled} | ${config.checks.audit.required} (level: ${config.auditLevel}) |\n`;
