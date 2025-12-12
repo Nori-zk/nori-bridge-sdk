@@ -436,7 +436,7 @@ jobs:
                 } else if (section.name === 'Prettier' && section.message.includes('need formatting')) {
                   insights.push(`Auto-fix formatting: \`npx ${config.prettierDep} --write "**/*.{ts,js,json,md}"\``);
                 } else if (section.name === 'npm audit' && section.message.includes('Vulnerabilities')) {
-                  insights.push(`Fix vulnerabilities: \`npm audit fix\` (or \`npm audit fix --force\` for breaking changes)`);
+                  insights.push(`**Fix Vulnerabilities:** \`npm audit fix\` (or \`npm audit fix --force\` for breaking changes)`);
                 } else if (section.name === 'Build' && section.message.includes('not found')) {
                   insights.push(`Add build script to package.json: \`"build": "tsc"\` or appropriate build command`);
                 } else if (section.name === 'Build' && section.message.includes('Build failed')) {
