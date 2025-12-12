@@ -119,9 +119,13 @@ jobs:
             
             function run(cmd) {
               try {
-                return { success: true, output: execSync(cmd, { encoding: 'utf8', stdio: 'pipe' }) };
+                return { success: true, output: execSync(cmd, { encoding: 'utf8', stdio: 'pipe', maxBuffer: 10 * 1024 * 1024 }) };
               } catch (error) {
-                return { success: false, output: error.stdout || error.stderr || error.message };
+                // Combine both stdout and stderr
+                const stdout = error.stdout || '';
+                const stderr = error.stderr || '';
+                const combined = (stdout + '\n' + stderr).trim();
+                return { success: false, output: combined || error.message };
               }
             }
             
