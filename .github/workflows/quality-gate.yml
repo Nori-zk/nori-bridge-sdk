@@ -87,7 +87,8 @@ jobs:
               skipped: 0,
               hardFailures: [],
               sections: [],
-              usedLegacyPeerDeps: false
+              usedLegacyPeerDeps: false,
+              installOutput: ''
             };
             
             // Helper functions
@@ -144,24 +145,29 @@ jobs:
             // Install dependencies - try without legacy first, then with if needed
             console.log('Installing dependencies...');
             let installResult = run('npm ci');
+            let firstAttemptOutput = '';
             
             if (!installResult.success) {
+              firstAttemptOutput = installResult.output;
               console.log('Standard npm ci failed, trying with --legacy-peer-deps...');
               installResult = run('npm ci --legacy-peer-deps');
               
               if (installResult.success) {
                 results.usedLegacyPeerDeps = true;
+                results.installOutput = firstAttemptOutput;
                 addWarning('Dependencies', 
                   'Dependencies installed with --legacy-peer-deps due to peer dependency conflicts', 
                   'Consider resolving peer dependencies to avoid using --legacy-peer-deps',
-                  installResult.output);
+                  firstAttemptOutput);
                 addPass('Dependencies', 'Dependencies installed successfully (with --legacy-peer-deps)', true);
               } else {
+                results.installOutput = installResult.output;
                 addFail('Dependencies', 'npm ci failed even with --legacy-peer-deps', true, 
                   'Check npm error logs and resolve dependency conflicts', 
                   installResult.output);
               }
             } else {
+              results.installOutput = installResult.output;
               addPass('Dependencies', 'Dependencies installed successfully', true);
             }
             
@@ -220,7 +226,12 @@ jobs:
                   if (result.success) {
                     addPass('Build', 'Build completed successfully', config.checks.build.required);
                   } else {
-                    addFail('Build', 'Build failed', config.checks.build.required, 'Check build errors', result.output.substring(0, 1000));
+                    // Include install output if build fails to catch engine warnings etc
+                    let buildDetails = '=== Build Error ===\n' + result.output.substring(0, 2000);
+                    if (results.installOutput) {
+                      buildDetails += '\n\n=== npm install output (may contain relevant warnings) ===\n' + results.installOutput.substring(0, 2000);
+                    }
+                    addFail('Build', 'Build failed', config.checks.build.required, 'Check build errors', buildDetails);
                   }
                 }
               }
@@ -361,7 +372,7 @@ jobs:
               insights.push(`**Peer Dependency Conflicts:** Dependencies required \`--legacy-peer-deps\` to install. This indicates peer dependency version conflicts.`);
               
               if (hasOverrides()) {
-                insights.push(`**Overrides Detected:** Your package.json contains dependency overrides. Try removing overrides and updating dependencies to resolve conflicts properly: \`npm update\` then test without overrides.`);
+                insights.push(`**Overrides Detected:** Your package.json contains dependency overrides. When using --legacy-peer-deps with overrides, you should aim to remove the overrides when possible by updating dependencies to compatible versions.`);
               } else {
                 insights.push(`**Resolve Peer Dependencies:** Update dependencies to compatible versions: \`npm update\` and check for breaking changes. Consider using \`npm ls <package-name>\` to identify conflict sources.`);
               }
@@ -381,6 +392,8 @@ jobs:
                   insights.push(`Fix vulnerabilities: \`npm audit fix\` (or \`npm audit fix --force\` for breaking changes)`);
                 } else if (section.name === 'Build' && section.message.includes('not found')) {
                   insights.push(`Add build script to package.json: \`"build": "tsc"\` or appropriate build command`);
+                } else if (section.name === 'Build' && section.message.includes('Build failed')) {
+                  insights.push(`**Build Failed:** Check the build error details above. If you see engine warnings in the install output, ensure your Node version matches package.json requirements.`);
                 } else if (section.name === 'Scripts Check' && section.message.includes('Missing')) {
                   const missing = section.details?.match(/Missing: (.+)/)?.[1];
                   const pkg = hasPackageJson() ? getPackageJson() : null;
