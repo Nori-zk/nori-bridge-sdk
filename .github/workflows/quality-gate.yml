@@ -45,7 +45,9 @@ jobs:
     
     steps:
       - name: Fix workspace permissions
-        run: sudo chown -R runner:runner $GITHUB_WORKSPACE
+        run: |
+          sudo chown -R runner:runner $GITHUB_WORKSPACE
+          sudo chown -R runner:runner /home/runner/actions/_work/_tool
 
       - name: Checkout code
         uses: actions/checkout@v4
