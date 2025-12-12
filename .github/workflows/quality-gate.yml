@@ -91,7 +91,8 @@ jobs:
               sections: [],
               usedLegacyPeerDeps: false,
               installOutput: '',
-              installSucceeded: false
+              installSucceeded: false,
+              hasDeprecationWarnings: false
             };
             
             // Helper functions
@@ -166,6 +167,12 @@ jobs:
                 results.usedLegacyPeerDeps = true;
                 results.installOutput = firstAttemptOutput;
                 results.installSucceeded = true;
+                
+                // Check for deprecation warnings
+                if (installResult.output.includes('deprecated')) {
+                  results.hasDeprecationWarnings = true;
+                }
+                
                 addWarning('Dependencies', 
                   'Dependencies installed with --legacy-peer-deps due to peer dependency conflicts', 
                   'Consider resolving peer dependencies to avoid using --legacy-peer-deps',
@@ -181,7 +188,21 @@ jobs:
             } else {
               results.installOutput = installResult.output;
               results.installSucceeded = true;
-              addPass('Dependencies', 'Dependencies installed successfully', true);
+              
+              // Check for deprecation warnings
+              if (installResult.output.includes('deprecated')) {
+                results.hasDeprecationWarnings = true;
+              }
+              
+              // Verify node_modules exists and has content
+              if (!fs.existsSync('node_modules') || fs.readdirSync('node_modules').length === 0) {
+                results.installSucceeded = false;
+                addFail('Dependencies', 'npm ci reported success but node_modules is empty or missing', true, 
+                  'This is unusual - check filesystem permissions and npm cache', 
+                  installResult.output);
+              } else {
+                addPass('Dependencies', 'Dependencies installed successfully', true);
+              }
             }
             
             // Check scripts
@@ -322,7 +343,7 @@ jobs:
                       addPass('Linter', 'No linting errors', config.checks.lint.required);
                     } else {
                       addFail('Linter', `${errors} error(s), ${warnings} warning(s)`, config.checks.lint.required, 
-                        'npm run lint', result.output.substring(0, 1000));
+                        'npm run lint', result.output);
                     }
                   }
                 }
@@ -345,7 +366,7 @@ jobs:
                     addPass('Unit Tests', 'All unit tests passed', config.checks.testUnit.required);
                   } else {
                     addFail('Unit Tests', 'Unit tests failed', config.checks.testUnit.required, 
-                      'Check test output', result.output.substring(0, 1000));
+                      'Check test output', result.output);
                   }
                 }
               }
@@ -386,6 +407,11 @@ jobs:
             // Generate actionable insights
             const insights = [];
             
+            // Check for deprecation warnings
+            if (results.hasDeprecationWarnings && results.installSucceeded) {
+              insights.push(`**Deprecation Warnings:** Some installed packages are deprecated. Review the npm install output above and consider updating to maintained alternatives.`);
+            }
+            
             // Check for legacy peer deps usage
             if (results.usedLegacyPeerDeps) {
               insights.push(`**Peer Dependency Conflicts:** Dependencies required \`--legacy-peer-deps\` to install. This indicates peer dependency version conflicts.`);
@@ -401,6 +427,8 @@ jobs:
               if (section.status === 'FAIL') {
                 if (section.name === 'Dependencies' && section.message.includes('failed even with')) {
                   insights.push(`**Critical:** Dependencies cannot be installed. Check error details above and resolve package.json issues or network problems.`);
+                } else if (section.name === 'Dependencies' && section.message.includes('node_modules is empty')) {
+                  insights.push(`**Critical:** npm ci succeeded but node_modules is missing. Check filesystem permissions and npm cache integrity.`);
                 } else if (section.name === 'Prettier' && section.message.includes('not installed')) {
                   insights.push(`Install formatter: \`npm install --save-dev ${config.prettierDep}\``);
                 } else if (section.name === 'Linter' && section.message.includes('not installed')) {
@@ -411,6 +439,12 @@ jobs:
                   insights.push(`Fix vulnerabilities: \`npm audit fix\` (or \`npm audit fix --force\` for breaking changes)`);
                 } else if (section.name === 'Build' && section.message.includes('not found')) {
                   insights.push(`Add build script to package.json: \`"build": "tsc"\` or appropriate build command`);
+                } else if (section.name === 'Build' && section.message.includes('Build failed')) {
+                  insights.push(`**Build Failed:** Check the build error details above. Fix the errors shown in the build output and run \`npm run build\` locally to verify.`);
+                } else if (section.name === 'Linter' && section.message.match(/\d+ error/)) {
+                  insights.push(`**Linting Errors:** Fix the linting errors shown above and run \`npm run lint\` locally to verify.`);
+                } else if (section.name === 'Unit Tests' && section.message.includes('failed')) {
+                  insights.push(`**Unit Tests Failed:** Fix the failing tests shown above and run \`npm run test:unit\` locally to verify.`);
                 } else if (section.name === 'Scripts Check' && section.message.includes('Missing')) {
                   const missing = section.details?.match(/Missing: (.+)/)?.[1];
                   const pkg = hasPackageJson() ? getPackageJson() : null;
