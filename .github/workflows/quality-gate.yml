@@ -88,7 +88,8 @@ jobs:
               hardFailures: [],
               sections: [],
               usedLegacyPeerDeps: false,
-              installOutput: ''
+              installOutput: '',
+              installSucceeded: false
             };
             
             // Helper functions
@@ -155,6 +156,7 @@ jobs:
               if (installResult.success) {
                 results.usedLegacyPeerDeps = true;
                 results.installOutput = firstAttemptOutput;
+                results.installSucceeded = true;
                 addWarning('Dependencies', 
                   'Dependencies installed with --legacy-peer-deps due to peer dependency conflicts', 
                   'Consider resolving peer dependencies to avoid using --legacy-peer-deps',
@@ -162,12 +164,14 @@ jobs:
                 addPass('Dependencies', 'Dependencies installed successfully (with --legacy-peer-deps)', true);
               } else {
                 results.installOutput = installResult.output;
+                results.installSucceeded = false;
                 addFail('Dependencies', 'npm ci failed even with --legacy-peer-deps', true, 
                   'Check npm error logs and resolve dependency conflicts', 
                   installResult.output);
               }
             } else {
               results.installOutput = installResult.output;
+              results.installSucceeded = true;
               addPass('Dependencies', 'Dependencies installed successfully', true);
             }
             
@@ -226,12 +230,18 @@ jobs:
                   if (result.success) {
                     addPass('Build', 'Build completed successfully', config.checks.build.required);
                   } else {
-                    // Include install output if build fails to catch engine warnings etc
-                    let buildDetails = '=== Build Error ===\n' + result.output.substring(0, 2000);
-                    if (results.installOutput) {
-                      buildDetails += '\n\n=== npm install output (may contain relevant warnings) ===\n' + results.installOutput.substring(0, 2000);
+                    // ALWAYS include install output when build fails
+                    let buildDetails = '=== Build Error ===\n' + result.output;
+                    buildDetails += '\n\n=== npm ci output ===\n';
+                    if (results.usedLegacyPeerDeps) {
+                      buildDetails += '(Standard npm ci failed, had to use --legacy-peer-deps)\n\n';
+                      buildDetails += 'Standard npm ci error:\n' + results.installOutput;
+                    } else if (results.installSucceeded) {
+                      buildDetails += results.installOutput;
+                    } else {
+                      buildDetails += '(npm ci failed completely - see Dependencies failure above)';
                     }
-                    addFail('Build', 'Build failed', config.checks.build.required, 'Check build errors', buildDetails);
+                    addFail('Build', 'Build failed', config.checks.build.required, 'Check build errors and npm install output', buildDetails);
                   }
                 }
               }
@@ -392,8 +402,6 @@ jobs:
                   insights.push(`Fix vulnerabilities: \`npm audit fix\` (or \`npm audit fix --force\` for breaking changes)`);
                 } else if (section.name === 'Build' && section.message.includes('not found')) {
                   insights.push(`Add build script to package.json: \`"build": "tsc"\` or appropriate build command`);
-                } else if (section.name === 'Build' && section.message.includes('Build failed')) {
-                  insights.push(`**Build Failed:** Check the build error details above. If you see engine warnings in the install output, ensure your Node version matches package.json requirements.`);
                 } else if (section.name === 'Scripts Check' && section.message.includes('Missing')) {
                   const missing = section.details?.match(/Missing: (.+)/)?.[1];
                   const pkg = hasPackageJson() ? getPackageJson() : null;
