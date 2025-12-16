@@ -1,0 +1,185 @@
+name: Build nori-bridge-sdk (nori-test-data-orchestrator-to-bridge-sdk dispatch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bridge_sdk_release_branch:
+        description: 'Bridge SDK release branch (e.g., RELEASE/v2.0.0)'
+        required: true
+        type: string
+      eth_processor_rabbit_release_branch:
+        description: 'eth-processor-rabbit release branch (e.g., RELEASE/v3.0.7)'
+        required: true
+        type: string
+      proof_conversion_nori_release_branch:
+        description: 'proof-conversion-nori release branch (e.g., RELEASE/v2.0.7)'
+        required: true
+        type: string
+      pr_number:
+        description: 'Original PR number from parent'
+        required: true
+        type: string
+      build_id:
+        description: 'Build ID from parent pipeline'
+        required: true
+        type: string
+
+jobs:
+  build-nori-bridge-sdk-test-data-dispatch:
+    name: Build nori-bridge-sdk dispatched from test data orchestrator
+    runs-on: [self-hosted, nori, highperf]
+    permissions:
+      contents: read
+      pull-requests: write
+    container:
+      image: docker.nori.it.com/stacksmith:1.0.0
+      volumes:
+        # SSH for git operations
+        - /home/runner/.ssh:/root/.ssh:ro
+        
+        # NPM registry auth
+        - /home/runner/.npmrc:/github/home/.npmrc:ro
+
+        # Stacksmith envs (used to enable specific pipelines which need env vars)
+        - /home/runner/.stacksmith.envs:/root/.stacksmith.envs:ro
+
+        # This makes the path consistent across parent and sibling containers
+        - /tmp/stacksmith_repos:/tmp/stacksmith_repos
+
+    timeout-minutes: 180
+
+    # Define lightnet service
+    services:
+      mina-lightnet:
+        image: o1labs/mina-local-network:compatible-latest-devnet
+        env:
+          PROOF_LEVEL: full
+          LOG_LEVEL: Debug
+          RUN_ARCHIVE_NODE: true
+          SLOT_TIME: 20000
+          NETWORK_TYPE: single-node
+          PATH: /root/.nvm/versions/node/v22.9.0/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/14/bin
+          GOSU_VERSION: 1.17
+          LANG: en_US.utf8
+          PG_MAJOR: 14
+          PG_VERSION: 14.17-1.pgdg120+1
+          PGDATA: /var/lib/postgresql/data
+          NODE_VERSION: 22.9.0
+          NVM_DIR: /root/.nvm
+          MINA_LIBP2P_HELPER_PATH: /root/libp2p_helper
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: archive
+
+    steps:
+      - name: Comment on PR - Build Started
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const repoName = context.repo.repo;
+            const message = `🔨 **Dispatch build started** for ${repoName} (nori-test-data-orchestrator-to-bridge-sdk)\n\n**Bridge SDK Release Branch:** ${{ inputs.bridge_sdk_release_branch }}\n**Build ID:** ${{ inputs.build_id }}\n**Workflow:** [View run details](${runUrl})`;
+            
+            const prNumber = parseInt('${{ inputs.pr_number }}');
+            
+            try {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: 'Nori-zk',
+                repo: 'nori-bridge-head',
+                body: message
+              });
+            } catch (error) {
+              console.log(`Could not comment on PR #${prNumber}: ${error.message}`);
+            }
+
+      - name: Cleanup job home cache
+        run: |
+          echo "Cleaning job home directory cache..."
+          if [ -d "/__w/_temp/_github_home/.cache" ]; then
+            rm -rf /__w/_temp/_github_home/.cache
+            echo "Home cache cleaned"
+          else
+            echo "No cache found to clean"
+          fi
+
+      - name: Wait for lightnet to be ready
+        shell: bash
+        run: |
+          apt-get update && apt install -y curl jq
+          echo "⏳ Waiting for Mina lightnet to be ready..."
+          for i in {1..60}; do
+            if curl -sf http://mina-lightnet:8181/ > /dev/null; then
+              echo "✅ Mina is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/60 failed, waiting 10s..."
+            sleep 10
+          done
+          echo "❌ Mina failed to become ready after 60 attempts (10 minutes)"
+          exit 1
+
+      - name: Run nori-test-data-orchestrator-to-bridge-sdk dispatch workflow
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          DISPATCH_PAYLOAD_JSON: |
+            {
+              "ref": "${{ github.ref }}",
+              "inputs": {
+                "bridge_sdk_release_branch": "${{ inputs.bridge_sdk_release_branch }}",
+                "eth_processor_rabbit_release_branch": "${{ inputs.eth_processor_rabbit_release_branch }}",
+                "proof_conversion_nori_release_branch": "${{ inputs.proof_conversion_nori_release_branch }}",
+                "pr_number": "${{ inputs.pr_number }}",
+                "build_id": "${{ inputs.build_id }}"
+              }
+            }
+        run: |
+          mkdir -p /tmp/stacksmith_repos
+          stacksmith run nori-test-data-orchestrator-to-bridge-sdk \
+            --envs-dir /root/.stacksmith.envs \
+            --working-dir /tmp/stacksmith_repos
+
+      - name: Comment on PR - Build Complete
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const repoName = context.repo.repo;
+            const prNumber = parseInt('${{ inputs.pr_number }}');
+            let message;
+            
+            if ('${{ job.status }}' === 'success') {
+              message = `✅ **Dispatch build succeeded** for ${repoName} (nori-test-data-orchestrator-to-bridge-sdk)\n\n**Bridge SDK Release Branch:** ${{ inputs.bridge_sdk_release_branch }}\n**Build ID:** ${{ inputs.build_id }}\n**Workflow:** [View run details](${runUrl})`;
+            } else {
+              message = `❌ **Dispatch build failed** for ${repoName} (nori-test-data-orchestrator-to-bridge-sdk)\n\n**Bridge SDK Release Branch:** ${{ inputs.bridge_sdk_release_branch }}\n**Build ID:** ${{ inputs.build_id }}\n**Workflow:** Check the [workflow run](${runUrl}) for details.\n\n⚠️ Review the logs to identify the failure cause.`;
+            }
+            
+            try {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: 'Nori-zk',
+                repo: 'nori-bridge-head',
+                body: message
+              });
+            } catch (error) {
+              console.log(`Could not comment on PR #${prNumber}: ${error.message}`);
+            }
+
+      - name: Cleanup stacksmith working dir
+        if: always()
+        run: |
+          stacksmith cleanup --working-dir /tmp/stacksmith_repos
+          echo "Cleanup completed"
+
+      - name: Cleanup job home cache
+        if: always()
+        run: |
+          echo "Cleaning job home directory cache..."
+          if [ -d "/__w/_temp/_github_home/.cache" ]; then
+            rm -rf /__w/_temp/_github_home/.cache
+            echo "Home cache cleaned"
+          else
+            echo "No cache found to clean"
+          fi
