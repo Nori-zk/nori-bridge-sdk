@@ -71,6 +71,7 @@ jobs:
       - name: Comment on PR - Build Started
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.DISPATCH_TOKEN }}
           script: |
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const repoName = context.repo.repo;
@@ -121,7 +122,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
           DISPATCH_PAYLOAD_JSON: |
             {
-              "ref": "${{ github.ref }}",
+              "ref": "${{ github.ref_name }}",
               "inputs": {
                 "pi0": "${{ inputs.pi0 }}",
                 "bridge_head_ref": "${{ inputs.bridge_head_ref }}",
@@ -139,6 +140,7 @@ jobs:
         uses: actions/github-script@v7
         if: always()
         with:
+          github-token: ${{ secrets.DISPATCH_TOKEN }}
           script: |
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const repoName = context.repo.repo;
