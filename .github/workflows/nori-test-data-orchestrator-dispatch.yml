@@ -122,6 +122,7 @@ jobs:
       - name: Run nori-test-data-orchestrator-to-bridge-sdk dispatch workflow
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
           DISPATCH_PAYLOAD_JSON: |
             {
               "ref": "${{ github.ref }}",

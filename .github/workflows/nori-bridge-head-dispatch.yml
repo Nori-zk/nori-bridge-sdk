@@ -118,6 +118,7 @@ jobs:
       - name: Run bridge-head-to-bridge-sdk dispatch workflow
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
           DISPATCH_PAYLOAD_JSON: |
             {
               "ref": "${{ github.ref }}",
