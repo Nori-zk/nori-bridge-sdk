@@ -20,15 +20,15 @@ import assert from 'node:assert';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenController } from '../NoriTokenController.js';
 
+import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
+import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
+
 const FEE = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
 type Keypair = {
     publicKey: PublicKey;
     privateKey: PrivateKey;
 };
-
-import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
-import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
-import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
 
 describe('NoriTokenController', () => {
     // test accounts
@@ -216,7 +216,7 @@ describe('NoriTokenController', () => {
         console.log('balance of alice', balance0.toString());
 
         // exec mock-mint
-        const amountToMint = Field(1000);
+        const amountToMint = Field(10 * 1e18);
         await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1); // for the initialization of token-holder account based on FT
@@ -397,7 +397,7 @@ describe('NoriTokenController', () => {
         console.log('balance of alice', balance0.toString());
 
         // exec burn
-        const amountToBurn = Field(1);
+        const amountToBurn = Field(2 * 1e18);
         const ethReceiver = Field(BigInt('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'));
         await txSend({
             body: async () => {
@@ -420,7 +420,7 @@ describe('NoriTokenController', () => {
         const balance1 = await tokenBase.getBalanceOf(alice.publicKey);
         console.log('balance of alice', balance1.toString());
         assert.equal(
-            balance1.sub(balance0).toBigInt(),
+            balance0.sub(balance1).toBigInt(),
             amountToBurn.toBigInt(),
             'balance of alice does not match minted amount'
         );
