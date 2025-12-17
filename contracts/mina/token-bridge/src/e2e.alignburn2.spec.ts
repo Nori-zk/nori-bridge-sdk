@@ -55,8 +55,10 @@ admin = { publicKey: PublicKey.fromBase58('B62qiiZLaCVbfoQYo5r3N3qTRnEyvBoyqwDXH
 alice = { publicKey: PublicKey.fromBase58('B62qqj6zf4j2wjz5Vuxztud4XnAFnHZat2JeKf1FwybkrkH491tR7ZR'), privateKey: PrivateKey.fromBase58('EKFCAGT5pLcyVjX1z3yWYM7zzu2X4nLXKQ6Bcxz6u4heRf7PrB3M') };
 bob = { publicKey: PublicKey.fromBase58('B62qpTgjz8BfasX2WL4MaVsJ3xjJy7Y8tcJHDaYzvuStTZcCVSUyo6J'), privateKey: PrivateKey.fromBase58('EKEU5gQbGRKtsiZ33Pwg9QShpMmnozjFdBWhamE4b3e9rHKPncgD') };
 
-tokenBaseKeypair = PrivateKey.randomKeypair();
-noriTokenControllerKeypair = PrivateKey.randomKeypair();
+tokenBaseKeypair = { publicKey: PublicKey.fromBase58('B62qm6v2Cd2emn6rmPvFpGU6hn9xdHMMMXsttvsa11AhUpeieUUsaR1'), privateKey: undefined };
+noriTokenControllerKeypair = {
+    publicKey: PublicKey.fromBase58('B62qnYUfvZkQ6Y5LvRgXXUwGLU2QEiJev4naggEX2TwLeYAVEmvhody'), privateKey: undefined
+};
 
 tokenBase = new FungibleToken(tokenBaseKeypair.publicKey);
 noriTokenController = new NoriTokenController(
@@ -100,29 +102,6 @@ await tokenDeployer.minaSetup({
 // compile
 const deployedVks = await tokenDeployer.compile();
 
-// deploy
-const { tokenBaseAddress, noriTokenControllerAddress } =
-    await tokenDeployer.deployContracts(
-        deployer.privateKey.toBase58(),
-        admin.publicKey.toBase58(),
-        noriTokenControllerKeypair.privateKey.toBase58(),
-        tokenBaseKeypair.privateKey.toBase58(),
-        PrivateKey.random().toPublicKey().toBase58(), // EtherProcessor zkApp Address
-        deployedVks.noriStorageInterfaceVerificationKeySafe,
-        FEE,
-        {
-            symbol: 'nETH',
-            decimals: 18,
-            allowUpdates: true,
-        }
-    );
-if ('signalTerminate' in tokenDeployer && typeof tokenDeployer.signalTerminate === 'function') {
-    tokenDeployer.signalTerminate();
-}
-
-// wait for 2mins
-await new Promise(resolve => setTimeout(resolve, 60 * 1000 * 2));
-
 // reconstruct VKs from safe form
 ethVerifierVk = {
     data: deployedVks.ethVerifierVerificationKeySafe.data,
@@ -155,21 +134,6 @@ noriTokenControllerVK = {
     ),
 };
 
-
-
-//// should set up storage for Alice
-console.log(`set up storage for Alice...`);
-await txSend({
-    body: async () => {
-        AccountUpdate.fundNewAccount(alice.publicKey, 1);
-        await noriTokenController.setUpStorage(
-            alice.publicKey,
-            storageInterfaceVK
-        );
-    },
-    sender: alice.publicKey,
-    signers: [alice.privateKey],
-});
 let storage = new NoriStorageInterface(
     alice.publicKey,
     noriTokenController.deriveTokenId()
@@ -240,11 +204,6 @@ assert.equal(
 );
 
 //// should burn tokens successfully
-// fetch storage account
-storage = new NoriStorageInterface(
-    alice.publicKey,
-    noriTokenController.deriveTokenId()
-);
 let burnedSoFar0 = await storage.burnedSoFar.fetch();
 console.log('burnedSoFar0', burnedSoFar0.toString());
 
