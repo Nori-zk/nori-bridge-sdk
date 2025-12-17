@@ -42,6 +42,8 @@ describe('e2e_devnet', () => {
         let ethVerifierVk: VerificationKey;
         let allAccounts: PublicKey[] = [];
 
+        /* =================================== CONFIG BELOW =================================== */
+        /* ==================================================================================== */
         // Configure Mina network
         const Network = Mina.Network({
             networkId: 'devnet' as NetworkId,
@@ -56,6 +58,8 @@ describe('e2e_devnet', () => {
         const eth_receiver = Field(BigInt('0x7adcb2af858e084e1ecadc6892391f1fcfcd80ba'));
         tokenBaseKeypair = PrivateKey.randomKeypair();
         noriTokenControllerKeypair = PrivateKey.randomKeypair();
+        /* ==================================================================================== */
+        /* =================================== CONFIG ABOVE =================================== */
 
         tokenBase = new FungibleToken(tokenBaseKeypair.publicKey);
         noriTokenController = new NoriTokenController(
