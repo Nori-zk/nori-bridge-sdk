@@ -11,7 +11,6 @@ import {
     PrivateKey,
     PublicKey,
     UInt64,
-    // Keypair,
     VerificationKey,
     Permissions
 } from 'o1js';
@@ -31,16 +30,12 @@ import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from './workers/tokenDeployer/worker.js';
 
 // test accounts
-let deployer: Keypair, admin: Keypair, alice: Keypair, bob: Keypair;
+let deployer: Keypair, admin: Keypair, alice: Keypair;
 // contracts + keys
 let tokenBase: FungibleToken;
-let tokenBaseVK: VerificationKey;
 let tokenBaseKeypair: Keypair;
 let noriTokenController: NoriTokenController;
-let noriTokenControllerVK: VerificationKey;
 let noriTokenControllerKeypair: Keypair;
-let storageInterfaceVK: VerificationKey;
-let ethVerifierVk: VerificationKey;
 let allAccounts: PublicKey[] = [];
 
 // Configure Mina network
@@ -53,7 +48,6 @@ Mina.setActiveInstance(Network);
 deployer = { publicKey: PublicKey.fromBase58('B62qkFVLuf76VH3WFbCx6YGqYvBz9hR25dxbT2XUB357p24zCEpkD6X'), privateKey: PrivateKey.fromBase58('EKFGDDBBmieCgpexHw2uvtjWN42c2EuVyLM8oUV3t2wLaACUJrTX') };
 admin = { publicKey: PublicKey.fromBase58('B62qiiZLaCVbfoQYo5r3N3qTRnEyvBoyqwDXHJySNKoPU5gLxAvJEBc'), privateKey: PrivateKey.fromBase58('EKE8NyZjzR5noxzMtTXw2AoLEm9pNNaYm7fUqF2ewqE2Cf8GdQMD') };
 alice = { publicKey: PublicKey.fromBase58('B62qqj6zf4j2wjz5Vuxztud4XnAFnHZat2JeKf1FwybkrkH491tR7ZR'), privateKey: PrivateKey.fromBase58('EKFCAGT5pLcyVjX1z3yWYM7zzu2X4nLXKQ6Bcxz6u4heRf7PrB3M') };
-bob = { publicKey: PublicKey.fromBase58('B62qpTgjz8BfasX2WL4MaVsJ3xjJy7Y8tcJHDaYzvuStTZcCVSUyo6J'), privateKey: PrivateKey.fromBase58('EKEU5gQbGRKtsiZ33Pwg9QShpMmnozjFdBWhamE4b3e9rHKPncgD') };
 
 tokenBaseKeypair = { publicKey: PublicKey.fromBase58('B62qm6v2Cd2emn6rmPvFpGU6hn9xdHMMMXsttvsa11AhUpeieUUsaR1'), privateKey: undefined };
 noriTokenControllerKeypair = {
@@ -69,7 +63,6 @@ console.log(`
       deployer ${deployer.publicKey.toBase58()}
       admin ${admin.publicKey.toBase58()}
       alice ${alice.publicKey.toBase58()}
-      bob ${bob.publicKey.toBase58()}
       tokenBase ${tokenBaseKeypair.publicKey.toBase58()}
       noriTokenController ${noriTokenControllerKeypair.publicKey.toBase58()}
     `);
@@ -78,13 +71,11 @@ allAccounts = [
     deployer.publicKey,
     admin.publicKey,
     alice.publicKey,
-    bob.publicKey,
     tokenBaseKeypair.publicKey,
     noriTokenControllerKeypair.publicKey,
 ];
 
 await fetchAccounts(allAccounts);
-
 
 //// should deploy and initilise contracts
 const useDeployerWorkerSubProcess = false;
@@ -101,38 +92,6 @@ await tokenDeployer.minaSetup({
 
 // compile
 const deployedVks = await tokenDeployer.compile();
-
-// reconstruct VKs from safe form
-ethVerifierVk = {
-    data: deployedVks.ethVerifierVerificationKeySafe.data,
-    hash: new Field(
-        BigInt(deployedVks.ethVerifierVerificationKeySafe.hashStr)
-    ),
-};
-storageInterfaceVK = {
-    data: deployedVks.noriStorageInterfaceVerificationKeySafe.data,
-    hash: new Field(
-        BigInt(
-            deployedVks.noriStorageInterfaceVerificationKeySafe.hashStr
-        )
-    ),
-};
-tokenBaseVK = {
-    data: deployedVks.fungibleTokenVerificationKeySafe.data,
-    hash: new Field(
-        BigInt(
-            deployedVks.fungibleTokenVerificationKeySafe.hashStr
-        )
-    ),
-};
-noriTokenControllerVK = {
-    data: deployedVks.noriTokenControllerVerificationKeySafe.data,
-    hash: new Field(
-        BigInt(
-            deployedVks.noriTokenControllerVerificationKeySafe.hashStr
-        )
-    ),
-};
 
 let storage = new NoriStorageInterface(
     alice.publicKey,
