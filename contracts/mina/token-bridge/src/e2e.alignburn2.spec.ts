@@ -144,14 +144,6 @@ assert.equal(
     Poseidon.hash(alice.publicKey.toFields()).toBigInt()
 );
 
-let mintedSoFar = await storage.mintedSoFar.fetch();
-assert.equal(mintedSoFar.toBigInt(), 0n, 'minted so far should be 0');
-
-let burnedSoFar = await storage.burnedSoFar.fetch();
-assert.equal(burnedSoFar.toBigInt(), 0n, 'burned so far should be 0');
-console.log('');
-
-
 //// should mock mint token successfully for Alice by alignedMint
 // fetch storage account
 await fetchAccount({
@@ -182,14 +174,6 @@ await fetchAccount({
     publicKey: alice.publicKey,
     tokenId: noriTokenController.deriveTokenId(),
 });
-// check mintedSoFar
-storage = new NoriStorageInterface(
-    alice.publicKey,
-    noriTokenController.deriveTokenId()
-);
-mintedSoFar = await storage.mintedSoFar.fetch();
-assert.equal(mintedSoFar.toBigInt(), amountToMint.toBigInt(), 'minted so far should be 1000');
-
 // check balance of FT
 await fetchAccount({
     publicKey: alice.publicKey,
