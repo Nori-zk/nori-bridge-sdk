@@ -46,7 +46,7 @@ const Network = Mina.Network({
 });
 Mina.setActiveInstance(Network);
 deployer = { publicKey: PublicKey.fromBase58('B62qkFVLuf76VH3WFbCx6YGqYvBz9hR25dxbT2XUB357p24zCEpkD6X'), privateKey: PrivateKey.fromBase58('EKFGDDBBmieCgpexHw2uvtjWN42c2EuVyLM8oUV3t2wLaACUJrTX') };
-admin = { publicKey: PublicKey.fromBase58('B62qiiZLaCVbfoQYo5r3N3qTRnEyvBoyqwDXHJySNKoPU5gLxAvJEBc'), privateKey: PrivateKey.fromBase58('EKE8NyZjzR5noxzMtTXw2AoLEm9pNNaYm7fUqF2ewqE2Cf8GdQMD') };
+// admin = { publicKey: PublicKey.fromBase58('B62qiiZLaCVbfoQYo5r3N3qTRnEyvBoyqwDXHJySNKoPU5gLxAvJEBc'), privateKey: PrivateKey.fromBase58('EKE8NyZjzR5noxzMtTXw2AoLEm9pNNaYm7fUqF2ewqE2Cf8GdQMD') };
 alice = { publicKey: PublicKey.fromBase58('B62qqj6zf4j2wjz5Vuxztud4XnAFnHZat2JeKf1FwybkrkH491tR7ZR'), privateKey: PrivateKey.fromBase58('EKFCAGT5pLcyVjX1z3yWYM7zzu2X4nLXKQ6Bcxz6u4heRf7PrB3M') };
 
 tokenBaseKeypair = { publicKey: PublicKey.fromBase58('B62qm6v2Cd2emn6rmPvFpGU6hn9xdHMMMXsttvsa11AhUpeieUUsaR1'), privateKey: undefined };
@@ -61,7 +61,6 @@ noriTokenController = new NoriTokenController(
 
 console.log(`
       deployer ${deployer.publicKey.toBase58()}
-      admin ${admin.publicKey.toBase58()}
       alice ${alice.publicKey.toBase58()}
       tokenBase ${tokenBaseKeypair.publicKey.toBase58()}
       noriTokenController ${noriTokenControllerKeypair.publicKey.toBase58()}
@@ -69,7 +68,7 @@ console.log(`
 
 allAccounts = [
     deployer.publicKey,
-    admin.publicKey,
+    // admin.publicKey,
     alice.publicKey,
     tokenBaseKeypair.publicKey,
     noriTokenControllerKeypair.publicKey,
@@ -85,10 +84,12 @@ const TokenDeployerWorker = useDeployerWorkerSubProcess
     : TokenDeployerWorkerPure;
 
 const tokenDeployer = new TokenDeployerWorker();
+/* 
 await tokenDeployer.minaSetup({
     networkId: 'devnet' as NetworkId,
     mina: 'https://api.minascan.io/node/devnet/v1/graphql',
 });
+*/
 
 // compile
 const deployedVks = await tokenDeployer.compile();
