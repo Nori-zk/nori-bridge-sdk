@@ -162,7 +162,6 @@ console.log('balance of alice', balance0.toString());
 const amountToMint = Field(10 * 1e18);
 await txSend({
     body: async () => {
-        AccountUpdate.fundNewAccount(alice.publicKey, 1); // for the initialization of token-holder account based on FT
         await noriTokenController.alignedMint(amountToMint);
     },
     sender: alice.publicKey,
