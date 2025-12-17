@@ -222,7 +222,7 @@ await fetchAccount({
 balance1 = await tokenBase.getBalanceOf(alice.publicKey);
 console.log('balance of alice', balance1.toString());
 assert.equal(
-    balance1.sub(balance0).toBigInt(),
+    balance0.sub(balance1).toBigInt(),
     amountToBurn.toBigInt(),
     'balance of alice does not match minted amount'
 );
