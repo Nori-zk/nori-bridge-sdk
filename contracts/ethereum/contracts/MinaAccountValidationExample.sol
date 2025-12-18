@@ -7,7 +7,7 @@ error MinaAccountProvingSystemIdIsNotValid(bytes32); // c1872967
 
 /// WARNING: This contract is meant ot be used as an example of how to use the Bridge.
 /// NEVER use this contract in a production environment.
-contract MinaAccountValidation{
+contract MinaAccountValidationExample {
     /// @notice The commitment to Mina Account proving system ID.
     bytes32 constant PROVING_SYSTEM_ID_COMM = 0xee2a4bc7db81da2b7164e56b3649b1e2a09c58c455b15dabddd9146c7582cebc;
 

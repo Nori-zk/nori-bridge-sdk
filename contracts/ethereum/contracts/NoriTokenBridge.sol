@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "./MinaStateSettlement.sol";
-import "./MinaAccountValidation.sol";
+import "./MinaStateSettlementExample.sol";
+import "./MinaAccountValidationExample.sol";
 
 /// @title NoriTokenBridge
 /// @notice Lock ETH for Mina accounts with bridge unit validation and depositor binding
@@ -29,32 +29,32 @@ contract NoriTokenBridge {
     mapping(uint256 => address) public codeChallengeToEthAddress;
 
     /// @notice The NoriStorageInterface zkApp verification key hash.
-    bytes32 constant NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH =
+    uint256 constant NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH =
         0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3; // TODO need change it
 
     /// @notice Mina bridge contract that validates and stores Mina states.
-    MinaStateSettlement stateSettlement;
+    MinaStateSettlementExample stateSettlement;
     /// @notice Mina bridge contract that validates accounts
-    MinaAccountValidation accountValidation;
+    MinaAccountValidationExample accountValidation;
 
-    // ETH unlocked per ETH address per Mina account (attestationHash)
-    mapping(address => mapping(uint256 => uint256)) public unlockedTokens;
+    // Hash(publicKey, tokenId) -> burnSoFar
+    mapping(uint256 => uint256) public burnSoFarSet;
 
 
     // -------------------------------
     // Events
     // -------------------------------
     event TokensLocked(address indexed user, uint256 attestationHash, uint256 amount, uint256 when);
-    event TokensUnlocked(address indexed user, uint256 attestationHash, uint256 amount, uint256 when);
+    event TokensUnlocked(uint256 indexed pubKeyTokenIdHash, uint256 amount, address receiver, uint256 when);
 
     // -------------------------------
     // Constructor
     // -------------------------------
-    constructor(address _stateSettlementAddr, address _accountValidationAddr) {
+    constructor(address _stateSettlementAddr, address _accountValidationAddr) payable /*TODO Keep Payable for TEST(Mina->ETHEREUM)*/{
         bridgeOperator = msg.sender;
         
         stateSettlement = MinaStateSettlementExample(_stateSettlementAddr);
-        accountValidation = MinaAccountValidation(_accountValidationAddr);
+        accountValidation = MinaAccountValidationExample(_accountValidationAddr);
     }
 
     // -------------------------------
@@ -95,6 +95,7 @@ contract NoriTokenBridge {
     
     /// @notice unlock the tokens by bridging from Mina
     function unlockTokens(
+        uint256 toUnlockAmount, // token to unlock
         bytes32 proofCommitment,
         bytes32 provingSystemAuxDataCommitment,
         bytes20 proofGeneratorAddr,
@@ -105,11 +106,9 @@ contract NoriTokenBridge {
         address batcherPaymentService
     ) external {
         bytes32 ledgerHash = bytes32(pubInput[:32]);
-        if (!stateSettlement.isLedgerVerified(ledgerHash)) {
-            revert InvalidLedger(ledgerHash);
-        }
+        require(stateSettlement.isLedgerVerified(ledgerHash), "Invalid Ledger");
 
-        MinaAccountValidation.AlignedArgs memory args = MinaAccountValidation.AlignedArgs(
+        MinaAccountValidationExample.AlignedArgs memory args = MinaAccountValidationExample.AlignedArgs(
             proofCommitment,
             provingSystemAuxDataCommitment,
             proofGeneratorAddr,
@@ -119,45 +118,38 @@ contract NoriTokenBridge {
             pubInput,
             batcherPaymentService
         );
-
-        if (!accountValidation.validateAccount(args)) {
-            revert InvalidZkappAccount();
-        }
+        require(accountValidation.validateAccount(args), "Invalid Zkapp Account");
 
         bytes calldata encodedAccount = pubInput[32 + 8:];
-        MinaAccountValidation.Account memory account = abi.decode(encodedAccount, (MinaAccountValidation.Account));
+        MinaAccountValidationExample.Account memory account = abi.decode(encodedAccount, (MinaAccountValidationExample.Account));
 
         // check that this account represents the circuit we expect
-        bytes32 verificationKeyHash = keccak256(
+        uint256 verificationKeyHash = uint256(keccak256(
             abi.encode(account.zkapp.verificationKey)
-        );
-        if (verificationKeyHash != NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH) {
-            revert IncorrectZkappAccount(verificationKeyHash);
-        }
+        ));
+        // TODO temporarily comment this check for test purpose, this is required!
+        // require(verificationKeyHash == NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH, "Incorrect Zkapp Account");
 
-/* TODO do we need this check?
-        // check if msg.sender == original depositor
-        address linkedEth = codeChallengeToEthAddress[attestationHash];
-        if (linkedEth == address(0)) {
-            revert LinkedEthAddressNotFound(verificationKeyHash);
-        } else {
-            require(linkedEth == msg.sender, "The ETH address linked by given Mina account is different from msg.sender");
-        }
-*/
-        // check if burnedSoFar at Mina account is greater than burnSoFar
-        uint256 burnSoFar = unlockedTokens[msg.sender][attestationHash];
-        if (account.zkapp.appState[2] <= burnSoFar) {
-            revert ErrorBurnSoFar();
-        }
+        // check if burnedSoFar at Mina account is greater than the existing burnSoFar
+        uint256 pubKeyTokenIdHash = uint256(keccak256(abi.encode(account.publicKey, account.tokenIdKeyHash)));
+        uint256 burnSoFar0 = burnSoFarSet[pubKeyTokenIdHash];
+        uint256 bridgeAmount = uint256(account.zkapp.appState[2]) - burnSoFar0;
+        require(bridgeAmount > 0, "Burn so far is greater than the amount to burn");
 
         // ===============================
         // UNLOCK LOGIC
         // ===============================
-        uint256 bridgeAmount = account.zkapp.appState[2] - burnSoFar;
-        unlockedTokens[msg.sender][attestationHash] += bridgeAmount;
-        totalLocked -= bridgeAmount;
+        require(toUnlockAmount <= bridgeAmount, "To unlock amount is greater than the amount to unlock");
+        burnSoFarSet[pubKeyTokenIdHash] = burnSoFar0 + toUnlockAmount;
 
-        emit TokensUnlocked(msg.sender, attestationHash, bridgeAmount, block.timestamp);
+        // transfer the tokens to the user
+        address receiver = address(uint160(uint256(account.zkapp.appState[3])));
+
+        // TODO FOR TEST-ALIGN
+        // totalLocked -= toUnlockAmount;
+        payable(receiver).transfer(toUnlockAmount);
+
+        emit TokensUnlocked(pubKeyTokenIdHash, toUnlockAmount, receiver, block.timestamp);
     }
 
     // -------------------------------

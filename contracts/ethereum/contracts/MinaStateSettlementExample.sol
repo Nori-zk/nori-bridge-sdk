@@ -12,7 +12,7 @@ error AccountIsNotValid(bytes32 accountIdHash);
 /// @title Mina to Ethereum Bridge's smart contract for verifying and storing a valid state chain.
 /// WARNING: This contract is meant ot be used as an example of how to use the Bridge.
 /// NEVER use this contract in a production environment.
-contract MinaStateSettlement {
+contract MinaStateSettlementExample {
     /// @notice The commitment to Mina proving system ID.
     bytes32 constant PROVING_SYSTEM_ID_COMM = 0xd0591206d9e81e07f4defc5327957173572bcd1bca7838caa7be39b0c12b1873;
 
