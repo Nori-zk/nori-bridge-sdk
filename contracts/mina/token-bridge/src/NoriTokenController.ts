@@ -68,19 +68,20 @@ export class NoriTokenController
             setPermissions: Permissions.impossible(),
             editState: Permissions.proof(),
             send: Permissions.proof(),
+            access: Permissions.proof() //!! NOW MUST BAN TOKEN OWNER's SIGNATURE APPROVAL UTILL `Precondition on Account Permissions` feature is feasible in o1js lib.
         });
     }
 
     /**
-     * NOTE: CANNOT BE A CIRCUIT METHOD AT CURRENT VERSION, otherwise results in attacks. See `NoriStorageInterface` for reasons
-     * 
-     * If it one day need to be transformed into a CIRCUIT METHOD (via decorating \@method), pls be beware of potential attacks. See `NoriStorageInterface` for reasons
+     * NOTE: If it one day need to be transformed into a CIRCUIT METHOD (via decorating \@method), pls be beware of potential attacks:
+     *  * If the account updates contains deployment of `NoriStorageInterface` on token holder accounts, MUST check if they have aligned with the `NoriTokenController.setUpStorage()`
      * 
      * @param forest 
      */
     approveBase(forest: AccountUpdateForest): Promise<void> {
         throw Error('block updates');
     }
+
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
         let tokenAccUpdate = AccountUpdate.createSigned(
             user,
@@ -100,7 +101,7 @@ export class NoriTokenController
             isSome: Bool(true),
             value: {
                 ...Permissions.default(),
-                editState: Permissions.proof(),
+                editState: Permissions.proof(), // CRITICAL!!!
                 // VK upgradability here?
                 setVerificationKey:
                     Permissions.VerificationKey.impossibleDuringCurrentVersion(),
@@ -117,6 +118,7 @@ export class NoriTokenController
             Field(0)
         );
     }
+
     /** Update the verification key.
      */
     @method
@@ -179,8 +181,6 @@ export class NoriTokenController
         storage.userKeyHash
             .getAndRequireEquals()
             .assertEquals(Poseidon.hash(userAddress.toFields()));
-
-        // storage.checkPermissionsValidity();
 
                 // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
@@ -271,7 +271,6 @@ export class NoriTokenController
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
         storage.requireSignature();// MUST require user's signature
         storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
-        //storage.checkPermissionsValidity();// Garuantee evil users cannot tamper zkappstate by signature
 
         // record amount to be burned
         await storage.increaseBurnedAmount(amountToBurn, receiver);

@@ -77,30 +77,4 @@ export class NoriStorageInterface extends SmartContract {
 
     return amountToBurn;
   }
-
-  /**
-   * check if permissions of Token Holder Account are properly set.
-   */
-  public checkPermissionsValidity() {
-    let permissions = this.self.update.permissions;
-
-    let { editState, setPermissions } = permissions.value;
-    let editStateIsProof = Provable.equal(
-      Types.AuthRequired,
-      editState,
-      Permissions.proof()
-    );
-    let setPermissionsIsProof = Provable.equal(
-      Types.AuthRequired,
-      setPermissions,
-      Permissions.proof()
-    );
-    let updateAllowed = editStateIsProof.and(setPermissionsIsProof);
-
-    assert(
-      updateAllowed,
-      PERMISSION_CHECK_ERROR_MESSAGE 
-    );
-  }
-
 }
