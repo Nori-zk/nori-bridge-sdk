@@ -28,9 +28,12 @@ contract NoriTokenBridge {
     // Mina account (attestationHash) -> ETH depositor
     mapping(uint256 => address) public codeChallengeToEthAddress;
 
-    /// @notice The NoriStorageInterface zkApp verification key hash.
-    uint256 constant NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH =
-        0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3; // TODO need change it
+    /// The NoriStorageInterface zkApp verification key hash.
+    // uint256 constant NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH = 0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3;
+
+    /// @notice The NoriStorageInterface zkApp tokenID.
+    uint256 constant NORI_STORAGE_ZKAPP_ACCT_TOKEN_ID =
+        0x1b848805a3db129b6b41adca52c9b6f380d58dc9c283f73ce17466a01b90d361; // TODO need change it
 
     /// @notice Mina bridge contract that validates and stores Mina states.
     MinaStateSettlementExample stateSettlement;
@@ -123,12 +126,16 @@ contract NoriTokenBridge {
         bytes calldata encodedAccount = pubInput[32 + 8:];
         MinaAccountValidationExample.Account memory account = abi.decode(encodedAccount, (MinaAccountValidationExample.Account));
 
+/* TODO MUST UNCOMMENT these conditions check in production
         // check that this account represents the circuit we expect
-        uint256 verificationKeyHash = uint256(keccak256(
-            abi.encode(account.zkapp.verificationKey)
-        ));
-        // TODO temporarily comment this check for test purpose, this is required!
-        // require(verificationKeyHash == NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH, "Incorrect Zkapp Account");
+        // uint256 verificationKeyHash = uint256(keccak256(
+        //    abi.encode(account.zkapp.verificationKey)
+        // ));
+        // require(verificationKeyHash == NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH, "Incorrect Zkapp Account"); // TODO Do we need check vk??
+        
+        // check if the tokenId is aligned
+        require(uint256(account.tokenIdKeyHash) == NORI_STORAGE_ZKAPP_ACCT_TOKEN_ID, "Incorrect Token Holder Account");
+*/
 
         // check if burnedSoFar at Mina account is greater than the existing burnSoFar
         uint256 pubKeyTokenIdHash = uint256(keccak256(abi.encode(account.publicKey, account.tokenIdKeyHash)));
