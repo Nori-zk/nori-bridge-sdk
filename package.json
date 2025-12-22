@@ -13,7 +13,7 @@
         "minimal-client"
     ],
     "devDependencies": {
-        "npm-workspaces-publish-tool": "^0.0.9",
+        "npm-workspaces-publish-tool": "^0.0.14",
         "typescript": "^5.1.0"
     },
     "scripts": {
