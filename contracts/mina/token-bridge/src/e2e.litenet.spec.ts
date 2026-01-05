@@ -347,6 +347,11 @@ describe('e2e', () => {
             );
             console.log('balanceOfUser', balanceOfUser);
 
+            // TODO should add burn token flow
+            //
+            //
+            //
+
             // END MAIN FLOW
         } finally {
             if (depositProcessingStatusSubscription)

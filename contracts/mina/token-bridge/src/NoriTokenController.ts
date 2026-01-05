@@ -68,12 +68,20 @@ export class NoriTokenController
             setPermissions: Permissions.impossible(),
             editState: Permissions.proof(),
             send: Permissions.proof(),
+            access: Permissions.proof() //!! NOW MUST BAN TOKEN OWNER's SIGNATURE APPROVAL UTILL `Precondition on Account Permissions` feature is feasible in o1js lib.
         });
     }
 
+    /**
+     * NOTE: If it one day need to be transformed into a CIRCUIT METHOD (via decorating \@method), pls be beware of potential attacks:
+     *  * If the account updates contains deployment of `NoriStorageInterface` on token holder accounts, MUST check if they have aligned with the `NoriTokenController.setUpStorage()`
+     * 
+     * @param forest 
+     */
     approveBase(forest: AccountUpdateForest): Promise<void> {
         throw Error('block updates');
     }
+
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
         let tokenAccUpdate = AccountUpdate.createSigned(
             user,
@@ -93,7 +101,7 @@ export class NoriTokenController
             isSome: Bool(true),
             value: {
                 ...Permissions.default(),
-                editState: Permissions.proof(),
+                editState: Permissions.proof(), // CRITICAL!!!
                 // VK upgradability here?
                 setVerificationKey:
                     Permissions.VerificationKey.impossibleDuringCurrentVersion(),
@@ -110,6 +118,7 @@ export class NoriTokenController
             Field(0)
         );
     }
+
     /** Update the verification key.
      */
     @method
@@ -166,12 +175,14 @@ export class NoriTokenController
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
 
+        storage.requireSignature();
+
         storage.account.isNew.requireEquals(Bool(false)); // that somehow allows to getState without index out of bounds
         storage.userKeyHash
             .getAndRequireEquals()
             .assertEquals(Poseidon.hash(userAddress.toFields()));
 
-        // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
+                // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
@@ -212,9 +223,70 @@ export class NoriTokenController
         await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
     }
 
+    /**
+     *  This function directly mints nETH tokens, bypassing normal Ethereum deposit flow. It’s intended for testing, not production use.
+     * @param amountToMint 
+     */
+    @method
+    public async alignedMint(amountToMint: Field) {
+        const userAddress = this.sender.getUnconstrained(); //TODO make user pass signature due to limit of AU
+        const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
+
+        // FOR TEST PURPOSE. Setting value here is intended for smoothly exec `canMint()` later.
+        this.mintLock.set(Bool(false));
+
+        let token = new FungibleToken(tokenAddress);
+
+        const controllerTokenId = this.deriveTokenId();
+        let storage = new NoriStorageInterface(userAddress, controllerTokenId);
+        
+        storage.requireSignature();
+
+        storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
+        // storage.userKeyHash.getAndRequireEquals().assertEquals(Poseidon.hash(userAddress.toFields()));
+        const _lockSoFar = storage.mintedSoFar.getAndRequireEquals().add(amountToMint);
+        // TODO As a just test, do I need follow this manner to maintain `mintSoFar` with the cost of extra constraints?
+        await storage.increaseMintedAmount(_lockSoFar);
+        Provable.log(amountToMint, 'amount to mint');
+
+        // Mint!
+        await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
+    }
+
+    /**
+     * 
+     * @param user 
+     * @param amountToMint 
+     */
+    @method public async alignedLock(
+        amountToBurn: Field,
+        receiver: Field
+    ) {
+        const userAddress = this.sender.getUnconstrained();
+        const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
+
+        const controllerTokenId = this.deriveTokenId();
+
+        // maintain Storage
+        let storage = new NoriStorageInterface(userAddress, controllerTokenId);
+        storage.requireSignature();// MUST require user's signature
+        storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
+
+        // record amount to be burned
+        await storage.increaseBurnedAmount(amountToBurn, receiver);
+
+        // burn it
+        let token = new FungibleToken(tokenAddress);
+        await token.burn(userAddress, UInt64.fromFields(amountToBurn.toFields()));
+    }
+
     @method.returns(Bool)
     public async canMint(_accountUpdate: AccountUpdate) {
-        this.mintLock.requireEquals(Bool(false));
+        // const _mintLock = this.mintLock.getAndRequireEquals(); // getAndRequireEquals() would return the onchain value, rather than the updated cache.
+        // _mintLock.assertEquals(Bool(false));
+
+        this.mintLock.requireEquals(Bool(false)); // this approach return the updated value during this transaction.
+
         this.mintLock.set(Bool(true));
         return Bool(true);
     }
