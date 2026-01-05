@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
-import "aligned_layer/contracts/src/core/AlignedLayerServiceManager.sol";
+import '@aligned_layer/contracts/src/core/IAlignedLayerServiceManager.sol';
 
 error MinaAccountProvingSystemIdIsNotValid(bytes32); // c1872967
 
@@ -9,7 +9,8 @@ error MinaAccountProvingSystemIdIsNotValid(bytes32); // c1872967
 /// NEVER use this contract in a production environment.
 contract MinaAccountValidationExample {
     /// @notice The commitment to Mina Account proving system ID.
-    bytes32 constant PROVING_SYSTEM_ID_COMM = 0xee2a4bc7db81da2b7164e56b3649b1e2a09c58c455b15dabddd9146c7582cebc;
+    bytes32 constant PROVING_SYSTEM_ID_COMM =
+        0xee2a4bc7db81da2b7164e56b3649b1e2a09c58c455b15dabddd9146c7582cebc;
 
     struct AlignedArgs {
         bytes32 proofCommitment;
@@ -23,34 +24,43 @@ contract MinaAccountValidationExample {
     }
 
     /// @notice Reference to the AlignedLayerServiceManager contract.
-    AlignedLayerServiceManager aligned;
+    IAlignedLayerServiceManager aligned;
 
     constructor(address payable _alignedServiceAddr) {
-        aligned = AlignedLayerServiceManager(_alignedServiceAddr);
+        aligned = IAlignedLayerServiceManager(_alignedServiceAddr);
     }
 
-    function validateAccount(AlignedArgs calldata args) external view returns (bool) {
+    function validateAccount(
+        AlignedArgs calldata args
+    ) external view returns (bool) {
         if (args.provingSystemAuxDataCommitment != PROVING_SYSTEM_ID_COMM) {
-            revert MinaAccountProvingSystemIdIsNotValid(args.provingSystemAuxDataCommitment);
+            revert MinaAccountProvingSystemIdIsNotValid(
+                args.provingSystemAuxDataCommitment
+            );
         }
 
         bytes32 pubInputCommitment = keccak256(args.pubInput);
 
-        return aligned.verifyBatchInclusion(
-            args.proofCommitment,
-            pubInputCommitment,
-            args.provingSystemAuxDataCommitment,
-            args.proofGeneratorAddr,
-            args.batchMerkleRoot,
-            args.merkleProof,
-            args.verificationDataBatchIndex,
-            args.batcherPaymentService
-        );
+        return
+            aligned.verifyBatchInclusion(
+                args.proofCommitment,
+                pubInputCommitment,
+                args.provingSystemAuxDataCommitment,
+                args.proofGeneratorAddr,
+                args.batchMerkleRoot,
+                args.merkleProof,
+                args.verificationDataBatchIndex,
+                args.batcherPaymentService
+            );
     }
 
-    function validateAccountAndReturn(AlignedArgs calldata args) external view returns (Account memory) {
+    function validateAccountAndReturn(
+        AlignedArgs calldata args
+    ) external view returns (Account memory) {
         if (args.provingSystemAuxDataCommitment != PROVING_SYSTEM_ID_COMM) {
-            revert MinaAccountProvingSystemIdIsNotValid(args.provingSystemAuxDataCommitment);
+            revert MinaAccountProvingSystemIdIsNotValid(
+                args.provingSystemAuxDataCommitment
+            );
         }
 
         bytes32 pubInputCommitment = keccak256(args.pubInput);

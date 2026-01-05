@@ -1,0 +1,10 @@
+@aligned_layer/=lib/aligned_layer/
+eigenlayer-middleware/=lib/aligned_layer/contracts/lib/eigenlayer-middleware/src/
+eigenlayer-core/=lib/aligned_layer/contracts/lib/eigenlayer-middleware/lib/eigenlayer-contracts/src/
+forge-std/=lib/aligned_layer/contracts/lib/forge-std/src/
+@openzeppelin/contracts/=lib/aligned_layer/contracts/lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts-upgradeable/=lib/aligned_layer/contracts/lib/openzeppelin-contracts-upgradeable/contracts/
+@openzeppelin-upgrades/contracts/=lib/aligned_layer/contracts/lib/eigenlayer-middleware/lib/openzeppelin-contracts-upgradeable/contracts/
+risc0-ethereum/=lib/aligned_layer/contracts/lib/risc0-ethereum/
+sp1-contracts/=lib/aligned_layer/contracts/lib/sp1-contracts/
+eigenlayer-contracts/=lib/aligned_layer/contracts/lib/eigenlayer-middleware/lib/eigenlayer-contracts/

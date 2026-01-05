@@ -33,3 +33,4 @@ ignition/deployments/chain-31337
 
 # Ignore test contract env output
 .env.nori-token-bridge
+lib
