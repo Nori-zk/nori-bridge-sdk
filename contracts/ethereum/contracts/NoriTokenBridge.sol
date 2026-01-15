@@ -15,6 +15,13 @@ contract NoriTokenBridge {
     uint256 public constant WEI_PER_BRIDGE_UNIT = 10 ** (18 - DECIMALS); // smallest bridge unit in wei
 
     // -------------------------------
+    // Custom Errors
+    // -------------------------------
+    error AlignedContractsNotConfigured();
+    error ZeroAddress();
+    error NotBridgeOperator();
+
+    // -------------------------------
     // State Variables
     // -------------------------------
     address public bridgeOperator;
@@ -49,21 +56,50 @@ contract NoriTokenBridge {
     // -------------------------------
     event TokensLocked(address indexed user, uint256 attestationHash, uint256 amount, uint256 when);
     event TokensUnlocked(uint256 indexed pubKeyTokenIdHash, uint256 amount, address receiver, uint256 when);
+    event StateSettlementSet(address indexed newAddress);
+    event AccountValidationSet(address indexed newAddress);
+
+    // -------------------------------
+    // Modifiers
+    // -------------------------------
+    modifier onlyBridgeOperator() {
+        if (msg.sender != bridgeOperator) revert NotBridgeOperator();
+        _;
+    }
+
+    modifier onlyConfigured() {
+        if (!isConfigured()) revert AlignedContractsNotConfigured();
+        _;
+    }
 
     // -------------------------------
     // Constructor
     // -------------------------------
-    constructor(address _stateSettlementAddr, address _accountValidationAddr) payable /*TODO Keep Payable for TEST(Mina->ETHEREUM)*/{
+    constructor() payable /*TODO Keep Payable for TEST(Mina->ETHEREUM)*/{
         bridgeOperator = msg.sender;
-        
+    }
+
+    // -------------------------------
+    // Configuration
+    // -------------------------------
+    function setAlignedContracts(address _stateSettlementAddr, address _accountValidationAddr) external onlyBridgeOperator {
+        if (_stateSettlementAddr == address(0) || _accountValidationAddr == address(0)) revert ZeroAddress();
+
         stateSettlement = MinaStateSettlementExample(_stateSettlementAddr);
         accountValidation = MinaAccountValidationExample(_accountValidationAddr);
+
+        emit StateSettlementSet(_stateSettlementAddr);
+        emit AccountValidationSet(_accountValidationAddr);
+    }
+
+    function isConfigured() public view returns (bool) {
+        return address(stateSettlement) != address(0) && address(accountValidation) != address(0);
     }
 
     // -------------------------------
     // Lock ETH for a Mina account
     // -------------------------------
-    function lockTokens(uint256 attestationHash) public payable {
+    function lockTokens(uint256 attestationHash) public payable onlyConfigured {
         // ===============================
         // VALIDATION
         // ===============================
@@ -107,7 +143,7 @@ contract NoriTokenBridge {
         uint256 verificationDataBatchIndex,
         bytes calldata pubInput,
         address batcherPaymentService
-    ) external {
+    ) external onlyConfigured {
         bytes32 ledgerHash = bytes32(pubInput[:32]);
         require(stateSettlement.isLedgerVerified(ledgerHash), "Invalid Ledger");
 
@@ -162,8 +198,7 @@ contract NoriTokenBridge {
     // -------------------------------
     // Admin-only withdraw all ETH
     // -------------------------------
-    function withdraw() public {
-        require(msg.sender == bridgeOperator, "Only bridge operator can withdraw");
+    function withdraw() public onlyBridgeOperator onlyConfigured {
 
         uint256 balance = address(this).balance;
         require(balance > 0, "No ETH to withdraw");
