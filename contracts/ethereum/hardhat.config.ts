@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-preprocessor";
+import fs from "fs";
+import path from "path";
 import "./tasks/lockTokens";
 import "./tasks/getTotalDeposited";
 import "./tasks/withdraw";
@@ -43,9 +46,83 @@ if (networkName === "hardhat") {
   console.log(`One private key loaded for deployment.`);
 }
 
+/**
+ * Loads Foundry-style remappings from remappings.txt
+ * Returns a Map for efficient lookup during preprocessing
+ */
+function loadRemappings(): Map<string, string> {
+  const remappingsPath = path.join(__dirname, "remappings.txt");
+  const remappings = new Map<string, string>();
+
+  if (!fs.existsSync(remappingsPath)) {
+    return remappings;
+  }
+
+  const content = fs.readFileSync(remappingsPath, "utf8");
+
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const [from, to] = trimmed.split("=");
+    if (from && to) {
+      remappings.set(from.trim(), to.trim());
+    }
+  }
+
+  return remappings;
+}
+
 const config: HardhatUserConfig = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      viaIR: true,
+    },
+  },
   networks,
+  paths: {
+    sources: "./contracts",
+    cache: "./cache",
+    artifacts: "./artifacts",
+  },
+  /**
+   * Preprocessing to support Foundry-style import remappings
+   *
+   * Context: Hardhat doesn't natively support Foundry's remappings.txt,
+   * and the @nomicfoundation/hardhat-foundry plugin doesn't handle cases
+   * where multiple remappings resolve to the same file (HH415 error).
+   *
+   * This preprocessor rewrites import statements to use resolved paths,
+   * allowing Hardhat to compile contracts that depend on Foundry libraries.
+   */
+  preprocess: {
+    eachLine: () => {
+      const remappings = loadRemappings();
+
+      return {
+        transform: (line: string) => {
+          // Only process import statements
+          if (!line.match(/^\s*import\s/)) {
+            return line;
+          }
+
+          // Apply first matching remapping
+          for (const [from, to] of remappings) {
+            if (line.includes(from)) {
+              return line.replace(from, to);
+            }
+          }
+
+          return line;
+        },
+      };
+    },
+  },
 };
 
 export default config;

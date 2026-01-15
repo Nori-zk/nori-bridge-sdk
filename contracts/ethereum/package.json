@@ -8,7 +8,7 @@
         "access": "public"
     },
     "scripts": {
-        "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
+        "build": "mkdir -p lib && (test -d lib/aligned_layer || git clone https://github.com/yetanotherco/aligned_layer --recursive lib/aligned_layer) && ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
@@ -21,13 +21,13 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
-        "dotenv-cli": "^8.0.0",
-        "hardhat": "^2.24.0",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
         "dotenv": "^16.5.0",
+        "dotenv-cli": "^8.0.0",
+        "hardhat": "^2.24.0",
+        "hardhat-preprocessor": "^0.1.5",
         "npm-workspaces-publish-tool": "^0.0.14"
     },
-    "dependencies": {},
     "files": [
         "build/",
         "package.json",
