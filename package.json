@@ -25,6 +25,6 @@
         "determine-breakage:o1js": "node determine-o1js-breaking-changes.js"
     },
     "overrides": {
-        "o1js": "https://pkg.pr.new/o1-labs/o1js@e2d5762"
+        "o1js": "2.12.0"
     }
 }

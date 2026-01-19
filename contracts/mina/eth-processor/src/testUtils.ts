@@ -3,7 +3,9 @@ export async function getNewMinaLiteNetAccountSK(): Promise<string> {
     const url = new URL(rpcUrl);
     const host = url.hostname;
     
-    const response = await fetch(`http://${host}:8181/acquire-account`);
+    const reqUrl = `http://${host}:8181/acquire-account`;
+    console.log(`Requesting pk from aquire account: ${reqUrl}`);
+    const response = await fetch(reqUrl);
     const data = await response.json();
     console.log(`Received new sk from acquire account.`);
     return data.sk;

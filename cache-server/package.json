@@ -42,7 +42,7 @@
         "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0"
     },
     "peerDependencies": {
-        "o1js": "2.3.0"
+        "o1js": "2.12.0"
     },
     "engines": {
         "node": ">=18.14.0"
