@@ -124,7 +124,7 @@ jobs:
             {
               "ref": "${{ github.ref_name }}",
               "inputs": {
-                "pi0": "${{ inputs.pi0 }}",
+                "pi0": ${{ inputs.pi0 }},
                 "bridge_head_ref": "${{ inputs.bridge_head_ref }}",
                 "pr_number": "${{ inputs.pr_number }}",
                 "build_id": "${{ inputs.build_id }}"
