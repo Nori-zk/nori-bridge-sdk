@@ -1,9 +1,10 @@
 import { PlonkProof } from '@nori-zk/o1js-zk-utils';
-import sp1ConsensusMPTPlonkProofRaw from './8727072-v5.0.0.json' with { type: 'json' };
+import sp1ConsensusMPTPlonkProofRaw from './9578560-v5.0.0.json' with { type: 'json' };
 const sp1ConsensusMPTPlonkProof = sp1ConsensusMPTPlonkProofRaw as ProofResultResultMessage;
 
 type ContractStorageSlot = {
     slot_key_address: string;
+    slot_nested_key_attestation_hash: string;
     value: string;
 };
 
