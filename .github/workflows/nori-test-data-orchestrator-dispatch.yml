@@ -15,8 +15,12 @@ on:
         description: 'proof-conversion-nori release branch (e.g., RELEASE/v2.0.7)'
         required: true
         type: string
-      pr_number:
-        description: 'Original PR number from parent'
+      build_source_repo_pr_number:
+        description: 'PR number from the source repo that triggered the build'
+        required: true
+        type: string
+      build_source_repo:
+        description: 'Repository name where the build was initiated'
         required: true
         type: string
       build_id:
@@ -32,7 +36,7 @@ jobs:
       contents: read
       pull-requests: write
     container:
-      image: docker.nori.it.com/stacksmith:1.0.6
+      image: docker.nori.it.com/stacksmith:2.0.0
       volumes:
         # SSH for git operations
         - /home/runner/.ssh:/root/.ssh:ro
@@ -81,13 +85,13 @@ jobs:
             const repoName = context.repo.repo;
             const message = `🔨 **Dispatch build started** for ${repoName} (nori-test-data-orchestrator-to-bridge-sdk)\n\n**Bridge SDK Release Branch:** ${{ inputs.bridge_sdk_release_branch }}\n**Build ID:** ${{ inputs.build_id }}\n**Workflow:** [View run details](${runUrl})`;
             
-            const prNumber = parseInt('${{ inputs.pr_number }}');
+            const prNumber = parseInt('${{ inputs.build_source_repo_pr_number }}');
             
             try {
               await github.rest.issues.createComment({
                 issue_number: prNumber,
                 owner: 'Nori-zk',
-                repo: 'nori-bridge-head',
+                repo: '${{ inputs.build_source_repo }}',
                 body: message
               });
             } catch (error) {
@@ -131,7 +135,8 @@ jobs:
                 "bridge_sdk_release_branch": "${{ inputs.bridge_sdk_release_branch }}",
                 "eth_processor_rabbit_release_branch": "${{ inputs.eth_processor_rabbit_release_branch }}",
                 "proof_conversion_nori_release_branch": "${{ inputs.proof_conversion_nori_release_branch }}",
-                "pr_number": "${{ inputs.pr_number }}",
+                "build_source_repo_pr_number": "${{ inputs.build_source_repo_pr_number }}",
+                "build_source_repo": "${{ inputs.build_source_repo }}",
                 "build_id": "${{ inputs.build_id }}"
               }
             }
@@ -149,7 +154,7 @@ jobs:
           script: |
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const repoName = context.repo.repo;
-            const prNumber = parseInt('${{ inputs.pr_number }}');
+            const prNumber = parseInt('${{ inputs.build_source_repo_pr_number }}');
             let message;
             
             if ('${{ job.status }}' === 'success') {
@@ -162,7 +167,7 @@ jobs:
               await github.rest.issues.createComment({
                 issue_number: prNumber,
                 owner: 'Nori-zk',
-                repo: 'nori-bridge-head',
+                repo: '${{ inputs.build_source_repo }}',
                 body: message
               });
             } catch (error) {
