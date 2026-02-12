@@ -14,28 +14,25 @@
     "description": "",
     "devDependencies": {
         "@types/http-proxy": "^1.17.17",
-        "dotenv": "^17.2.1",
-        "esbuild": "^0.25.9",
-        "express": "^5.1.0",
-        "puppeteer": "^24.31.0",
-        "typescript": "^5.9.2"
+        "dotenv": "^17.2.4",
+        "esbuild": "^0.27.3",
+        "express": "^5.2.1",
+        "puppeteer": "^24.37.2",
+        "typescript": "^5.9.3"
     },
     "peerDependencies": {
         "@types/chai": "^5.2.2",
         "@types/express": "^5.0.3",
         "@types/node": "^24.7.2",
-        "o1js": "https://pkg.pr.new/o1-labs/o1js@e2d5762"
+        "o1js": "2.12.0"
     },
     "dependencies": {
         "@nori-zk/ethereum-token-bridge": "*",
-        "@nori-zk/proof-conversion": "^0.5.15",
-        "@nori-zk/pts-types": "^4.0.0",
+        "@nori-zk/proof-conversion": "0.8.16",
+        "@nori-zk/pts-types": "5.0.0",
         "@nori-zk/workers": "*",
-        "ethers": "^6.15.0",
+        "ethers": "^6.16.0",
         "http-proxy": "^1.18.1",
         "rxjs": "^7.8.2"
-    },
-    "overrides": {
-        "o1js": "https://pkg.pr.new/o1-labs/o1js@e2d5762"
     }
 }

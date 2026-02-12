@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { resolve } from 'path';
 import { Cache } from 'o1js';
 import { randomBytes } from 'crypto';
@@ -6,15 +6,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { EthVerifier } from '../ethVerifier.js';
 import { rootDir } from '../rootDir.js';
 
-new LogPrinter('[NoriEthVerifier]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthVerifier');
 
 const logger = new Logger('CompileZksAndBakeVkHashes');
 

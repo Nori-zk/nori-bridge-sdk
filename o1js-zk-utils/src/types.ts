@@ -13,6 +13,7 @@ import {
     PrivateInput,
     ZkProgram as ZkProgramFunc,
 } from 'o1js/dist/node/lib/proof-system/zkprogram.js';
+import { ConversionOutput, SP1ProofWithPublicValuesPlonkNoTee } from '@nori-zk/proof-conversion/build/src/index.min.js';
 
 export type Constructor<T = any> = new (...args: any) => T;
 
@@ -38,47 +39,9 @@ export type CompilableZkProgram = {
     }>;
 };
 
-export interface Proof {
-    Plonk: {
-        encoded_proof: string;
-        plonk_vkey_hash: number[];
-        public_inputs: string[];
-        raw_proof: string;
-    };
-}
-
-export interface PublicValues {
-    buffer: {
-        data: number[];
-    };
-}
-
-export interface PlonkProof {
-    proof: Proof;
-    public_values: PublicValues;
-    sp1_version: string;
-}
-
-export interface ConvertedProofProofData {
-    maxProofsVerified: 0 | 1 | 2;
-    proof: string;
-    publicInput: string[];
-    publicOutput: string[];
-}
-
-export interface ConvertedProofVkData {
-    data: string;
-    hash: string;
-}
-
-export interface ConvertedProof {
-    vkData: ConvertedProofVkData;
-    proofData: ConvertedProofProofData;
-}
-
 export interface CreateProofArgument {
-    sp1PlonkProof: PlonkProof;
-    conversionOutputProof: ConvertedProof;
+    sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee;
+    conversionOutputProof: ConversionOutput;
 }
 
 export type EthVerifierComputeOutput = Awaited<

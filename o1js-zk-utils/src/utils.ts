@@ -1,7 +1,7 @@
 import { Cache, Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { NoriSP1ProofInput } from '@nori-zk/pts-types';
 import {
-    PlonkProof,
     Bytes32,
     ZkProgram,
     CompilableZkProgram,
@@ -81,7 +81,7 @@ const proofOffsets = {
 
 const proofTotalLength = 176;
 
-export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
+export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
         ethSP1Proof.public_values.buffer.data
         // Buffer.from() this is nodejs specific and seemingly redundant

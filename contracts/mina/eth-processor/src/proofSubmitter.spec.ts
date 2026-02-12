@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     buildExampleProofCreateArgument,
     buildExampleProofSeriesCreateArguments,
@@ -16,15 +16,7 @@ import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';
 
-new LogPrinter('[TestEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('TestEthProcessor');
 
 process.env.NETWORK = process.env.NETWORK || 'lightnet';
 process.env.MINA_RPC_NETWORK_URL = process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';

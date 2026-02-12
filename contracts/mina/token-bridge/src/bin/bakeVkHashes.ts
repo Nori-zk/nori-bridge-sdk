@@ -1,4 +1,4 @@
-//import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { resolve } from 'path';
 import { Cache, SmartContract } from 'o1js'; // ProofBase
 import { randomBytes } from 'crypto';
@@ -15,18 +15,9 @@ import { NoriStorageInterface } from '../NoriStorageInterface.js';
 //import { type Gate } from 'o1js/dist/node/snarky.js';
 //import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
 
-/*new LogPrinter('[NoriMinaTokenBridge]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriMinaTokenBridge');
 
-const logger = new Logger('CompileZks');*/
-const logger = console;
+const logger = new Logger('CompileZks');
 
 //type ProofClass = Subclass<typeof ProofBase>;
 type CompilableZkProgramWithAnalyze = CompilableZkProgram & {

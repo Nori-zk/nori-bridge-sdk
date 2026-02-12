@@ -9,7 +9,7 @@ import {
     fetchAccount,
     PublicKey,
 } from 'o1js';
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { rootDir } from '../utils.js';

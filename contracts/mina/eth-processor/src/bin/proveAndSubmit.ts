@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { CreateProofArgument } from '@nori-zk/o1js-zk-utils';
 import { vkData } from '../proofs/nodeVk.js';
 import { p0 } from '../proofs/p0.js';

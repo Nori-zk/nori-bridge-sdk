@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { AccountUpdate, Mina, PrivateKey, NetworkId, fetchAccount } from 'o1js';
-import { Logger } from '@nori-zk/proof-conversion';
+import { Logger } from 'esm-iso-logger';
 import { EthProcessor, EthProofType } from './ethProcessor.js';
 import {
     EthVerifier,

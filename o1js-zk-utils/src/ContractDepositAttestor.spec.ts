@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     ContractDepositAttestorInput,
     ContractDepositAttestor,
@@ -22,15 +22,7 @@ import {
 } from './utils.js';
 
 const logger = new Logger('ContractDepositAttestor');
-new LogPrinter('[TestEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('TestEthProcessor');
 
 describe('Contract Storage Slot Deposit Attestor Test', () => {
     test('contract_deposit_pipeline', async () => {

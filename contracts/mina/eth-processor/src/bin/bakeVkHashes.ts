@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { resolve } from 'path';
 import { Cache } from 'o1js';
 import { randomBytes } from 'crypto';
