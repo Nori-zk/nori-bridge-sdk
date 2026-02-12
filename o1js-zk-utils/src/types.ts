@@ -1,21 +1,19 @@
 import {
     Bytes,
     Field,
-    Provable,
-    ProvableType,
+    type ProvableType,
     Struct,
-    UInt64,
     UInt8,
 } from 'o1js';
-import { EthVerifier } from './ethVerifier.js';
-import { Tuple } from 'o1js/dist/node/lib/util/types.js';
+import { type EthVerifier } from './ethVerifier.js';
+import { type Tuple } from 'o1js/dist/node/lib/util/types.js';
 import {
-    PrivateInput,
-    ZkProgram as ZkProgramFunc,
+    type PrivateInput,
+    type ZkProgram as ZkProgramFunc,
 } from 'o1js/dist/node/lib/proof-system/zkprogram.js';
-import { ConversionOutput, SP1ProofWithPublicValuesPlonkNoTee } from '@nori-zk/proof-conversion/build/src/index.min.js';
+import { type ConversionOutput, type SP1ProofWithPublicValuesPlonkNoTee } from '@nori-zk/proof-conversion/build/src/index.min.js';
 
-export type Constructor<T = any> = new (...args: any) => T;
+export type Constructor<T = unknown> = new (...args: unknown[]) => T;
 
 export type ZkProgram<
     Config extends {
@@ -31,7 +29,7 @@ export type ZkProgram<
 > = ReturnType<typeof ZkProgramFunc<Config>>;
 
 export type CompilableZkProgram = {
-    compile: (options?: any) => Promise<{
+    compile: (options?: unknown) => Promise<{
         verificationKey: {
             data: string;
             hash: Field;

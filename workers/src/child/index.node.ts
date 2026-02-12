@@ -5,7 +5,7 @@ const logger = new Logger('WorkerChildNode');
 
 export class WorkerChild implements WorkerChildParentInterface {
     private messageCallback?: (response: string) => void;
-    private errorCallback?: (error: any) => void;
+    private errorCallback?: (error: unknown) => void;
     private proc: NodeJS.Process;
 
     constructor(proc: NodeJS.Process = process) {
@@ -35,7 +35,7 @@ export class WorkerChild implements WorkerChildParentInterface {
         this.messageCallback = callback;
     }
 
-    onErrorHandler(callback: (error: any) => void): void {
+    onErrorHandler(callback: (error: unknown) => void): void {
         this.errorCallback = callback;
     }
 

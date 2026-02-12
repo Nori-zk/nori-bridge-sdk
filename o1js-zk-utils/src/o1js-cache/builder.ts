@@ -1,7 +1,7 @@
 import {
-    ZKCacheWithProgram,
-    ZKCacheLayout,
-    FileSystemCacheConfig,
+    type ZKCacheWithProgram,
+    type ZKCacheLayout,
+    type FileSystemCacheConfig,
     CacheType,
     compileAndOptionallyVerifyContracts,
 } from '../index.js';

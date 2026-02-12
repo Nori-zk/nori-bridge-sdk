@@ -8,7 +8,7 @@ import {
     computeMerkleRootFromPath,
     getMerklePathFromLeaves,
 } from './merkleTree.js';
-import { Bytes20, Bytes32 } from '../types.js';
+import { type Bytes20, type Bytes32 } from '../types.js';
 import {
     buildLeavesNonProvable,
     dummyAddress,

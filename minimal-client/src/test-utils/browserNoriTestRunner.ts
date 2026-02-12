@@ -2,7 +2,6 @@ import {
     bundleTests,
     findBrowser,
     startServer,
-    ROOT_DIR,
 } from './browserTestRunnerUtils.js';
 import { spawn } from 'child_process';
 import { Logger } from 'esm-iso-logger';

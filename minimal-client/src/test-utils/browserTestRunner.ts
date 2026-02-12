@@ -19,6 +19,18 @@ interface Suite {
     suites: Suite[];
 }
 
+type GlobalWithTests = typeof globalThis & {
+    describe: typeof describe;
+    it: typeof it;
+    test: typeof test;
+    beforeAll: typeof beforeAll;
+    beforeEach: typeof beforeEach;
+    afterEach: typeof afterEach;
+    after: typeof after;
+    runTests: typeof runTests;
+    testsFinished?: boolean;
+};
+
 let currentSuite: Suite = {
     name: 'root',
     tests: [],
@@ -123,7 +135,7 @@ const originalConsole = console;
 
 function createConsoleLine(
     type: 'log' | 'info' | 'warn' | 'error',
-    ...args: any[]
+    ...args: unknown[]
 ) {
     const logEl = document.createElement('div');
     logEl.style.margin = '2px 0';
@@ -160,7 +172,7 @@ function captureTestConsole(currentTestConsoleEl: HTMLElement) {
 
     const createFn =
         (type: 'log' | 'info' | 'warn' | 'error') =>
-        (...args: any[]) => {
+        (...args: unknown[]) => {
             // Add bottom padding when first log appears
             if (!hasLogs) {
                 currentTestConsoleEl.style.padding = '20px 20px 20px 20px';
@@ -278,7 +290,11 @@ async function runSuite(
         try {
             for (const fn of beforeEachChain) await fn();
 
-            await withTimeout(Promise.resolve(t.fn()), t.timeout!, t.name);
+            if (t.timeout !== undefined) {
+                await withTimeout(Promise.resolve(t.fn()), t.timeout, t.name);
+            } else {
+                await t.fn();
+            }
 
             const testEnd = performance.now();
             const duration = (testEnd - testStart).toFixed(2);
@@ -291,13 +307,12 @@ async function runSuite(
             titleEl.style.color = '#388e3c'; // green
             testEl.appendChild(titleEl);
         } catch (err: unknown) {
-            const error: Error | any = err;
             const errorMessage =
-                error instanceof Error
-                    ? error?.stack || error?.message
-                    : typeof error === 'object' && error !== null
-                    ? JSON.stringify(error)
-                    : String(error);
+                err instanceof Error
+                    ? err.stack || err.message
+                    : typeof err === 'object' && err !== null
+                    ? JSON.stringify(err)
+                    : String(err);
 
             const testEnd = performance.now();
             const duration = (testEnd - testStart).toFixed(2);
@@ -352,15 +367,16 @@ export async function runTests() {
     timeEl.textContent = `Total test run time: ${totalDuration} ms`;
     container.appendChild(timeEl);
 
-    (globalThis as any).testsFinished = true;
+    (globalThis as GlobalWithTests).testsFinished = true;
 }
 
 // === Globals ===
-(globalThis as any).describe = describe;
-(globalThis as any).it = it;
-(globalThis as any).test = test;
-(globalThis as any).beforeAll = beforeAll;
-(globalThis as any).beforeEach = beforeEach;
-(globalThis as any).afterEach = afterEach;
-(globalThis as any).after = after;
-(globalThis as any).runTests = runTests;
+const globalWithTests = globalThis as GlobalWithTests;
+globalWithTests.describe = describe;
+globalWithTests.it = it;
+globalWithTests.test = test;
+globalWithTests.beforeAll = beforeAll;
+globalWithTests.beforeEach = beforeEach;
+globalWithTests.afterEach = afterEach;
+globalWithTests.after = after;
+globalWithTests.runTests = runTests;

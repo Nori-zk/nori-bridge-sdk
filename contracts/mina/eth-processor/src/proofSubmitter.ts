@@ -38,6 +38,8 @@ export class MinaEthProcessorSubmitter {
     }
 
     constructor(private cache: FileSystemCacheConfig = undefined) {
+        void this.#ethVerifierVerificationKey;
+        void this.#testMode;
         logger.info(`🛠 MinaEthProcessorSubmitter constructor called!`);
         const errors: string[] = [];
 
@@ -237,8 +239,11 @@ export class MinaEthProcessorSubmitter {
 
             const tx = await updateTx.sign([this.#senderPrivateKey]).send();
             logger.log(`Transaction sent to '${this.#network}'.`);
-            const txId = tx.data!.sendZkapp.zkapp.id;
-            const txHash = tx.data!.sendZkapp.zkapp.hash;
+            if (!tx.data) {
+                throw new Error('Transaction data is undefined');
+            }
+            const txId = tx.data.sendZkapp.zkapp.id;
+            const txHash = tx.data.sendZkapp.zkapp.hash;
             if (!txId) {
                 throw new Error('txId is undefined');
             }

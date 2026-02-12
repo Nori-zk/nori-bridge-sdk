@@ -1,13 +1,11 @@
-import { Cache, Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
+import { type Cache, type Field, type SmartContract, UInt64, UInt8, type VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { NoriSP1ProofInput } from '@nori-zk/pts-types';
+import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
 import {
     Bytes32,
-    ZkProgram,
-    CompilableZkProgram,
+    type CompilableZkProgram,
 } from './types.js';
-import { CacheConfig } from './o1js-cache/types.js';
-import { cacheFactory } from './o1js-cache/index.js';
+import { type Logger } from 'esm-iso-logger';
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -151,7 +149,7 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 
 // Deprecate this!
 export async function compileAndVerifyContracts(
-    logger: any, // Logger fix this later
+    logger: Logger,
     contracts: {
         name: string;
         program: typeof SmartContract | CompilableZkProgram; // Ideally we would use CompilableZkProgram

@@ -1,4 +1,4 @@
-import { Cache, CacheHeader } from 'o1js';
+import { Cache, type CacheHeader } from 'o1js';
 import { type CacheType } from './types.js';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

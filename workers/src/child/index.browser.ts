@@ -5,7 +5,7 @@ const logger = new Logger('WorkerChildBrowser');
 
 export class WorkerChild implements WorkerChildParentInterface {
     private messageCallback?: (response: string) => void;
-    private errorCallback?: (error: any) => void;
+    private errorCallback?: (error: unknown) => void;
 
     constructor() {
         self.addEventListener('message', (ev: MessageEvent) => {
@@ -34,7 +34,7 @@ export class WorkerChild implements WorkerChildParentInterface {
         this.messageCallback = callback;
     }
 
-    onErrorHandler(callback: (error: any) => void): void {
+    onErrorHandler(callback: (error: unknown) => void): void {
         this.errorCallback = callback;
     }
 

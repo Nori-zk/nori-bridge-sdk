@@ -1,4 +1,4 @@
-import { App, HttpResponse } from 'uWebSockets.js';
+import { App, type HttpResponse } from 'uWebSockets.js';
 import path, { resolve } from 'path';
 import { access, constants, readFile } from 'fs';
 import { fileURLToPath } from 'url';

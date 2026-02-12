@@ -1,5 +1,5 @@
-import { fork, ChildProcess } from 'child_process';
-import { DeferredPromise, type WorkerParentChildInterface } from '../index.js';
+import { fork, type ChildProcess } from 'child_process';
+import { type WorkerParentChildInterface } from '../index.js';
 import path from 'path';
 import ts from 'typescript';
 import fs from 'fs';
@@ -138,7 +138,7 @@ export class WorkerParent implements WorkerParentChildInterface {
         this.messageCallback = callback;
     }
 
-    onErrorHandler(callback: (error: any) => void): void {
+    onErrorHandler(callback: (error: unknown) => void): void {
         this.errorCallback = callback;
     }
 

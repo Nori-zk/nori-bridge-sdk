@@ -1,12 +1,12 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { Bytes, NetworkId, PrivateKey } from 'o1js';
+import { type NetworkId, PrivateKey } from 'o1js';
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from '@nori-zk/mina-token-bridge/rx/topics';
-import { Subscription } from 'rxjs';
+import type { Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
@@ -14,12 +14,10 @@ import {
     readyToComputeMintProof,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { getZkAppWorker } from './zkAppWorkerClient.js';
-import { BigNumberish, ethers, id, TransactionResponse } from 'ethers';
+import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { Wallet } from 'ethers';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 import { createTimer } from '@nori-zk/o1js-zk-utils';
-import { expect } from 'chai';
 import { describe, test } from './test-utils/browserTestRunner.js'
 
 function validateEnv(): {

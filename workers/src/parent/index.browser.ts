@@ -1,4 +1,4 @@
-import { DeferredPromise, WorkerParentChildInterface } from '../index.js';
+import { type WorkerParentChildInterface } from '../index.js';
 import { Logger } from 'esm-iso-logger';
 
 const logger = new Logger('WorkerParentBrowser');
@@ -28,7 +28,7 @@ export class WorkerParent implements WorkerParentChildInterface {
         this.messageCallback = callback;
     }
 
-    onErrorHandler(callback: (error: any) => void): void {
+    onErrorHandler(callback: (error: unknown) => void): void {
         this.errorCallback = callback;
     }
 
