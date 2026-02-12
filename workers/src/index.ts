@@ -1,3 +1,7 @@
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('Workers');
+
 /**
  * Base interface for a communication endpoint between a parent and a worker.
  */
@@ -284,7 +288,7 @@ export class WorkerChildBase {
         if (methodName === 'worker-terminate') {
             // Call the terminate function on the Child ParentInterface which
             // will contain the endpoint (node or browser) terminate method.
-            console.log('Calling terminate on self', this.parent);
+            logger.log('Calling terminate on self', this.parent);
             // So this is the child killing itself even though the 'parent' naming falls down hear.
             // We are not requesting the parent thread/process terminate themselves. We are termining ourselves.
             this.parent.terminate();

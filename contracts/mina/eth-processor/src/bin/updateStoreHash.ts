@@ -13,17 +13,9 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
-const logger = new Logger('Deploy');
+const logger = new Logger('UpdateStoreHash');
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
 const missingEnvVariables: string[] = [];
 

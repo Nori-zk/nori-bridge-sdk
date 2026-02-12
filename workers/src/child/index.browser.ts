@@ -1,4 +1,7 @@
 import type { WorkerChildParentInterface } from '../index.js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('WorkerChildBrowser');
 
 export class WorkerChild implements WorkerChildParentInterface {
     private messageCallback?: (response: string) => void;
@@ -14,12 +17,12 @@ export class WorkerChild implements WorkerChildParentInterface {
                     this.messageCallback(JSON.stringify(data));
                 }
             }
-            else console.warn('Callback for messages not assigned. Call onMessageHandler first.'); 
+            else logger.warn('Callback for messages not assigned. Call onMessageHandler first.'); 
         });
 
         self.addEventListener('error', (ev: ErrorEvent) => {
             if (this.errorCallback) this.errorCallback(ev.error);
-            else console.warn('ErrorCallback for error not assigned. Call onErrorHandler first.');
+            else logger.warn('ErrorCallback for error not assigned. Call onErrorHandler first.');
         });
     }
 

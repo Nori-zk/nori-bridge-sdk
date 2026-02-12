@@ -1,9 +1,12 @@
 import 'dotenv/config';
 import { PrivateKey } from 'o1js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('DeployTokenController');
 
 export async function deployTokenController() {
-    console.log('Deploying Nori Token Controller...');
+    logger.log('Deploying Nori Token Controller...');
     const defaultLightnetUrl = 'http://localhost:8080/graphql';
     const networkUrl = process.env.MINA_RPC_NETWORK_URL || defaultLightnetUrl;
     const network =
@@ -11,7 +14,7 @@ export async function deployTokenController() {
             ? 'testnet'
             : 'mainnet';
 
-    console.log(`🚀 Starting deployment to ${network}`);
+    logger.log(`🚀 Starting deployment to ${network}`);
     // Configuration
     // Get or generate sender private key
     let senderPrivateKey = process.env.SENDER_PRIVATE_KEY;
@@ -29,7 +32,7 @@ export async function deployTokenController() {
 
     // Determine if we are a mock
     const mock = !!process.env.MOCK;
-    console.log('mock', mock);
+    logger.log('mock', mock);
 
     // Create the config with the saved variables
     const config = {
@@ -46,9 +49,9 @@ export async function deployTokenController() {
         mock: mock,
     };
 
-    console.log('config', config);
+    logger.log('config', config);
 
-    console.log(`Configuration loaded: {
+    logger.log(`Configuration loaded: {
             network: ${network},
             networkUrl: ${config.networkUrl},
             adminPublicKey: ${config.adminPublicKey},
@@ -59,30 +62,30 @@ export async function deployTokenController() {
         }`);
 
     // Log private keys (warning: sensitive information)
-    console.log('Private Keys (keep secure):');
-    console.log(`Sender: ${senderPrivateKey}`);
-    console.log(`Token Controller: ${noriTokenControllerPrivateKey}`);
-    console.log(`Token Base: ${tokenBasePrivateKey}`);
+    logger.log('Private Keys (keep secure):');
+    logger.log(`Sender: ${senderPrivateKey}`);
+    logger.log(`Token Controller: ${noriTokenControllerPrivateKey}`);
+    logger.log(`Token Base: ${tokenBasePrivateKey}`);
 
     let ethProcessorAddress: string = config.ethProcessorAddress;
     if (!ethProcessorAddress) {
-        console.log('Inventing a random eth processor address.');
+        logger.log('Inventing a random eth processor address.');
         ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
     }
 
-    console.log('Constructing and compiling token deployer worker.');
+    logger.log('Constructing and compiling token deployer worker.');
     const TokenDeployerWorker = getTokenDeployerWorker();
     const tokenDeployer = new TokenDeployerWorker();
     const { noriStorageInterfaceVerificationKeySafe } =
         await tokenDeployer.compile();
 
-    console.log('Calling minaSetup.');
+    logger.log('Calling minaSetup.');
     await tokenDeployer.minaSetup({
         networkId: network,
         mina: networkUrl,
     });
 
-    console.log('Deploying contract.');
+    logger.log('Deploying contract.');
     const { tokenBaseAddress, noriTokenControllerAddress, txHash } =
         await tokenDeployer.deployContracts(
             config.senderPrivateKey, //contractSenderPrivateKeyBase58,
@@ -99,18 +102,18 @@ export async function deployTokenController() {
             }
         );
 
-    console.log('🎉 Deployment completed successfully!');
-    console.log(`Contract addresses/public keys:
+    logger.log('🎉 Deployment completed successfully!');
+    logger.log(`Contract addresses/public keys:
             NoriTokenController: ${noriTokenControllerAddress},
             TokenBase: ${tokenBaseAddress},
             TransactionHash: ${txHash}
             `);
 
     // Print environment variables for easy setup
-    console.log('\n📋 Environment variables for future use:');
-    console.log(`NORI_TOKEN_CONTROLLER_ADDRESS=${noriTokenControllerAddress}`);
-    console.log(`TOKEN_BASE_ADDRESS=${tokenBaseAddress}`);
-    console.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
+    logger.log('\n📋 Environment variables for future use:');
+    logger.log(`NORI_TOKEN_CONTROLLER_ADDRESS=${noriTokenControllerAddress}`);
+    logger.log(`TOKEN_BASE_ADDRESS=${tokenBaseAddress}`);
+    logger.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
 
     return {
         tokenBaseAddress,

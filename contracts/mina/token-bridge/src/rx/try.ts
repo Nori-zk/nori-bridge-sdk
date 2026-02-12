@@ -7,13 +7,16 @@ import {
 } from './topics.js';
 import { getBridgeStateWithTimings$ } from './state.js';
 import { getDepositProcessingStatus$ } from './deposit.js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('RxTry');
 
 // Util for testing Obserables
 function testSub($: Observable<any>) {
     $.subscribe({
-        error: console.error,
-        next: console.log,
-        complete: () => console.log('complete'),
+        error: logger.error,
+        next: logger.log,
+        complete: () => logger.log('complete'),
     });
 }
 

@@ -103,7 +103,7 @@ export class MinaEthProcessorSubmitter {
             ? await cacheFactory(this.cache)
             : undefined;
 
-        console.log('fileSystemCache', fileSystemCache, this.cache);
+        logger.log('fileSystemCache', fileSystemCache, this.cache);
 
         const { ethVerifierVerificationKey, ethProcessorVerificationKey } =
             await compileAndOptionallyVerifyContracts(

@@ -26,6 +26,10 @@ import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
 import os from 'os';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+
+new LogPrinter('TokenDeployerWorker');
+const logger = new Logger('TokenDeployerWorker');
 
 export interface DeploymentResult {
     noriTokenControllerAddress: string;
@@ -68,7 +72,7 @@ export class TokenDeployerWorker {
     }
 
     async compile() {
-        console.log('Compiling all contracts/programs ...');
+        logger.log('Compiling all contracts/programs ...');
 
         const randomFileSystemCacheConfig = getRandomCacheDir();
         this.#cacheConfig = randomFileSystemCacheConfig;
@@ -99,7 +103,7 @@ export class TokenDeployerWorker {
 
         // Compile all contracts using the helper
         const compiledVks = await compileAndOptionallyVerifyContracts(
-            console,
+            logger,
             contracts,
             fileSystemCache
         );
@@ -118,7 +122,7 @@ export class TokenDeployerWorker {
             compiledVks.NoriTokenControllerVerificationKey
         );
 
-        console.log('All contracts/programs compiled successfully.');
+        logger.log('All contracts/programs compiled successfully.');
 
         return {
             ethVerifierVerificationKeySafe,
@@ -154,14 +158,14 @@ export class TokenDeployerWorker {
         const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
         const storageInterfaceVerificationKey = { data, hash };
         const adminPublicKey = PublicKey.fromBase58(adminPublicKeyBase58);
-        console.log('senderPrivateKeyBase58', !!senderPrivateKeyBase58);
+        logger.log('senderPrivateKeyBase58', !!senderPrivateKeyBase58);
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
 
         const ethProcessorAddress = PublicKey.fromBase58(
             ethProcessorAddressBase58
         );
 
-        console.log('Deploying NoriTokenController and TokenBase contracts...');
+        logger.log('Deploying NoriTokenController and TokenBase contracts...');
 
         const symbol = options.symbol || 'nETH';
         const decimals = UInt8.from(options.decimals || 18);
@@ -215,10 +219,10 @@ export class TokenDeployerWorker {
             }
         );
 
-        console.log('Deploy transaction created. Proving...');
+        logger.log('Deploy transaction created. Proving...');
         await deployTx.prove();
 
-        console.log('Transaction proved. Signing and sending...');
+        logger.log('Transaction proved. Signing and sending...');
         const tx = await deployTx
             .sign([
                 senderPrivateKey,
@@ -229,7 +233,7 @@ export class TokenDeployerWorker {
 
         const result = await tx.wait();
 
-        console.log('Contracts deployed successfully');
+        logger.log('Contracts deployed successfully');
 
         removeCacheDir(this.#cacheConfig);
 

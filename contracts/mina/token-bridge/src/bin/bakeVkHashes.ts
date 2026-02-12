@@ -129,7 +129,6 @@ async function main() {
 }
 
 main().catch((err) => {
-    logger.error(`Main function had an error:\n${String(err.stack)}`); // fatal
     rmSync(ephemeralCacheDir, { recursive: true, force: true });
-    process.exit(1);
+    logger.fatal(`Main function had an error:\n${String(err.stack)}`);
 });

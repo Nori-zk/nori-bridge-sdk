@@ -1,3 +1,4 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     buildContractDepositLeaves,
     ContractDeposit,
@@ -15,7 +16,7 @@ import {
     fieldToBigIntLE,
     fieldToHexLE,
     fieldToHexBE,
-    NodeProofLeft, 
+    NodeProofLeft,
     uint8ArrayToBigIntBE
 } from '@nori-zk/o1js-zk-utils';
 import { EthProcessor } from '@nori-zk/ethprocessor/browser';
@@ -27,6 +28,9 @@ import {
     EthDepositProgramInput,
     EthDepositProgram,
 } from './EthDepositProgram.js';
+
+new LogPrinter('TestEthProcessor');
+const logger = new Logger('E2EPrerequisitesSpec');
 
 const mptConsensusProofBundle = proofArgument;
 const bridgeHeadJobSucceededMessage = bridgeHeadJobSucceededExample;
@@ -43,7 +47,7 @@ function hexStringToUint8Array(hex: string): Uint8Array {
 
 describe('e2e_prerequisites', () => {
     test('import_eth_processor', async () => {
-        console.log(EthProcessor);
+        logger.log(EthProcessor);
     });
     test('hex_field_hex_round_trip', async () => {
         // Lets start with a field
@@ -57,7 +61,7 @@ describe('e2e_prerequisites', () => {
         const originalBEHex = `0x${Bytes.from(
             wordToBytes(field, 32).reverse()
         ).toHex()}`;
-        console.log('OriginalHex', originalBEHex);
+        logger.log('OriginalHex', originalBEHex);
         // Convert back to bytes
         const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
 
@@ -72,7 +76,7 @@ describe('e2e_prerequisites', () => {
         // And back to hex
         const convertedHex = `0x${leBytes.toHex()}`;
 
-        console.log('ConvertedHex', convertedHex);
+        logger.log('ConvertedHex', convertedHex);
 
         expect(convertedHex).toEqual(originalBEHex);
     });
@@ -89,7 +93,7 @@ describe('e2e_prerequisites', () => {
         const originalBEHex = `0x${Bytes.from(
             wordToBytes(field, 32).reverse()
         ).toHex()}`;
-        console.log('OriginalHex', originalBEHex);
+        logger.log('OriginalHex', originalBEHex);
         // Convert back to bytes
         const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
         const oleBytes = obeBytes.bytes.reverse();
@@ -108,7 +112,7 @@ describe('e2e_prerequisites', () => {
         // And back to hex
         const convertedHex = `0x${beByte.toHex()}`;
 
-        console.log('ConvertedHex', convertedHex);
+        logger.log('ConvertedHex', convertedHex);
 
         expect(convertedHex).toEqual(originalBEHex);
     });
@@ -116,7 +120,7 @@ describe('e2e_prerequisites', () => {
     test('hex_field_hex_round_trip_real_example"', async () => {
         // Convert it to a hex value
         const originalBEHex = `0x20cceb5b591e742c13fd7f3894f97139c964606f2928eefdc234e8a3a55c10b2`;
-        console.log('OriginalHex', originalBEHex);
+        logger.log('OriginalHex', originalBEHex);
         // Convert back to bytes
         const obeBytes = Bytes.fromHex(originalBEHex.slice(2));
         const oleBytes = obeBytes.bytes.reverse();
@@ -135,20 +139,20 @@ describe('e2e_prerequisites', () => {
         // And back to hex
         const convertedHex = `0x${beByte.toHex()}`;
 
-        console.log('ConvertedHex', convertedHex);
+        logger.log('ConvertedHex', convertedHex);
 
         expect(convertedHex).toEqual(originalBEHex);
     });
 
     test('e2e_prerequisites_pipeline', async () => {
-        console.log(
+        logger.log(
             'bridgeHeadJobSucceededMessage.contract_storage_slots',
             bridgeHeadJobSucceededMessage.contract_storage_slots
         );
         // Build deposit leave values (to be hashed)
         const contractStorageSlots =
             bridgeHeadJobSucceededMessage.contract_storage_slots.map((slot) => {
-                console.log({
+                logger.log({
                     add: slot.slot_key_address.slice(2).padStart(40, '0'),
                     attr: slot.slot_nested_key_attestation_hash
                         .slice(2)
@@ -166,14 +170,14 @@ describe('e2e_prerequisites', () => {
                 const value = Bytes32.fromHex(
                     slot.value.slice(2).padStart(64, '0')
                 );
-                console.log('Mappedd!!!', value.bytes.map((byte)=>byte.toBigInt()));
+                logger.log('Mappedd!!!', value.bytes.map((byte)=>byte.toBigInt()));
                 return new ContractDeposit({
                     address: addr,
                     attestationHash: attestation,
                     value,
                 });
             });
-        console.log('Built contractStorageSlots');
+        logger.log('Built contractStorageSlots');
 
         // Compile ZKs
 
@@ -181,20 +185,20 @@ describe('e2e_prerequisites', () => {
             await ContractDepositAttestor.compile({
                 forceRecompile: true,
             });
-        console.log(
+        logger.log(
             `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
         );
 
         const { verificationKey: ethVerifierVerificationKey } =
             await EthVerifier.compile({ forceRecompile: true });
-        console.log(
+        logger.log(
             `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
         );
 
         // Analysing methods for E2EPrerequisitesProgram
         /*const e2ePrerequisitesProgramMethods =
             await E2EPrerequisitesProgram.analyzeMethods();
-        console.log(
+        logger.log(
             'e2ePrerequisitesProgramMethods',
             e2ePrerequisitesProgramMethods.compute
         );*/
@@ -204,27 +208,27 @@ describe('e2e_prerequisites', () => {
             await EthDepositProgram.compile({
                 forceRecompile: true,
             });
-        console.log(
+        logger.log(
             `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
         );
 
         // Build leaves
         const leaves = buildContractDepositLeaves(contractStorageSlots);
-        console.log('Built deposit leaves');
+        logger.log('Built deposit leaves');
 
         // Pick an index
         let index =
             bridgeHeadJobSucceededMessage.contract_storage_slots.length - 1;
-        console.log(`Selected index ${index}`);
+        logger.log(`Selected index ${index}`);
 
         // Find Value
         const slotToFind = contractStorageSlots.find((_, idx) => idx === index);
         if (!slotToFind) throw new Error(`Slot at ${index} not found`);
-        console.log('Found target contract deposit slot');
+        logger.log('Found target contract deposit slot');
 
         // Compute path
         const path = getContractDepositWitness([...leaves], index);
-        console.log('Computed Merkle witness path');
+        logger.log('Computed Merkle witness path');
 
         // Compute root
         const { depth, paddedSize } = computeMerkleTreeDepthAndSize(
@@ -236,7 +240,7 @@ describe('e2e_prerequisites', () => {
             depth,
             getMerkleZeros(depth)
         );
-        console.log(`Computed Merkle root: ${rootHash.toString()}`);
+        logger.log(`Computed Merkle root: ${rootHash.toString()}`);
 
         // Build ZK input
         const depositProofInput = new ContractDepositAttestorInput({
@@ -245,7 +249,7 @@ describe('e2e_prerequisites', () => {
             index: UInt64.from(index),
             value: slotToFind,
         });
-        console.log('Prepared ContractDepositAttestorInput');
+        logger.log('Prepared ContractDepositAttestorInput');
 
         // Prove deposit with sample data.
         let start = Date.now();
@@ -253,30 +257,30 @@ describe('e2e_prerequisites', () => {
             depositProofInput
         );
         let durationMs = Date.now() - start;
-        console.log(`ContractDepositAttestor.compute took ${durationMs}ms`);
+        logger.log(`ContractDepositAttestor.compute took ${durationMs}ms`);
 
         // Converted proof verification
 
         const { sp1PlonkProof, conversionOutputProof } =
             mptConsensusProofBundle;
-        console.log('Loaded sp1PlonkProof and conversionOutputProof');
+        logger.log('Loaded sp1PlonkProof and conversionOutputProof');
 
         const ethVerifierInput = new EthInput(
             decodeConsensusMptProof(sp1PlonkProof)
         );
-        console.log('Decoded EthInput from MPT proof');
+        logger.log('Decoded EthInput from MPT proof');
 
         const rawProof = await NodeProofLeft.fromJSON(
             conversionOutputProof.proofData
         );
-        console.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
+        logger.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
 
         start = Date.now();
         const ethVerifierProof = await EthVerifier.compute(
             ethVerifierInput,
             rawProof
         );
-        console.log(`EthVerifier.compute took ${Date.now() - start}ms`);
+        logger.log(`EthVerifier.compute took ${Date.now() - start}ms`);
 
         // MOCK convert attestation bytes into a field
         let credentialAttestationHash = new Field(0);
@@ -286,7 +290,7 @@ describe('e2e_prerequisites', () => {
                 .mul(256)
                 .add(slotToFind.attestationHash.bytes[i].value);
         }
-        console.log(
+        logger.log(
             `Computed credentialAttestationHash: ${credentialAttestationHash.toString()}`
         );
 
@@ -297,7 +301,7 @@ describe('e2e_prerequisites', () => {
             //contractDepositAttestorProof: depositAttestationProof.proof,
             credentialAttestationHash,
         });
-        console.log('Constructed E2ePrerequisitesInput');
+        logger.log('Constructed E2ePrerequisitesInput');
 
         // Compute e2e pre-requisites proof
         start = Date.now();
@@ -306,20 +310,20 @@ describe('e2e_prerequisites', () => {
             ethVerifierProof.proof,
             depositAttestationProof.proof
         );
-        console.log(
+        logger.log(
             `E2EPrerequisitesProgram.compute took ${Date.now() - start}ms`
         );
-        console.log('Computed E2EPrerequisitesProgram proof');
+        logger.log('Computed E2EPrerequisitesProgram proof');
 
         const { totalLocked, storageDepositRoot, attestationHash } =
             e2ePrerequisitesProof.proof.publicOutput;
 
-        console.log('--- Decoded public output ---');
+        logger.log('--- Decoded public output ---');
         // Both of these look fine:
-        console.log(
+        logger.log(
             `proved   totalLocked (LE bigint): ${fieldToBigIntLE(totalLocked)}`
         );
-        console.log(
+        logger.log(
             'original totalLocked (BE bigint)',
             uint8ArrayToBigIntBE(
                 hexStringToUint8Array(
@@ -330,51 +334,51 @@ describe('e2e_prerequisites', () => {
         );
 
         // Would need to re-extract this
-        console.log(
+        logger.log(
             `storageDepositRoot (LE hex): ${fieldToHexLE(storageDepositRoot)}`
         );
-        console.log(
+        logger.log(
             `storageDepositRoot (BE hex): ${fieldToHexBE(storageDepositRoot)}`
         );
 
         // These dont have one reconstructing to the original contract_storage_slots but they do atleast match credentialAttestationHash
         // Think about this...
-        console.log(
+        logger.log(
             `attestationHash (LE hex): ${fieldToHexLE(attestationHash)}`
         );
-        console.log(
+        logger.log(
             `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
         );
-        console.log(
+        logger.log(
             `attestationHash (BE hex): ${fieldToHexBE(attestationHash)}`
         );
 
-        console.log(Bytes.from(wordToBytes(attestationHash, 32)).toHex());
+        logger.log(Bytes.from(wordToBytes(attestationHash, 32)).toHex());
 
         // credentialAttestationHash
 
-        console.log(
+        logger.log(
             `credentialAttestationHash (LE hex): ${fieldToHexLE(
                 credentialAttestationHash
             )}`
         );
-        console.log(
+        logger.log(
             `credentialAttestationHash (BE hex): ${fieldToHexBE(
                 credentialAttestationHash
             )}`
         );
-        console.log(
+        logger.log(
             Bytes.from(wordToBytes(credentialAttestationHash, 32)).toHex()
         );
 
-        console.log('--------------------------------compare to....');
+        logger.log('--------------------------------compare to....');
 
-        console.log(bridgeHeadJobSucceededMessage.contract_storage_slots);
+        logger.log(bridgeHeadJobSucceededMessage.contract_storage_slots);
 
         // Value encoding
 
-        console.log(e2ePrerequisitesProof.proof.publicOutput.totalLocked.toBigInt());
+        logger.log(e2ePrerequisitesProof.proof.publicOutput.totalLocked.toBigInt());
         const bytes: UInt8[] = (depositAttestationProof.proof.publicInput.value as ContractDeposit).value.bytes;
-        console.log(bytes.map((byte)=>byte.toBigInt()));
+        logger.log(bytes.map((byte)=>byte.toBigInt()));
     });
 });

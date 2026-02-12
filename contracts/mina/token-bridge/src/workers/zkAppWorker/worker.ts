@@ -1,3 +1,4 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     CacheType,
     compileAndOptionallyVerifyContracts,
@@ -45,6 +46,9 @@ import {
 } from '../../cache-layouts/index.js';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils';
 
+new LogPrinter('ZkAppWorker');
+const logger = new Logger('ZkAppWorker');
+
 export function isBrowser(): boolean {
     return (
         typeof self !== 'undefined' &&
@@ -55,7 +59,7 @@ export function isBrowser(): boolean {
     );
 }
 
-console.log('Constructing ZkAppWorker. isBrowser:', isBrowser());
+logger.log('Constructing ZkAppWorker. isBrowser:', isBrowser());
 
 export class ZkAppWorker {
     /// WALLET METHOD DONT USE IN FRONT END
@@ -212,8 +216,8 @@ export class ZkAppWorker {
 
         const balanceOf = await noriTokenBase.getBalanceOf(minaSenderPublicKey);
 
-        console.log('balanceOf raw', balanceOf);
-        console.log('balanceOf string', balanceOf.toString());
+        logger.log('balanceOf raw', balanceOf);
+        logger.log('balanceOf string', balanceOf.toString());
 
         return balanceOf.toBigInt().toString();
     }
@@ -274,11 +278,11 @@ export class ZkAppWorker {
             const userKeyHash = await storage.userKeyHash.fetch();
             if (!userKeyHash) throw new Error('userKeyHash was falsey');
             const mintedSoFar = await storage.mintedSoFar.fetch();
-            console.log('mintedSoFar', mintedSoFar.toBigInt());
+            logger.log('mintedSoFar', mintedSoFar.toBigInt());
             return false;
         } catch (e) {
             const error = e as Error;
-            console.log(
+            logger.log(
                 `Error determining if we needed to setup storage. Going to assume that we do need to.`,
                 error
             );
@@ -294,7 +298,7 @@ export class ZkAppWorker {
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
     ) {
         //const userPrivateKey = PrivateKey.fromBase58(userPrivateKeyBase58);
-        console.log('userPublicKeyBase58', userPublicKeyBase58);
+        logger.log('userPublicKeyBase58', userPublicKeyBase58);
         const userPublicKey = PublicKey.fromBase58(userPublicKeyBase58); // userPrivateKey.toPublicKey();
         const noriTokenControllerAddress = PublicKey.fromBase58(
             noriTokenControllerAddressBase58
@@ -307,7 +311,7 @@ export class ZkAppWorker {
         const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
         const storageInterfaceVerificationKey = { data, hash };
 
-        console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
+        logger.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         // FIXME do we need
@@ -340,7 +344,7 @@ export class ZkAppWorker {
         txFee: number,
         storageInterfaceVerificationKeySafe: { data: string; hashStr: string }
     ) {
-        console.log('MOCK_setupStorage called with', {
+        logger.log('MOCK_setupStorage called with', {
             userPublicKeyBase58,
             noriTokenControllerAddressBase58,
             txFee,
@@ -359,18 +363,18 @@ export class ZkAppWorker {
         const hash = new Field(storageInterfaceVerificationKeyHashBigInt);
         const storageInterfaceVerificationKey = { data, hash };
 
-        console.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
+        logger.log(`Setting up storage for user: ${userPublicKey.toBase58()}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         // FIXME do we need
         await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
-        console.log('fetched accounts');
+        logger.log('fetched accounts');
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenControllerInst = new NoriTokenController(
             noriTokenControllerAddress
         );
-        console.log('got token controller inst');
+        logger.log('got token controller inst');
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -383,18 +387,18 @@ export class ZkAppWorker {
             }
         );
 
-        console.log('setup tx');
+        logger.log('setup tx');
 
         const provedTx = await setupTx.prove();
 
-        console.log('provedTx', provedTx);
+        logger.log('provedTx', provedTx);
 
-        console.log('this.#minaPrivateKey', this.#minaPrivateKey);
+        logger.log('this.#minaPrivateKey', this.#minaPrivateKey);
         const tx = await provedTx.sign([this.#minaPrivateKey]).send();
-        console.log('sent');
+        logger.log('sent');
         const result = await tx.wait();
-        console.log('result', result);
-        console.log('Storage setup completed successfully');
+        logger.log('result', result);
+        logger.log('Storage setup completed successfully');
         return { txHash: result.hash };
     }
 
@@ -415,12 +419,12 @@ export class ZkAppWorker {
                 publicKey: minaSenderPublicKey,
                 tokenId: noriTokenBase.deriveTokenId(),
             });
-            console.log(fetchAccountResult);
+            logger.log(fetchAccountResult);
 
             if (fetchAccountResult.account === undefined) return true;
             return false;
         } catch (e: any) {
-            console.log(
+            logger.log(
                 'We had an error fetching the account. We assume we need to fund it.',
                 e.stack
             );
@@ -440,7 +444,7 @@ export class ZkAppWorker {
         return this.compileMinterDepsNoCache(); // FORCE COMPILE WITHOUT CACHE
         //if (!cacheServer || !isBrowser()) return this.compileMinterDepsNoCache();
 
-        console.log('Compiling all minter dependencies [Browser]...');
+        logger.log('Compiling all minter dependencies [Browser]...');
 
         // Create NetworkCacheConfig for EthVerifier first
         const ethVerifierNetworkCacheConfig: NetworkCacheConfig = {
@@ -455,7 +459,7 @@ export class ZkAppWorker {
 
         // Compile EthVerifier first
         const { ethVerifierVerificationKey } = await compileAndOptionallyVerifyContracts(
-            console,
+            logger,
             [
                 {
                     name: 'ethVerifier',
@@ -468,7 +472,7 @@ export class ZkAppWorker {
 
         // Compile eth verifier normally.
         /*const { ethVerifierVerificationKey } = await compileAndOptionallyVerifyContracts(
-            console,
+            logger,
             [{
                 name: 'ethVerifier',
                 program: EthVerifier,
@@ -499,7 +503,7 @@ export class ZkAppWorker {
         // Compile remaining contracts sequentially
         const noriStorageInterfaceVks =
             await compileAndOptionallyVerifyContracts(
-                console,
+                logger,
                 [
                     {
                         name: 'NoriStorageInterface',
@@ -511,7 +515,7 @@ export class ZkAppWorker {
             );
         const noriTokenControllerVks =
             await compileAndOptionallyVerifyContracts(
-                console,
+                logger,
                 [
                     {
                         name: 'NoriTokenController',
@@ -522,7 +526,7 @@ export class ZkAppWorker {
                 await noriTokenControllerCache
             );
         const fungibleTokenVks = await compileAndOptionallyVerifyContracts(
-            console,
+            logger,
             [
                 {
                     name: 'FungibleToken',
@@ -559,7 +563,7 @@ export class ZkAppWorker {
             }
         );
 
-        console.log('All minter dependency contracts compiled successfully.');
+        logger.log('All minter dependency contracts compiled successfully.');
 
         // Return safe VKs
         return {
@@ -575,7 +579,7 @@ export class ZkAppWorker {
 
     // if the cache works then deprecate this
     async compileMinterDepsNoCache() {
-        console.log('Compiling all minter dependencies...');
+        logger.log('Compiling all minter dependencies...');
 
         const contracts = [
             {
@@ -602,7 +606,7 @@ export class ZkAppWorker {
 
         // Compile all contracts
         const compiledVks = await compileAndOptionallyVerifyContracts(
-            console,
+            logger,
             contracts
         );
 
@@ -617,7 +621,7 @@ export class ZkAppWorker {
             }
         );
 
-        console.log('All minter dependency contracts compiled successfully.');
+        logger.log('All minter dependency contracts compiled successfully.');
 
         // Return the safe VKs along with the NoriStorageInterface hash string separately if needed
         return {
@@ -660,7 +664,7 @@ export class ZkAppWorker {
         const codeVerifierPKARMBigInt = BigInt(codeVerifierPKARMStr);
         const codeVerifierPKARMField = new Field(codeVerifierPKARMBigInt);
 
-        console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
+        logger.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
@@ -719,7 +723,7 @@ export class ZkAppWorker {
         const codeVerifierPKARMBigInt = BigInt(codeVerifierPKARMStr);
         const codeVerifierPKARMField = new Field(codeVerifierPKARMBigInt);
 
-        console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
+        logger.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
 
@@ -745,7 +749,7 @@ export class ZkAppWorker {
         const provedTx = await mintTx.prove();
         const tx = await provedTx.sign([this.#minaPrivateKey]).send();
         const result = await tx.wait();
-        console.log('Minting completed successfully');
+        logger.log('Minting completed successfully');
 
         return { txHash: result.hash };
     }
@@ -789,7 +793,7 @@ export class ZkAppWorker {
         const codeVerifierPKARMBigInt = BigInt(codeVerifierPKARMStr);
         const codeVerifierPKARMField = new Field(codeVerifierPKARMBigInt);
 
-        console.log(`Minting tokens for user: ${userPublicKeyBase58}`);
+        logger.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
         await this.fetchAccounts([userPublicKey, noriTokenControllerAddress]);
@@ -820,11 +824,11 @@ export class ZkAppWorker {
 
     async WALLET_MOCK_signAndSendMintProofCache() {
         const signedTx = this.#mintProofCache.sign([this.#minaPrivateKey]);
-        console.log('signedTx...sending', signedTx);
+        logger.log('signedTx...sending', signedTx);
         const tx = await signedTx.send();
-        console.log('Sent tx...waiting', tx);
+        logger.log('Sent tx...waiting', tx);
         const result = await tx.wait();
-        console.log('Awaited tx');
+        logger.log('Awaited tx');
         return { txHash: result.hash };
     }
 

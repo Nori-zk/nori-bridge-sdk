@@ -9,6 +9,9 @@ import http from 'http';
 import httpProxy from 'http-proxy';
 // Load environment variables from .env file
 import 'dotenv/config';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('BrowserTestRunnerUtils');
 
 // Extract envs
 const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
@@ -97,14 +100,14 @@ export async function startServer(port = 4003) {
     const server = http.createServer(app);
 
     server.on('upgrade', (req, socket, head) => {
-        console.log('Upgrade attempt detected:', req.url);
+        logger.log('Upgrade attempt detected:', req.url);
         proxy.ws(req, socket, head);
     });
 
     return new Promise<{ server: http.Server; url: string }>((resolve) => {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
-            console.log(
+            logger.log(
                 `Server running at: ${url}.`
             );
             resolve({ server, url });
@@ -164,7 +167,7 @@ export async function bundleTests() {
   import './${outFileName}';
   window.addEventListener('DOMContentLoaded', () => {
     if (!window.runTests) {
-      console.error('runTests not found on globalThis!');
+      logger.error('runTests not found on globalThis!');
       return;
     }
     window.runTests();

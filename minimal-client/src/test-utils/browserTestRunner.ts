@@ -1,3 +1,7 @@
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('BrowserTestRunner');
+
 interface Test {
     name: string;
     fn: (() => void | Promise<void>) | null;
@@ -227,7 +231,7 @@ async function runSuite(
     testsContainer.style.marginLeft = '20px';
     suiteEl.appendChild(testsContainer);
 
-    console.log(`${indent}${suite.name}`);
+    logger.log(`${indent}${suite.name}`);
 
     for (const fn of suite.beforeAllFns) await fn();
 
@@ -261,7 +265,7 @@ async function runSuite(
         const prefix = indent + '  ';
 
         if (t.mode === 'skip' || t.fn === null) {
-            console.log(`${prefix}⏭️  ${t.name}`);
+            logger.log(`${prefix}⏭️  ${t.name}`);
             testEl.textContent = `⏭️  ${t.name} (skipped)`;
             testEl.style.color = 'gray';
             continue;
@@ -340,7 +344,7 @@ export async function runTests() {
     const endTime = performance.now();
 
     const totalDuration = (endTime - startTime).toFixed(2);
-    console.log(`Total test run time: ${totalDuration} ms`);
+    logger.log(`Total test run time: ${totalDuration} ms`);
 
     const timeEl = document.createElement('div');
     timeEl.style.marginTop = '20px';

@@ -170,9 +170,9 @@ export async function compileAndVerifyContracts(
 
         for (const { name, program, integrityHash } of contracts) {
             logger.log(`Compiling ${name} contract.`);
-            console.time(`${name} compile`);
+            const startTime = Date.now();
             const compiled = await program.compile();
-            console.timeEnd(`${name} compile`);
+            logger.log(`${name} compile took ${Date.now() - startTime}ms`);
             const verificationKey = compiled.verificationKey;
             const calculatedHash = verificationKey.hash.toString();
 
@@ -205,7 +205,7 @@ export async function compileAndVerifyContracts(
         return results;
     } catch (err) {
         logger.error(`Error compiling contracts:\n${String(err)}`);
-        console.error((err as Error).stack);
+        logger.error((err as Error).stack);
         throw err;
     }
 }
@@ -276,9 +276,9 @@ export async function compileAndOptionallyVerifyContracts<
     const { name, program, integrityHash } = c;
 
     logger.log(`Compiling ${name} contract/program.`);
-    console.time(`${name} compiled`);
+    const startTime = Date.now();
     const compiled = await (cache ? program.compile({cache}) : program.compile());
-    console.timeEnd(`${name} compiled`);
+    logger.log(`${name} compiled in ${Date.now() - startTime}ms`);
 
     const vk = compiled.verificationKey;
     const hashStr = vk.hash.toBigInt().toString();

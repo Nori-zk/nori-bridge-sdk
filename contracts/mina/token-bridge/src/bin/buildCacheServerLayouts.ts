@@ -16,6 +16,10 @@ import {
 import { cacheBuilder } from '@nori-zk/o1js-zk-utils/node';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+
+new LogPrinter('NoriMinaTokenBridge');
+const logger = new Logger('BuildCacheServerLayouts');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +57,5 @@ const cacheDir = path.resolve(rootDir, '..', '..', '..', 'cache-server', 'cache'
 const layoutsDir = path.resolve(rootDir, 'src', 'cache-layouts');
 
 cacheBuilder(caches, cacheDir, layoutsDir).catch((e) => {
-    console.error(`Error building cache: ${e.message}`);
-    process.exit(1);
+    logger.fatal(`Error building cache: ${e.message}`);
 });

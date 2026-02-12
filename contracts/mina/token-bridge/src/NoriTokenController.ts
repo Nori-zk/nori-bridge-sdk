@@ -17,6 +17,7 @@ import {
     UInt64,
     VerificationKey,
 } from 'o1js';
+import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
 import { EthProofType } from '@nori-zk/o1js-zk-utils';
@@ -27,6 +28,8 @@ import {
     verifyDepositSlotRoot,
 } from './depositAttestation.js';
 import { verifyCodeChallenge } from './pkarm.js';
+
+const logger = new Logger('NoriTokenController');
 
 export type FungibleTokenAdminBase = SmartContract & {
     canMint(accountUpdate: AccountUpdate): Promise<Bool>;
@@ -202,7 +205,7 @@ export class NoriTokenController
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
         Provable.asProver(() => {
-            console.log(
+            logger.log(
                 'UInt64.Unsafe.fromField(amountToMint)',
                 UInt64.Unsafe.fromField(amountToMint).toBigInt()
             );

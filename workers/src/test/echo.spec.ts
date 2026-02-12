@@ -1,4 +1,8 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { EchoWorkerParent } from './node/parent.js';
+
+new LogPrinter('TestEthProcessor');
+const logger = new Logger('EchoSpec');
 
 describe('EchoWorker', () => {
     let echoWorkerParent: InstanceType<typeof EchoWorkerParent>;
@@ -7,7 +11,7 @@ describe('EchoWorker', () => {
         echoWorkerParent = new EchoWorkerParent('test');
         // Wait until ready
         await echoWorkerParent.ready;
-        console.log('[EchoWorkerParent] Worker is ready');
+        logger.log('[EchoWorkerParent] Worker is ready');
     });
 
     afterAll(() => {

@@ -55,6 +55,7 @@
     "dependencies": {
         "@nori-zk/ethprocessor": "*",
         "@nori-zk/mina-token-bridge": "*",
-        "@nori-zk/o1js-zk-utils": "*"
+        "@nori-zk/o1js-zk-utils": "*",
+        "esm-iso-logger": "1.0.2"
     }
 }

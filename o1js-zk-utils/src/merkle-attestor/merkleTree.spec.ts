@@ -1,3 +1,4 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { Field } from 'o1js';
 import {
     computeMerkleTreeDepthAndSize,
@@ -16,6 +17,9 @@ import {
     dummyValue,
     nonProvableStorageSlotLeafHash,
 } from './testUtils.js';
+
+new LogPrinter('TestEthProcessor');
+const logger = new Logger('MerkleTreeSpec');
 
 // Full Merkle lifecycle test using actual hashed leaves and leaf index
 function fullMerkleTest(
@@ -54,7 +58,7 @@ describe('Merkle Fixed Tests', () => {
             triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
         }
         const root = fullMerkleTest(triples, 543);
-        console.log("root", root.toBigInt());
+        logger.log("root", root.toBigInt());
 
     });
 
@@ -75,12 +79,12 @@ describe('Merkle Fixed Tests', () => {
         // Precompute zeros
         const zeros = getMerkleZeros(maxDepth);
 
-        console.log(
+        logger.log(
             'Testing all leaf counts and indices with both fold and build...'
         );
 
         for (let nLeaves = 0; nLeaves <= maxLeaves; nLeaves++) {
-            console.log(`→ Testing with ${nLeaves} leaves`);
+            logger.log(`→ Testing with ${nLeaves} leaves`);
 
             const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
             for (let i = 0; i < nLeaves; i++) {
@@ -88,7 +92,7 @@ describe('Merkle Fixed Tests', () => {
             }
 
             const leaves = buildLeavesNonProvable(triples);
-            console.log(
+            logger.log(
                 `   leaves ${leaves.map((l) =>
                     l.toJSON().split('\n').join(' ,')
                 )}`
@@ -96,7 +100,7 @@ describe('Merkle Fixed Tests', () => {
             const { depth, paddedSize } =
                 computeMerkleTreeDepthAndSize(nLeaves);
 
-            console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
+            logger.log(`   depth=${depth}, paddedSize=${paddedSize}`);
 
             const rootViaFold = foldMerkleLeft(
                 leaves.slice(),
@@ -104,7 +108,7 @@ describe('Merkle Fixed Tests', () => {
                 depth,
                 zeros
             );
-            console.log(`   rootViaFold = ${rootViaFold}`);
+            logger.log(`   rootViaFold = ${rootViaFold}`);
 
             const merkleTree = buildMerkleTree(
                 leaves,
@@ -112,7 +116,7 @@ describe('Merkle Fixed Tests', () => {
                 depth,
                 zeros
             );
-            console.log(`   rootViaBuild = ${merkleTree[0][0]}`);
+            logger.log(`   rootViaBuild = ${merkleTree[0][0]}`);
 
             expect(merkleTree[0][0].equals(rootViaFold).toBoolean()).toBe(true);
 
@@ -148,7 +152,7 @@ describe('Merkle Fixed Tests', () => {
                     true
                 );
 
-                console.log(`     ✅ [nLeaves=${nLeaves}, index=${index}] OK`);
+                logger.log(`     ✅ [nLeaves=${nLeaves}, index=${index}] OK`);
             }
         }
     });
@@ -156,43 +160,43 @@ describe('Merkle Fixed Tests', () => {
     test('huge_timed_test', () => {
         const nLeaves = 1 << 16;
 
-        console.log(`\n→ Testing with ${nLeaves} leaves`);
+        logger.log(`\n→ Testing with ${nLeaves} leaves`);
 
-        console.time('01. getMerkleZeros');
+        const startTimeGetMerkleZeros = Date.now();
         const maxDepth = Math.ceil(Math.log2(nLeaves)) || 1;
         const zeros = getMerkleZeros(maxDepth);
-        console.timeEnd('01. getMerkleZeros');
+        logger.log(`01. getMerkleZeros: ${Date.now() - startTimeGetMerkleZeros}ms`);
 
-        console.time('02. Generate dummy triples');
+        const startTimeGenerateDummyTriples = Date.now();
         const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
         for (let i = 0; i < nLeaves; i++) {
             triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
         }
-        console.timeEnd('02. Generate dummy triples');
+        logger.log(`02. Generate dummy triples: ${Date.now() - startTimeGenerateDummyTriples}ms`);
 
-        console.time('03. buildLeaves');
+        const startTimeBuildLeaves = Date.now();
         const leaves = buildLeavesNonProvable(triples);
-        console.timeEnd('03. buildLeaves');
+        logger.log(`03. buildLeaves: ${Date.now() - startTimeBuildLeaves}ms`);
 
-        console.time('04. compute depth and padded size');
+        const startTimeComputeDepthAndSize = Date.now();
         const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
-        console.timeEnd('04. compute depth and padded size');
-        console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
+        logger.log(`04. compute depth and padded size: ${Date.now() - startTimeComputeDepthAndSize}ms`);
+        logger.log(`   depth=${depth}, paddedSize=${paddedSize}`);
 
-        console.time('05. foldMerkleLeft');
+        const startTimeFoldMerkleLeft = Date.now();
         const rootViaFold = foldMerkleLeft(
             leaves.slice(),
             paddedSize,
             depth,
             zeros
         );
-        console.timeEnd('05. foldMerkleLeft');
-        console.log(`   rootViaFold = ${rootViaFold}`);
+        logger.log(`05. foldMerkleLeft: ${Date.now() - startTimeFoldMerkleLeft}ms`);
+        logger.log(`   rootViaFold = ${rootViaFold}`);
 
-        console.time('06. buildMerkleTree');
+        const startTimeBuildMerkleTree = Date.now();
         const merkleTree = buildMerkleTree(leaves, paddedSize, depth, zeros);
-        console.timeEnd('06. buildMerkleTree');
-        console.log(`   rootViaBuild = ${merkleTree[0][0]}`);
+        logger.log(`06. buildMerkleTree: ${Date.now() - startTimeBuildMerkleTree}ms`);
+        logger.log(`   rootViaBuild = ${merkleTree[0][0]}`);
 
         expect(merkleTree[0][0].equals(rootViaFold).toBoolean()).toBe(true);
 
@@ -204,7 +208,7 @@ describe('Merkle Fixed Tests', () => {
 
         const index = nLeaves / 2;
 
-        console.time('07. getMerklePathFromLeaves');
+        const startTimeGetPathFromLeaves = Date.now();
         const pathFold = getMerklePathFromLeaves(
             leaves.slice(),
             paddedSize,
@@ -212,25 +216,25 @@ describe('Merkle Fixed Tests', () => {
             index,
             zeros
         );
-        console.timeEnd('07. getMerklePathFromLeaves');
+        logger.log(`07. getMerklePathFromLeaves: ${Date.now() - startTimeGetPathFromLeaves}ms`);
 
-        console.time('08. getMerklePathFromTree');
+        const startTimeGetPathFromTree = Date.now();
         const pathBuild = getMerklePathFromTree(merkleTree, index);
-        console.timeEnd('08. getMerklePathFromTree');
+        logger.log(`08. getMerklePathFromTree: ${Date.now() - startTimeGetPathFromTree}ms`);
 
         expect(pathFold).toEqual(pathBuild);
 
-        console.time('09. recompute root from path');
+        const startTimeRecomputeRoot = Date.now();
         const leafHash = leaves[index];
         const recomputedRoot = computeMerkleRootFromPath(
             leafHash,
             index,
             pathFold
         );
-        console.timeEnd('09. recompute root from path');
+        logger.log(`09. recompute root from path: ${Date.now() - startTimeRecomputeRoot}ms`);
 
         expect(recomputedRoot.equals(rootViaFold).toBoolean()).toBe(true);
 
-        console.log(`     ✅ [nLeaves=${nLeaves}, index=${index}] OK`);
+        logger.log(`     ✅ [nLeaves=${nLeaves}, index=${index}] OK`);
     });
 });

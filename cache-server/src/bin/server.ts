@@ -2,6 +2,10 @@ import { App, HttpResponse } from 'uWebSockets.js';
 import path, { resolve } from 'path';
 import { access, constants, readFile } from 'fs';
 import { fileURLToPath } from 'url';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+
+new LogPrinter('CacheServer');
+const logger = new Logger('StaticServer');
 
 export class StaticServer {
     private port: number;
@@ -16,7 +20,7 @@ export class StaticServer {
         let aborted = false;
         res.onAborted(() => {
             aborted = true;
-            console.warn('Request aborted by client');
+            logger.warn('Request aborted by client');
         });
         const filePath = path.join(this.baseDir, requestedPath);
 
@@ -67,12 +71,12 @@ export class StaticServer {
 
             app.listen(this.port, (token) => {
                 if (token) {
-                    console.log(
+                    logger.log(
                         `Server started on port ${this.port}. Serving files from '${this.baseDir}' directory.`
                     );
                     resolve();
                 } else {
-                    console.error(
+                    logger.error(
                         `Server failed to start on port ${this.port}`
                     );
                     reject();
@@ -89,6 +93,5 @@ const port = 4210;
 
 const server = new StaticServer(port, cacheDir);
 server.start().catch((e) => {
-    console.error(`Server errored: ${e.stack}`);
-    process.exit(1);
+    logger.fatal(`Server errored: ${e.stack}`);
 });

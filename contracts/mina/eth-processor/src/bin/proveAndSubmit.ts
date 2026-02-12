@@ -8,15 +8,7 @@ import { wait } from '../txWait.js';
 
 const logger = new Logger('ProveAndSubmit');
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
 function buildProofCreateArgument() {
     const example: CreateProofArgument = {

@@ -1,4 +1,7 @@
 import { DeferredPromise, WorkerParentChildInterface } from '../index.js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('WorkerParentBrowser');
 
 export class WorkerParent implements WorkerParentChildInterface {
     private worker: Worker;
@@ -8,12 +11,12 @@ export class WorkerParent implements WorkerParentChildInterface {
         this.worker = worker;
         this.worker.addEventListener('message', (event) => {
             if (this.messageCallback) this.messageCallback(event.data);
-            else console.warn('Callback for messages not assigned. Call onMessageHandler first.');
+            else logger.warn('Callback for messages not assigned. Call onMessageHandler first.');
         });
 
         this.worker.addEventListener('error', (error) => {
             if (this.errorCallback) this.errorCallback(error.message);
-            else console.warn('ErrorCallback for error not assigned. Call onErrorHandler first.');
+            else logger.warn('ErrorCallback for error not assigned. Call onErrorHandler first.');
         });
     }
 
@@ -30,7 +33,7 @@ export class WorkerParent implements WorkerParentChildInterface {
     }
 
     terminate(): void {
-        console.log('Calling terminate on worker', this.worker, this);
+        logger.log('Calling terminate on worker', this.worker, this);
         this.worker.terminate();
     }
 }

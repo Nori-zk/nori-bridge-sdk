@@ -1,5 +1,8 @@
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { Bytes, Field, Mina } from 'o1js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('TokenBridgeTestUtils');
 
 export function validateEnv(): {
     ethPrivateKey: string;
@@ -75,9 +78,8 @@ export function validateEnv(): {
     }
 
     if (errors.length) {
-        console.error('Environment validation errors:');
-        errors.forEach((e) => console.error(' - ' + e));
-        process.exit(1);
+        const errorMessage = 'Environment validation errors:\n' + errors.map((e) => ' - ' + e).join('\n');
+        logger.fatal(errorMessage);
     }
 
     return {
@@ -108,11 +110,11 @@ export async function getNewMinaLiteNetAccountSK(): Promise<string> {
                 res.on('end', () => {
                     try {
                         const data = JSON.parse(buffer);
-                        console.log(`Received new sk from acquire account.`);
+                        logger.log(`Received new sk from acquire account.`);
                         resolve(data.sk);
                     } catch (e) {
                         const error = e as unknown as Error;
-                        console.error(
+                        logger.error(
                             `Failed to retreive a new account:\n${String(
                                 error.stack
                             )}`
@@ -156,14 +158,14 @@ export async function lockTokens(attestationHash: Field, amount: number) {
     // Ensure we can do the field -> hex -> field round trip
     const beBytes = Bytes.from(wordToBytes(attestationHash, 32).reverse());
     const attestationHex = beBytes.toHex();
-    console.log('attestationHex', attestationHex);
+    logger.log('attestationHex', attestationHex);
     const bytesFromHex = Bytes.fromHex(attestationHex); // this is be
     let fieldFromHex = new Field(0);
     for (let i = 0; i < 32; i++) {
         fieldFromHex = fieldFromHex.mul(256).add(bytesFromHex.bytes[i].value);
     }
     expect(fieldFromHex.toBigInt()).toEqual(attestationHash.toBigInt());
-    console.log(fieldFromHex.toBigInt(), attestationHash.toBigInt());
+    logger.log(fieldFromHex.toBigInt(), attestationHash.toBigInt());
 
     // Use the ethereum package to lock our tokens
     const { spawn } = await import('node:child_process');
@@ -176,7 +178,7 @@ export async function lockTokens(attestationHash: Field, amount: number) {
         ['run', 'test:lock', `0x${attestationHex}`, amount.toString()],
         { cwd: resolve(rootDir, '..', '..', '..', 'ethereum') },
     ];
-    console.log('commandDetails', commandDetails);
+    logger.log('commandDetails', commandDetails);
     const [command, args, options] = commandDetails;
     const child = spawn(command, args, options);
     let data = '';
@@ -196,8 +198,8 @@ export async function lockTokens(attestationHash: Field, amount: number) {
             resolve(code);
         })
     );
-    console.log(`Lock output:\n${data}`);
-    console.log('----------------------');
+    logger.log(`Lock output:\n${data}`);
+    logger.log('----------------------');
     const match = data.match(/Transaction included in block number: (\d+)/);
     if (!match) return null;
     return parseInt(match[1]);
@@ -216,7 +218,7 @@ export async function getEthereumEnvPrivateKey() {
         resolve(rootDir, '..', '..', '..', 'ethereum', '.env')
     );
     const parsed = dotenv.parse(envBuffer);
-    //console.log(parsed);
+    //logger.log(parsed);
     return parsed.ETH_PRIVATE_KEY as string;
 }
 

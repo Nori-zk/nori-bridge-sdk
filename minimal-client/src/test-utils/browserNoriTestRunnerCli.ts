@@ -5,6 +5,9 @@ import {
     ROOT_DIR,
 } from './browserTestRunnerUtils.js';
 import puppeteer from 'puppeteer';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('BrowserNoriTestRunnerCli');
 
 function serializeAny(val: any): any {
     if (typeof val === 'bigint') return val.toString() + 'n';
@@ -21,7 +24,7 @@ function serializeAny(val: any): any {
         const res: any = {};
         for (const key of Object.keys(val)) {
             try {
-                console.log(val[key], key);
+                logger.log(val[key], key);
                 res[key] = serializeAny(val[key]);
             } catch {
                 res[key] = '[Unserializable]';

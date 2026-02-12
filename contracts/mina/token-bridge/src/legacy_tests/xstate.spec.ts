@@ -1,3 +1,4 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { firstValueFrom, map, take } from 'rxjs';
 import {
     getDepositProcessingStatus$,
@@ -15,6 +16,9 @@ import {
 } from '../rx/topics.js';
 import { createActor, fromObservable, fromPromise } from 'xstate';
 import { DeferredPromise } from '@nori-zk/workers';
+
+new LogPrinter('TestEthProcessor');
+const logger = new Logger('XstateSpec');
 
 describe('XState integration example', () => {
     // Just a test facility to get some block number ahead of finality given the ethStateTopic$
@@ -52,7 +56,7 @@ describe('XState integration example', () => {
 
         // For testing purposes get a blockNumber which the bridgehead cannot have processed yet:
         const targetDepositNumber = await getNextDepositTarget(ethStateTopic$);
-        console.log('targetDepositNumber', targetDepositNumber);
+        logger.log('targetDepositNumber', targetDepositNumber);
 
         // Now demonstrate how integrate with XState:
 
@@ -204,7 +208,7 @@ describe('XState integration example', () => {
         // Subscribe to the stream:
         depositActor.subscribe(
             (snapshot) =>
-                console.log({
+                logger.log({
                     status: snapshot.status,
                     context: snapshot.context,
                     output: snapshot.output,
