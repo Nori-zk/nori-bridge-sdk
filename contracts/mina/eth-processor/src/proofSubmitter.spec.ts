@@ -9,7 +9,7 @@ import { PrivateKey } from 'o1js';
 import {
     CacheType,
     decodeConsensusMptProof,
-    FileSystemCacheConfig,
+    type FileSystemCacheConfig,
 } from '@nori-zk/o1js-zk-utils';
 import os from 'os';
 import { resolve } from 'path';

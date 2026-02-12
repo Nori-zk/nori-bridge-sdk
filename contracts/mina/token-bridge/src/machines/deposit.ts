@@ -5,11 +5,11 @@ import {
     getDepositProcessingStatus$,
 } from '../rx/deposit.js';
 import {
-    getBridgeStateTopic$,
-    getBridgeTimingsTopic$,
-    getEthStateTopic$,
+    type getBridgeStateTopic$,
+    type getBridgeTimingsTopic$,
+    type getEthStateTopic$,
 } from '../rx/topics.js';
-import { Observable } from 'rxjs';
+import { type Observable } from 'rxjs';
 
 // Define actors
 
@@ -244,10 +244,10 @@ export const getDepositMachine = (initialContext: {
                         id: 'depositProcessingStatus',
                         src: 'depositProcessingStatusActor',
                         input: ({ context }) => ({
-                            depositBlockNumber: context.activeDepositNumber!,
-                            ethStateTopic$: context.ethStateTopic$!,
-                            bridgeStateTopic$: context.bridgeStateTopic$!,
-                            bridgeTimingsTopic$: context.bridgeTimingsTopic$!,
+                            depositBlockNumber: context.activeDepositNumber,
+                            ethStateTopic$: context.ethStateTopic$,
+                            bridgeStateTopic$: context.bridgeStateTopic$,
+                            bridgeTimingsTopic$: context.bridgeTimingsTopic$,
                         }),
                         onSnapshot: {
                             actions: assign({
@@ -265,10 +265,10 @@ export const getDepositMachine = (initialContext: {
                         id: 'canComputeEthProof',
                         src: 'canComputeEthProofActor',
                         input: ({ context }) => ({
-                            depositBlockNumber: context.activeDepositNumber!,
-                            ethStateTopic$: context.ethStateTopic$!,
-                            bridgeStateTopic$: context.bridgeStateTopic$!,
-                            bridgeTimingsTopic$: context.bridgeTimingsTopic$!,
+                            depositBlockNumber: context.activeDepositNumber,
+                            ethStateTopic$: context.ethStateTopic$,
+                            bridgeStateTopic$: context.bridgeStateTopic$,
+                            bridgeTimingsTopic$: context.bridgeTimingsTopic$,
                         }),
                         onSnapshot: {
                             actions: assign({
@@ -286,10 +286,10 @@ export const getDepositMachine = (initialContext: {
                         id: 'canMint',
                         src: 'canMintActor',
                         input: ({ context }) => ({
-                            depositBlockNumber: context.activeDepositNumber!,
-                            ethStateTopic$: context.ethStateTopic$!,
-                            bridgeStateTopic$: context.bridgeStateTopic$!,
-                            bridgeTimingsTopic$: context.bridgeTimingsTopic$!,
+                            depositBlockNumber: context.activeDepositNumber,
+                            ethStateTopic$: context.ethStateTopic$,
+                            bridgeStateTopic$: context.bridgeStateTopic$,
+                            bridgeTimingsTopic$: context.bridgeTimingsTopic$,
                         }),
                         onSnapshot: {
                             actions: assign({
@@ -320,10 +320,10 @@ export const getDepositMachine = (initialContext: {
                 invoke: {
                     src: 'canComputeEthProofActor',
                     input: ({ context }) => ({
-                        depositBlockNumber: context.activeDepositNumber!,
-                        ethStateTopic$: context.ethStateTopic$!,
-                        bridgeStateTopic$: context.bridgeStateTopic$!,
-                        bridgeTimingsTopic$: context.bridgeTimingsTopic$!,
+                        depositBlockNumber: context.activeDepositNumber,
+                        ethStateTopic$: context.ethStateTopic$,
+                        bridgeStateTopic$: context.bridgeStateTopic$,
+                        bridgeTimingsTopic$: context.bridgeTimingsTopic$,
                     }),
                     onSnapshot: {
                         actions: assign({
@@ -362,7 +362,7 @@ export const getDepositMachine = (initialContext: {
                 invoke: {
                     src: 'computeEthProofService',
                     input: ({ context }) => ({
-                        depositBlockNumber: context.activeDepositNumber!,
+                        depositBlockNumber: context.activeDepositNumber,
                     }),
                     onDone: {
                         actions: assign({
@@ -387,10 +387,10 @@ export const getDepositMachine = (initialContext: {
                 invoke: {
                     src: 'canMintActor',
                     input: ({ context }) => ({
-                        depositBlockNumber: context.activeDepositNumber!,
-                        ethStateTopic$: context.ethStateTopic$!,
-                        bridgeStateTopic$: context.bridgeStateTopic$!,
-                        bridgeTimingsTopic$: context.bridgeTimingsTopic$!,
+                        depositBlockNumber: context.activeDepositNumber,
+                        ethStateTopic$: context.ethStateTopic$,
+                        bridgeStateTopic$: context.bridgeStateTopic$,
+                        bridgeTimingsTopic$: context.bridgeTimingsTopic$,
                     }),
                     onSnapshot: {
                         actions: assign({
@@ -424,8 +424,8 @@ export const getDepositMachine = (initialContext: {
                 invoke: {
                     src: 'buildMintTxService',
                     input: ({ context }) => ({
-                        depositBlockNumber: context.activeDepositNumber!,
-                        ethProof: context.computedEthProof!,
+                        depositBlockNumber: context.activeDepositNumber,
+                        ethProof: context.computedEthProof,
                     }),
                     onDone: {
                         actions: assign({
@@ -455,7 +455,7 @@ export const getDepositMachine = (initialContext: {
                 invoke: {
                     src: 'submitMintTxService',
                     input: ({ context }) => ({
-                        mintTx: context.depositMintTx!,
+                        mintTx: context.depositMintTx,
                     }),
                     onDone: {
                         target: 'completed',

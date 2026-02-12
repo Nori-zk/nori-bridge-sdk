@@ -1,16 +1,17 @@
 import {
-    KeyTransitionStageMessageTypes,
-    WebSocketServiceTopicSubscriptionMessage,
+    type WebSocketServiceTopicSubscriptionMessage,
 } from '@nori-zk/pts-types';
 import { setup, assign, fromCallback, sendTo, createActor } from 'xstate';
 
 //KeyTransitionStageMessageTypes // these are the bridge states
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type BridgeWebSocketContext = {
     url: string;
     socketRef: WebSocket | null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type BridgeWebSocketMessage =
     | {
           type: 'BRIDGE_WEBSOCKET_MESSAGE';

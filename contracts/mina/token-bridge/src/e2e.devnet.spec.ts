@@ -1,13 +1,13 @@
 import 'dotenv/config';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { NetworkId, PrivateKey } from 'o1js';
+import { type NetworkId, PrivateKey } from 'o1js';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from './rx/topics.js';
-import { Subscription } from 'rxjs';
+import { type Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
@@ -16,7 +16,7 @@ import {
 } from './rx/deposit.js';
 import { signSecretWithEthWallet } from './ethSignature.js';
 import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
-import { BigNumberish, ethers, TransactionResponse } from 'ethers';
+import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import {
     createCodeChallenge,

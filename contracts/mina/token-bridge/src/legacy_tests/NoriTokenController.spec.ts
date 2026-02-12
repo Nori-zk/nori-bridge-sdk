@@ -3,19 +3,18 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     AccountUpdate,
     Bool,
-    Cache,
     fetchAccount,
     Field,
     Lightnet,
     Mina,
-    NetworkId,
+    type NetworkId,
     Poseidon,
     PrivateKey,
-    PublicKey,
+    type PublicKey,
     UInt64,
     UInt8,
     // Keypair,
-    VerificationKey,
+    type VerificationKey,
 } from 'o1js';
 import { FungibleToken } from '../TokenBase.js';
 import assert from 'node:assert';
@@ -71,6 +70,9 @@ describe('NoriTokenController', () => {
     let storageInterfaceVK: VerificationKey;
     let ethVerifierVk: VerificationKey;
     let allAccounts: PublicKey[] = [];
+    void tokenBaseVK;
+    void noriTokenControllerVK;
+    void ethVerifierVk;
 
     beforeAll(async () => {
         // compile contracts
@@ -293,7 +295,7 @@ describe('NoriTokenController', () => {
                 depositAttestationInput
             );
 
-        const tx = await txSend({
+        await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
                 await noriTokenController.noriMint(

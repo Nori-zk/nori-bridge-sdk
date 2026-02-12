@@ -1,10 +1,10 @@
 import {
-    KeyTransitionStageMessageTypes,
-    WebSocketServiceTopicSubscriptionMessage,
+    type KeyTransitionStageMessageTypes,
+    type WebSocketServiceTopicSubscriptionMessage,
 } from '@nori-zk/pts-types';
-import { filter, map, Observable, shareReplay } from 'rxjs';
-import { WebSocketSubject } from 'rxjs/webSocket';
-import { ReconnectingWebSocketSubject } from './reconnectingSocket.js';
+import { filter, map, type Observable, shareReplay } from 'rxjs';
+import { type WebSocketSubject } from 'rxjs/webSocket';
+import { type ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
 /**
  * Returns an observable emitting the bridge's current processing state.

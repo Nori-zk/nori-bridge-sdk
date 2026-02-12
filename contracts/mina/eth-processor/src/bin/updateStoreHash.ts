@@ -1,7 +1,7 @@
 // Load environment variables from .env file
 import 'dotenv/config';
 // Other imports
-import { Mina, PrivateKey, NetworkId, fetchAccount, Bytes } from 'o1js';
+import { Mina, PrivateKey, type NetworkId, fetchAccount, type Bytes } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { EthProcessor } from '../ethProcessor.js';
 import {

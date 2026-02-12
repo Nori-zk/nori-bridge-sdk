@@ -3,7 +3,7 @@ import {
     type EnforceMaxLength,
     type SecretMaxLength,
 } from './types.js';
-import { id, Wallet } from 'ethers';
+import { id, type Wallet } from 'ethers';
 
 export async function signSecretWithEthWallet<FixedString extends string>(
     secret: EnforceMaxLength<FixedString, SecretMaxLength>,

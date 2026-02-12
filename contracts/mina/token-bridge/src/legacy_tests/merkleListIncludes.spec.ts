@@ -2,12 +2,9 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     Bool,
     Field,
-    Int64,
     MerkleList,
     Provable,
-    Sign,
     Struct,
-    UInt64,
     ZkProgram,
 } from 'o1js';
 
@@ -39,7 +36,7 @@ const MerkleListLeafAttestor = ZkProgram({
                 );*/
 
                 // Iterate through the list
-                input.list.forEach(1000, (element, isDummy, index) => {
+                input.list.forEach(1000, (element, isDummy) => {
                     // Only consider non-dummy elements
                     const check = Provable.if(
                         isDummy,

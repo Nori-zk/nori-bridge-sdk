@@ -1,5 +1,5 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { NetworkId, PrivateKey } from 'o1js';
+import { type NetworkId, PrivateKey } from 'o1js';
 import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
@@ -11,7 +11,7 @@ import {
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from './rx/topics.js';
-import { Subscription } from 'rxjs';
+import { type Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,

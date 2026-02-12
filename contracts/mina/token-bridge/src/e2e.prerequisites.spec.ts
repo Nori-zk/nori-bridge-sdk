@@ -22,7 +22,7 @@ import {
 import { EthProcessor } from '@nori-zk/ethprocessor/browser';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
-import { Field, UInt64, Bytes, UInt8 } from 'o1js';
+import { Field, UInt64, Bytes, type UInt8 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import {
     EthDepositProgramInput,

@@ -11,7 +11,7 @@ import { noriTokenControllerVkHash } from '../integrity/NoriTokenController.VkHa
 import {
     EthVerifier,
     ethVerifierVkHash,
-    ZKCacheWithProgram,
+    type ZKCacheWithProgram,
 } from '@nori-zk/o1js-zk-utils';
 import { cacheBuilder } from '@nori-zk/o1js-zk-utils/node';
 import path from 'path';

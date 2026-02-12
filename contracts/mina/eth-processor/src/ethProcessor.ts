@@ -9,7 +9,7 @@ import {
     PublicKey,
     Permissions,
     Provable,
-    VerificationKey,
+    type VerificationKey,
     assert,
     AccountUpdate,
 } from 'o1js';

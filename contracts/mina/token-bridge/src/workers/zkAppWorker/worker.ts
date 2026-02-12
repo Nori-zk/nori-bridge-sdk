@@ -5,19 +5,19 @@ import {
     EthProofType,
     EthVerifier,
     ethVerifierVkHash,
-    NetworkCacheConfig,
+    type NetworkCacheConfig,
 } from '@nori-zk/o1js-zk-utils';
 import {
     AccountUpdate,
     fetchAccount,
     Field,
-    JsonProof,
+    type JsonProof,
     Mina,
-    NetworkId,
+    type NetworkId,
     PrivateKey,
     PublicKey,
     Transaction,
-    VerificationKey,
+    type VerificationKey,
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
@@ -25,7 +25,7 @@ import { NoriTokenController } from '../../NoriTokenController.js';
 import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
-    MerkleTreeContractDepositAttestorInputJson,
+    type MerkleTreeContractDepositAttestorInputJson,
 } from '../../depositAttestation.js';
 import {
     codeChallengeFieldToBEHex,
@@ -46,6 +46,8 @@ import {
 } from '../../cache-layouts/index.js';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils';
 
+void EthProcessorCacheLayout;
+
 new LogPrinter('ZkAppWorker');
 const logger = new Logger('ZkAppWorker');
 
@@ -55,7 +57,8 @@ export function isBrowser(): boolean {
         ((typeof window !== 'undefined' &&
             typeof window.document !== 'undefined') || // main thread
             (typeof self !== 'undefined' &&
-                typeof (self as any).importScripts === 'function')) // worker
+                'importScripts' in self &&
+                typeof self.importScripts === 'function')) // worker
     );
 }
 
@@ -121,7 +124,7 @@ export class ZkAppWorker {
                 memo: memo,
             },
         };*/
-        serializedTransaction;
+        void serializedTransaction;
         return Transaction.fromJSON(serializedTransaction);
     }
 
@@ -423,10 +426,10 @@ export class ZkAppWorker {
 
             if (fetchAccountResult.account === undefined) return true;
             return false;
-        } catch (e: any) {
+        } catch (e: unknown) {
             logger.log(
                 'We had an error fetching the account. We assume we need to fund it.',
-                e.stack
+                e instanceof Error ? e.stack : String(e)
             );
             return true;
         }

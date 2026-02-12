@@ -83,14 +83,20 @@ describe('Deposit tests', () => {
         );
     }
 
-    function isValidBridgeState(bridgeState: any): bridgeState is {
+    function isValidBridgeState(bridgeState: unknown): bridgeState is {
         last_finalized_job: { input_block_number: number };
         input_block_number: number;
     } {
         return (
+            typeof bridgeState === 'object' &&
+            bridgeState !== null &&
+            'last_finalized_job' in bridgeState &&
             bridgeState.last_finalized_job !== 'unknown' &&
-            typeof bridgeState.last_finalized_job?.input_block_number ===
-                'number' &&
+            typeof bridgeState.last_finalized_job === 'object' &&
+            bridgeState.last_finalized_job !== null &&
+            'input_block_number' in bridgeState.last_finalized_job &&
+            typeof bridgeState.last_finalized_job.input_block_number === 'number' &&
+            'input_block_number' in bridgeState &&
             typeof bridgeState.input_block_number === 'number'
         );
     }
@@ -236,7 +242,7 @@ describe('Deposit tests', () => {
                 const { input_block_number, output_block_number } =
                     lastEmittedStatus.last_finalized_job;
                 const depositBlockNumber =
-                    lastEmittedStatus.deposit_block_number!;
+                    lastEmittedStatus.deposit_block_number;
                 expect(depositBlockNumber).toBeGreaterThanOrEqual(
                     input_block_number
                 );

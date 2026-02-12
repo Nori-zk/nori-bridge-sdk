@@ -3,32 +3,26 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     AccountUpdate,
     Bool,
-    Cache,
     fetchAccount,
-    Field,
     Lightnet,
     Mina,
-    NetworkId,
-    Poseidon,
+    type NetworkId,
     PrivateKey,
-    PublicKey,
-    UInt64,
+    type PublicKey,
     UInt8,
-    // Keypair,
-    VerificationKey,
+    type VerificationKey,
 } from 'o1js';
 import { FungibleToken } from '../TokenBase.js';
 import assert from 'node:assert';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenController } from '../NoriTokenController.js';
-import { codeChallengeFieldToBEHex } from '../pkarm.js';
 
 const FEE = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
 type Keypair = {
     publicKey: PublicKey;
     privateKey: PrivateKey;
 };
-import { EthProofType, EthVerifier, createTimer } from '@nori-zk/o1js-zk-utils';
+import { EthVerifier, createTimer } from '@nori-zk/o1js-zk-utils';
 import { getNewMinaLiteNetAccountSK } from '../testUtils.js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 
@@ -50,6 +44,9 @@ describe('NoriTokenController', () => {
     let storageInterfaceVK: VerificationKey;
     let ethVerifierVk: VerificationKey;
     let allAccounts: PublicKey[] = [];
+    void tokenBaseVK;
+    void noriTokenControllerVK;
+    void ethVerifierVk;
 
     beforeAll(async () => {
         // compile contracts
@@ -195,7 +192,7 @@ describe('NoriTokenController', () => {
         const zkAppWorkerReady = zkAppWorker.compileMinterDeps();
 
         // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
-        const zkWorkerVks = await zkAppWorkerReady;
+        await zkAppWorkerReady;
         logger.log('Awaited compilation of zkAppWorkerReady');
 
         // Compute eth verifier and deposit witness

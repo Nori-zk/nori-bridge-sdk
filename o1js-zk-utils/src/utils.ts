@@ -210,7 +210,12 @@ export async function compileAndVerifyContracts(
     }
 }
 
-export function vkToVkSafe(vk: VerificationKey) {
+export type VerificationKeySafe = {
+  hashStr: string;
+  data: string;
+};
+
+export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
   const { data, hash } = vk;
   return {
     hashStr: hash.toBigInt().toString(),

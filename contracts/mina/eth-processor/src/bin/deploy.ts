@@ -5,7 +5,7 @@ import {
     Mina,
     PrivateKey,
     AccountUpdate,
-    NetworkId,
+    type NetworkId,
     fetchAccount,
     PublicKey,
 } from 'o1js';

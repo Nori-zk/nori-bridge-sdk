@@ -1,4 +1,4 @@
-import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils';
+import { type ZKCacheLayout } from '@nori-zk/o1js-zk-utils';
 import { EthVerifierCacheLayout } from './EthVerifier.js';
 import { EthProcessorCacheLayout } from './EthProcessor.js';
 import { NoriStorageInterfaceCacheLayout } from './NoriStorageInterface.js';

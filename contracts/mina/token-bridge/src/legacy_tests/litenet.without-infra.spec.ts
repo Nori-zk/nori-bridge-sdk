@@ -1,6 +1,6 @@
 // NOTE THIS TEST IS NO LONGER VIABLE DUE TO PKARM VERIFYING THE RECIPENT BUT IS LEFT HERE FOR POSTERITY
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { NetworkId, PrivateKey } from 'o1js';
+import { type NetworkId, PrivateKey } from 'o1js';
 import { getNewMinaLiteNetAccountSK } from '../testUtils.js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';

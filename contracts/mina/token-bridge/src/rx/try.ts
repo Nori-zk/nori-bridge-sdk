@@ -1,4 +1,4 @@
-import { map, Observable, switchMap, take } from 'rxjs';
+import { map, type Observable, switchMap, take } from 'rxjs';
 import { getReconnectingBridgeSocket$ } from './socket.js';
 import {
     getBridgeStateTopic$,
@@ -12,7 +12,7 @@ import { Logger } from 'esm-iso-logger';
 const logger = new Logger('RxTry');
 
 // Util for testing Obserables
-function testSub($: Observable<any>) {
+function testSub($: Observable<unknown>) {
     $.subscribe({
         error: logger.error,
         next: logger.log,
@@ -22,6 +22,7 @@ function testSub($: Observable<any>) {
 
 const { bridgeSocket$, bridgeSocketConnectionState$ } =
     getReconnectingBridgeSocket$();
+void bridgeSocketConnectionState$;
 
 const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
 const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
@@ -31,6 +32,7 @@ const bridgeStateWithTimings$ = getBridgeStateWithTimings$(
     bridgeStateTopic$,
     bridgeTimingsTopic$
 );
+void bridgeStateWithTimings$;
 
 const nextFinalizationTarget$ = ethStateTopic$.pipe(take(1));
 
@@ -48,7 +50,7 @@ const depositProcessingStatus$ = nextFinalizationTarget$.pipe(
         )
     )
 );
-
+void depositProcessingStatus$;
 /*testSub(bridgeStateTopic$);
 testSub(ethStateTopic$);
 testSub(bridgeTimingsTopic$);

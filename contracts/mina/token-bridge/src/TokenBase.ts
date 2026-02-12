@@ -1,9 +1,9 @@
 import {
   AccountUpdate,
-  AccountUpdateForest,
+  type AccountUpdateForest,
   assert,
   Bool,
-  DeployArgs,
+  type DeployArgs,
   Int64,
   method,
   Permissions,
@@ -16,7 +16,7 @@ import {
   Types,
   UInt64,
   UInt8,
-  VerificationKey,
+  type VerificationKey,
 } from 'o1js';
 import {
   NoriTokenController,
@@ -59,7 +59,7 @@ export class FungibleToken extends TokenContract {
   // This defines the type of the contract that is used to control access to administrative actions.
   // If you want to have a custom contract, overwrite this by setting FungibleToken.AdminContract to
   // your own implementation of FungibleTokenAdminBase.
-  static AdminContract: new (...args: any) => NoriTokenController;
+  static AdminContract: new (...args: unknown[]) => NoriTokenController;
 
   readonly events = {
     SetAdmin: SetAdminEvent,

@@ -133,35 +133,77 @@ See the [E2E test](src/e2e.devnet.spec.ts) for a comprehensive example.
 
 If the smart contracts have been updated please run `npm run bake-vk-hashes` to update the integrity files. All workers will validate these after contract/program compilation.
 
-## Token Contract Deployment
+## How to deploy (launch new contracts)
 
-In order to deploy the contract, a script has been provided as an npm command:
+Set up your `.env` file in the root directory. Set:
+
+- `MINA_RPC_NETWORK_URL` - Mina network RPC endpoint URL
+- `SENDER_PRIVATE_KEY` - Private key of the transaction sender
+- `TX_FEE` - Transaction fee to be used when submitting transactions (optional, defaults to 0.1)
+- `ADMIN_PUBLIC_KEY` - Public key of the admin account (optional, derived from SENDER_PRIVATE_KEY if not provided)
+- `ETH_PROCESSOR_ADDRESS` - Address of the deployed EthProcessor contract (optional, will generate random if not provided)
+
+Run:
 
     npm run deploy
 
-This command builds the project and runs the deployment script with Node.js using the necessary experimental flags for VM and WASM modules.
+This command will:
+1. Generate new private keys for NoriTokenController and TokenBase if not already set
+2. Deploy both contracts to the network
+3. Write a `.env.nori-token-bridge` file containing:
+   - `NORI_CONTROLLER_PRIVATE_KEY`
+   - `NORI_TOKEN_CONTROLLER_ADDRESS`
+   - `TOKEN_BASE_PRIVATE_KEY`
+   - `TOKEN_BASE_ADDRESS`
+   - `ADMIN_PUBLIC_KEY`
+   - `TOKEN_BASE_TOKEN_ID`
+   - `NORI_TOKEN_CONTROLLER_TOKEN_ID`
 
-### Environment Variables
+Copy these values into your `.env` file for future operations.
 
-- `MINA_RPC_NETWORK_URL`  
-- `SENDER_PRIVATE_KEY`  
-- `NORI_CONTROLLER_PRIVATE_KEY`  
-- `TOKEN_BASE_PRIVATE_KEY`  
-- `ADMIN_PUBLIC_KEY`  
-- `ETH_PROCESSOR_ADDRESS`  
-- `TX_FEE`  
-- `MOCK`  
+After deployment, update `src/env.ts` with the deployed addresses and token IDs:
+- `NORI_TOKEN_CONTROLLER_ADDRESS`
+- `TOKEN_BASE_ADDRESS`
+- `TOKEN_BASE_TOKEN_ID`
+- `NORI_TOKEN_CONTROLLER_TOKEN_ID`
 
-### Example `.env` file
+### Example `.env` file for new deployment
 
     MINA_RPC_NETWORK_URL=http://localhost:8080/graphql
     SENDER_PRIVATE_KEY=your_sender_private_key_here
-    NORI_CONTROLLER_PRIVATE_KEY=your_nori_controller_key_here
-    TOKEN_BASE_PRIVATE_KEY=your_token_base_private_key_here
-    ADMIN_PUBLIC_KEY=your_admin_public_key_here
-    ETH_PROCESSOR_ADDRESS=optional_eth_processor_address
     TX_FEE=0.1
-    MOCK=true
+    ETH_PROCESSOR_ADDRESS=optional_eth_processor_address
+
+## How to re-deploy (update verification keys on existing contracts)
+
+The verification keys used in the deploy/re-deploy command are computed from the stored zk programs directly but validated against the integrity hashes before deployment is allowed.
+
+Perform the following steps if contract verification keys have been updated due to changes in the smart contracts or their dependencies:
+
+1. Run `npm run bake-vk-hashes` to update integrity hashes
+2. Set up your `.env` file with the existing contract information:
+   - `MINA_RPC_NETWORK_URL`
+   - `SENDER_PRIVATE_KEY` - Must be the admin private key with permissions to update verification keys
+   - `NORI_CONTROLLER_PRIVATE_KEY` - Existing controller private key
+   - `TOKEN_BASE_PRIVATE_KEY` - Existing token base private key
+   - `NORI_TOKEN_CONTROLLER_ADDRESS` - Deployed controller address
+   - `TOKEN_BASE_ADDRESS` - Deployed token base address
+   - `TX_FEE` (optional)
+3. Run `npm run deploy`
+
+The script will detect that contract keys already exist and perform a verification key update instead of deploying new contracts.
+
+Note: The contract addresses and token IDs remain unchanged during VK updates, but the script will output them for verification.
+
+### Example `.env` file for VK update
+
+    MINA_RPC_NETWORK_URL=http://localhost:8080/graphql
+    SENDER_PRIVATE_KEY=admin_private_key_here
+    NORI_CONTROLLER_PRIVATE_KEY=existing_controller_key_here
+    TOKEN_BASE_PRIVATE_KEY=existing_token_base_key_here
+    NORI_TOKEN_CONTROLLER_ADDRESS=existing_controller_address
+    TOKEN_BASE_ADDRESS=existing_token_base_address
+    TX_FEE=0.1
 
 ## How to run the tests
 

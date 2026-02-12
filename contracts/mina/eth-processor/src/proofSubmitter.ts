@@ -1,18 +1,18 @@
 import 'dotenv/config';
-import { AccountUpdate, Mina, PrivateKey, NetworkId, fetchAccount } from 'o1js';
+import { AccountUpdate, Mina, PrivateKey, type NetworkId, fetchAccount } from 'o1js';
 import { Logger } from 'esm-iso-logger';
-import { EthProcessor, EthProofType } from './ethProcessor.js';
+import { EthProcessor, type EthProofType } from './ethProcessor.js';
 import {
     EthVerifier,
     EthInput,
     ethVerifierVkHash,
-    CreateProofArgument,
-    VerificationKey,
+    type CreateProofArgument,
+    type VerificationKey,
     decodeConsensusMptProof,
-    Bytes32,
+    type Bytes32,
     Bytes32FieldPair,
     NodeProofLeft,
-    FileSystemCacheConfig,
+    type FileSystemCacheConfig,
     compileAndOptionallyVerifyContracts,
 } from '@nori-zk/o1js-zk-utils';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';

@@ -3,7 +3,8 @@ import {
     compileAndOptionallyVerifyContracts,
     EthVerifier,
     ethVerifierVkHash,
-    FileSystemCacheConfig,
+    type FileSystemCacheConfig,
+    type VerificationKeySafe,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
@@ -12,7 +13,7 @@ import {
     Bool,
     Field,
     Mina,
-    NetworkId,
+    type NetworkId,
     PrivateKey,
     PublicKey,
     UInt8,
@@ -34,6 +35,8 @@ const logger = new Logger('TokenDeployerWorker');
 export interface DeploymentResult {
     noriTokenControllerAddress: string;
     tokenBaseAddress: string;
+    tokenBaseTokenId: string;
+    noriTokenControllerTokenId: string;
     txHash: string;
 }
 
@@ -235,11 +238,86 @@ export class TokenDeployerWorker {
 
         logger.log('Contracts deployed successfully');
 
+        // Derive token IDs
+        const tokenBaseTokenId = tokenBase.deriveTokenId().toString();
+        const noriTokenControllerTokenId = noriTokenController.deriveTokenId().toString();
+        logger.log(`Token Base Token ID: ${tokenBaseTokenId}`);
+        logger.log(`NoriTokenController Token ID: ${noriTokenControllerTokenId}`);
+
         removeCacheDir(this.#cacheConfig);
 
         return {
             noriTokenControllerAddress: noriTokenController.address.toBase58(),
             tokenBaseAddress: tokenBase.address.toBase58(),
+            tokenBaseTokenId,
+            noriTokenControllerTokenId,
+            txHash: result.hash,
+        };
+    }
+
+    async updateVerificationKeys(
+        senderPrivateKeyBase58: string,
+        noriTokenControllerAddressBase58: string,
+        tokenBaseAddressBase58: string,
+        noriTokenControllerVerificationKeySafe: VerificationKeySafe,
+        fungibleTokenVerificationKeySafe: VerificationKeySafe,
+        txFee: number
+    ): Promise<DeploymentResult> {
+        logger.log('Updating verification keys for NoriTokenController and TokenBase...');
+
+        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
+        const senderPublicKey = senderPrivateKey.toPublicKey();
+
+        const noriTokenControllerAddress = PublicKey.fromBase58(noriTokenControllerAddressBase58);
+        const tokenBaseAddress = PublicKey.fromBase58(tokenBaseAddressBase58);
+
+        // Reconstruct VerificationKey objects from safe format
+        const noriTokenControllerVk = {
+            data: noriTokenControllerVerificationKeySafe.data,
+            hash: new Field(BigInt(noriTokenControllerVerificationKeySafe.hashStr)),
+        };
+        const fungibleTokenVk = {
+            data: fungibleTokenVerificationKeySafe.data,
+            hash: new Field(BigInt(fungibleTokenVerificationKeySafe.hashStr)),
+        };
+
+        const noriTokenController = new NoriTokenController(noriTokenControllerAddress);
+        const tokenBase = new FungibleToken(tokenBaseAddress);
+
+        const updateTx = await Mina.transaction(
+            { sender: senderPublicKey, fee: txFee },
+            async () => {
+                logger.log(`Updating NoriTokenController VK hash: '${noriTokenControllerVk.hash}'`);
+                await noriTokenController.updateVerificationKey(noriTokenControllerVk);
+
+                logger.log(`Updating TokenBase VK hash: '${fungibleTokenVk.hash}'`);
+                await tokenBase.updateVerificationKey(fungibleTokenVk);
+            }
+        );
+
+        logger.log('Update transaction created. Proving...');
+        await updateTx.prove();
+
+        logger.log('Transaction proved. Signing and sending...');
+        const tx = await updateTx.sign([senderPrivateKey]).send();
+
+        const result = await tx.wait();
+
+        logger.log('Verification keys updated successfully');
+
+        // Derive token IDs
+        const tokenBaseTokenId = tokenBase.deriveTokenId().toString();
+        const noriTokenControllerTokenId = noriTokenController.deriveTokenId().toString();
+        logger.log(`Token Base Token ID: ${tokenBaseTokenId}`);
+        logger.log(`NoriTokenController Token ID: ${noriTokenControllerTokenId}`);
+
+        removeCacheDir(this.#cacheConfig);
+
+        return {
+            noriTokenControllerAddress: noriTokenController.address.toBase58(),
+            tokenBaseAddress: tokenBase.address.toBase58(),
+            tokenBaseTokenId,
+            noriTokenControllerTokenId,
             txHash: result.hash,
         };
     }

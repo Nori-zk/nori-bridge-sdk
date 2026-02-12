@@ -1,30 +1,30 @@
 import {
     AccountUpdate,
-    AccountUpdateForest,
+    type AccountUpdateForest,
     assert,
     Bool,
-    DeployArgs,
+    type DeployArgs,
     Field,
     method,
     Permissions,
     Poseidon,
     Provable,
     PublicKey,
-    SmartContract,
+    type SmartContract,
     State,
     state,
     TokenContract,
     UInt64,
-    VerificationKey,
+    type VerificationKey,
 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-import { EthProofType } from '@nori-zk/o1js-zk-utils';
+import { type EthProofType } from '@nori-zk/o1js-zk-utils';
 import {
     contractDepositCredentialAndTotalLockedToFields,
     getContractDepositSlotRootFromContractDepositAndWitness,
-    MerkleTreeContractDepositAttestorInput,
+    type MerkleTreeContractDepositAttestorInput,
     verifyDepositSlotRoot,
 } from './depositAttestation.js';
 import { verifyCodeChallenge } from './pkarm.js';
@@ -74,7 +74,7 @@ export class NoriTokenController
         });
     }
 
-    approveBase(forest: AccountUpdateForest): Promise<void> {
+    approveBase(_forest: AccountUpdateForest): Promise<void> {
         throw Error('block updates');
     }
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {

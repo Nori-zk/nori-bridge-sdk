@@ -1,7 +1,7 @@
 import {
     Bytes20,
     createTimer,
-    EthProofType,
+    type EthProofType,
     Bytes32,
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
@@ -13,7 +13,7 @@ import {
     EthVerifier,
 } from '@nori-zk/o1js-zk-utils';
 import { DynamicArray } from 'mina-attestations';
-import { Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
+import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 // ------- Deposit attestation ---------------------------------
