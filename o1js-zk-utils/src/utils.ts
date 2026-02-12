@@ -170,9 +170,9 @@ export async function compileAndVerifyContracts(
 
         for (const { name, program, integrityHash } of contracts) {
             logger.log(`Compiling ${name} contract.`);
-            const startTime = Date.now();
+            const timer = createTimer();
             const compiled = await program.compile();
-            logger.log(`${name} compile took ${Date.now() - startTime}ms`);
+            logger.log(`${name} compiled in ${timer()}`);
             const verificationKey = compiled.verificationKey;
             const calculatedHash = verificationKey.hash.toString();
 
@@ -276,9 +276,9 @@ export async function compileAndOptionallyVerifyContracts<
     const { name, program, integrityHash } = c;
 
     logger.log(`Compiling ${name} contract/program.`);
-    const startTime = Date.now();
+    const timer = createTimer();
     const compiled = await (cache ? program.compile({cache}) : program.compile());
-    logger.log(`${name} compiled in ${Date.now() - startTime}ms`);
+    logger.log(`${name} compiled in ${timer()}`);
 
     const vk = compiled.verificationKey;
     const hashStr = vk.hash.toBigInt().toString();
@@ -323,4 +323,18 @@ export type ZKCacheWithProgram = ZKCache & {
 
 export type ZKCacheLayout = ZKCache & {
     files: string[];
+}
+
+// Timing utilities to replace console.time/timeEnd
+export function createTimer() {
+    const start = Date.now();
+    return () => formatDuration(Date.now() - start);
+}
+
+export function formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(2);
+    return `${minutes}m ${seconds}s`;
 }

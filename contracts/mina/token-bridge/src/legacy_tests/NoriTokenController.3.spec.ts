@@ -28,7 +28,7 @@ type Keypair = {
     publicKey: PublicKey;
     privateKey: PrivateKey;
 };
-import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import { EthProofType, EthVerifier, createTimer } from '@nori-zk/o1js-zk-utils';
 import { getNewMinaLiteNetAccountSK } from '../testUtils.js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 
@@ -218,7 +218,7 @@ describe('NoriTokenController', () => {
 
         // SETUP STORAGE **************************************************
 
-        const startTimeSetupStorage = Date.now();
+        const setupStorageTimer = createTimer();
         const { txHash: setupTxHash } = await zkAppWorker.MOCK_setupStorage(
             senderPublicKeyBase58,
             noriTokenController.address.toBase58(),
@@ -245,7 +245,7 @@ describe('NoriTokenController', () => {
                     await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
         logger.log('setupTxHash', setupTxHash);
-        logger.log(`Nori minter storage setup: ${Date.now() - startTimeSetupStorage}ms`);
+        logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
 
         // MINT **************************************************
 
@@ -256,7 +256,7 @@ describe('NoriTokenController', () => {
         );
         logger.log('needsToFundAccount', needsToFundAccount);
 
-        const startTimeMinting = Date.now();
+        const mintingTimer = createTimer();
         const { txHash: mintTxHash } = await zkAppWorker.MOCK_mint(
             senderPublicKeyBase58,
             noriTokenController.address.toBase58(),
@@ -287,7 +287,7 @@ describe('NoriTokenController', () => {
                     await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
 
         logger.log('mintTxHash', mintTxHash);
-        logger.log(`Minting completed: ${Date.now() - startTimeMinting}ms`);
+        logger.log(`Minting completed in ${mintingTimer()}`);
         logger.log('Minted!');
 
         // Get the amount minted so far and print it

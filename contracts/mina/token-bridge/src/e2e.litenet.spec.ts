@@ -25,6 +25,7 @@ import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
 } from './pkarm.js';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 new LogPrinter('TestEthProcessor');
 const logger = new Logger('E2ELitenetSpec');
@@ -114,12 +115,12 @@ describe('e2e', () => {
             // their codeVerifier (secret) on another machine.
             // If they provided a secret then they would have to keep this themselves and provide it when minting.
             logger.log('Creating eth signature of our secret / fixed field');
-            const startTimeEthSignatureSecret = Date.now();
+            const ethSignatureTimer = createTimer();
             const ethSignatureSecret = await signSecretWithEthWallet(
                 fixedValueOrSecret,
                 ethWallet
             );
-            logger.log(`Eth signature secret computed: ${Date.now() - startTimeEthSignatureSecret}ms`);
+            logger.log(`Eth signature secret computed in ${ethSignatureTimer()}`);
 
             // CLIENT only logic from now on....
 
@@ -170,25 +171,25 @@ describe('e2e', () => {
             // Under normal conditions this is very fast. But see the docstring for why this
             // may be unsafe, a safe method is also provided.
             logger.log('Awaiting sufficient bridge state');
-            const startTimeBridgeStateReady = Date.now();
+            const bridgeStateTimer = createTimer();
             await bridgeStatusesKnownEnoughToLockUnsafe(
                 ethStateTopic$,
                 bridgeStateTopic$,
                 bridgeTimingsTopic$
             );
-            logger.log(`Bridge state ready: ${Date.now() - startTimeBridgeStateReady}ms`);
+            logger.log(`Bridge state ready in ${bridgeStateTimer()}`);
 
             // LOCK TOKENS **************************************************
 
             logger.log('Locking eth tokens');
-            const startTimeLockingTokens = Date.now();
+            const lockTokensTimer = createTimer();
             const depositAmount = 0.000001;
             logger.log('Deposit amount', depositAmount);
             const depositBlockNumber = await lockTokens(
                 codeChallengePKARMField,
                 depositAmount
             );
-            logger.log(`Tokens locked: ${Date.now() - startTimeLockingTokens}ms`);
+            logger.log(`Tokens locked in ${lockTokensTimer()}`);
 
             // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
 
@@ -269,7 +270,7 @@ describe('e2e', () => {
 
             // SETUP STORAGE **************************************************
 
-            const startTimeSetupStorage = Date.now();
+            const setupStorageTimer = createTimer();
             const { txHash: setupTxHash } = await zkAppWorker.MOCK_setupStorage(
                 senderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -293,7 +294,7 @@ describe('e2e', () => {
             await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
             logger.log('setupTxHash', setupTxHash);
-            logger.log(`Nori minter storage setup: ${Date.now() - startTimeSetupStorage}ms`);
+            logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
 
             // MINT **************************************************
 
@@ -304,7 +305,7 @@ describe('e2e', () => {
             );
             logger.log('needsToFundAccount', needsToFundAccount);
 
-            const startTimeMinting = Date.now();
+            const mintingTimer = createTimer();
             const { txHash: mintTxHash } = await zkAppWorker.MOCK_mint(
                 senderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -335,7 +336,7 @@ describe('e2e', () => {
             await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
 
             logger.log('mintTxHash', mintTxHash);
-            logger.log(`Minting completed: ${Date.now() - startTimeMinting}ms`);
+            logger.log(`Minting completed in ${mintingTimer()}`);
             logger.log('Minted!');
 
             // Get the amount minted so far and print it

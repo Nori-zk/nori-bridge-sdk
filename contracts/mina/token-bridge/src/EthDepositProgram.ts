@@ -1,4 +1,5 @@
 import {
+    createTimer,
     EthProof,
     ContractDepositAttestorProof,
     ContractDepositAttestor,
@@ -148,26 +149,26 @@ export class EthDepositProgramProofType extends EthDepositProgramProof {}
 export async function compilePreRequisites() {
     // TODO optimise not all of these need to be compiled immediately
 
-    let startTime = Date.now();
+    let timer = createTimer();
     const { verificationKey: contractDepositAttestorVerificationKey } =
         await ContractDepositAttestor.compile({ forceRecompile: true });
-    logger.log(`ContractDepositAttestor compile took ${Date.now() - startTime}ms`);
+    logger.log(`ContractDepositAttestor compiled in ${timer()}`);
     logger.log(
         `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
     );
 
-    startTime = Date.now();
+    timer = createTimer();
     const { verificationKey: ethVerifierVerificationKey } =
         await EthVerifier.compile({ forceRecompile: true });
-    logger.log(`EthVerifier compile took ${Date.now() - startTime}ms`);
+    logger.log(`EthVerifier compiled in ${timer()}`);
     logger.log(
         `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
     );
 
-    startTime = Date.now();
+    timer = createTimer();
     const { verificationKey: e2ePrerequisitesVerificationKey } =
         await EthDepositProgram.compile({ forceRecompile: true });
-    logger.log(`E2EPrerequisitesProgram compile took ${Date.now() - startTime}ms`);
+    logger.log(`E2EPrerequisitesProgram compiled in ${timer()}`);
     logger.log(
         `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
     );

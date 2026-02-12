@@ -28,6 +28,7 @@ import {
     EthDepositProgramInput,
     EthDepositProgram,
 } from './EthDepositProgram.js';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 new LogPrinter('TestEthProcessor');
 const logger = new Logger('E2EPrerequisitesSpec');
@@ -252,12 +253,11 @@ describe('e2e_prerequisites', () => {
         logger.log('Prepared ContractDepositAttestorInput');
 
         // Prove deposit with sample data.
-        let start = Date.now();
+        const contractDepositAttestorTimer = createTimer();
         const depositAttestationProof = await ContractDepositAttestor.compute(
             depositProofInput
         );
-        let durationMs = Date.now() - start;
-        logger.log(`ContractDepositAttestor.compute took ${durationMs}ms`);
+        logger.log(`ContractDepositAttestor.compute took ${contractDepositAttestorTimer()}`);
 
         // Converted proof verification
 
@@ -275,12 +275,12 @@ describe('e2e_prerequisites', () => {
         );
         logger.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
 
-        start = Date.now();
+        const ethVerifierTimer = createTimer();
         const ethVerifierProof = await EthVerifier.compute(
             ethVerifierInput,
             rawProof
         );
-        logger.log(`EthVerifier.compute took ${Date.now() - start}ms`);
+        logger.log(`EthVerifier.compute took ${ethVerifierTimer()}`);
 
         // MOCK convert attestation bytes into a field
         let credentialAttestationHash = new Field(0);
@@ -304,14 +304,14 @@ describe('e2e_prerequisites', () => {
         logger.log('Constructed E2ePrerequisitesInput');
 
         // Compute e2e pre-requisites proof
-        start = Date.now();
+        const ethDepositProgramTimer = createTimer();
         const e2ePrerequisitesProof = await EthDepositProgram.compute(
             e2ePrerequisitesInput,
             ethVerifierProof.proof,
             depositAttestationProof.proof
         );
         logger.log(
-            `E2EPrerequisitesProgram.compute took ${Date.now() - start}ms`
+            `E2EPrerequisitesProgram.compute took ${ethDepositProgramTimer()}`
         );
         logger.log('Computed E2EPrerequisitesProgram proof');
 

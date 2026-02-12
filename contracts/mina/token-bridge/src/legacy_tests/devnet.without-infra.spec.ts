@@ -5,6 +5,7 @@ import { NetworkId, PrivateKey } from 'o1js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 // https://faucet.minaprotocol.com/
 
@@ -157,7 +158,7 @@ describe('e2e_testnet_without_infra', () => {
         logger.log(`Setup storage required? '${setupRequired}'`);
         if (setupRequired) {
             logger.log('Setting up storage');
-            const startTimeSetupStorage = Date.now();
+            const setupStorageTimer = createTimer();
             const { txHash: setupTxHash } = await zkAppWorker.MOCK_setupStorage(
                 minaSenderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -180,7 +181,7 @@ describe('e2e_testnet_without_infra', () => {
                 await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
             logger.log('setupTxHash', setupTxHash);
-            logger.log(`Nori minter storage setup: ${Date.now() - startTimeSetupStorage}ms`);
+            logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
         }
 
         // Compute eth verifier and deposit witness
@@ -204,7 +205,7 @@ describe('e2e_testnet_without_infra', () => {
 
         logger.log('Computing mint proof.');
 
-        const startTimeMintProofComputation = Date.now();
+        const mintProofComputationTimer = createTimer();
         await zkAppWorker.MOCK_computeMintProofAndCache(
             minaSenderPublicKeyBase58,
             noriTokenControllerAddressBase58,
@@ -214,7 +215,7 @@ describe('e2e_testnet_without_infra', () => {
             1e9 * 0.1,
             needsToFundAccount
         );
-        logger.log(`Mint proof computation: ${Date.now() - startTimeMintProofComputation}ms`);
+        logger.log(`Mint proof computation in ${mintProofComputationTimer()}`);
         // NOTE!
         // Really a client would use await zkAppWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
         // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.mint should be used on the
@@ -233,7 +234,7 @@ describe('e2e_testnet_without_infra', () => {
 
         // SIGN AND SEND MINT PROOF **************************************************
 
-        const startTimeMintTransactionFinalized = Date.now();
+        const mintTransactionFinalizedTimer = createTimer();
         const { txHash: mintTxHash } =
             await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();
         // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
@@ -241,7 +242,7 @@ describe('e2e_testnet_without_infra', () => {
         /*const { txHash: mintTxHash } =
             await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
         logger.log('mintTxHash', mintTxHash);
-        logger.log(`Mint transaction finalized: ${Date.now() - startTimeMintTransactionFinalized}ms`);
+        logger.log(`Mint transaction finalized in ${mintTransactionFinalizedTimer()}`);
         logger.log('Minted!');
 
         // Get the amount minted so far and print it

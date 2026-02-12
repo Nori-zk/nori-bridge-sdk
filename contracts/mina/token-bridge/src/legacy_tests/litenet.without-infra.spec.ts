@@ -6,6 +6,7 @@ import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
 import { ZkAppWorker as ZkAppWorkerPure } from '../workers/zkAppWorker/worker.js';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 new LogPrinter('TestEthProcessor');
 const logger = new Logger('LitenetWithoutInfraSpec');
@@ -155,7 +156,7 @@ describe('e2e-without-infra', () => {
 
         // SETUP STORAGE **************************************************
 
-        const startTimeSetupStorage = Date.now();
+        const setupStorageTimer = createTimer();
         const { txHash: setupTxHash } = await zkAppWorker.MOCK_setupStorage(
             senderPublicKeyBase58,
             noriTokenControllerAddressBase58,
@@ -179,7 +180,7 @@ describe('e2e-without-infra', () => {
             await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
         logger.log('setupTxHash', setupTxHash);
-        logger.log(`Nori minter storage setup: ${Date.now() - startTimeSetupStorage}ms`);
+        logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
 
         // MINT **************************************************
 
@@ -190,7 +191,7 @@ describe('e2e-without-infra', () => {
         );
         logger.log('needsToFundAccount', needsToFundAccount);
 
-        const startTimeMinting = Date.now();
+        const mintingTimer = createTimer();
         const { txHash: mintTxHash } = await zkAppWorker.MOCK_mint(
             senderPublicKeyBase58,
             noriTokenControllerAddressBase58,
@@ -221,7 +222,7 @@ describe('e2e-without-infra', () => {
             await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
 
         logger.log('mintTxHash', mintTxHash);
-        logger.log(`Minting completed: ${Date.now() - startTimeMinting}ms`);
+        logger.log(`Minting completed in ${mintingTimer()}`);
         logger.log('Minted!');
 
         // Get the amount minted so far and print it

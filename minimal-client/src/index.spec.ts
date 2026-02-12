@@ -18,6 +18,7 @@ import { BigNumberish, ethers, id, TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { Wallet } from 'ethers';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 import { expect } from 'chai';
 import { describe, test } from './test-utils/browserTestRunner.js'
 
@@ -174,12 +175,12 @@ describe('e2e_testnet', () => {
             // their codeVerifier (secret) on another machine.
             // If they provided a secret then they would have to keep this themselves and provide it when minting.
             logger.log('Creating eth signature of our secret / fixed field');
-            const startTimeEthSignatureSecret = Date.now();
+            const ethSignatureSecretTimer = createTimer();
             const ethSignatureSecret = await signSecretWithEthWallet(
                 fixedValueOrSecret,
                 ethWallet
             );
-            logger.log(`Eth signature secret computed: ${Date.now() - startTimeEthSignatureSecret}ms`);
+            logger.log(`Eth signature secret computed in ${ethSignatureSecretTimer()}`);
 
             // These prints are just for testing purposes.
             logger.log('ethSignatureSecret', ethSignatureSecret);
@@ -238,18 +239,18 @@ describe('e2e_testnet', () => {
             // Under normal conditions this is very fast. But see the docstring for why this
             // may be unsafe, a safe method is also provided.
             logger.log('Awaiting sufficient bridge state');
-            const startTimeBridgeStateReady = Date.now();
+            const bridgeStateReadyTimer = createTimer();
             await bridgeStatusesKnownEnoughToLockUnsafe(
                 ethStateTopic$,
                 bridgeStateTopic$,
                 bridgeTimingsTopic$
             );
-            logger.log(`Bridge state ready: ${Date.now() - startTimeBridgeStateReady}ms`);
+            logger.log(`Bridge state ready in ${bridgeStateReadyTimer()}`);
 
             // LOCK TOKENS **************************************************
 
             logger.log('Locking eth tokens');
-            const startTimeLockingTokens = Date.now();
+            const lockingTokensTimer = createTimer();
             const abi = noriTokenBridgeJson.abi;
             const contract = new ethers.Contract(
                 noriETHBridgeAddressHex,
@@ -276,7 +277,7 @@ describe('e2e_testnet', () => {
             logger.log(
                 `Deposit confirmed with blockNumber: ${depositBlockNumber}`
             );
-            logger.log(`Tokens locked: ${Date.now() - startTimeLockingTokens}ms`);
+            logger.log(`Tokens locked in ${lockingTokensTimer()}`);
 
             // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
 
@@ -324,7 +325,7 @@ describe('e2e_testnet', () => {
             logger.log(`Setup storage required? '${setupRequired}'`);
             if (setupRequired) {
                 logger.log('Setting up storage');
-                const startTimeSetupStorage = Date.now();
+                const setupStorageTimer = createTimer();
                 const { txHash: setupTxHash } =
                     await zkAppWorker.MOCK_setupStorage(
                         minaSenderPublicKeyBase58,
@@ -348,7 +349,7 @@ describe('e2e_testnet', () => {
                 await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
                 logger.log('setupTxHash', setupTxHash);
-                logger.log(`Nori minter storage setup: ${Date.now() - startTimeSetupStorage}ms`);
+                logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
             }
 
             // Block until we can compute our deposit attestation proof.
@@ -364,7 +365,7 @@ describe('e2e_testnet', () => {
             logger.log(
                 'Computing eth verifier and calculating deposit witness.'
             );
-            const startTimeDepositWitnessAndEthVerifier = Date.now();
+            const depositWitnessAndEthVerifierTimer = createTimer();
             const { ethVerifierProofJson, depositAttestationInput } =
                 await zkAppWorker.computeDepositAttestationWitnessAndEthVerifier(
                     codeChallengePKARMStr,
@@ -372,7 +373,7 @@ describe('e2e_testnet', () => {
                     ethAddressLowerHex,
                     proofConversionServiceUrl
                 );
-            logger.log(`Deposit witness and eth verifier computed: ${Date.now() - startTimeDepositWitnessAndEthVerifier}ms`);
+            logger.log(`Deposit witness and eth verifier computed in ${depositWitnessAndEthVerifierTimer()}`);
             logger.log(
                 'Computed eth verifier and calculated deposit witness.'
             );
@@ -388,7 +389,7 @@ describe('e2e_testnet', () => {
 
             logger.log('Computing mint proof.');
 
-            const startTimeMintProofComputation = Date.now();
+            const mintProofComputationTimer = createTimer();
             await zkAppWorker.MOCK_computeMintProofAndCache(
                 minaSenderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -398,7 +399,7 @@ describe('e2e_testnet', () => {
                 1e9 * 0.1,
                 needsToFundAccount
             );
-            logger.log(`Mint proof computation: ${Date.now() - startTimeMintProofComputation}ms`);
+            logger.log(`Mint proof computation in ${mintProofComputationTimer()}`);
             // NOTE!
             // Really a client would use await zkAppWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
             // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.mint should be used on the
@@ -430,7 +431,7 @@ describe('e2e_testnet', () => {
 
             // SIGN AND SEND MINT PROOF **************************************************
 
-            const startTimeMintTransactionFinalized = Date.now();
+            const mintTransactionFinalizedTimer = createTimer();
             const { txHash: mintTxHash } =
                 await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();
             // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
@@ -438,7 +439,7 @@ describe('e2e_testnet', () => {
             /*const { txHash: mintTxHash } =
             await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
             logger.log('mintTxHash', mintTxHash);
-            logger.log(`Mint transaction finalized: ${Date.now() - startTimeMintTransactionFinalized}ms`);
+            logger.log(`Mint transaction finalized in ${mintTransactionFinalizedTimer()}`);
             logger.log('Minted!');
 
             // Get the amount minted so far and print it

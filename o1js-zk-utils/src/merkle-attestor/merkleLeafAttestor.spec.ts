@@ -19,7 +19,7 @@ import {
 } from './testUtils.js';
 
 const logger = new Logger('TestMerkle');
-new LogPrinter('TestEthProcessor');
+new LogPrinter('NoriO1JsZkUtils');
 
 const {
     MerkleTreeLeafAttestorInput,

@@ -1,5 +1,6 @@
 import {
     Bytes20,
+    createTimer,
     EthProofType,
     Bytes32,
     computeMerkleTreeDepthAndSize,
@@ -322,7 +323,7 @@ async function fetchContractWindowSlotProofs(
         `Fetching proof bundle for deposit with block number: ${depositBlockNumber}`
     );
 
-    const startTimeProofConversionServiceRequest = Date.now();
+    const proofConversionTimer = createTimer();
     const {
         consensusMPTProof: {
             proof: consensusMPTProofProof,
@@ -330,7 +331,7 @@ async function fetchContractWindowSlotProofs(
         },
         consensusMPTProofVerification: consensusMPTProofVerification,
     } = await proofConversionServiceRequest(depositBlockNumber, domain);
-    logger.log(`proofConversionServiceRequest: ${Date.now() - startTimeProofConversionServiceRequest}ms`);
+    logger.log(`proofConversionServiceRequest: ${proofConversionTimer()}`);
 
     logger.log(
         'consensusMPTProofVerification, consensusMPTProofProof, consensusMPTProofContractStorageSlots',
@@ -413,16 +414,16 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
     // Build deposit witness
 
     // Build leaves
-    const startTimeBuildContractDepositLeaves = Date.now();
+    const buildLeavesTimer = createTimer();
     const leaves = buildContractDepositLeaves(contractStorageSlots);
-    logger.log(`buildContractDepositLeaves: ${Date.now() - startTimeBuildContractDepositLeaves}ms`);
+    logger.log(`buildContractDepositLeaves: ${buildLeavesTimer()}`);
     logger.log(
         'leaves',
         leaves.map((leaf) => leaf.toBigInt())
     );
 
     // Compute path
-    const startTimeGetContractDepositWitness = Date.now();
+    const merklePathTimer = createTimer();
     const nLeaves = leaves.length;
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
     const path = getMerklePathFromLeaves(
@@ -432,21 +433,21 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
         depositIndex,
         getMerkleZeros(depth)
     );
-    logger.log(`getContractDepositWitness: ${Date.now() - startTimeGetContractDepositWitness}ms`);
+    logger.log(`getContractDepositWitness: ${merklePathTimer()}`);
     logger.log(
         'path',
         path.map((pathEle) => pathEle.toBigInt())
     );
 
     // Compute root
-    const startTimeFoldMerkleLeft = Date.now();
+    const merkleRootTimer = createTimer();
     const rootHash = foldMerkleLeft(
         leaves,
         paddedSize,
         depth,
         getMerkleZeros(depth)
     );
-    logger.log(`foldMerkleLeft: ${Date.now() - startTimeFoldMerkleLeft}ms`);
+    logger.log(`foldMerkleLeft: ${merkleRootTimer()}`);
     logger.log(`Computed Merkle root: ${rootHash.toString()}`);
 
     logger.log('Loaded sp1PlonkProof and conversionOutputProof');
@@ -468,11 +469,11 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
     logger.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
 
     logger.log('Computing EthVerifier');
-    const startTimeEthVerifierCompute = Date.now();
+    const ethVerifierTimer = createTimer();
     const ethVerifierProof = (
         await EthVerifier.compute(ethVerifierInput, rawProof)
     ).proof;
-    logger.log(`EthVerifier.compute: ${Date.now() - startTimeEthVerifierCompute}ms`);
+    logger.log(`EthVerifier.compute: ${ethVerifierTimer()}`);
 
     logger.log(`All proofs inputs built needed to compute mint proof!`);
 
