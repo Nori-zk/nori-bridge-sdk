@@ -290,7 +290,7 @@ describe('e2e_testnet', () => {
             // Subscribe to the depositProcessingStatus observable to print our progress.
             depositProcessingStatusSubscription =
                 depositProcessingStatus$.subscribe({
-                    next: (msg) => logger.log(msg),
+                    next: (msg) => logger.info(msg),
                     error: (err) => logger.error(err),
                     complete: () =>
                         logger.warn(

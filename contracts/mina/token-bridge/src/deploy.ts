@@ -16,7 +16,8 @@ function writeSuccessDetailsToEnvFile(
     tokenBaseAddress: string,
     adminPublicKey: string,
     tokenBaseTokenId: string,
-    noriTokenControllerTokenId: string
+    noriTokenControllerTokenId: string,
+    tokenBaseAllowUpdates: boolean
 ) {
     const env = {
         NORI_CONTROLLER_PRIVATE_KEY: noriTokenControllerPrivateKey,
@@ -26,6 +27,8 @@ function writeSuccessDetailsToEnvFile(
         ADMIN_PUBLIC_KEY: adminPublicKey,
         TOKEN_BASE_TOKEN_ID: tokenBaseTokenId,
         NORI_TOKEN_CONTROLLER_TOKEN_ID: noriTokenControllerTokenId,
+        UPDATE_TOKEN_BASE_VK: tokenBaseAllowUpdates.toString(),
+        UPDATE_TOKEN_CONTROLLER_VK: 'false',
     };
     const envFileStr =
         Object.entries(env)
@@ -58,7 +61,17 @@ export async function deployTokenController() {
     }
 
     // Track if we're creating new keys (new deployment) or using existing ones (VK update)
-    const keysWereCreated = !process.env.NORI_CONTROLLER_PRIVATE_KEY || !process.env.TOKEN_BASE_PRIVATE_KEY;
+    const hasControllerKey = !!process.env.NORI_CONTROLLER_PRIVATE_KEY;
+    const hasTokenBaseKey = !!process.env.TOKEN_BASE_PRIVATE_KEY;
+
+    // Both provided = VK update, neither provided = new deployment, one provided = error
+    if (hasControllerKey !== hasTokenBaseKey) {
+        throw new Error(
+            'Both NORI_CONTROLLER_PRIVATE_KEY and TOKEN_BASE_PRIVATE_KEY must be provided together for VK updates, or both omitted for new deployment'
+        );
+    }
+
+    const keysWereCreated = !hasControllerKey; // If no keys, we're creating new ones
 
     const noriTokenControllerPrivateKey =
         process.env.NORI_CONTROLLER_PRIVATE_KEY ||
@@ -103,12 +116,6 @@ export async function deployTokenController() {
     logger.log(`Token Controller: ${noriTokenControllerPrivateKey}`);
     logger.log(`Token Base: ${tokenBasePrivateKey}`);
 
-    let ethProcessorAddress: string = config.ethProcessorAddress;
-    if (!ethProcessorAddress) {
-        logger.log('Inventing a random eth processor address.');
-        ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
-    }
-
     logger.log('Constructing and compiling token deployer worker.');
     const TokenDeployerWorker = getTokenDeployerWorker();
     const tokenDeployer = new TokenDeployerWorker();
@@ -130,9 +137,19 @@ export async function deployTokenController() {
     let noriTokenControllerTokenId: string;
     let txHash: string;
 
+    const tokenBaseAllowUpdates = true;
+
     if (keysWereCreated) {
+        // Set up eth processor address (only needed for deployment, not VK updates)
+        let ethProcessorAddress: string = config.ethProcessorAddress;
+        if (!ethProcessorAddress) {
+            logger.warn('ETH_PROCESSOR_ADDRESS not provided. Generating random address.');
+            ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
+        }
+
         // New deployment mode
         logger.log('Deploying contracts...');
+
         const result = await tokenDeployer.deployContracts(
             config.senderPrivateKey,
             config.adminPublicKey,
@@ -144,7 +161,7 @@ export async function deployTokenController() {
             {
                 symbol: 'nETH',
                 decimals: 6,
-                allowUpdates: true,
+                allowUpdates: tokenBaseAllowUpdates,
             }
         );
         tokenBaseAddress = result.tokenBaseAddress;
@@ -163,13 +180,28 @@ export async function deployTokenController() {
             );
         }
 
+        // Read VK update flags
+        const updateTokenBaseVK = process.env.UPDATE_TOKEN_BASE_VK === 'true';
+        const updateTokenControllerVK = process.env.UPDATE_TOKEN_CONTROLLER_VK === 'true';
+
+        // Validate: at least one contract must be updated
+        if (!updateTokenBaseVK && !updateTokenControllerVK) {
+            throw new Error(
+                'At least one of UPDATE_TOKEN_BASE_VK or UPDATE_TOKEN_CONTROLLER_VK must be true'
+            );
+        }
+
+        logger.log(`VK Update flags: TokenBase=${updateTokenBaseVK}, TokenController=${updateTokenControllerVK}`);
+
         const result = await tokenDeployer.updateVerificationKeys(
             config.senderPrivateKey,
             process.env.NORI_TOKEN_CONTROLLER_ADDRESS,
             process.env.TOKEN_BASE_ADDRESS,
             noriTokenControllerVerificationKeySafe,
             fungibleTokenVerificationKeySafe,
-            0.1 * 1e9
+            0.1 * 1e9,
+            updateTokenBaseVK,
+            updateTokenControllerVK
         );
         tokenBaseAddress = result.tokenBaseAddress;
         noriTokenControllerAddress = result.noriTokenControllerAddress;
@@ -180,7 +212,9 @@ export async function deployTokenController() {
 
     const operationType = keysWereCreated ? 'Deployment' : 'Verification key update';
     logger.log(`🎉 ${operationType} completed successfully!`);
-    logger.log(`Contract addresses/public keys:
+
+    if (keysWereCreated) {
+        logger.log(`Contract addresses/public keys:
             NoriTokenController: ${noriTokenControllerAddress},
             TokenBase: ${tokenBaseAddress},
             TokenBase Token ID: ${tokenBaseTokenId},
@@ -188,16 +222,15 @@ export async function deployTokenController() {
             TransactionHash: ${txHash}
             `);
 
-    // Print environment variables for future use
-    logger.log('\n📋 Environment variables for future use:');
-    logger.log(`NORI_TOKEN_CONTROLLER_ADDRESS=${noriTokenControllerAddress}`);
-    logger.log(`TOKEN_BASE_ADDRESS=${tokenBaseAddress}`);
-    logger.log(`TOKEN_BASE_TOKEN_ID=${tokenBaseTokenId}`);
-    logger.log(`NORI_TOKEN_CONTROLLER_TOKEN_ID=${noriTokenControllerTokenId}`);
-    logger.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
+        // Print environment variables for future use
+        logger.log('\n📋 Environment variables for future use:');
+        logger.log(`NORI_TOKEN_CONTROLLER_ADDRESS=${noriTokenControllerAddress}`);
+        logger.log(`TOKEN_BASE_ADDRESS=${tokenBaseAddress}`);
+        logger.log(`TOKEN_BASE_TOKEN_ID=${tokenBaseTokenId}`);
+        logger.log(`NORI_TOKEN_CONTROLLER_TOKEN_ID=${noriTokenControllerTokenId}`);
+        logger.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
 
-    // Write env file if keys were created during this deployment
-    if (keysWereCreated) {
+        // Write env file
         writeSuccessDetailsToEnvFile(
             noriTokenControllerPrivateKey,
             noriTokenControllerAddress,
@@ -205,7 +238,8 @@ export async function deployTokenController() {
             tokenBaseAddress,
             config.adminPublicKey,
             tokenBaseTokenId,
-            noriTokenControllerTokenId
+            noriTokenControllerTokenId,
+            tokenBaseAllowUpdates
         );
     }
 

@@ -236,7 +236,10 @@ export class WorkerChildBase {
     pendingRequests = new Map<number, DeferredPromise<unknown, unknown>>();
     parent: WorkerChildParentInterface;
     workerInstance: unknown = null;
-    ChildClass: new (...args: unknown[]) => unknown;
+    // Using any[] instead of unknown[] to allow constructors with specific parameter types.
+    // unknown is not assignable to specific types like string, causing type errors.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ChildClass: new (...args: any[]) => unknown;
 
     /**
      * Constructs the WorkerChildBase and attaches communication handlers.
@@ -244,7 +247,9 @@ export class WorkerChildBase {
      */
     constructor(
         parent: WorkerChildParentInterface,
-        ChildClass: new (...args: unknown[]) => unknown
+        // Using any[] instead of unknown[] to allow constructors with specific parameter types.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ChildClass: new (...args: any[]) => unknown
     ) {
         this.parent = parent;
         this.parent.onMessageHandler(this.onMessage.bind(this));
@@ -378,7 +383,9 @@ export class WorkerChildBase {
  */
 export function createWorker<T>(
     parent: WorkerChildParentInterface,
-    ChildClass: new (...args: unknown[]) => T
+    // Using any[] instead of unknown[] to allow constructors with specific parameter types.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ChildClass: new (...args: any[]) => T
 ) {
     const childBase = new WorkerChildBase(parent, ChildClass);
     return { terminate: () => parent.terminate(), childBaseRef: childBase };
@@ -401,7 +408,9 @@ export function createWorker<T>(
  *  - `terminate()`: Terminates the worker
  *  - `ready`: Promise that resolves when the worker has been constructed and is ready
  */
-export function createProxy<T extends new (...args: unknown[]) => unknown>(
+// Using any[] instead of unknown[] to allow constructors with specific parameter types.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createProxy<T extends new (...args: any[]) => unknown>(
     child: WorkerParentChildInterface
 ) {
     const parentBase = new WorkerParentBase(child);

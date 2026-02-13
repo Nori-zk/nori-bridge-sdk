@@ -261,9 +261,14 @@ export class TokenDeployerWorker {
         tokenBaseAddressBase58: string,
         noriTokenControllerVerificationKeySafe: VerificationKeySafe,
         fungibleTokenVerificationKeySafe: VerificationKeySafe,
-        txFee: number
+        txFee: number,
+        updateTokenBaseVK: boolean,
+        updateTokenControllerVK: boolean
     ): Promise<DeploymentResult> {
-        logger.log('Updating verification keys for NoriTokenController and TokenBase...');
+        const updates: string[] = [];
+        if (updateTokenBaseVK) updates.push('TokenBase');
+        if (updateTokenControllerVK) updates.push('NoriTokenController');
+        logger.log(`Updating verification keys for: ${updates.join(', ')}`);
 
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         const senderPublicKey = senderPrivateKey.toPublicKey();
@@ -287,11 +292,15 @@ export class TokenDeployerWorker {
         const updateTx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                logger.log(`Updating NoriTokenController VK hash: '${noriTokenControllerVk.hash}'`);
-                await noriTokenController.updateVerificationKey(noriTokenControllerVk);
+                if (updateTokenControllerVK) {
+                    logger.log(`Updating NoriTokenController VK hash: '${noriTokenControllerVk.hash}'`);
+                    await noriTokenController.updateVerificationKey(noriTokenControllerVk);
+                }
 
-                logger.log(`Updating TokenBase VK hash: '${fungibleTokenVk.hash}'`);
-                await tokenBase.updateVerificationKey(fungibleTokenVk);
+                if (updateTokenBaseVK) {
+                    logger.log(`Updating TokenBase VK hash: '${fungibleTokenVk.hash}'`);
+                    await tokenBase.updateVerificationKey(fungibleTokenVk);
+                }
             }
         );
 

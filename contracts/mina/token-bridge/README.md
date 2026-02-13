@@ -141,7 +141,7 @@ Set up your `.env` file in the root directory. Set:
 - `SENDER_PRIVATE_KEY` - Private key of the transaction sender
 - `TX_FEE` - Transaction fee to be used when submitting transactions (optional, defaults to 0.1)
 - `ADMIN_PUBLIC_KEY` - Public key of the admin account (optional, derived from SENDER_PRIVATE_KEY if not provided)
-- `ETH_PROCESSOR_ADDRESS` - Address of the deployed EthProcessor contract (optional, will generate random if not provided)
+- `ETH_PROCESSOR_ADDRESS` - Address of the deployed EthProcessor contract (optional for new deployments, will generate random if not provided. Not needed for VK updates - THIS NEEDS TO CHANGE)
 
 Run:
 
@@ -158,6 +158,8 @@ This command will:
    - `ADMIN_PUBLIC_KEY`
    - `TOKEN_BASE_TOKEN_ID`
    - `NORI_TOKEN_CONTROLLER_TOKEN_ID`
+   - `UPDATE_TOKEN_BASE_VK` - Flag controlling whether TokenBase VK can be updated (set based on `allowUpdates` deployment parameter)
+   - `UPDATE_TOKEN_CONTROLLER_VK` - Flag controlling whether NoriTokenController VK can be updated (always `false` as controller is hardcoded with `impossibleDuringCurrentVersion()`)
 
 Copy these values into your `.env` file for future operations.
 
@@ -180,7 +182,7 @@ The verification keys used in the deploy/re-deploy command are computed from the
 
 Perform the following steps if contract verification keys have been updated due to changes in the smart contracts or their dependencies:
 
-1. Run `npm run bake-vk-hashes` to update integrity hashes
+1. Run `npm run bake-vk-hashes` to update integrity hashes (only if you have changed the contract or if there has been a major verions upgrade - the integrity hashes are a defence against mistakes - don't run `bake-vk-hashes` unless you need to!)
 2. Set up your `.env` file with the existing contract information:
    - `MINA_RPC_NETWORK_URL`
    - `SENDER_PRIVATE_KEY` - Must be the admin private key with permissions to update verification keys
@@ -193,6 +195,8 @@ Perform the following steps if contract verification keys have been updated due 
 
 The script will detect that contract keys already exist and perform a verification key update instead of deploying new contracts.
 
+During VK update, the `UPDATE_TOKEN_BASE_VK` and `UPDATE_TOKEN_CONTROLLER_VK` flags (saved from initial deployment) dictate which contracts will have their verification keys updated. Set these to `true` or `false` in your `.env` to control which contracts are updated. At least one must be `true`.
+
 Note: The contract addresses and token IDs remain unchanged during VK updates, but the script will output them for verification.
 
 ### Example `.env` file for VK update
@@ -203,6 +207,8 @@ Note: The contract addresses and token IDs remain unchanged during VK updates, b
     TOKEN_BASE_PRIVATE_KEY=existing_token_base_key_here
     NORI_TOKEN_CONTROLLER_ADDRESS=existing_controller_address
     TOKEN_BASE_ADDRESS=existing_token_base_address
+    UPDATE_TOKEN_BASE_VK=true
+    UPDATE_TOKEN_CONTROLLER_VK=false
     TX_FEE=0.1
 
 ## How to run the tests
