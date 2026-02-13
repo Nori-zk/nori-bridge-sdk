@@ -16,7 +16,7 @@
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
     "strictNullChecks": false,
-    "typeRoots": ["../node_modules/@types", "./node_modules/@types"],
+    "typeRoots": ["../node_modules/@types"],
     "rootDir": ".",
     "baseUrl": ".", // affects where output files end up
     "target": "es2021", // goal: ship *the most modern syntax* that is supported by *all* browsers that support our Wasm

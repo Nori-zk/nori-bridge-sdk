@@ -1,5 +1,3 @@
-declare const window: Window & typeof globalThis;
-
 export class LocalStorageSim {
   private store: Record<string, string> = {};
 
@@ -28,5 +26,6 @@ export class LocalStorageSim {
   }
 }
 
+// declare const window: Window & typeof globalThis;
 /*(global as any).window = (global as any).window || {};
 (global as any).window.localStorage = new LocalStorageSim();*/

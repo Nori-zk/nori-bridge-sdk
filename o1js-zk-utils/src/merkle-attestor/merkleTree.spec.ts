@@ -8,7 +8,7 @@ import {
     computeMerkleRootFromPath,
     getMerklePathFromLeaves,
 } from './merkleTree.js';
-import { Bytes20, Bytes32 } from '../types.js';
+import { type Bytes20, type Bytes32 } from '../types.js';
 import {
     buildLeavesNonProvable,
     dummyAddress,
@@ -158,40 +158,40 @@ describe('Merkle Fixed Tests', () => {
 
         console.log(`\n→ Testing with ${nLeaves} leaves`);
 
-        console.time('01. getMerkleZeros');
+        const startTimeGetMerkleZeros = Date.now();
         const maxDepth = Math.ceil(Math.log2(nLeaves)) || 1;
         const zeros = getMerkleZeros(maxDepth);
-        console.timeEnd('01. getMerkleZeros');
+        console.log(`01. getMerkleZeros: ${Date.now() - startTimeGetMerkleZeros}ms`);
 
-        console.time('02. Generate dummy triples');
+        const startTimeGenerateDummyTriples = Date.now();
         const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
         for (let i = 0; i < nLeaves; i++) {
             triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
         }
-        console.timeEnd('02. Generate dummy triples');
+        console.log(`02. Generate dummy triples: ${Date.now() - startTimeGenerateDummyTriples}ms`);
 
-        console.time('03. buildLeaves');
+        const startTimeBuildLeaves = Date.now();
         const leaves = buildLeavesNonProvable(triples);
-        console.timeEnd('03. buildLeaves');
+        console.log(`03. buildLeaves: ${Date.now() - startTimeBuildLeaves}ms`);
 
-        console.time('04. compute depth and padded size');
+        const startTimeComputeDepthAndSize = Date.now();
         const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
-        console.timeEnd('04. compute depth and padded size');
+        console.log(`04. compute depth and padded size: ${Date.now() - startTimeComputeDepthAndSize}ms`);
         console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
 
-        console.time('05. foldMerkleLeft');
+        const startTimeFoldMerkleLeft = Date.now();
         const rootViaFold = foldMerkleLeft(
             leaves.slice(),
             paddedSize,
             depth,
             zeros
         );
-        console.timeEnd('05. foldMerkleLeft');
+        console.log(`05. foldMerkleLeft: ${Date.now() - startTimeFoldMerkleLeft}ms`);
         console.log(`   rootViaFold = ${rootViaFold}`);
 
-        console.time('06. buildMerkleTree');
+        const startTimeBuildMerkleTree = Date.now();
         const merkleTree = buildMerkleTree(leaves, paddedSize, depth, zeros);
-        console.timeEnd('06. buildMerkleTree');
+        console.log(`06. buildMerkleTree: ${Date.now() - startTimeBuildMerkleTree}ms`);
         console.log(`   rootViaBuild = ${merkleTree[0][0]}`);
 
         expect(merkleTree[0][0].equals(rootViaFold).toBoolean()).toBe(true);
@@ -204,7 +204,7 @@ describe('Merkle Fixed Tests', () => {
 
         const index = nLeaves / 2;
 
-        console.time('07. getMerklePathFromLeaves');
+        const startTimeGetPathFromLeaves = Date.now();
         const pathFold = getMerklePathFromLeaves(
             leaves.slice(),
             paddedSize,
@@ -212,22 +212,22 @@ describe('Merkle Fixed Tests', () => {
             index,
             zeros
         );
-        console.timeEnd('07. getMerklePathFromLeaves');
+        console.log(`07. getMerklePathFromLeaves: ${Date.now() - startTimeGetPathFromLeaves}ms`);
 
-        console.time('08. getMerklePathFromTree');
+        const startTimeGetPathFromTree = Date.now();
         const pathBuild = getMerklePathFromTree(merkleTree, index);
-        console.timeEnd('08. getMerklePathFromTree');
+        console.log(`08. getMerklePathFromTree: ${Date.now() - startTimeGetPathFromTree}ms`);
 
         expect(pathFold).toEqual(pathBuild);
 
-        console.time('09. recompute root from path');
+        const startTimeRecomputeRoot = Date.now();
         const leafHash = leaves[index];
         const recomputedRoot = computeMerkleRootFromPath(
             leafHash,
             index,
             pathFold
         );
-        console.timeEnd('09. recompute root from path');
+        console.log(`09. recompute root from path: ${Date.now() - startTimeRecomputeRoot}ms`);
 
         expect(recomputedRoot.equals(rootViaFold).toBoolean()).toBe(true);
 

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { fieldToHexBE } from '@nori-zk/o1js-zk-utils';
 import { validateEnv } from '../testUtils.js';
 import { ethers } from 'ethers';
@@ -8,6 +9,9 @@ import {
     obtainCodeVerifierFromEthSignature,
 } from '../pkarm.js';
 import { PrivateKey } from 'o1js';
+
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('EthMapValuesSpec');
 
 test('get_wallet_address_and_code_challenge_hex', async () => {
     const { ethPrivateKey, ethRpcUrl, minaSenderPrivateKeyBase58 } =
@@ -31,6 +35,6 @@ test('get_wallet_address_and_code_challenge_hex', async () => {
         minaSenderPublicKey
     );
     const hex = fieldToHexBE(codeChallengePKARMField);
-    console.log('ethAddressHex', ethWallet.address);
-    console.log('codeChallengePKARMBEHex', hex);
+    logger.log('ethAddressHex', ethWallet.address);
+    logger.log('codeChallengePKARMBEHex', hex);
 });

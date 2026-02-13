@@ -1,48 +1,18 @@
-//import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { resolve } from 'path';
-import { Cache, SmartContract } from 'o1js'; // ProofBase
+import { Cache, type SmartContract } from 'o1js';
 import { randomBytes } from 'crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import {
-    CompilableZkProgram,
-    EthVerifier,
-    ethVerifierVkHash,
-} from '@nori-zk/o1js-zk-utils';
+import { EthVerifier, ethVerifierVkHash } from '@nori-zk/o1js-zk-utils';
 import { rootDir } from '../rootDir.js';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriTokenController } from '../NoriTokenController.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
-//import { type Gate } from 'o1js/dist/node/snarky.js';
-//import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
+import { type CompilableZkProgramWithAnalyze } from '../types.js';
 
-/*new LogPrinter('[NoriMinaTokenBridge]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriMinaTokenBridge');
 
-const logger = new Logger('CompileZks');*/
-const logger = console;
-
-//type ProofClass = Subclass<typeof ProofBase>;
-type CompilableZkProgramWithAnalyze = CompilableZkProgram & {
-    analyzeMethods: () => Promise<
-        Record<
-            string,
-            {
-                actions: number;
-                rows: number;
-                digest: string;
-                gates: any[]; //Gate[];
-                proofs: any[]; // ProofClass[];
-            }
-        >
-    >;
-};
+const logger = new Logger('CompileZks');
 
 type ContractInfo = {
     name: string;
@@ -138,7 +108,6 @@ async function main() {
 }
 
 main().catch((err) => {
-    logger.error(`Main function had an error:\n${String(err.stack)}`); // fatal
     rmSync(ephemeralCacheDir, { recursive: true, force: true });
-    process.exit(1);
+    logger.fatal(`Main function had an error:\n${String(err.stack)}`);
 });

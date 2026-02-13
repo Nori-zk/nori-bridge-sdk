@@ -1,4 +1,4 @@
-import { CacheConfig, CacheType } from './types.js';
+import { type CacheConfig, CacheType } from './types.js';
 import { fileSystemCacheFactory, readOnlyFileSystemCacheFactory } from './fileSystem.js';
 import { networkCacheFactory } from './network.js';
 

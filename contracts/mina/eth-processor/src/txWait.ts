@@ -1,4 +1,4 @@
-import { Logger } from '@nori-zk/proof-conversion';
+import { Logger } from 'esm-iso-logger';
 import { fetchTransactionStatus } from 'o1js';
 
 const logger = new Logger('EthProcessorTxWait');

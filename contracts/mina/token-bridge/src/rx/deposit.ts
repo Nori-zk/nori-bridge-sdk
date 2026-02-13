@@ -15,9 +15,9 @@ import {
     tap,
 } from 'rxjs';
 import {
-    getBridgeStateTopic$,
-    getBridgeTimingsTopic$,
-    getEthStateTopic$,
+    type getBridgeStateTopic$,
+    type getBridgeTimingsTopic$,
+    type getEthStateTopic$,
 } from './topics.js';
 import {
     KeyTransitionStageMessageTypes,

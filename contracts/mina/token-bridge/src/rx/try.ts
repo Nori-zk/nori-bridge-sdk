@@ -1,4 +1,4 @@
-import { map, Observable, switchMap, take } from 'rxjs';
+import { map, type Observable, switchMap, take } from 'rxjs';
 import { getReconnectingBridgeSocket$ } from './socket.js';
 import {
     getBridgeStateTopic$,
@@ -7,18 +7,22 @@ import {
 } from './topics.js';
 import { getBridgeStateWithTimings$ } from './state.js';
 import { getDepositProcessingStatus$ } from './deposit.js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('RxTry');
 
 // Util for testing Obserables
-function testSub($: Observable<any>) {
+function testSub($: Observable<unknown>) {
     $.subscribe({
-        error: console.error,
-        next: console.log,
-        complete: () => console.log('complete'),
+        error: logger.error,
+        next: logger.log,
+        complete: () => logger.log('complete'),
     });
 }
 
 const { bridgeSocket$, bridgeSocketConnectionState$ } =
     getReconnectingBridgeSocket$();
+void bridgeSocketConnectionState$;
 
 const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
 const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
@@ -28,6 +32,7 @@ const bridgeStateWithTimings$ = getBridgeStateWithTimings$(
     bridgeStateTopic$,
     bridgeTimingsTopic$
 );
+void bridgeStateWithTimings$;
 
 const nextFinalizationTarget$ = ethStateTopic$.pipe(take(1));
 
@@ -45,7 +50,7 @@ const depositProcessingStatus$ = nextFinalizationTarget$.pipe(
         )
     )
 );
-
+void depositProcessingStatus$;
 /*testSub(bridgeStateTopic$);
 testSub(ethStateTopic$);
 testSub(bridgeTimingsTopic$);

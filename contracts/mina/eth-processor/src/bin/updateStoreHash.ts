@@ -1,8 +1,8 @@
 // Load environment variables from .env file
 import 'dotenv/config';
 // Other imports
-import { Mina, PrivateKey, NetworkId, fetchAccount, Bytes } from 'o1js';
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Mina, PrivateKey, type NetworkId, fetchAccount, type Bytes } from 'o1js';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { EthProcessor } from '../ethProcessor.js';
 import {
     Bytes32,
@@ -13,17 +13,9 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
-const logger = new Logger('Deploy');
+const logger = new Logger('UpdateStoreHash');
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
 const missingEnvVariables: string[] = [];
 

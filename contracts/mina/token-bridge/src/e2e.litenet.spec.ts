@@ -1,4 +1,5 @@
-import { NetworkId, PrivateKey } from 'o1js';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+import { type NetworkId, PrivateKey } from 'o1js';
 import {
     getEthWallet,
     getNewMinaLiteNetAccountSK,
@@ -10,7 +11,7 @@ import {
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from './rx/topics.js';
-import { Subscription } from 'rxjs';
+import { type Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
@@ -24,6 +25,10 @@ import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
 } from './pkarm.js';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
+
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('E2ELitenetSpec');
 
 describe('e2e', () => {
     // Define litenet mina config
@@ -39,7 +44,7 @@ describe('e2e', () => {
         // DEPLOY TEST CONTRACTS **************************************************
         // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
         // Use the worker to be able to reclaim some ram
-        console.log('Deploying contract.');
+        logger.log('Deploying contract.');
         const TokenDeployerWorker = getTokenDeployerWorker();
         const tokenDeployer = new TokenDeployerWorker();
         const { noriStorageInterfaceVerificationKeySafe } =
@@ -74,8 +79,8 @@ describe('e2e', () => {
         noriTokenControllerAddressBase58 = noriTokenControllerAddress;
         tokenDeployer.terminate();
 
-        console.log('tokenBaseAddressBase58', tokenBaseAddressBase58);
-        console.log(
+        logger.log('tokenBaseAddressBase58', tokenBaseAddressBase58);
+        logger.log(
             'noriTokenControllerAddressBase58',
             noriTokenControllerAddressBase58
         );
@@ -92,7 +97,7 @@ describe('e2e', () => {
             // START MAIN FLOW
 
             // GET WALLET **************************************************
-            console.log('Getting ETH wallet.');
+            logger.log('Getting ETH wallet.');
             const ethWallet = await getEthWallet();
             const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
@@ -109,13 +114,13 @@ describe('e2e', () => {
             // If the user uses a fixed value then they could use their eth wallet to re generate
             // their codeVerifier (secret) on another machine.
             // If they provided a secret then they would have to keep this themselves and provide it when minting.
-            console.log('Creating eth signature of our secret / fixed field');
-            console.time('ethSignatureSecret');
+            logger.log('Creating eth signature of our secret / fixed field');
+            const ethSignatureTimer = createTimer();
             const ethSignatureSecret = await signSecretWithEthWallet(
                 fixedValueOrSecret,
                 ethWallet
             );
-            console.timeEnd('ethSignatureSecret');
+            logger.log(`Eth signature secret computed in ${ethSignatureTimer()}`);
 
             // CLIENT only logic from now on....
 
@@ -133,28 +138,28 @@ describe('e2e', () => {
             const codeChallengePKARMStr = codeChallengePKARMBigInt.toString();
 
             // These prints are just for testing purposes.
-            console.log('ethSignatureSecret', ethSignatureSecret);
-            console.log('senderPublicKey.toBase58()', senderPublicKeyBase58);
-            console.log('senderPrivateKey.toBase58()', senderPrivateKeyBase58);
-            console.log('codeVerifierPKARMField', codeVerifierPKARMField);
-            console.log('codeVerifierPKARMBigInt', codeVerifierPKARMBigInt);
-            console.log('codeVerifierPKARMStr', codeVerifierPKARMStr);
-            console.log('codeChallengePKARMBigInt', codeChallengePKARMBigInt);
-            console.log('codeChallengePKARMStr', codeChallengePKARMStr);
+            logger.log('ethSignatureSecret', ethSignatureSecret);
+            logger.log('senderPublicKey.toBase58()', senderPublicKeyBase58);
+            logger.log('senderPrivateKey.toBase58()', senderPrivateKeyBase58);
+            logger.log('codeVerifierPKARMField', codeVerifierPKARMField);
+            logger.log('codeVerifierPKARMBigInt', codeVerifierPKARMBigInt);
+            logger.log('codeVerifierPKARMStr', codeVerifierPKARMStr);
+            logger.log('codeChallengePKARMBigInt', codeChallengePKARMBigInt);
+            logger.log('codeChallengePKARMStr', codeChallengePKARMStr);
 
             // CONNECT TO BRIDGE **************************************************
 
             // Establish a connection to the bridge.
-            console.log('Establishing bridge connection and topics.');
+            logger.log('Establishing bridge connection and topics.');
             const { bridgeSocket$, bridgeSocketConnectionState$ } =
                 getReconnectingBridgeSocket$();
 
             // Subscribe to the sockets connection status.
             bridgeSocketConnectionState$.subscribe({
-                next: (state) => console.log(`[WS] ${state}`),
-                error: (state) => console.error(`[WS] ${state}`),
+                next: (state) => logger.log(`[WS] ${state}`),
+                error: (state) => logger.error(`[WS] ${state}`),
                 complete: () =>
-                    console.log('[WS] Bridge socket connection completed.'),
+                    logger.log('[WS] Bridge socket connection completed.'),
             });
 
             // Retrieve observables for the bridge topics needed.
@@ -165,26 +170,26 @@ describe('e2e', () => {
             // Wait for bridge topics to be ready, to ensure correct deposit classification.
             // Under normal conditions this is very fast. But see the docstring for why this
             // may be unsafe, a safe method is also provided.
-            console.log('Awaiting sufficient bridge state');
-            console.time('bridgeStateReady');
+            logger.log('Awaiting sufficient bridge state');
+            const bridgeStateTimer = createTimer();
             await bridgeStatusesKnownEnoughToLockUnsafe(
                 ethStateTopic$,
                 bridgeStateTopic$,
                 bridgeTimingsTopic$
             );
-            console.timeEnd('bridgeStateReady');
+            logger.log(`Bridge state ready in ${bridgeStateTimer()}`);
 
             // LOCK TOKENS **************************************************
 
-            console.log('Locking eth tokens');
-            console.time('lockingTokens');
+            logger.log('Locking eth tokens');
+            const lockTokensTimer = createTimer();
             const depositAmount = 0.000001;
-            console.log('Deposit amount', depositAmount);
+            logger.log('Deposit amount', depositAmount);
             const depositBlockNumber = await lockTokens(
                 codeChallengePKARMField,
                 depositAmount
             );
-            console.timeEnd('lockingTokens');
+            logger.log(`Tokens locked in ${lockTokensTimer()}`);
 
             // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
 
@@ -199,10 +204,10 @@ describe('e2e', () => {
             // Subscribe to the depositProcessingStatus observable to print our progress.
             depositProcessingStatusSubscription =
                 depositProcessingStatus$.subscribe({
-                    next: console.log,
-                    error: console.error,
+                    next: (msg) => logger.log(msg),
+                    error: (err) => logger.error(err),
                     complete: () =>
-                        console.warn(
+                        logger.warn(
                             'Deposit processing completed. Mint opportunity has been missed :('
                         ),
                 });
@@ -210,16 +215,16 @@ describe('e2e', () => {
             // COMPUTE DEPOSIT ATTESTATION **************************************************
 
             // INIT zkApp WORKER **************************************************
-            console.log('Fetching zkApp worker.');
+            logger.log('Fetching zkApp worker.');
             const ZkAppWorker = getZkAppWorker();
 
             // Compile zkAppWorker dependancies
-            console.log('Compiling dependancies of zkAppWorker');
+            logger.log('Compiling dependancies of zkAppWorker');
             const zkAppWorker = new ZkAppWorker();
             const zkAppWorkerReady = zkAppWorker.compileMinterDeps();
 
             // Block until we can compute our deposit attestation proof.
-            console.log(
+            logger.log(
                 'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute our EthDeposit proof.'
             );
 
@@ -229,10 +234,10 @@ describe('e2e', () => {
             // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
             const { noriStorageInterfaceVerificationKeySafe } =
                 await zkAppWorkerReady;
-            console.log('Awaited compilation of zkAppWorkerReady');
+            logger.log('Awaited compilation of zkAppWorkerReady');
 
             // Compute eth verifier and deposit witness
-            console.log(
+            logger.log(
                 'Computing eth verifier and calculating deposit witness.'
             );
             const { ethVerifierProofJson, depositAttestationInput } =
@@ -241,19 +246,19 @@ describe('e2e', () => {
                     depositBlockNumber,
                     ethAddressLowerHex
                 );
-            console.log(
+            logger.log(
                 'Computed eth verifier and calculated deposit witness.'
             );
 
             // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE ***************************
 
-            console.log(
+            logger.log(
                 'Waiting for deposit processing completion before we can complete the minting process.'
             );
             // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
             // Throws if we have missed our minting opportunity
             await canMint(depositProcessingStatus$);
-            console.log('Deposit is processed unblocking mint process.');
+            logger.log('Deposit is processed unblocking mint process.');
 
             // PREPARE FOR MINTING **************************************************
 
@@ -261,11 +266,11 @@ describe('e2e', () => {
             // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
             await zkAppWorker.WALLET_setMinaPrivateKey(senderPrivateKeyBase58);
             await zkAppWorker.minaSetup(minaConfig);
-            console.log('Mint setup');
+            logger.log('Mint setup');
 
             // SETUP STORAGE **************************************************
 
-            console.time('noriMinter.setupStorage');
+            const setupStorageTimer = createTimer();
             const { txHash: setupTxHash } = await zkAppWorker.MOCK_setupStorage(
                 senderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -283,24 +288,24 @@ describe('e2e', () => {
                 0.1 * 1e9,
                 noriTokenControllerVerificationKeySafe
             );
-            console.log('provedSetupTxStr', provedSetupTxStr);*/
+            logger.log('provedSetupTxStr', provedSetupTxStr);*/
             // MOCK for wallet behaviour
             /*const { txHash: setupTxHash } =
             await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
-            console.log('setupTxHash', setupTxHash);
-            console.timeEnd('noriMinter.setupStorage');
+            logger.log('setupTxHash', setupTxHash);
+            logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
 
             // MINT **************************************************
 
-            console.log('Determining user funding status.');
+            logger.log('Determining user funding status.');
             const needsToFundAccount = await zkAppWorker.needsToFundAccount(
                 tokenBaseAddressBase58,
                 senderPublicKeyBase58
             );
-            console.log('needsToFundAccount', needsToFundAccount);
+            logger.log('needsToFundAccount', needsToFundAccount);
 
-            console.time('Minting');
+            const mintingTimer = createTimer();
             const { txHash: mintTxHash } = await zkAppWorker.MOCK_mint(
                 senderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -325,27 +330,27 @@ describe('e2e', () => {
                 1e9 * 0.1,
                 true
             );
-            console.log('provedMintTxStr', provedMintTxStr);*/
+            logger.log('provedMintTxStr', provedMintTxStr);*/
             // MOCK for wallet behaviour
             /*const { txHash: mintTxHash } =
             await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
 
-            console.log('mintTxHash', mintTxHash);
-            console.timeEnd('Minted');
-            console.log('Minted!');
+            logger.log('mintTxHash', mintTxHash);
+            logger.log(`Minting completed in ${mintingTimer()}`);
+            logger.log('Minted!');
 
             // Get the amount minted so far and print it
             const mintedSoFar = await zkAppWorker.mintedSoFar(
                 noriTokenControllerAddressBase58,
                 senderPublicKeyBase58
             );
-            console.log('mintedSoFar', mintedSoFar);
+            logger.log('mintedSoFar', mintedSoFar);
 
             const balanceOfUser = await zkAppWorker.getBalanceOf(
                 tokenBaseAddressBase58,
                 senderPublicKeyBase58
             );
-            console.log('balanceOfUser', balanceOfUser);
+            logger.log('balanceOfUser', balanceOfUser);
 
             // END MAIN FLOW
         } finally {

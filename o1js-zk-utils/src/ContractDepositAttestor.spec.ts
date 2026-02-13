@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     ContractDepositAttestorInput,
     ContractDepositAttestor,
@@ -16,21 +16,14 @@ import {
 } from './merkle-attestor/merkleTree.js';
 import { Field, UInt64 } from 'o1js';
 import {
+    createTimer,
     decodeConsensusMptProof,
     fieldToHexLE,
     uint8ArrayToBigIntBE,
 } from './utils.js';
 
 const logger = new Logger('ContractDepositAttestor');
-new LogPrinter('[TestEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('TestO1JsZkUtils');
 
 describe('Contract Storage Slot Deposit Attestor Test', () => {
     test('contract_deposit_pipeline', async () => {
@@ -111,10 +104,9 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         logger.log(`Generated input ${JSON.stringify(input)}`);
 
         // Prove deposit with sample data.
-        let start = Date.now();
+        const timer = createTimer();
         const output = await ContractDepositAttestor.compute(input);
-        let durationMs = Date.now() - start;
-        logger.log(`ContractDepositAttestor.compute took ${durationMs}ms`);
+        logger.log(`ContractDepositAttestor.compute took ${timer()}`);
 
         const decodedProof = decodeConsensusMptProof(
             sp1ConsensusMPTPlonkProof.proof

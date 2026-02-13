@@ -1,4 +1,4 @@
-import { CacheConfig, CacheType } from './types.js';
+import { type CacheConfig, CacheType } from './types.js';
 import { networkCacheFactory } from './network.js';
 
 export async function cacheFactory(cacheConfig: CacheConfig) {

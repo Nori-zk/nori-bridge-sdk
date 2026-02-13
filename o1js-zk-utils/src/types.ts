@@ -1,20 +1,20 @@
 import {
     Bytes,
     Field,
-    Provable,
-    ProvableType,
+    type ProvableType,
     Struct,
-    UInt64,
     UInt8,
 } from 'o1js';
-import { EthVerifier } from './ethVerifier.js';
-import { Tuple } from 'o1js/dist/node/lib/util/types.js';
+import { type EthVerifier } from './ethVerifier.js';
+import { type Tuple } from 'o1js/dist/node/lib/util/types.js';
 import {
-    PrivateInput,
-    ZkProgram as ZkProgramFunc,
+    type PrivateInput,
+    type ZkProgram as ZkProgramFunc,
 } from 'o1js/dist/node/lib/proof-system/zkprogram.js';
+import { type ConversionOutput, type SP1ProofWithPublicValuesPlonkNoTee } from '@nori-zk/proof-conversion/build/src/index.min.js';
 
-export type Constructor<T = any> = new (...args: any) => T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Constructor<T = unknown> = new (...args: any[]) => T;
 
 export type ZkProgram<
     Config extends {
@@ -30,7 +30,7 @@ export type ZkProgram<
 > = ReturnType<typeof ZkProgramFunc<Config>>;
 
 export type CompilableZkProgram = {
-    compile: (options?: any) => Promise<{
+    compile: (options?: unknown) => Promise<{
         verificationKey: {
             data: string;
             hash: Field;
@@ -38,47 +38,9 @@ export type CompilableZkProgram = {
     }>;
 };
 
-export interface Proof {
-    Plonk: {
-        encoded_proof: string;
-        plonk_vkey_hash: number[];
-        public_inputs: string[];
-        raw_proof: string;
-    };
-}
-
-export interface PublicValues {
-    buffer: {
-        data: number[];
-    };
-}
-
-export interface PlonkProof {
-    proof: Proof;
-    public_values: PublicValues;
-    sp1_version: string;
-}
-
-export interface ConvertedProofProofData {
-    maxProofsVerified: 0 | 1 | 2;
-    proof: string;
-    publicInput: string[];
-    publicOutput: string[];
-}
-
-export interface ConvertedProofVkData {
-    data: string;
-    hash: string;
-}
-
-export interface ConvertedProof {
-    vkData: ConvertedProofVkData;
-    proofData: ConvertedProofProofData;
-}
-
 export interface CreateProofArgument {
-    sp1PlonkProof: PlonkProof;
-    conversionOutputProof: ConvertedProof;
+    sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee;
+    conversionOutputProof: ConversionOutput;
 }
 
 export type EthVerifierComputeOutput = Awaited<

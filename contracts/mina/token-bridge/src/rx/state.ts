@@ -5,7 +5,7 @@ import {
     map,
     switchMap,
 } from 'rxjs';
-import { getBridgeStateTopic$, getBridgeTimingsTopic$ } from './topics.js';
+import { type getBridgeStateTopic$, type getBridgeTimingsTopic$ } from './topics.js';
 
 export const getBridgeStateWithTimings$ = (
     bridgeStateTopic$: ReturnType<typeof getBridgeStateTopic$>,

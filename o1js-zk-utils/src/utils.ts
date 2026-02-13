@@ -1,13 +1,11 @@
-import { Cache, Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
+import { type Cache, type Field, type SmartContract, UInt64, UInt8, type VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
 import {
-    PlonkProof,
     Bytes32,
-    ZkProgram,
-    CompilableZkProgram,
+    type CompilableZkProgram,
 } from './types.js';
-import { CacheConfig } from './o1js-cache/types.js';
-import { cacheFactory } from './o1js-cache/index.js';
+import { type Logger } from 'esm-iso-logger';
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -81,7 +79,7 @@ const proofOffsets = {
 
 const proofTotalLength = 176;
 
-export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
+export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
         ethSP1Proof.public_values.buffer.data
         // Buffer.from() this is nodejs specific and seemingly redundant
@@ -151,7 +149,7 @@ export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
 
 // Deprecate this!
 export async function compileAndVerifyContracts(
-    logger: any, // Logger fix this later
+    logger: Logger,
     contracts: {
         name: string;
         program: typeof SmartContract | CompilableZkProgram; // Ideally we would use CompilableZkProgram
@@ -170,9 +168,9 @@ export async function compileAndVerifyContracts(
 
         for (const { name, program, integrityHash } of contracts) {
             logger.log(`Compiling ${name} contract.`);
-            console.time(`${name} compile`);
+            const timer = createTimer();
             const compiled = await program.compile();
-            console.timeEnd(`${name} compile`);
+            logger.log(`${name} compiled in ${timer()}`);
             const verificationKey = compiled.verificationKey;
             const calculatedHash = verificationKey.hash.toString();
 
@@ -205,12 +203,17 @@ export async function compileAndVerifyContracts(
         return results;
     } catch (err) {
         logger.error(`Error compiling contracts:\n${String(err)}`);
-        console.error((err as Error).stack);
+        logger.error((err as Error).stack);
         throw err;
     }
 }
 
-export function vkToVkSafe(vk: VerificationKey) {
+export type VerificationKeySafe = {
+  hashStr: string;
+  data: string;
+};
+
+export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
   const { data, hash } = vk;
   return {
     hashStr: hash.toBigInt().toString(),
@@ -276,9 +279,9 @@ export async function compileAndOptionallyVerifyContracts<
     const { name, program, integrityHash } = c;
 
     logger.log(`Compiling ${name} contract/program.`);
-    console.time(`${name} compiled`);
+    const timer = createTimer();
     const compiled = await (cache ? program.compile({cache}) : program.compile());
-    console.timeEnd(`${name} compiled`);
+    logger.log(`${name} compiled in ${timer()}`);
 
     const vk = compiled.verificationKey;
     const hashStr = vk.hash.toBigInt().toString();
@@ -323,4 +326,18 @@ export type ZKCacheWithProgram = ZKCache & {
 
 export type ZKCacheLayout = ZKCache & {
     files: string[];
+}
+
+// Timing utilities to replace console.time/timeEnd
+export function createTimer() {
+    const start = Date.now();
+    return () => formatDuration(Date.now() - start);
+}
+
+export function formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(2);
+    return `${minutes}m ${seconds}s`;
 }

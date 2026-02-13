@@ -1,11 +1,16 @@
 // NOTE THIS TEST IS NO LONGER VIABLE DUE TO PKARM VERIFYING THE RECIPENT BUT IS LEFT HERE FOR POSTERITY
 import 'dotenv/config';
-import { NetworkId, PrivateKey } from 'o1js';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+import { type NetworkId, PrivateKey } from 'o1js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 // https://faucet.minaprotocol.com/
+
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('DevnetWithoutInfraSpec');
 
 describe('e2e_testnet_without_infra', () => {
     test('e2e_complete_testnet', async () => {
@@ -41,7 +46,7 @@ describe('e2e_testnet_without_infra', () => {
         // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
         // Use the worker to be able to reclaim some ram
         const useDeployerWorkerSubProcess = true;
-        console.log('Deploying contract.');
+        logger.log('Deploying contract.');
         const TokenDeployerWorker = useDeployerWorkerSubProcess
             ? getTokenDeployerWorker()
             : TokenDeployerWorkerPure;
@@ -77,8 +82,8 @@ describe('e2e_testnet_without_infra', () => {
             tokenDeployer.terminate();
         }
 
-        console.log('tokenBaseAddressBase58', tokenBaseAddressBase58);
-        console.log(
+        logger.log('tokenBaseAddressBase58', tokenBaseAddressBase58);
+        logger.log(
             'noriTokenControllerAddressBase58',
             noriTokenControllerAddressBase58
         );
@@ -94,11 +99,11 @@ describe('e2e_testnet_without_infra', () => {
         // COMPUTE DEPOSIT ATTESTATION **************************************************
 
         // INIT WORKER **************************************************
-        console.log('Fetching zkApp worker.');
+        logger.log('Fetching zkApp worker.');
         const ZkAppWorker = getZkAppWorker();
 
         // Compile zkAppWorker dependancies
-        console.log('Compiling dependancies of zkAppWorker');
+        logger.log('Compiling dependancies of zkAppWorker');
         const zkAppWorker = new ZkAppWorker();
         const zkAppWorkerReady = zkAppWorker.compileAll(); // ?? Can we move this earlier...
 
@@ -111,7 +116,7 @@ describe('e2e_testnet_without_infra', () => {
 
         // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
         const zkWorkerVks = await zkAppWorkerReady;
-        console.log('Awaited compilation of zkAppWorkerReady');
+        logger.log('Awaited compilation of zkAppWorkerReady');
 
         // Compare the keys
         type VkKey =
@@ -150,10 +155,10 @@ describe('e2e_testnet_without_infra', () => {
             minaSenderPublicKeyBase58
         );
 
-        console.log(`Setup storage required? '${setupRequired}'`);
+        logger.log(`Setup storage required? '${setupRequired}'`);
         if (setupRequired) {
-            console.log('Setting up storage');
-            console.time('noriMinter.setupStorage');
+            logger.log('Setting up storage');
+            const setupStorageTimer = createTimer();
             const { txHash: setupTxHash } = await zkAppWorker.MOCK_setupStorage(
                 minaSenderPublicKeyBase58,
                 noriTokenControllerAddressBase58,
@@ -170,37 +175,37 @@ describe('e2e_testnet_without_infra', () => {
                     0.1 * 1e9,
                     noriTokenControllerVerificationKeySafe
                 );
-                console.log('provedSetupTxStr', provedSetupTxStr);*/
+                logger.log('provedSetupTxStr', provedSetupTxStr);*/
             // The below should use a real wallets signAndSend method.
             /*const { txHash: setupTxHash } =
                 await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
-            console.log('setupTxHash', setupTxHash);
-            console.timeEnd('noriMinter.setupStorage');
+            logger.log('setupTxHash', setupTxHash);
+            logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
         }
 
         // Compute eth verifier and deposit witness
-        console.log('Computing eth verifier and calculating deposit witness.');
+        logger.log('Computing eth verifier and calculating deposit witness.');
         const { ethVerifierProofJson, depositAttestationInput } =
             await zkAppWorker.computeDepositAttestationWitnessAndEthVerifier(
                 codeChallengePKARMStr,
                 depositBlockNumber,
                 ethAddressLowerHex
             );
-        console.log('Computed eth verifier and calculated deposit witness.');
+        logger.log('Computed eth verifier and calculated deposit witness.');
 
         // PRE-COMPUTE MINT PROOF ****************************************************
 
-        console.log('Determining user funding status.');
+        logger.log('Determining user funding status.');
         const needsToFundAccount = await zkAppWorker.needsToFundAccount(
             tokenBaseAddressBase58,
             minaSenderPublicKeyBase58
         );
-        console.log('needsToFundAccount', needsToFundAccount);
+        logger.log('needsToFundAccount', needsToFundAccount);
 
-        console.log('Computing mint proof.');
+        logger.log('Computing mint proof.');
 
-        console.time('Mint proof computation');
+        const mintProofComputationTimer = createTimer();
         await zkAppWorker.MOCK_computeMintProofAndCache(
             minaSenderPublicKeyBase58,
             noriTokenControllerAddressBase58,
@@ -210,7 +215,7 @@ describe('e2e_testnet_without_infra', () => {
             1e9 * 0.1,
             needsToFundAccount
         );
-        console.timeEnd('Mint proof computation');
+        logger.log(`Mint proof computation in ${mintProofComputationTimer()}`);
         // NOTE!
         // Really a client would use await zkAppWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
         // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.mint should be used on the
@@ -225,33 +230,33 @@ describe('e2e_testnet_without_infra', () => {
                 1e9 * 0.1,
                 true
             );
-            console.log('provedMintTxStr', provedMintTxStr);*/
+            logger.log('provedMintTxStr', provedMintTxStr);*/
 
         // SIGN AND SEND MINT PROOF **************************************************
 
-        console.time('Mint transaction finalized');
+        const mintTransactionFinalizedTimer = createTimer();
         const { txHash: mintTxHash } =
             await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();
         // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
         // And ideally when WALLET_signAndSend works properly we would replace the above(within this test only!) with the below MOCK for wallet behaviour.
         /*const { txHash: mintTxHash } =
             await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
-        console.log('mintTxHash', mintTxHash);
-        console.timeEnd('Mint transaction finalized');
-        console.log('Minted!');
+        logger.log('mintTxHash', mintTxHash);
+        logger.log(`Mint transaction finalized in ${mintTransactionFinalizedTimer()}`);
+        logger.log('Minted!');
 
         // Get the amount minted so far and print it
         const mintedSoFar = await zkAppWorker.mintedSoFar(
             noriTokenControllerAddressBase58,
             minaSenderPublicKeyBase58
         );
-        console.log('mintedSoFar', mintedSoFar);
+        logger.log('mintedSoFar', mintedSoFar);
 
         const balanceOfUser = await zkAppWorker.getBalanceOf(
             tokenBaseAddressBase58,
             minaSenderPublicKeyBase58
         );
-        console.log('balanceOfUser', balanceOfUser);
+        logger.log('balanceOfUser', balanceOfUser);
 
         // END MAIN FLOW
     }, 1000000000);

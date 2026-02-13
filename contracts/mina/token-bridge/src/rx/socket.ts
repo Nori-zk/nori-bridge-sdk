@@ -1,7 +1,7 @@
-import { WebSocketServiceTopicSubscriptionMessage } from '@nori-zk/pts-types';
-import { filter, interval, map, Subscription } from 'rxjs';
-import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
-import { reconnectingWebSocket, ReconnectingWebSocketSubject } from './reconnectingSocket.js';
+import { type WebSocketServiceTopicSubscriptionMessage } from '@nori-zk/pts-types';
+import { filter, interval, map, type Subscription } from 'rxjs';
+import { webSocket, type WebSocketSubject } from 'rxjs/webSocket';
+import { reconnectingWebSocket, type ReconnectingWebSocketSubject } from './reconnectingSocket.js';
 
 export { type ReconnectingWebSocketSubject };
 

@@ -1,13 +1,14 @@
 import { LocalStorageSim } from './localStorageSim.js';
 import { createActor, waitFor } from 'xstate';
-import { getDepositMachine } from './deposit.js';
+import { type getDepositMachine } from './deposit.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
 } from '../rx/topics.js';
-import { firstValueFrom, map, Observable, shareReplay, take } from 'rxjs';
+import { firstValueFrom, map, shareReplay, take } from 'rxjs';
 import { getReconnectingBridgeSocket$ } from '../rx/socket.js';
+import { type GlobalWithWindow } from '../types.js';
 
 describe('depositMachine', () => {
     let depositMachine: ReturnType<typeof getDepositMachine>;
@@ -31,7 +32,7 @@ describe('depositMachine', () => {
 
     beforeEach(async () => {
         // Fresh window + localStorage before each test
-        (global as any).window = {
+        (global as GlobalWithWindow).window = {
             localStorage: new LocalStorageSim(),
         };
 

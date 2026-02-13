@@ -5,11 +5,11 @@ import {
     Mina,
     PrivateKey,
     AccountUpdate,
-    NetworkId,
+    type NetworkId,
     fetchAccount,
     PublicKey,
 } from 'o1js';
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { rootDir } from '../utils.js';
@@ -25,15 +25,7 @@ import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
 const logger = new Logger('Deploy');
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
 const missingEnvVariables: string[] = [];
 

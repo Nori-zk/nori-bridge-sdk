@@ -2,7 +2,7 @@ import {
     Provable,
     VerificationKey,
     Poseidon,
-    UInt8,
+    type UInt8,
     Bytes,
     ZkProgram,
     Struct,

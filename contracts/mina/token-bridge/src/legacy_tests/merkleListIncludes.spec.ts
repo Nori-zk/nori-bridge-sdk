@@ -1,12 +1,10 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     Bool,
     Field,
-    Int64,
     MerkleList,
     Provable,
-    Sign,
     Struct,
-    UInt64,
     ZkProgram,
 } from 'o1js';
 
@@ -38,7 +36,7 @@ const MerkleListLeafAttestor = ZkProgram({
                 );*/
 
                 // Iterate through the list
-                input.list.forEach(1000, (element, isDummy, index) => {
+                input.list.forEach(1000, (element, isDummy) => {
                     // Only consider non-dummy elements
                     const check = Provable.if(
                         isDummy,
@@ -65,6 +63,9 @@ const MerkleListLeafAttestor = ZkProgram({
     },
 });
 
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('MerkleListIncludesSpec');
+
 it('entry_exist_in_list_of_1000', async () => {
     // Create a FieldList with 1000 elements
     const elements: Field[] = [];
@@ -80,10 +81,10 @@ it('entry_exist_in_list_of_1000', async () => {
     });
 
     const analysis = await MerkleListLeafAttestor.analyzeMethods();
-    console.log('attest gates', analysis['attest'].gates.length);
+    logger.log('attest gates', analysis['attest'].gates.length);
     await MerkleListLeafAttestor.compile();
 
     const result = await MerkleListLeafAttestor.attest(input);
-    console.log('found ',result.proof.publicOutput.found.toBoolean());
-    //console.log('index ',result.proof.publicOutput.index.toBigint());
+    logger.log('found ',result.proof.publicOutput.found.toBoolean());
+    //logger.log('index ',result.proof.publicOutput.index.toBigint());
 });
