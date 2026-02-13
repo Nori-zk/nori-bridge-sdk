@@ -1,7 +1,7 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { Field } from 'o1js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('FieldUnderflowSpec');
 
 it('detect_underflow', () => {

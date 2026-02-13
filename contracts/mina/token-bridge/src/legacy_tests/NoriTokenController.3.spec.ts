@@ -28,7 +28,7 @@ import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 
 import { ZkAppWorker as ZkAppWorkerPure } from '../workers/zkAppWorker/worker.js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('NoriTokenController3Spec');
 
 describe('NoriTokenController', () => {

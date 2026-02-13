@@ -1,7 +1,7 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { EchoWorkerParent } from './node/parent.js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestWorkers');
 const logger = new Logger('EchoSpec');
 
 describe('EchoWorker', () => {

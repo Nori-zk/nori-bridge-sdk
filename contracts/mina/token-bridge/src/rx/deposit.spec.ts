@@ -14,7 +14,7 @@ import {
 } from './topics.js';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('DepositSpec');
 
 describe('Deposit tests', () => {

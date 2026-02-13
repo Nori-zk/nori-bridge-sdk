@@ -27,7 +27,7 @@ import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 // https://faucet.minaprotocol.com/
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2EDevnetSpec');
 
 describe('e2e_testnet', () => {

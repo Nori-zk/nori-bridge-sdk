@@ -10,7 +10,7 @@ import {
 } from '../pkarm.js';
 import { PrivateKey } from 'o1js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('EthMapValuesSpec');
 
 test('get_wallet_address_and_code_challenge_hex', async () => {

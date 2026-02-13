@@ -36,7 +36,7 @@ import {
 } from '../depositAttestation.js';
 import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('NoriTokenControllerSpec');
 
 async function computeDepositAttestationWitnessAndEthVerifier2(

@@ -33,7 +33,7 @@ import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('NoriTokenController2Spec');
 
 async function computeDepositAttestationWitnessAndEthVerifier2(

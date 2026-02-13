@@ -17,7 +17,7 @@ import {
 import { createActor, fromObservable, fromPromise } from 'xstate';
 import { DeferredPromise } from '@nori-zk/workers';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('XstateSpec');
 
 describe('XState integration example', () => {

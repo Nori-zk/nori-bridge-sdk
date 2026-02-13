@@ -8,7 +8,7 @@ import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/token
 import { ZkAppWorker as ZkAppWorkerPure } from '../workers/zkAppWorker/worker.js';
 import { createTimer } from '@nori-zk/o1js-zk-utils';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('LitenetWithoutInfraSpec');
 
 describe('e2e-without-infra', () => {

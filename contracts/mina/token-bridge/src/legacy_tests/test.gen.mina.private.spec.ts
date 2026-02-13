@@ -1,7 +1,7 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { PrivateKey } from "o1js";
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('TestGenMinaPrivateSpec');
 
 describe('gen_mina_pk', () => {

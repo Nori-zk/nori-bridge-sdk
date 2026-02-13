@@ -30,7 +30,7 @@ import {
 } from './EthDepositProgram.js';
 import { createTimer } from '@nori-zk/o1js-zk-utils';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2EPrerequisitesSpec');
 
 const mptConsensusProofBundle = proofArgument;

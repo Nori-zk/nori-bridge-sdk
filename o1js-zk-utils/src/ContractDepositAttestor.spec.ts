@@ -23,7 +23,7 @@ import {
 } from './utils.js';
 
 const logger = new Logger('ContractDepositAttestor');
-new LogPrinter('NoriO1JsZkUtils');
+new LogPrinter('TestO1JsZkUtils');
 
 describe('Contract Storage Slot Deposit Attestor Test', () => {
     test('contract_deposit_pipeline', async () => {

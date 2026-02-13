@@ -6,7 +6,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { EthVerifier } from '../ethVerifier.js';
 import { rootDir } from '../rootDir.js';
 
-new LogPrinter('NoriO1JsZkUtils');
+new LogPrinter('O1JsZkUtils');
 
 const logger = new Logger('CompileZksAndBakeVkHashes');
 

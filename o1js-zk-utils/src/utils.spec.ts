@@ -2,7 +2,7 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import { decodeConsensusMptProof } from './utils';
 import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestO1jsZkUtils');
 const logger = new Logger('UtilsSpec');
 
 describe('ConsensusMPT marshaller Integration Test', () => {

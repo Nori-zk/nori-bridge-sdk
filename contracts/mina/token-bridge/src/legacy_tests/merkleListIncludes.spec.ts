@@ -63,7 +63,7 @@ const MerkleListLeafAttestor = ZkProgram({
     },
 });
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('MerkleListIncludesSpec');
 
 it('entry_exist_in_list_of_1000', async () => {

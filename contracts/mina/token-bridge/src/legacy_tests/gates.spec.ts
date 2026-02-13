@@ -3,7 +3,7 @@ import { NoriTokenController } from '../NoriTokenController.js';
 import { FungibleToken } from '../TokenBase.js';
 import { type Analyzable } from '../types.js';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('GatesSpec');
 
 describe('Work out number of gates for core ZKs', () => {

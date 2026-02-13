@@ -27,7 +27,7 @@ import {
 } from './pkarm.js';
 import { createTimer } from '@nori-zk/o1js-zk-utils';
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2ELitenetSpec');
 
 describe('e2e', () => {
