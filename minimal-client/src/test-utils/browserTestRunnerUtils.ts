@@ -17,6 +17,9 @@ const logger = new Logger('BrowserTestRunnerUtils');
 const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
 const proofConversionServiceUrl = process.env.PROOF_CONVERSION_SERVICE_URL || 'https://pcs.nori.it.com';
 
+// Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
+const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
+
 export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
 
@@ -92,7 +95,8 @@ export async function startServer(port = 4003) {
     // Catch-all proxy for Mina devnet
     app.use((req, res) => {
         proxy.web(req, res, {
-            target: minaRpcNetworkUrl, // 'https://api.minascan.io/node/devnet/v1/graphql',
+            // 'https://api.minascan.io/node/devnet/v1/graphql',
+            target: minaRpcBaseUrl, // Use base URL to avoid path doubling (e.g., /graphql/graphql)
         });
     });
 
@@ -159,7 +163,7 @@ export async function bundleTests() {
     if (!fs.existsSync(htmlPath)) {
         const html = `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>WebGPU Tests</title></head>
+<head><meta charset="UTF-8"><title>Nori Minimal Client Tests</title></head>
 <body>
 <h1>Nori Minimal Client Tests</h1>
 <div id="test-results"></div>
