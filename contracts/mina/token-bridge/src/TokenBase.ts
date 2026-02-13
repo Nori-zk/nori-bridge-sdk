@@ -1,6 +1,5 @@
 import {
   AccountUpdate,
-  type AccountUpdateForest,
   assert,
   Bool,
   type DeployArgs,
@@ -16,8 +15,10 @@ import {
   Types,
   UInt64,
   UInt8,
-  type VerificationKey,
 } from 'o1js';
+// VerificationKey and AccountUpdateForest must be value imports for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { VerificationKey, AccountUpdateForest } from 'o1js';
 import {
   NoriTokenController,
 } from './NoriTokenController.js';

@@ -9,10 +9,12 @@ import {
     PublicKey,
     Permissions,
     Provable,
-    type VerificationKey,
     assert,
     AccountUpdate,
 } from 'o1js';
+// VerificationKey must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { VerificationKey } from 'o1js';
 import { EthProof, Bytes32, Bytes32FieldPair } from '@nori-zk/o1js-zk-utils';
 
 export class EthProofType extends EthProof {}

@@ -1,6 +1,5 @@
 import {
     AccountUpdate,
-    type AccountUpdateForest,
     assert,
     Bool,
     type DeployArgs,
@@ -15,18 +14,24 @@ import {
     state,
     TokenContract,
     UInt64,
-    type VerificationKey,
 } from 'o1js';
+// VerificationKey and AccountUpdateForest must be value imports for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { VerificationKey, AccountUpdateForest } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-import { type EthProofType } from '@nori-zk/o1js-zk-utils';
+// EthProofType must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { EthProofType } from '@nori-zk/o1js-zk-utils';
 import {
     contractDepositCredentialAndTotalLockedToFields,
     getContractDepositSlotRootFromContractDepositAndWitness,
-    type MerkleTreeContractDepositAttestorInput,
     verifyDepositSlotRoot,
 } from './depositAttestation.js';
+// MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
 import { verifyCodeChallenge } from './pkarm.js';
 
 const logger = new Logger('NoriTokenController');
