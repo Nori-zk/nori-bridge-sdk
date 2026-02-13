@@ -31,7 +31,7 @@ function writeSuccessDetailsToEnvFile(
         Object.entries(env)
             .map(([key, value]) => `${key}=${value}`)
             .join('\n') + `\n`;
-    const envFileOutputPath = resolve(rootDir, '..', '.env.nori-token-bridge');
+    const envFileOutputPath = resolve(rootDir, '..', '..', '.env.nori-token-bridge');
     logger.info(`Writing env file with the details: '${envFileOutputPath}'`);
     writeFileSync(envFileOutputPath, envFileStr, 'utf8');
     logger.log(`Wrote '${envFileOutputPath}' successfully.`);
