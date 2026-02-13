@@ -1,3 +1,4 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { filter, firstValueFrom, map } from 'rxjs';
 import {
     BridgeDepositProcessingStatus,
@@ -12,6 +13,9 @@ import {
     getEthStateTopic$,
 } from './topics.js';
 import { TransitionNoticeMessageType } from '@nori-zk/pts-types';
+
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('DepositSpec');
 
 describe('Deposit tests', () => {
     const { bridgeSocket$ } = getReconnectingBridgeSocket$();
@@ -79,14 +83,20 @@ describe('Deposit tests', () => {
         );
     }
 
-    function isValidBridgeState(bridgeState: any): bridgeState is {
+    function isValidBridgeState(bridgeState: unknown): bridgeState is {
         last_finalized_job: { input_block_number: number };
         input_block_number: number;
     } {
         return (
+            typeof bridgeState === 'object' &&
+            bridgeState !== null &&
+            'last_finalized_job' in bridgeState &&
             bridgeState.last_finalized_job !== 'unknown' &&
-            typeof bridgeState.last_finalized_job?.input_block_number ===
-                'number' &&
+            typeof bridgeState.last_finalized_job === 'object' &&
+            bridgeState.last_finalized_job !== null &&
+            'input_block_number' in bridgeState.last_finalized_job &&
+            typeof bridgeState.last_finalized_job.input_block_number === 'number' &&
+            'input_block_number' in bridgeState &&
             typeof bridgeState.input_block_number === 'number'
         );
     }
@@ -122,7 +132,7 @@ describe('Deposit tests', () => {
 
     test('should_immediately_be_able_to_compute_mint_proof_if_we_are_in_the_current_window', async () => {
         const latestBlockInputNumbers = await getLatestBridgeJobInputNumbers();
-        console.log('Using latestBlockInputNumber:', latestBlockInputNumbers);
+        logger.log('Using latestBlockInputNumber:', latestBlockInputNumbers);
         const depositProcessingStatus$ = getDepositProcessingStatus$(
             latestBlockInputNumbers.input_block_number,
             ethStateTopic$,
@@ -133,10 +143,10 @@ describe('Deposit tests', () => {
         // Subscribe while we are waiting.
         const depositProcessingStatusSubscription =
             depositProcessingStatus$.subscribe({
-                next: (value) => console.log('[Latest inside] Next:', value),
+                next: (value) => logger.log('[Latest inside] Next:', value),
                 error: (error) =>
-                    console.error('[Latest inside] Error:', error),
-                complete: () => console.log('[Latest inside] Complete'),
+                    logger.error('[Latest inside] Error:', error),
+                complete: () => logger.log('[Latest inside] Complete'),
             });
 
         const readyToComputeMintProofResult = readyToComputeMintProof(
@@ -151,7 +161,7 @@ describe('Deposit tests', () => {
     test('should_eventually_be_able_to_compute_mint_proof_if_we_are_just_outside_the_current_window', async () => {
         const latestBlockInputNumber =
             (await getLatestBridgeJobInputNumbers()).output_block_number + 1;
-        console.log('Using latestBlockInputNumber:', latestBlockInputNumber);
+        logger.log('Using latestBlockInputNumber:', latestBlockInputNumber);
         const depositProcessingStatus$ = getDepositProcessingStatus$(
             latestBlockInputNumber,
             ethStateTopic$,
@@ -162,10 +172,10 @@ describe('Deposit tests', () => {
         // Subscribe while we are waiting.
         const depositProcessingStatusSubscription =
             depositProcessingStatus$.subscribe({
-                next: (value) => console.log('[Latest outside] Next:', value),
+                next: (value) => logger.log('[Latest outside] Next:', value),
                 error: (error) =>
-                    console.error('[Latest outside] Error:', error),
-                complete: () => console.log('[Latest outside] Complete'),
+                    logger.error('[Latest outside] Error:', error),
+                complete: () => logger.log('[Latest outside] Complete'),
             });
 
         const readyToComputeMintProofResult = readyToComputeMintProof(
@@ -179,7 +189,7 @@ describe('Deposit tests', () => {
 
     test('should_possibly_be_able_to_compute_mint_proof_if_we_are_in_the_last_window_if_not_finalized', async () => {
         const lastBlockInputNumber = await getLastBridgeJobInputNumber();
-        console.log('Using lastBlockInputNumber:', lastBlockInputNumber);
+        logger.log('Using lastBlockInputNumber:', lastBlockInputNumber);
 
         const depositProcessingStatus$ = getDepositProcessingStatus$(
             lastBlockInputNumber,
@@ -202,10 +212,10 @@ describe('Deposit tests', () => {
             depositProcessingStatus$.subscribe({
                 next: (value) => {
                     lastEmittedStatus = value;
-                    console.log('[Last] Next:', value);
+                    logger.log('[Last] Next:', value);
                 },
-                error: (error) => console.error('[Last] Error:', error),
-                complete: () => console.log('[Last] Complete'),
+                error: (error) => logger.error('[Last] Error:', error),
+                complete: () => logger.log('[Last] Complete'),
             });
 
         try {
@@ -213,11 +223,11 @@ describe('Deposit tests', () => {
                 depositProcessingStatus$
             );
             expect(result).toBe(true);
-            console.log('lastBlockNumber true case');
+            logger.log('lastBlockNumber true case');
         } catch (e) {
             // FIXME actually witness this happening! Assuming it works for today. Dont think it is
             // FIXME EthProcessorTransactionFinalizationSucceeded IS probably too late
-            console.log('lastBlockNumber error case');
+            logger.log('lastBlockNumber error case');
             expect(e).toBeInstanceOf(Error);
             const error = e as Error;
             expect(error.message).toBe('Minting opportunity missed.');
@@ -232,7 +242,7 @@ describe('Deposit tests', () => {
                 const { input_block_number, output_block_number } =
                     lastEmittedStatus.last_finalized_job;
                 const depositBlockNumber =
-                    lastEmittedStatus.deposit_block_number!;
+                    lastEmittedStatus.deposit_block_number;
                 expect(depositBlockNumber).toBeGreaterThanOrEqual(
                     input_block_number
                 );

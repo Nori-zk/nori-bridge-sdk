@@ -1,5 +1,5 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { CreateProofArgument } from '@nori-zk/o1js-zk-utils';
+import { type CreateProofArgument } from '@nori-zk/o1js-zk-utils';
 import { vkData } from '../proofs/nodeVk.js';
 import { p0 } from '../proofs/p0.js';
 import { sp1PlonkProof } from '../proofs/sp1Proof.js';
@@ -8,15 +8,7 @@ import { wait } from '../txWait.js';
 
 const logger = new Logger('ProveAndSubmit');
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
 function buildProofCreateArgument() {
     const example: CreateProofArgument = {

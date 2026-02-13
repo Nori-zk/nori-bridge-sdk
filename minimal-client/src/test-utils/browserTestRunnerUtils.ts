@@ -9,10 +9,16 @@ import http from 'http';
 import httpProxy from 'http-proxy';
 // Load environment variables from .env file
 import 'dotenv/config';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('BrowserTestRunnerUtils');
 
 // Extract envs
 const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
 const proofConversionServiceUrl = process.env.PROOF_CONVERSION_SERVICE_URL || 'https://pcs.nori.it.com';
+
+// Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
+const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
 
 export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
@@ -89,7 +95,8 @@ export async function startServer(port = 4003) {
     // Catch-all proxy for Mina devnet
     app.use((req, res) => {
         proxy.web(req, res, {
-            target: minaRpcNetworkUrl, // 'https://api.minascan.io/node/devnet/v1/graphql',
+            // 'https://api.minascan.io/node/devnet/v1/graphql',
+            target: minaRpcBaseUrl, // Use base URL to avoid path doubling (e.g., /graphql/graphql)
         });
     });
 
@@ -97,14 +104,14 @@ export async function startServer(port = 4003) {
     const server = http.createServer(app);
 
     server.on('upgrade', (req, socket, head) => {
-        console.log('Upgrade attempt detected:', req.url);
+        logger.log('Upgrade attempt detected:', req.url);
         proxy.ws(req, socket, head);
     });
 
     return new Promise<{ server: http.Server; url: string }>((resolve) => {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
-            console.log(
+            logger.log(
                 `Server running at: ${url}.`
             );
             resolve({ server, url });
@@ -156,7 +163,7 @@ export async function bundleTests() {
     if (!fs.existsSync(htmlPath)) {
         const html = `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>WebGPU Tests</title></head>
+<head><meta charset="UTF-8"><title>Nori Minimal Client Tests</title></head>
 <body>
 <h1>Nori Minimal Client Tests</h1>
 <div id="test-results"></div>
@@ -164,7 +171,7 @@ export async function bundleTests() {
   import './${outFileName}';
   window.addEventListener('DOMContentLoaded', () => {
     if (!window.runTests) {
-      console.error('runTests not found on globalThis!');
+      logger.error('runTests not found on globalThis!');
       return;
     }
     window.runTests();

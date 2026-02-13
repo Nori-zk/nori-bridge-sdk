@@ -37,7 +37,7 @@
  */
 
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { Bytes, Field, Poseidon, PublicKey, UInt8 } from 'o1js';
+import { Bytes, type Field, Poseidon, type PublicKey, UInt8 } from 'o1js';
 
 /**
  * Converts a Mina public key into a Poseidon hash field.

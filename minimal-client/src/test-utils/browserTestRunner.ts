@@ -1,3 +1,7 @@
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('BrowserTestRunner');
+
 interface Test {
     name: string;
     fn: (() => void | Promise<void>) | null;
@@ -14,6 +18,18 @@ interface Suite {
     afterAllFns: (() => void | Promise<void>)[];
     suites: Suite[];
 }
+
+type GlobalWithTests = typeof globalThis & {
+    describe: typeof describe;
+    it: typeof it;
+    test: typeof test;
+    beforeAll: typeof beforeAll;
+    beforeEach: typeof beforeEach;
+    afterEach: typeof afterEach;
+    after: typeof after;
+    runTests: typeof runTests;
+    testsFinished?: boolean;
+};
 
 let currentSuite: Suite = {
     name: 'root',
@@ -117,33 +133,74 @@ function withTimeout<T>(
 
 const originalConsole = console;
 
+/**
+ * Parses browser console formatting (%c) and converts to styled HTML.
+ * Console format: console.log('%cText1 %cText2', 'color: red;', 'color: blue;')
+ */
+function parseConsoleFormatting(args: unknown[]): HTMLElement {
+    const container = document.createElement('span');
+
+    if (args.length === 0) return container;
+
+    const formatString = String(args[0]);
+    const styles = args.slice(1);
+
+    // Split by %c markers
+    const parts = formatString.split('%c');
+
+    // First part has no style
+    if (parts[0]) {
+        container.appendChild(document.createTextNode(parts[0]));
+    }
+
+    // Each subsequent part gets the corresponding style
+    for (let i = 1; i < parts.length; i++) {
+        const text = parts[i];
+        const styleStr = styles[i - 1];
+
+        if (text) {
+            const span = document.createElement('span');
+            if (typeof styleStr === 'string') {
+                span.setAttribute('style', styleStr);
+            }
+            span.textContent = text;
+            container.appendChild(span);
+        }
+    }
+
+    return container;
+}
+
 function createConsoleLine(
     type: 'log' | 'info' | 'warn' | 'error',
-    ...args: any[]
+    ...args: unknown[]
 ) {
     const logEl = document.createElement('div');
     logEl.style.margin = '2px 0';
     logEl.style.fontFamily = 'monospace';
     logEl.style.whiteSpace = 'pre-wrap';
 
+    const typeLabel = document.createElement('span');
     switch (type) {
         case 'error':
-            logEl.style.color = '#e57373';
+            typeLabel.style.color = '#e57373';
             break;
         case 'warn':
-            logEl.style.color = '#f9a825';
+            typeLabel.style.color = '#f9a825';
             break;
         case 'info':
-            logEl.style.color = '#64b5f6';
+            typeLabel.style.color = '#64b5f6';
             break;
         case 'log':
-            logEl.style.color = '#388e3c';
+            typeLabel.style.color = '#388e3c';
             break;
         default:
-            logEl.style.color = '#757575';
+            typeLabel.style.color = '#757575';
     }
+    typeLabel.textContent = `[${type.toUpperCase()}] `;
+    logEl.appendChild(typeLabel);
 
-    logEl.textContent = `[${type.toUpperCase()}] ${args.map(String).join(' ')}`;
+    logEl.appendChild(parseConsoleFormatting(args));
     return logEl;
 }
 
@@ -156,7 +213,7 @@ function captureTestConsole(currentTestConsoleEl: HTMLElement) {
 
     const createFn =
         (type: 'log' | 'info' | 'warn' | 'error') =>
-        (...args: any[]) => {
+        (...args: unknown[]) => {
             // Add bottom padding when first log appears
             if (!hasLogs) {
                 currentTestConsoleEl.style.padding = '20px 20px 20px 20px';
@@ -227,7 +284,7 @@ async function runSuite(
     testsContainer.style.marginLeft = '20px';
     suiteEl.appendChild(testsContainer);
 
-    console.log(`${indent}${suite.name}`);
+    logger.log(`${indent}${suite.name}`);
 
     for (const fn of suite.beforeAllFns) await fn();
 
@@ -261,7 +318,7 @@ async function runSuite(
         const prefix = indent + '  ';
 
         if (t.mode === 'skip' || t.fn === null) {
-            console.log(`${prefix}⏭️  ${t.name}`);
+            logger.log(`${prefix}⏭️  ${t.name}`);
             testEl.textContent = `⏭️  ${t.name} (skipped)`;
             testEl.style.color = 'gray';
             continue;
@@ -274,7 +331,11 @@ async function runSuite(
         try {
             for (const fn of beforeEachChain) await fn();
 
-            await withTimeout(Promise.resolve(t.fn()), t.timeout!, t.name);
+            if (t.timeout !== undefined) {
+                await withTimeout(Promise.resolve(t.fn()), t.timeout, t.name);
+            } else {
+                await t.fn();
+            }
 
             const testEnd = performance.now();
             const duration = (testEnd - testStart).toFixed(2);
@@ -287,13 +348,12 @@ async function runSuite(
             titleEl.style.color = '#388e3c'; // green
             testEl.appendChild(titleEl);
         } catch (err: unknown) {
-            const error: Error | any = err;
             const errorMessage =
-                error instanceof Error
-                    ? error?.stack || error?.message
-                    : typeof error === 'object' && error !== null
-                    ? JSON.stringify(error)
-                    : String(error);
+                err instanceof Error
+                    ? err.stack || err.message
+                    : typeof err === 'object' && err !== null
+                    ? JSON.stringify(err)
+                    : String(err);
 
             const testEnd = performance.now();
             const duration = (testEnd - testStart).toFixed(2);
@@ -340,7 +400,7 @@ export async function runTests() {
     const endTime = performance.now();
 
     const totalDuration = (endTime - startTime).toFixed(2);
-    console.log(`Total test run time: ${totalDuration} ms`);
+    logger.log(`Total test run time: ${totalDuration} ms`);
 
     const timeEl = document.createElement('div');
     timeEl.style.marginTop = '20px';
@@ -348,15 +408,16 @@ export async function runTests() {
     timeEl.textContent = `Total test run time: ${totalDuration} ms`;
     container.appendChild(timeEl);
 
-    (globalThis as any).testsFinished = true;
+    (globalThis as GlobalWithTests).testsFinished = true;
 }
 
 // === Globals ===
-(globalThis as any).describe = describe;
-(globalThis as any).it = it;
-(globalThis as any).test = test;
-(globalThis as any).beforeAll = beforeAll;
-(globalThis as any).beforeEach = beforeEach;
-(globalThis as any).afterEach = afterEach;
-(globalThis as any).after = after;
-(globalThis as any).runTests = runTests;
+const globalWithTests = globalThis as GlobalWithTests;
+globalWithTests.describe = describe;
+globalWithTests.it = it;
+globalWithTests.test = test;
+globalWithTests.beforeAll = beforeAll;
+globalWithTests.beforeEach = beforeEach;
+globalWithTests.afterEach = afterEach;
+globalWithTests.after = after;
+globalWithTests.runTests = runTests;

@@ -13,15 +13,32 @@
         "minimal-client"
     ],
     "devDependencies": {
+        "@babel/preset-env": "^7.29.0",
+        "@babel/preset-typescript": "^7.28.5",
+        "@types/jest": "^30.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.55.0",
+        "@typescript-eslint/parser": "^8.55.0",
+        "eslint": "^9.39.2",
+        "eslint-plugin-o1js": "^0.4.0",
+        "jest": "^30.2.0",
         "npm-workspaces-publish-tool": "^0.0.14",
-        "typescript": "^5.1.0"
+        "prettier": "^3.8.1",
+        "rimraf": "^6.1.2",
+        "ts-jest": "^29.4.6",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.1.0",
+        "typescript-eslint": "^8.55.0"
     },
     "scripts": {
         "build": "npm run build --workspaces --if-present",
+        "lint": "npm run lint --workspaces --if-present",
+        "format": "npm run format --workspaces --if-present",
         "test": "npm run test --workspaces --if-present",
         "test-ci": "npm run test-ci --workspaces --if-present",
         "bake-vk-hashes": "npm run bake-vk-hashes --workspaces --if-present",
         "publish": "nw-publish",
-        "determine-breakage:o1js": "node determine-o1js-breaking-changes.js"
+        "determine-breakage:o1js": "node determine-o1js-breaking-changes.js",
+        "clean:modules": "rm -rf node_modules */node_modules */*/node_modules */*/*/node_modules",
+        "reinstall": "npm run clean:modules && rm -f package-lock.json && npm install"
     }
 }

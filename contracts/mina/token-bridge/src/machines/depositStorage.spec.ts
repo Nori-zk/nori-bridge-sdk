@@ -1,15 +1,16 @@
 import { LocalStorageSim } from './localStorageSim.js';
 import { createActor } from 'xstate';
 import type { depositMachine } from './depositStorage.js';
-import { getEthStateTopic$ } from '../rx/topics.js';
+import { type getEthStateTopic$ } from '../rx/topics.js';
 import { firstValueFrom, map, take } from 'rxjs';
+import { type GlobalWithWindow } from '../types.js';
 
 describe('depositMachine', () => {
     let machine: typeof depositMachine;
 
     beforeEach(async () => {
         // fresh window + localStorage polyfill before each test
-        (global as any).window = {
+        (global as GlobalWithWindow).window = {
             localStorage: new LocalStorageSim(),
         };
 
@@ -36,6 +37,7 @@ describe('depositMachine', () => {
 
         return targetDepositNumber;
     }
+    void getNextDepositTarget;
 
     test('goes to NoActiveDepositNumber when no storage keys exist', () => {
         const service = createActor(machine).start();

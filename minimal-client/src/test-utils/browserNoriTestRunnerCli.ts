@@ -1,12 +1,26 @@
 import {
     bundleTests,
-    findBrowser,
     startServer,
-    ROOT_DIR,
 } from './browserTestRunnerUtils.js';
 import puppeteer from 'puppeteer';
+import { Logger } from 'esm-iso-logger';
 
-function serializeAny(val: any): any {
+const logger = new Logger('BrowserNoriTestRunnerCli');
+
+type WindowWithTests = Window & {
+    testsFinished?: boolean;
+    testsFailures?: number;
+};
+
+type Serializable =
+    | string
+    | number
+    | boolean
+    | null
+    | unknown[]
+    | Record<string, unknown>;
+
+function serializeAny(val: unknown): Serializable {
     if (typeof val === 'bigint') return val.toString() + 'n';
     if (typeof val === 'function') return '[Function]';
     if (val instanceof Error) return { message: val.message, stack: val.stack };
@@ -18,11 +32,12 @@ function serializeAny(val: any): any {
     }
 
     if (val && typeof val === 'object') {
-        const res: any = {};
-        for (const key of Object.keys(val)) {
+        const valObj = val as Record<string, unknown>;
+        const res: Record<string, unknown> = {};
+        for (const key of Object.keys(valObj)) {
             try {
-                console.log(val[key], key);
-                res[key] = serializeAny(val[key]);
+                logger.log(valObj[key], key);
+                res[key] = serializeAny(valObj[key]);
             } catch {
                 res[key] = '[Unserializable]';
             }
@@ -30,7 +45,7 @@ function serializeAny(val: any): any {
         return res;
     }
 
-    return val;
+    return val as Serializable;
 }
 
 async function main() {
@@ -78,13 +93,13 @@ async function main() {
 
     await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-    await page.waitForFunction(() => (window as any).testsFinished === true, {
+    await page.waitForFunction(() => (window as WindowWithTests).testsFinished === true, {
         polling: 100,
         timeout: 0,
     });
 
     const failuresCount = await page.evaluate(
-        () => (window as any).testsFailures || 0
+        () => (window as WindowWithTests).testsFailures || 0
     );
 
     console.log(`Tests finished. Failures: ${failuresCount}`);

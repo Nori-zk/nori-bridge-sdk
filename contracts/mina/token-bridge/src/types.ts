@@ -1,10 +1,36 @@
 import {
-  AccountUpdate,
-  Bool,
-  PublicKey,
-  UInt64,
-  VerificationKey,
+  type AccountUpdate,
+  type Bool,
+  type ProofBase,
+  type PublicKey,
+  type SmartContract,
+  type UInt64,
+  type VerificationKey,
 } from 'o1js';
+import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
+import { type Gate } from 'o1js/dist/node/bindings/crypto/bindings/kimchi-types.js';
+import { type CompilableZkProgram } from '@nori-zk/o1js-zk-utils';
+
+export type ProofClass = Subclass<typeof ProofBase>;
+
+export type CompilableZkProgramWithAnalyze = CompilableZkProgram & {
+    analyzeMethods: () => Promise<
+        Record<
+            string,
+            {
+                actions: number;
+                rows: number;
+                digest: string;
+                gates: Gate[];
+                proofs: ProofClass[];
+            }
+        >
+    >;
+};
+
+export type Analyzable = typeof SmartContract | CompilableZkProgramWithAnalyze;
+
+export type GlobalWithWindow = { window: Partial<Window> };
 
 export interface FungibleTokenAdminBase {
   canMint(au: AccountUpdate): Promise<Bool>;

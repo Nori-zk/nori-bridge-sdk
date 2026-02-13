@@ -1,9 +1,12 @@
-import { fork, ChildProcess } from 'child_process';
-import { DeferredPromise, type WorkerParentChildInterface } from '../index.js';
+import { fork, type ChildProcess } from 'child_process';
+import { type WorkerParentChildInterface } from '../index.js';
 import path from 'path';
 import ts from 'typescript';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('WorkerParentNode');
 
 let compilerOptionsCache: ts.CompilerOptions | null = null;
 
@@ -26,7 +29,7 @@ function loadTSConfig(scriptPath: string): ts.CompilerOptions {
     try {
         const configPath = findTSConfig(path.dirname(scriptPath));
         if (!configPath) {
-            console.warn('tsconfig.json not found, using defaults.');
+            logger.warn('tsconfig.json not found, using defaults.');
             compilerOptionsCache = {};
             return compilerOptionsCache;
         }
@@ -36,7 +39,7 @@ function loadTSConfig(scriptPath: string): ts.CompilerOptions {
         compilerOptionsCache = parsed.options;
         return compilerOptionsCache;
     } catch (err) {
-        console.error('Error loading tsconfig.json, falling back to defaults:', err);
+        logger.error('Error loading tsconfig.json, falling back to defaults:', err);
         compilerOptionsCache = {};
         return compilerOptionsCache;
     }
@@ -48,7 +51,7 @@ function loadTSConfig(scriptPath: string): ts.CompilerOptions {
         const filePath = fileURLToPath(url);
         const opts = loadTSConfig(filePath);
 
-        console.log('ts opts', opts);
+        logger.log('ts opts', opts);
 
         const rootDir = opts.rootDir ?? '.';
         const outDir = opts.outDir ?? 'build';
@@ -58,7 +61,7 @@ function loadTSConfig(scriptPath: string): ts.CompilerOptions {
 
         return path.resolve(outDir, jsFile);
     } catch (err) {
-        console.error('Error resolving worker URL, returning fallback path:', err);
+        logger.error('Error resolving worker URL, returning fallback path:', err);
         const fallback = path.resolve('build', path.basename(fileURLToPath(url)).replace(/\.(ts|mts|cts)$/, '.js'));
         return fallback;
     }
@@ -113,7 +116,7 @@ export class WorkerParent implements WorkerParentChildInterface {
                     this.messageCallback(JSON.stringify(msg));
                 }
             } else
-                console.warn(
+                logger.warn(
                     'Callback for messages not assigned. Call onMessageHandler first.'
                 );
         });
@@ -121,7 +124,7 @@ export class WorkerParent implements WorkerParentChildInterface {
         this.child.on('error', (error) => {
             if (this.errorCallback) this.errorCallback(error.message);
             else
-                console.warn(
+                logger.warn(
                     'ErrorCallback for error not assigned. Call onErrorHandler first.'
                 );
         });
@@ -135,12 +138,12 @@ export class WorkerParent implements WorkerParentChildInterface {
         this.messageCallback = callback;
     }
 
-    onErrorHandler(callback: (error: any) => void): void {
+    onErrorHandler(callback: (error: unknown) => void): void {
         this.errorCallback = callback;
     }
 
     terminate(): void {
-        console.log('Calling terminate on worker', this.child, this);
+        logger.log('Calling terminate on worker', this.child, this);
         this.child.removeAllListeners();
         this.child.kill();
     }

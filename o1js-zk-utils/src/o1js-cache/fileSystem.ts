@@ -1,7 +1,10 @@
-import { Cache, CacheHeader } from 'o1js';
+import { Cache, type CacheHeader } from 'o1js';
 import { type CacheType } from './types.js';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('O1JSCacheFileSystem');
 
 /**
  * File-system-based cache configuration.
@@ -68,7 +71,7 @@ export const ReadOnlyFileSystem = (cacheDirectory: string, debug = false): Cache
   },
 
   write(_header: CacheHeader, _data: Uint8Array): void {
-    if (debug) console.warn('Attempted write on read-only FileSystem:', _header.persistentId);
+    if (debug) logger.warn('Attempted write on read-only FileSystem:', _header.persistentId);
     // no-op (read-only)
   },
 

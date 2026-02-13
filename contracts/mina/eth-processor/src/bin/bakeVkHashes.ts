@@ -7,15 +7,7 @@ import { EthProcessor } from '../ethProcessor.js';
 import { rootDir } from '../utils.js';
 import { EthVerifier } from '@nori-zk/o1js-zk-utils';
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
 const logger = new Logger('CompileZksAndBakeVkHashes');
 

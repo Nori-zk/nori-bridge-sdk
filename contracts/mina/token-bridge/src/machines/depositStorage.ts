@@ -23,6 +23,7 @@ const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
 const getBridgeSocketConnectionStateXStateObservableActor = fromObservable(
     () => bridgeSocketConnectionState$
 );
+void getBridgeSocketConnectionStateXStateObservableActor;
 
 const getDepositProcessingStatusXStateObservableActor = fromObservable<
     unknown,
@@ -40,6 +41,7 @@ const getDepositProcessingStatusXStateObservableActor = fromObservable<
         bridgeTimingsTopic$
     )
 );
+void getDepositProcessingStatusXStateObservableActor;
 
 // If we canCompute we can generate our EthDepositProof
 
@@ -56,6 +58,7 @@ const getCanComputeMintProofXStateObservableActor = fromObservable<
         )
     )
 );
+void getCanComputeMintProofXStateObservableActor;
 
 // If we have our EthDepositProof and we are ReadyToMint we can build our dummy mintTxProofTx
 
@@ -72,6 +75,7 @@ const getCanMintProofXStateObservableActor = fromObservable<
         )
     )
 );
+void getCanMintProofXStateObservableActor;
 
 // When we have our mintTxProofTx we are ready to send mintTxProofTx so long as we havent MissedMintingOpportunity
 
@@ -102,7 +106,7 @@ export const depositMachine = setup({
     },
     states: {
         checking: {
-            entry: assign((context) => ({
+            entry: assign(() => ({
                 activeDepositNumber: (() => {
                     const numStr = window.localStorage.getItem(
                         'activeDepositNumber'

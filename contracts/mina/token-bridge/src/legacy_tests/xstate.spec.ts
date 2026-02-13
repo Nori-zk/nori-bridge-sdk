@@ -1,3 +1,4 @@
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { firstValueFrom, map, take } from 'rxjs';
 import {
     getDepositProcessingStatus$,
@@ -15,6 +16,9 @@ import {
 } from '../rx/topics.js';
 import { createActor, fromObservable, fromPromise } from 'xstate';
 import { DeferredPromise } from '@nori-zk/workers';
+
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('XstateSpec');
 
 describe('XState integration example', () => {
     // Just a test facility to get some block number ahead of finality given the ethStateTopic$
@@ -52,7 +56,7 @@ describe('XState integration example', () => {
 
         // For testing purposes get a blockNumber which the bridgehead cannot have processed yet:
         const targetDepositNumber = await getNextDepositTarget(ethStateTopic$);
-        console.log('targetDepositNumber', targetDepositNumber);
+        logger.log('targetDepositNumber', targetDepositNumber);
 
         // Now demonstrate how integrate with XState:
 
@@ -68,6 +72,7 @@ describe('XState integration example', () => {
         */
         const getBridgeSocketConnectionStateXStateObservableActor =
             fromObservable(() => bridgeSocketConnectionState$);
+        void getBridgeSocketConnectionStateXStateObservableActor;
 
         // Pre locking we need to know if it is plausable to lock:
 
@@ -82,6 +87,7 @@ describe('XState integration example', () => {
             );
             return canLockPromise;
         });
+        void getCanLockXStatePromiseActorLogic;
 
         // Post locking there are various things we need to know, including the overall status of the deposit given
         // the deposit block number, which can be used to drive the state machine(s):
@@ -137,6 +143,7 @@ describe('XState integration example', () => {
                 return canComputeMintProofResult;
             }
         );
+        void getCanComputeMintProofXStatePromiseActorLogic;
 
         // Equivalently one can use the observable variant of this function.
         const getCanComputeMintProofXStateObservableActor = fromObservable<
@@ -152,6 +159,7 @@ describe('XState integration example', () => {
                 )
             )
         );
+        void getCanComputeMintProofXStateObservableActor;
 
         // After the ethDepositProof has been calculate we still need to wait until the depositProcessingStatus has reached a
         // sufficient stage such that we can perform the minting process and send the minting transactions:
@@ -176,6 +184,7 @@ describe('XState integration example', () => {
                 return canMintResult;
             }
         );
+        void getCanMintXStatePromiseActorLogic;
 
         // Equivalently one can use the observable variant of this function.
         const getCanMintProofXStateObservableActor = fromObservable<
@@ -191,6 +200,7 @@ describe('XState integration example', () => {
                 )
             )
         );
+        void getCanMintProofXStateObservableActor;
 
         // An example of a factory for getDepositProcessingStatusXStateObservableActor
         // Just so we can subscribe to it and see some behaviour:
@@ -204,7 +214,7 @@ describe('XState integration example', () => {
         // Subscribe to the stream:
         depositActor.subscribe(
             (snapshot) =>
-                console.log({
+                logger.log({
                     status: snapshot.status,
                     context: snapshot.context,
                     output: snapshot.output,

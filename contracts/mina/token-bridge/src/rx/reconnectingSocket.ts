@@ -1,7 +1,7 @@
 import {
     webSocket,
-    WebSocketSubject,
-    WebSocketSubjectConfig,
+    type WebSocketSubject,
+    type WebSocketSubjectConfig,
 } from 'rxjs/webSocket';
 import {
     Subject,
@@ -87,7 +87,8 @@ export class ReconnectingWebSocketSubject<T> extends Subject<T> {
     private _connect() {
         this.webSocketConnectionStateSubject.next('connecting');
 
-        const { reconnect = {}, ...wsConfig } = this.config;
+        const { reconnect, ...wsConfig } = this.config;
+        void reconnect;
         const fullConfig: WebSocketSubjectConfig<T> = {
             ...wsConfig,
             openObserver: {
@@ -113,6 +114,7 @@ export class ReconnectingWebSocketSubject<T> extends Subject<T> {
             this.socket.subscribe({
                 next: (msg) => this.incomingSubject.next(msg),
                 error: (err) => {
+                    void err;
                     this.webSocketConnectionStateSubject.next('closed');
                 },
                 complete: () => {
@@ -167,14 +169,14 @@ export class ReconnectingWebSocketSubject<T> extends Subject<T> {
     override next(value: T): void {
         this.outgoingBuffer.next(value);
     }
-    override error(err: any): void {
+    override error(err: unknown): void {
         this.socket?.error?.(err);
     }
     override complete(): void {
         this.socket?.complete?.();
     }
-    subscribe(...args: any[]): Subscription {
-        return this.incomingSubject.subscribe(...(args as any));
+    subscribe(...args: unknown[]): Subscription {
+        return this.incomingSubject.subscribe(...(args));
     }
     multiplex<R>(
         subMsg: () => T,
