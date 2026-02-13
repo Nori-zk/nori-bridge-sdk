@@ -13,7 +13,8 @@ import {
 } from 'o1js/dist/node/lib/proof-system/zkprogram.js';
 import { type ConversionOutput, type SP1ProofWithPublicValuesPlonkNoTee } from '@nori-zk/proof-conversion/build/src/index.min.js';
 
-export type Constructor<T = unknown> = new (...args: unknown[]) => T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Constructor<T = unknown> = new (...args: any[]) => T;
 
 export type ZkProgram<
     Config extends {
