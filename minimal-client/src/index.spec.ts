@@ -120,7 +120,7 @@ function validateEnv(): {
 
 // https://faucet.minaprotocol.com/
 
-new LogPrinter('TestEthProcessor');
+new LogPrinter('MinimalClient');
 const logger = new Logger('IndexSpec');
 
 describe('e2e_testnet', () => {
