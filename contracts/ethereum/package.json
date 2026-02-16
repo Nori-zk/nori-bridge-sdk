@@ -35,7 +35,7 @@
         "dotenv-cli": "^8.0.0",
         "hardhat": "^2.24.0",
         "hardhat-gas-reporter": "^2.3.0",
-        "npm-workspaces-publish-tool": "^0.0.14",
+        "npm-workspaces-publish-tool": "0.0.17",
         "solidity-coverage": "^0.8.17",
         "typechain": "^8.3.2"
     },
