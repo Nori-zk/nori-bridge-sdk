@@ -49,7 +49,7 @@ NETWORK=
 
 ## How to Bake Integrity Hashes
 
-When you modify your programs (`EthProcessor` or `EthVerifier`), or update any public inputs/outputs due to changes in zk programs we are dependent upon (e.g., from `proof-conversion` or `bridge-head`), you must recompile your programs and update the integrity hashes.
+When you modify your programs (`EthProcessor` or `EthVerifier`), or update any public inputs/outputs due to changes in zk programs we are dependent upon (e.g., from `proof-conversion` or `bridge-head`), you must recompile your programs and update the integrity data.
 
 To do this, run:
 
