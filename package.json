@@ -39,6 +39,7 @@
         "publish": "nw-publish",
         "determine-breakage:o1js": "node determine-o1js-breaking-changes.js",
         "clean:modules": "rm -rf node_modules */node_modules */*/node_modules */*/*/node_modules",
-        "reinstall": "npm run clean:modules && rm -f package-lock.json && npm install"
+        "reinstall": "npm run clean:modules && rm -f package-lock.json && npm install",
+        "reinstall:ci": "npm run clean:modules && npm ci"
     }
 }

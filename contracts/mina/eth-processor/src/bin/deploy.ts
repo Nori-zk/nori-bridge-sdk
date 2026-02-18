@@ -4,10 +4,10 @@ import 'dotenv/config';
 import {
     Mina,
     PrivateKey,
+    PublicKey,
     AccountUpdate,
     type NetworkId,
     fetchAccount,
-    PublicKey,
 } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { writeFileSync } from 'fs';
@@ -27,89 +27,64 @@ const logger = new Logger('Deploy');
 
 new LogPrinter('NoriEthProcessor');
 
-const missingEnvVariables: string[] = [];
-
-// Declare sender private key
-const deployerKeyBase58 = process.env.SENDER_PRIVATE_KEY as string;
-
-// Get or generate a zkAppPrivateKey
-let zkAppPrivateKeyWasCreated = false;
-if (!process.env.ZKAPP_PRIVATE_KEY) {
-    zkAppPrivateKeyWasCreated = true;
-    logger.log('ZKAPP_PRIVATE_KEY not set, generating a random key.');
-}
-let zkAppPrivateKeyBase58 =
-    process.env.ZKAPP_PRIVATE_KEY ?? PrivateKey.random().toBase58();
-if (zkAppPrivateKeyWasCreated) {
-    logger.info(`Created a new ZKAppPrivate key.`);
-    process.env.ZKAPP_PRIVATE_KEY = zkAppPrivateKeyBase58;
-}
-let deployerKey: PrivateKey;
-try {
-    deployerKey = PrivateKey.fromBase58(deployerKeyBase58);
-} catch (e) {
-    const error = e as unknown as Error;
-    logger.fatal(
-        `Could not parse deployerKeyBase58. Are you sure your SENDER_PRIVATE_KEY environment variable is correct.\n${error.stack}`
-    );
-    process.exit(1);
-}
-let zkAppPrivateKey: PrivateKey;
-try {
-    zkAppPrivateKey = PrivateKey.fromBase58(zkAppPrivateKeyBase58);
-} catch (e) {
-    const error = e as unknown as Error;
-    logger.fatal(
-        `Could not parse zkAppPrivateKeyBase58. Are you sure your ZKAPP_PRIVATE_KEY environment variable is correct.\n${error.stack}`
-    );
-    process.exit(1);
-}
-
-// Network configuration
-const networkUrl =
-    process.env.MINA_RPC_NETWORK_URL || 'http://localhost:3000/graphql';
+// Collect all inputs upfront
+const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
+const possibleNetwork = process.env.NETWORK;
+const possibleDeployerKeyBase58 = process.env.SENDER_PRIVATE_KEY;
 const fee = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
-
-// Validate envs
-if (!networkUrl) missingEnvVariables.push('MINA_RPC_NETWORK_URL');
-if (!deployerKeyBase58) missingEnvVariables.push('SENDER_PRIVATE_KEY');
-if (missingEnvVariables.length > 0) {
-    logger.fatal(
-        `Missing required environment variable(s): ${missingEnvVariables.join(
-            ' and '
-        )}`
-    );
-    process.exit(1);
-}
-
-// Capture arguments
-const storeHashHex = process.argv[2];
+const possibleStoreHashHex = process.argv[2];
 const possibleAdminPublicKeyBase58 = process.argv[3];
 
-// Determine issues if any:
+// Validate everything in one pass
 const issues: string[] = [];
-// Enforce that if zkAppPrivateKeyWasCreated then we must provide a storeHash
-if (zkAppPrivateKeyWasCreated && storeHashHex === undefined) {
-    const issue = `A request to create a new zkContract was made, but first argument storeHashHex was missing.`;
-    issues.push(issue);
-}
-// Enfore that if !zkAppPrivateKeyWasCreated then a possibleStoreHash must not be provided (would mislead the user)
-if (!zkAppPrivateKeyWasCreated && storeHashHex !== undefined) {
-    const issue = `A request to update the verification key of an existing zkApp was made, but first argument storeHashHex was provided. If the zkApp already exists, then this facility is purely for updating the verification key. Please see the README.md and use 'npm run update update-store-hash <storeHashHex>' instead.`;
-    issues.push(issue);
-}
-// Ensure that if !zkAppPrivateKeyWasCreated adminPublicKeyBase58 is not provided
-if (!zkAppPrivateKeyWasCreated && possibleAdminPublicKeyBase58 !== undefined) {
-    const issue = [
-        `A request to update the verification key of an existing zkApp was made, but a second cli argument adminPublicKeyBase58 was provided '${possibleAdminPublicKeyBase58}'.`,
-        `Please know if the ZKApp has already been deployed, then it is not not possible to override that set admin.`,
-        `Please remove this second argument and try again.`,
-        `Note only the admin account has permissions to do this. You must set SENDER_PRIVATE_KEY=<ContractAdminPrivateKeyBase58String> in your '.env' otherwise you will be denied.`,
-    ].join('\n');
-    issues.push(issue);
+
+if (!possibleNetworkUrl)
+    issues.push('Missing required env: MINA_RPC_NETWORK_URL');
+if (!possibleNetwork) issues.push('Missing required env: NETWORK');
+if (!possibleDeployerKeyBase58)
+    issues.push('Missing required env: SENDER_PRIVATE_KEY');
+if (process.env.ZKAPP_PRIVATE_KEY)
+    issues.push(
+        'ZKAPP_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
+    );
+if (!possibleStoreHashHex)
+    issues.push('Missing required first argument: storeHashHex');
+
+let possibleDeployerKey: PrivateKey | undefined;
+if (possibleDeployerKeyBase58) {
+    try {
+        possibleDeployerKey = PrivateKey.fromBase58(possibleDeployerKeyBase58);
+    } catch (e) {
+        issues.push(
+            `SENDER_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
+        );
+    }
 }
 
-// If we have issues print them nicely and exit.
+let possibleStoreHash: Bytes32 | undefined;
+if (possibleStoreHashHex) {
+    try {
+        possibleStoreHash = Bytes32.fromHex(possibleStoreHashHex);
+    } catch (e) {
+        issues.push(
+            `storeHashHex '${possibleStoreHashHex}' is not a valid 32-byte hex string: ${(e as Error).message}`
+        );
+    }
+}
+
+let possibleAdminPublicKey: PublicKey | undefined;
+if (possibleAdminPublicKeyBase58) {
+    try {
+        possibleAdminPublicKey = PublicKey.fromBase58(
+            possibleAdminPublicKeyBase58
+        );
+    } catch (e) {
+        issues.push(
+            `adminPublicKeyBase58 argument '${possibleAdminPublicKeyBase58}' is not a valid public key: ${(e as Error).message}`
+        );
+    }
+}
+
 if (issues.length) {
     const formatted = [
         'Deploy encountered issues:',
@@ -120,57 +95,61 @@ if (issues.length) {
             );
         }),
     ].join('\n');
-
     logger.fatal(formatted);
     process.exit(1);
 }
 
-// Process store hash argument
-if (storeHashHex)
-    logger.log(
-        `A store hash hex was provided, as a first argument and has value of: '${storeHashHex}'`
-    );
-let possibleStoreHash: Bytes32 | undefined = undefined;
-try {
-    possibleStoreHash = storeHashHex
-        ? Bytes32.fromHex(storeHashHex)
-        : undefined;
-} catch (err) {
-    logger.fatal(
-        `Store hash was not provided as a first argument or was invalid.\n${
-            (err as Error).stack
-        }`
-    );
+// Type guards — all required values are guaranteed defined after the issues exit above
+function isPrivateKey(val: PrivateKey | undefined): val is PrivateKey {
+    return val !== undefined;
+}
+function isBytes32(val: Bytes32 | undefined): val is Bytes32 {
+    return val !== undefined;
+}
+function isPublicKey(val: PublicKey | undefined): val is PublicKey {
+    return val !== undefined;
+}
+function isString(val: string | undefined): val is string {
+    return val !== undefined;
+}
+
+if (
+    !isPrivateKey(possibleDeployerKey) ||
+    !isBytes32(possibleStoreHash) ||
+    !isString(possibleNetworkUrl) ||
+    !isString(possibleNetwork)
+) {
+    logger.fatal('Internal error: required values undefined after validation.');
     process.exit(1);
 }
 
-// Process adminPublicKeyBase58 argument
+const deployerKey = possibleDeployerKey;
+const storeHash = possibleStoreHash;
+const networkUrl = possibleNetworkUrl;
+const networkId: NetworkId =
+    possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
+
+// Generate zkApp key and resolve adminPublicKey
+const zkAppPrivateKey = PrivateKey.random();
+const zkAppPrivateKeyBase58 = zkAppPrivateKey.toBase58();
+
 let adminPublicKey: PublicKey;
-if (possibleAdminPublicKeyBase58) {
+if (isPublicKey(possibleAdminPublicKey)) {
     logger.log(
-        `An adminPublicKeyBase58 was provided, as a second argument and has value of: '${possibleAdminPublicKeyBase58}'`
+        `adminPublicKeyBase58 provided: '${possibleAdminPublicKeyBase58}'`
     );
-}
-if (zkAppPrivateKeyWasCreated && possibleAdminPublicKeyBase58 === undefined) {
+    adminPublicKey = possibleAdminPublicKey;
+} else {
     logger.warn(
-        'Note a second cli argument adminPublicKeyBase58 was not defined. Reverting to using the public key derived from the set SENDER_PRIVATE_KEY environment variable.'
+        'No adminPublicKeyBase58 provided as second argument. Defaulting to the public key derived from SENDER_PRIVATE_KEY.'
     );
     adminPublicKey = deployerKey.toPublicKey();
-} else if (zkAppPrivateKeyWasCreated) {
-    try {
-        adminPublicKey = PublicKey.fromBase58(possibleAdminPublicKeyBase58);
-    } catch (e) {
-        const error = e as unknown as Error;
-        logger.fatal(
-            `Could not parse adminPublicKeyBase58 provided as a second cli argument. Are you sure your argument is correct.\n${error.stack}`
-        );
-        process.exit(1);
-    }
 }
+
+logger.log(`storeHashHex provided: '${possibleStoreHashHex}'`);
 
 // Util to save ZKAPP_PRIVATE_KEY and ZKAPP_ADDRESS to a file.
 function writeSuccessDetailsToEnvFileFile(zkAppAddressBase58: string) {
-    // Write env file.
     const env = {
         ZKAPP_PRIVATE_KEY: zkAppPrivateKeyBase58,
         ZKAPP_ADDRESS: zkAppAddressBase58,
@@ -195,7 +174,7 @@ async function deploy() {
 
     // Configure Mina network
     const Network = Mina.Network({
-        networkId: 'testnet' as NetworkId,
+        networkId,
         mina: networkUrl,
     });
     Mina.setActiveInstance(Network);
@@ -221,31 +200,24 @@ async function deploy() {
     const zkApp = new EthProcessor(zkAppAddress);
 
     // Deploy transaction
-    let snippet = !zkAppPrivateKeyWasCreated ? 're-' : '';
-    logger.log(`Creating ${snippet}deployment transaction...`);
+    logger.log(`Creating deployment transaction...`);
     const txn = await Mina.transaction(
         { fee, sender: deployerAccount },
         async () => {
-            snippet = !zkAppPrivateKeyWasCreated ? ' an updated' : '';
             logger.log(
-                `Deploying smart contract with${snippet} verification key hash: '${ethProcessorVerificationKey.hash}'`
+                `Deploying smart contract with verification key hash: '${ethProcessorVerificationKey.hash}'`
             );
-
-            if (zkAppPrivateKeyWasCreated) {
-                AccountUpdate.fundNewAccount(deployerAccount);
-                await zkApp.deploy({
-                    verificationKey: ethProcessorVerificationKey,
-                });
-                logger.log(
-                    `Initializing with adminPublicKey '${adminPublicKey.toBase58()}' and store hash '${possibleStoreHash.toHex()}'.`
-                );
-                await zkApp.initialize(
-                    adminPublicKey,
-                    Bytes32FieldPair.fromBytes32(possibleStoreHash)
-                );
-            } else {
-                await zkApp.setVerificationKey(ethProcessorVerificationKey);
-            }
+            AccountUpdate.fundNewAccount(deployerAccount);
+            await zkApp.deploy({
+                verificationKey: ethProcessorVerificationKey,
+            });
+            logger.log(
+                `Initializing with adminPublicKey '${adminPublicKey.toBase58()}' and store hash '${storeHash.toHex()}'.`
+            );
+            await zkApp.initialize(
+                adminPublicKey,
+                Bytes32FieldPair.fromBytes32(storeHash)
+            );
         }
     );
 
@@ -262,8 +234,7 @@ async function deploy() {
     logger.log('Deployment successful!');
     logger.log(`Contract admin: '${currentAdmin?.toBase58()}'.`);
 
-    if (zkAppPrivateKeyWasCreated)
-        writeSuccessDetailsToEnvFileFile(zkAppAddressBase58);
+    writeSuccessDetailsToEnvFileFile(zkAppAddressBase58);
 }
 
 // Execute deployment

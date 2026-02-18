@@ -23,9 +23,7 @@ function writeSuccessDetailsToJsonFiles(
         'integrity',
         'EthProcessor.VkHash.json'
     );
-    logger.log(
-        `Writing vk hash to '${ethProcessorVkHashFileOutputPath}'`
-    );
+    logger.log(`Writing vk hash to '${ethProcessorVkHashFileOutputPath}'`);
     writeFileSync(
         ethProcessorVkHashFileOutputPath,
         `"${ethProcessorVKHash}"`,
@@ -42,9 +40,7 @@ function writeSuccessDetailsToJsonFiles(
         'integrity',
         'EthProcessor.VkData.json'
     );
-    logger.log(
-        `Writing vk data to '${ethProcessorVkDataFileOutputPath}'`
-    );
+    logger.log(`Writing vk data to '${ethProcessorVkDataFileOutputPath}'`);
     writeFileSync(
         ethProcessorVkDataFileOutputPath,
         `"${ethProcessorVKData}"`,
