@@ -9,9 +9,10 @@ import http from 'http';
 import httpProxy from 'http-proxy';
 // Load environment variables from .env file
 import 'dotenv/config';
-import { Logger } from 'esm-iso-logger';
+//import { Logger } from 'esm-iso-logger';
 
-const logger = new Logger('BrowserTestRunnerUtils');
+const logger = console;
+//const logger = new Logger('BrowserTestRunnerUtils');
 
 // Extract envs
 const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';

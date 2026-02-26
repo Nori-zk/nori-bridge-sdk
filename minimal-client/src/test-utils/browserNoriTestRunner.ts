@@ -4,9 +4,9 @@ import {
     startServer,
 } from './browserTestRunnerUtils.js';
 import { spawn } from 'child_process';
-import { Logger } from 'esm-iso-logger';
+// import { Logger } from 'esm-iso-logger';
 
-const logger = new Logger('BrowserNoriTestRunner');
+// const logger = new Logger('BrowserNoriTestRunner');
 
 async function main() {
     await bundleTests();
@@ -14,9 +14,9 @@ async function main() {
     const { url } = await startServer();
     const browser = findBrowser();
 
-    logger.log('Opening browser at', url);
+    console.log('Opening browser at', url);
 
     spawn(browser, [url], { stdio: 'inherit', detached: true }).unref(); // unref allows Node to exit independently
 }
 
-main().catch(logger.error);
+main().catch(console.error);

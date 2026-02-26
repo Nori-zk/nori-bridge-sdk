@@ -88,7 +88,15 @@ async function main() {
         )
             return;
 
-        console.log('[browser]', ...args);
+        // Strip %c format specifiers and their associated CSS args from browser console logs
+        const stripped = args[0] && typeof args[0] === 'string' && args[0].includes('%c')
+            ? (() => {
+                const fmt = args[0].replace(/%c/g, '');
+                const cssCount = (args[0].match(/%c/g) || []).length;
+                return [fmt, ...args.slice(1 + cssCount)];
+            })()
+            : args;
+        console.log('[browser]', ...stripped);
     });
 
     await page.goto(url, { waitUntil: 'domcontentloaded' });
