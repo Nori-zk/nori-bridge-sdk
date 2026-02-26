@@ -51,7 +51,7 @@ async function main() {
         { sender: alicePubKey, fee: UInt64.from(100_000_000) },
         async () => {
             AccountUpdate.fundNewAccount(alicePubKey); // pay account creation
-            await zkapp.deploy();
+            // await zkapp.deploy();
         }
     );
 

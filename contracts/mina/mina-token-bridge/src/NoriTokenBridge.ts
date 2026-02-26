@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
     AccountUpdate,
     assert,
@@ -18,7 +19,8 @@ import {
 // VerificationKey must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { VerificationKey, AccountUpdateForest } from 'o1js';
-import { EthProof, Bytes32, Bytes32FieldPair, EthProofType } from '@nori-zk/o1js-zk-utils';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { Bytes32, Bytes32FieldPair, EthProofType } from '@nori-zk/o1js-zk-utils'; // EthProof
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';

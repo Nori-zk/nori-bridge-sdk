@@ -1,5 +1,5 @@
 {
-  "name": "mina-token-bridge",
+  "name": "@nori-zk/mina-token-bridge-new",
   "version": "0.0.1",
   "description": "Nori ethereum state settelment and nETH token bridge zkApp",
   "license": "ISC",

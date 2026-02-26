@@ -132,6 +132,18 @@ async function buildWorkers() {
         define,
         banner: { js: banner },
     });
+
+    // Build compile worker
+    const compileWorkerFileName = `compileWorker.${HASH}.js`;
+    const compileWorkerFilePath = path.resolve(ROOT_DIR, 'public', compileWorkerFileName);
+    await esbuild.build({
+        entryPoints: ['src/compileWorker.ts'],
+        bundle: true,
+        outfile: compileWorkerFilePath,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
 }
 
 /** Bundle all tests into ESM for browser */
