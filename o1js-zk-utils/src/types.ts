@@ -1,18 +1,15 @@
-import {
-    Bytes,
-    Field,
-    type ProvableType,
-    Struct,
-    UInt8,
-} from 'o1js';
+import { Bytes, Field, type ProvableType, Struct, UInt8 } from 'o1js';
 import { type EthVerifier } from './ethVerifier.js';
 import { type Tuple } from 'o1js/dist/node/lib/util/types.js';
 import {
     type PrivateInput,
     type ZkProgram as ZkProgramFunc,
 } from 'o1js/dist/node/lib/proof-system/zkprogram.js';
-import { type ConversionOutput, type SP1ProofWithPublicValuesPlonkNoTee } from '@nori-zk/proof-conversion/build/src/index.min.js';
-
+import {
+    type ConversionOutput,
+    type SP1ProofWithPublicValuesPlonkNoTee,
+} from '@nori-zk/proof-conversion/build/src/index.min.js';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Constructor<T = unknown> = new (...args: any[]) => T;
 
@@ -26,7 +23,7 @@ export type ZkProgram<
                 auxiliaryOutput?: ProvableType;
             };
         };
-    }
+    },
 > = ReturnType<typeof ZkProgramFunc<Config>>;
 
 export type CompilableZkProgram = {
@@ -64,6 +61,16 @@ export class Bytes20 extends Bytes(20) {
     }
 }
 
+export function bytes32FieldPairToBytes32(
+    highByteField: Field,
+    lowerBytesField: Field
+) {
+    // wordToBytes returns little-endian (LSB first), so reverse to restore big-endian order.
+    const highByte = wordToBytes(highByteField, 1)[0];
+    const lowerBytes = wordToBytes(lowerBytesField, 31).reverse();
+    return Bytes32.from([highByte, ...lowerBytes]);
+}
+
 export class Bytes32FieldPair extends Struct({
     highByteField: Field,
     lowerBytesField: Field,
@@ -87,6 +94,13 @@ export class Bytes32FieldPair extends Struct({
             highByteField: storeHashHighByteField,
             lowerBytesField: storeHashLowerBytesField,
         });
+    }
+
+    toBytes32(): Bytes32 {
+        return bytes32FieldPairToBytes32(
+            this.highByteField,
+            this.lowerBytesField
+        );
     }
 }
 
