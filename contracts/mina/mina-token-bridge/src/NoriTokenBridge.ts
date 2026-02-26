@@ -15,12 +15,20 @@ import {
     TokenContract,
     Provable,
     type DeployArgs,
+    UInt8,
+    Bytes,
 } from 'o1js';
+import {
+    FrC,
+    NodeProofLeft,
+    parsePlonkPublicInputsProvable,
+} from '@nori-zk/proof-conversion/min';
 // VerificationKey must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { VerificationKey, AccountUpdateForest } from 'o1js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { Bytes32, Bytes32FieldPair, EthProofType } from '@nori-zk/o1js-zk-utils'; // EthProof
+// import { Bytes32, Bytes32FieldPair, EthProofType } from '@nori-zk/o1js-zk-utils'; // EthProof
+import { EthInput, Bytes32, Bytes32FieldPair, EthProofType, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
@@ -107,20 +115,79 @@ export class NoriTokenBridge
         throw Error('block updates');
     }
 
-    @method async update(ethProof: EthProofType) {
-        const proofHead = ethProof.publicInput.outputSlot;
-        const executionStateRoot = ethProof.publicInput.executionStateRoot;
+
+    private ethVerify(input: EthInput, proof: NodeProofLeft) {
+        // JK to swap in CI after contract gets updated and redeployed
+
+        // This is an sp1Proof.proof.Plonk.public_inputs[0]
+        // This can now be extracted from bridge head repo at location
+        // nori-elf/nori-sp1-helios-program.pi0.json and should be copied to this repository
+        const ethPlonkVK = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+
+        // p0 = proofConversionOutput.proofData.publicOutput[2] // hash of publicOutput of sp1
+        const ethNodeVk = Field.from(proofConversionSP1ToPlonkPO2);
+
+        // Verification of proof conversion
+        // vk = proofConversionOutput.vkData
+        // this is also from nodeVK
+        const vk = VerificationKey.fromJSON(
+            proofConversionSP1ToPlonkVkData
+        );
+
+        // [zkProgram / circuit][eth processor /  contract ie on-chain state]
+
+        proof.verify(vk);
+
+        // Passed proof matches extracted public entry 2
+        proof.publicOutput.subtreeVkDigest.assertEquals(ethNodeVk);
+        Provable.log('newHead slot', input.outputSlot);
+
+        // Verification of the input
+        let bytes: UInt8[] = [];
+        bytes = bytes.concat(input.inputSlot.toBytesBE());
+        bytes = bytes.concat(input.inputStoreHash.bytes);
+        bytes = bytes.concat(input.outputSlot.toBytesBE());
+        bytes = bytes.concat(input.outputStoreHash.bytes);
+        bytes = bytes.concat(input.executionStateRoot.bytes);
+        bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
+        bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
+
+        // Check that zkprograminput is same as passed to the SP1 program
+        const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
+        const pi1 = parsePlonkPublicInputsProvable(Bytes.from(bytes));
+
+        const piDigest = Poseidon.hashPacked(
+            Provable.Array(FrC.provable, 2),
+            [pi0, pi1]
+        );
+
+        Provable.log('piDigest', piDigest);
+        Provable.log(
+            'proof.publicOutput.rightOut',
+            proof.publicOutput.rightOut
+        );
+
+        piDigest.assertEquals(proof.publicOutput.rightOut);
+
+    }
+
+    @method async update(input: EthInput, proof: NodeProofLeft) {
+
+        // Verify transition proof.
+        this.ethVerify(input, proof);
+        const proofHead = input.outputSlot;
+        const executionStateRoot = input.executionStateRoot;
         const currentSlot = this.latestHead.getAndRequireEquals();
 
         const newStoreHash = Bytes32FieldPair.fromBytes32(
-            ethProof.publicInput.outputStoreHash
+            input.outputStoreHash
         );
 
         Provable.asProver(() => {
             Provable.log('Proof input store hash values were:');
-            Provable.log(ethProof.publicInput.outputStoreHash.bytes[0].value);
+            Provable.log(input.outputStoreHash.bytes[0].value);
             Provable.log(
-                ethProof.publicInput.outputStoreHash.bytes
+                input.outputStoreHash.bytes
                     .slice(1, 33)
                     .map((b) => b.value)
             );
@@ -129,14 +196,11 @@ export class NoriTokenBridge
                 newStoreHash.highByteField,
                 newStoreHash.lowerBytesField
             );
-        });
-
-        Provable.asProver(() => {
             Provable.log('Current slot', currentSlot);
         });
 
         const prevStoreHash = Bytes32FieldPair.fromBytes32(
-            ethProof.publicInput.inputStoreHash
+            input.inputStoreHash
         );
 
         // Verification of the previous store hash higher byte.
@@ -177,17 +241,14 @@ export class NoriTokenBridge
         let nextSyncCommitteeZeroAcc = new Field(0);
         for (let i = 0; i < 32; i++) {
             nextSyncCommitteeZeroAcc = nextSyncCommitteeZeroAcc.add(
-                ethProof.publicInput.nextSyncCommitteeHash.bytes[i].value
+                input.nextSyncCommitteeHash.bytes[i].value
             );
         }
         nextSyncCommitteeZeroAcc.assertNotEquals(new Field(0));
 
-        // Verify transition proof.
-        ethProof.verify();
-
         // Pack the verifiedContractDepositsRoot into a pair of fields
         const verifiedContractDepositsRoot = Bytes32FieldPair.fromBytes32(
-            ethProof.publicInput.verifiedContractDepositsRoot
+            input.verifiedContractDepositsRoot
         );
 
         // Update contract values
@@ -271,15 +332,13 @@ export class NoriTokenBridge
 
     @method public async noriMint(
         //ethConsensusProof: MockConsenusProof,
-        ethVerifierProof: EthProofType,
+        // ethVerifierProof: EthProofType,
         merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
         codeVerifierPKARM: Field
     ) {
         const userAddress = this.sender.getAndRequireSignature();
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
 
-        // Verify consensus transition mpt proof
-        await ethVerifierProof.verify();
 
         // Calculate the deposit slot root
         // This just proves that the index and value with the witness yield a root
@@ -289,9 +348,10 @@ export class NoriTokenBridge
                 merkleTreeContractDepositAttestorInput
             );
 
-        // Validates that the generated root and the contractDepositSlotRoot within the eth proof match.
-        verifyDepositSlotRoot(contractDepositSlotRoot, ethVerifierProof);
-
+        // assert that the root from the above was previously stored as the latest verified contract deposits root
+        // TODO from stored Bytes32FieldPair into Bytes32 and then into Bytes ?
+        // this.latestVerifiedContractDepositsRootHighByte. 
+        // Bytes32FieldPair 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
         const {
             totalLocked: totalLockedWei,

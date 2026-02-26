@@ -15,10 +15,10 @@ export class NoriStorageInterface extends SmartContract {
   @method.returns(Field)
   async increaseMintedAmount(lockedSoFar: Field) {
     let mintedSoFar = this.mintedSoFar.getAndRequireEquals();
-    
+
     // Underflow protection (amountToMint cannot be negative)
     lockedSoFar.assertGreaterThanOrEqual(mintedSoFar, underflowProtectionMessage);
-    
+
     // Calculate amount to mint
     const amountToMint = lockedSoFar.sub(mintedSoFar);
 

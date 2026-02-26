@@ -24,7 +24,7 @@ export class ContractDeposit extends Struct({
     address: Bytes20.provable,
     attestationHash: Bytes32.provable,
     value: Bytes32.provable,
-}) {}
+}) { }
 
 const treeDepth = 16;
 
@@ -35,7 +35,7 @@ export class MerkleTreeContractDepositAttestorInput extends Struct({
     path: MerklePath,
     index: UInt64,
     value: ContractDeposit,
-}) {}
+}) { }
 
 export type MerkleTreeContractDepositAttestorInputJson = {
     depositIndex: number;

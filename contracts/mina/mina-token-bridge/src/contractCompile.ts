@@ -34,9 +34,9 @@ async function main() {
     console.log('ZkApp:', zkappAddress.toBase58());
 
     // Compile (only needed if proofsEnabled = true, but safe to keep)
-    await EthVerifier.compile({
-        cache: Cache.None
-    });
+    // await EthVerifier.compile({
+    //     cache: Cache.None
+    // });
     await NoriTokenBridge.compile({
         cache: Cache.None
     });

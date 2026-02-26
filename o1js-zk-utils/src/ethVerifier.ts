@@ -27,7 +27,7 @@ class EthInput extends Struct({
     executionStateRoot: Bytes32.provable,
     verifiedContractDepositsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
-}) {}
+}) { }
 
 const EthVerifier = ZkProgram({
     name: 'EthVerifier',
@@ -99,6 +99,6 @@ const EthVerifier = ZkProgram({
 
 const EthProof = ZkProgram.Proof(EthVerifier);
 
-export class EthProofType extends EthProof {}
+export class EthProofType extends EthProof { }
 
 export { EthVerifier, EthProof, EthInput };
