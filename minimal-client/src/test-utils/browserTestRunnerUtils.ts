@@ -48,6 +48,25 @@ if(typeof globalThis.process==='undefined'){
 
 /** Find a browser executable, preferring Brave */
 export function findBrowser(): string {
+    const isMac = process.platform === 'darwin';
+
+    if (isMac) {
+        const macPaths = [
+            '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+            '/Applications/Brave Browser Nightly.app/Contents/MacOS/Brave Browser Nightly',
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        ];
+        for (const p of macPaths) {
+            try {
+                execSync(`test -x "${p}"`, { encoding: 'utf8' });
+                return p;
+            } catch {
+                // not found, try next
+            }
+        }
+    }
+
     try {
         return execSync(
             'which google-chrome || which google-chrome-stable || which chrome || which chromium || which brave-browser-nightly || which brave-browser || which brave',
