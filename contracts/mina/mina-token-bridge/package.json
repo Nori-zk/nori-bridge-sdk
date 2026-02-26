@@ -1,0 +1,67 @@
+{
+  "name": "mina-token-bridge",
+  "version": "0.0.1",
+  "description": "Nori ethereum state settelment and nETH token bridge zkApp",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "target/src/index.js",
+  "types": "target/src/index.d.ts",
+  "scripts": {
+    "clean": "rimraf target",
+    "build": "npm run clean && tsc",
+    "build:cache-layouts": "node --experimental-vm-modules target/src/bin/buildCacheServerLayouts.js",
+    "buildw": "tsc --watch",
+    "coverage": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage",
+    "format": "prettier --check --ignore-unknown **/*",
+    "format:fix": "prettier --write --ignore-unknown **/*",
+    "test": "npm run build && node --experimental-vm-modules --experimental-wasm-modules --max-old-space-size=8192 ../../../node_modules/jest/bin/jest.js  --forceExit --",
+    "testw": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --watch",
+    "lint": "npx eslint src/*",
+    "lint:fix": "npx eslint src/* --fix",
+    "testn": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm",
+    "testOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm",
+    "controller": "tsc && NODE_NO_WARNINGS=1 node --test ./target/src/NoriTokenController.test.js --loader ts-node/esm",
+    "nori": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm --test-name-pattern='NoriCore' ",
+    "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' ",
+    "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js",
+    "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules target/src/bin/bakeVkHashes.js && npm run build",
+    "contractsCompile": "tsc && node --experimental-vm-modules target/src/contractCompile.js"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.0",
+    "@babel/preset-typescript": "^7.28.5",
+    "@nori-zk/ethereum-token-bridge": "*",
+    "@nori-zk/pts-types": "5.0.0",
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-o1js": "^0.4.0",
+    "ethers": "^6.16.0",
+    "jest": "^30.2.0",
+    "npm-workspaces-publish-tool": "0.0.17",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.1.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0"
+  },
+  "peerDependencies": {
+    "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
+  },
+  "engines": {
+    "node": ">=18.14.0"
+  },
+  "dependencies": {
+    "@nori-zk/o1js-zk-utils": "*",
+    "@nori-zk/workers": "*",
+    "@nori-zk/proof-conversion": "0.8.17",
+    "autrace": "^0.0.25",
+    "esm-iso-logger": "1.0.2",
+    "mina-attestations": "^0.5.3",
+    "rxjs": "^7.8.2",
+    "xstate": "^5.27.0"
+  }
+}

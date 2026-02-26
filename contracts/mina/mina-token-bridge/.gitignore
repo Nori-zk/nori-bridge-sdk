@@ -1,0 +1,16 @@
+# NodeJS
+build
+node_modules
+coverage
+target
+
+# Editor
+.vscode
+
+# System
+.DS_Store
+
+# Never commit keys to Git!
+keys
+
+cache
