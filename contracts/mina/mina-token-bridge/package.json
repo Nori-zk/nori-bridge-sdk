@@ -16,6 +16,7 @@
     "format": "prettier --check --ignore-unknown **/*",
     "format:fix": "prettier --write --ignore-unknown **/*",
     "test": "npm run build && node --experimental-vm-modules --experimental-wasm-modules --max-old-space-size=8192 ../../../node_modules/jest/bin/jest.js  --forceExit --",
+    "test:bridge": "npm run build && node --experimental-vm-modules --experimental-wasm-modules --max-old-space-size=8192 ../../../node_modules/jest/bin/jest.js --forceExit --testPathPatterns=NoriTokenBridge.spec",
     "testw": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --watch",
     "lint": "npx eslint src/*",
     "lint:fix": "npx eslint src/* --fix",
