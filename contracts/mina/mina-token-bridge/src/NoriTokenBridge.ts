@@ -57,7 +57,6 @@ export interface NoriTokenControllerDeployProps
     extends Exclude<DeployArgs, undefined> {
     adminPublicKey: PublicKey;
     tokenBaseAddress: PublicKey;
-    ethProcessorAddress: PublicKey;
     storageVKHash: Field;
     newStoreHash: Bytes32FieldPair;
 }

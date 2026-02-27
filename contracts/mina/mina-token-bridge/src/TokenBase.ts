@@ -19,9 +19,8 @@ import {
 // VerificationKey and AccountUpdateForest must be value imports for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { VerificationKey, AccountUpdateForest } from 'o1js';
-import {
-  NoriTokenController,
-} from './NoriTokenController.js';
+import { NoriTokenBridge } from './NoriTokenBridge.js';
+
 
 interface FungibleTokenDeployProps extends Exclude<DeployArgs, undefined> {
   /** The token symbol. */
@@ -60,7 +59,7 @@ export class FungibleToken extends TokenContract {
   // This defines the type of the contract that is used to control access to administrative actions.
   // If you want to have a custom contract, overwrite this by setting FungibleToken.AdminContract to
   // your own implementation of FungibleTokenAdminBase.
-  static AdminContract: new (...args: unknown[]) => NoriTokenController;
+  static AdminContract: new (...args: unknown[]) => NoriTokenBridge;
 
   readonly events = {
     SetAdmin: SetAdminEvent,
@@ -127,14 +126,14 @@ export class FungibleToken extends TokenContract {
     accountUpdate.account.permissions.set(permissions);
   }
 
-  public async getAdminContract(): Promise<NoriTokenController> {
+  public async getAdminContract(): Promise<NoriTokenBridge> {
     const admin = await Provable.witnessAsync(PublicKey, async () => {
       let pk = await this.admin.fetch();
       assert(pk !== undefined, FungibleTokenErrors.noAdminKey);
       return pk;
     });
     this.admin.requireEquals(admin);
-    return new NoriTokenController(admin);
+    return new NoriTokenBridge(admin);
   }
 
   @method
