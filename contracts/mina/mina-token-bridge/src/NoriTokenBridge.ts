@@ -28,7 +28,7 @@ import {
 import { VerificationKey, AccountUpdateForest } from 'o1js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 // import { Bytes32, Bytes32FieldPair, EthProofType } from '@nori-zk/o1js-zk-utils'; // EthProof
-import { EthInput, Bytes32, Bytes32FieldPair, EthProofType, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils';
+import { EthInput, Bytes32, Bytes32FieldPair, EthProofType, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData, bytes32FieldPairToBytes32 } from '@nori-zk/o1js-zk-utils';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
@@ -350,7 +350,20 @@ export class NoriTokenBridge
 
         // assert that the root from the above was previously stored as the latest verified contract deposits root
         // TODO from stored Bytes32FieldPair into Bytes32 and then into Bytes ?
-        // this.latestVerifiedContractDepositsRootHighByte. 
+        // this.latestVerifiedContractDepositsRootHighByte.getAndRequireEquals().assertEquals(
+        //     Bytes32FieldPair.to
+        //     contractDepositSlotRoot.highByteField.
+        // )
+        const highByteField = this.latestVerifiedContractDepositsRootHighByte.getAndRequireEquals();
+        const lowerBytesField = this.latestVerifiedContractDepositsRootLowerBytes.getAndRequireEquals();
+        const storedVerifiedContractDepositsRoot = bytes32FieldPairToBytes32(
+            highByteField,
+            lowerBytesField);
+        // storedVerifiedContractDepositsRoot.bytes.assertEquals(
+        //     contractDepositSlotRoot,
+        //     'The provided contract deposit and witness do not yield the latest verified contract deposits root, and thus cannot be used to mint.'
+        // );
+
         // Bytes32FieldPair 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
         const {
