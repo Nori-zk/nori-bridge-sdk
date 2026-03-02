@@ -1,4 +1,4 @@
-import { type Cache, type Field, type SmartContract, UInt64, UInt8, type VerificationKey } from 'o1js';
+import { type Cache, Field, type SmartContract, UInt64, UInt8, type VerificationKey } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
 import {
@@ -218,6 +218,13 @@ export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
   return {
     hashStr: hash.toBigInt().toString(),
     data,
+  };
+}
+
+export function vkSafeToVk(vkSafe: VerificationKeySafe): VerificationKey {
+  return {
+    data: vkSafe.data,
+    hash: new Field(BigInt(vkSafe.hashStr)),
   };
 }
 

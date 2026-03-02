@@ -12,9 +12,10 @@ new LogPrinter('NoriEthProcessor');
 const logger = new Logger('CompileZksAndBakeVkHashes');
 
 function writeSuccessDetailsToJsonFiles(
-    ethProcessorVKHash: string
+    ethProcessorVKHash: string,
+    ethProcessorVKData: string
 ) {
-    // Write vks
+    // Write vk hash
     const ethProcessorVkHashFileOutputPath = resolve(
         rootDir,
         '..',
@@ -22,16 +23,31 @@ function writeSuccessDetailsToJsonFiles(
         'integrity',
         'EthProcessor.VkHash.json'
     );
-    logger.log(
-        `Writing vks hashes to '${ethProcessorVkHashFileOutputPath}'`
-    );
+    logger.log(`Writing vk hash to '${ethProcessorVkHashFileOutputPath}'`);
     writeFileSync(
         ethProcessorVkHashFileOutputPath,
         `"${ethProcessorVKHash}"`,
         'utf8'
     );
     logger.log(
-        `Wrote vks hashes to '${ethProcessorVkHashFileOutputPath}' successfully.`
+        `Wrote vk hash to '${ethProcessorVkHashFileOutputPath}' successfully.`
+    );
+    // Write vk data
+    const ethProcessorVkDataFileOutputPath = resolve(
+        rootDir,
+        '..',
+        'src',
+        'integrity',
+        'EthProcessor.VkData.json'
+    );
+    logger.log(`Writing vk data to '${ethProcessorVkDataFileOutputPath}'`);
+    writeFileSync(
+        ethProcessorVkDataFileOutputPath,
+        `"${ethProcessorVKData}"`,
+        'utf8'
+    );
+    logger.log(
+        `Wrote vk data to '${ethProcessorVkDataFileOutputPath}' successfully.`
     );
 }
 
@@ -81,11 +97,13 @@ async function main() {
         forceRecompile: true,
     });
     const ethProcessorVKHash = pVK.verificationKey.hash.toString();
+    const ethProcessorVKData = pVK.verificationKey.data;
+
     logger.log(`EthProcessor contract compiled vk: '${ethProcessorVKHash}'.`);
     // logger.log(`EthProcessor analyze methods output:\n${JSON.stringify(await EthProcessor.analyzeMethods())}`);
 
     rmSync(ephemeralCacheDir, { recursive: true });
-    writeSuccessDetailsToJsonFiles(ethProcessorVKHash);
+    writeSuccessDetailsToJsonFiles(ethProcessorVKHash, ethProcessorVKData);
 }
 
 main().catch((err) => {

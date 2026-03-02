@@ -3,26 +3,28 @@ import 'dotenv/config';
 // Other imports
 import { Mina, PrivateKey, type NetworkId, fetchAccount } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { EthProcessor } from '../ethProcessor.js';
+import { NoriTokenBridge } from '../NoriTokenBridge.js';
+import { NoriStorageInterface } from '../NoriStorageInterface.js';
+import { FungibleToken } from '../TokenBase.js';
 import {
     Bytes32,
     Bytes32FieldPair,
     compileAndVerifyContracts,
-    EthVerifier,
-    ethVerifierVkHash,
 } from '@nori-zk/o1js-zk-utils';
-import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
+import { noriTokenBridgeVkHash } from '../integrity/NoriTokenBridge.VkHash.js';
+import { noriStorageInterfaceVkHash } from '../integrity/NoriStorageInterface.VkHash.js';
+import { fungibleTokenVkHash } from '../integrity/FungibleToken.VkHash.js';
 
 const logger = new Logger('UpdateStoreHash');
 
-new LogPrinter('NoriEthProcessor');
+new LogPrinter('NoriTokenBridge');
 
 // Collect all inputs upfront
 const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
 const possibleNetwork = process.env.NETWORK;
 const possibleDeployerKeyBase58 = process.env.SENDER_PRIVATE_KEY;
 const possibleZkAppKeyBase58 = process.env.ZKAPP_PRIVATE_KEY;
-const fee = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
+const fee = Number(process.env.TX_FEE || 0.1) * 1e9;
 const possibleStoreHashHex = process.argv[2];
 
 // Validate everything in one pass
@@ -119,41 +121,38 @@ logger.log(`storeHashHex provided: '${possibleStoreHashHex}'`);
 async function updateStoreHash() {
     const deployerAccount = deployerKey.toPublicKey();
     const zkAppAddress = zkAppPrivateKey.toPublicKey();
-    const zkAppAddressBase58 = zkAppAddress.toBase58();
     logger.log(`Deployer address: '${deployerAccount.toBase58()}'.`);
-    logger.log(`ZkApp contract address: '${zkAppAddressBase58}'.`);
+    logger.log(`NoriTokenBridge address: '${zkAppAddress.toBase58()}'.`);
 
-    // Configure Mina network
-    const Network = Mina.Network({
-        networkId,
-        mina: networkUrl,
-    });
+    const Network = Mina.Network({ networkId, mina: networkUrl });
     Mina.setActiveInstance(Network);
 
-    // Compile and verify
     await compileAndVerifyContracts(logger, [
         {
-            name: 'ethVerifier',
-            program: EthVerifier,
-            integrityHash: ethVerifierVkHash,
+            name: 'NoriStorageInterface',
+            program: NoriStorageInterface,
+            integrityHash: noriStorageInterfaceVkHash,
         },
         {
-            name: 'ethProcessor',
-            program: EthProcessor,
-            integrityHash: ethProcessorVkHash,
+            name: 'FungibleToken',
+            program: FungibleToken,
+            integrityHash: fungibleTokenVkHash,
+        },
+        {
+            name: 'NoriTokenBridge',
+            program: NoriTokenBridge,
+            integrityHash: noriTokenBridgeVkHash,
         },
     ]);
 
-    const zkApp = new EthProcessor(zkAppAddress);
+    const zkApp = new NoriTokenBridge(zkAppAddress);
 
     logger.log('Creating update store hash transaction...');
     const txn = await Mina.transaction(
         { fee, sender: deployerAccount },
         async () => {
             logger.log(`Updating the store hash to '${possibleStoreHashHex}'.`);
-            await zkApp.updateStoreHash(
-                Bytes32FieldPair.fromBytes32(storeHash)
-            );
+            await zkApp.updateStoreHash(Bytes32FieldPair.fromBytes32(storeHash));
         }
     );
 
@@ -166,12 +165,9 @@ async function updateStoreHash() {
     await pendingTx.wait();
 
     await fetchAccount({ publicKey: zkAppAddress });
-    const currentAdmin = await zkApp.admin.fetch();
     logger.log('Update successful!');
-    logger.log(`Contract admin: '${currentAdmin?.toBase58()}'.`);
 }
 
-// Execute update
 updateStoreHash().catch((err) => {
     logger.fatal(
         `UpdateStoreHash function encountered an error.\n${String(err)}`

@@ -6,32 +6,35 @@ import {
     PrivateKey,
     PublicKey,
     AccountUpdate,
+    Bool,
     type NetworkId,
-    fetchAccount,
+    UInt8,
 } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { rootDir } from '../utils.js';
-import { EthProcessor } from '../ethProcessor.js';
+import { NoriTokenBridge } from '../NoriTokenBridge.js';
+import { NoriStorageInterface } from '../NoriStorageInterface.js';
+import { FungibleToken } from '../TokenBase.js';
 import {
     Bytes32,
     Bytes32FieldPair,
     compileAndVerifyContracts,
-    EthVerifier,
-    ethVerifierVkHash,
 } from '@nori-zk/o1js-zk-utils';
-import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
+import { noriTokenBridgeVkHash } from '../integrity/NoriTokenBridge.VkHash.js';
+import { noriStorageInterfaceVkHash } from '../integrity/NoriStorageInterface.VkHash.js';
+import { fungibleTokenVkHash } from '../integrity/FungibleToken.VkHash.js';
 
 const logger = new Logger('Deploy');
 
-new LogPrinter('NoriEthProcessor');
+new LogPrinter('NoriTokenBridge');
 
 // Collect all inputs upfront
 const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
 const possibleNetwork = process.env.NETWORK;
 const possibleDeployerKeyBase58 = process.env.SENDER_PRIVATE_KEY;
-const fee = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
+const fee = Number(process.env.TX_FEE || 0.1) * 1e9;
 const possibleStoreHashHex = process.argv[2];
 const possibleAdminPublicKeyBase58 = process.argv[3];
 
@@ -46,6 +49,10 @@ if (!possibleDeployerKeyBase58)
 if (process.env.ZKAPP_PRIVATE_KEY)
     issues.push(
         'ZKAPP_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
+    );
+if (process.env.TOKEN_BASE_PRIVATE_KEY)
+    issues.push(
+        'TOKEN_BASE_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
     );
 if (!possibleStoreHashHex)
     issues.push('Missing required first argument: storeHashHex');
@@ -129,9 +136,13 @@ const networkUrl = possibleNetworkUrl;
 const networkId: NetworkId =
     possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
 
-// Generate zkApp key and resolve adminPublicKey
+// Generate fresh keys for both contracts
 const zkAppPrivateKey = PrivateKey.random();
 const zkAppPrivateKeyBase58 = zkAppPrivateKey.toBase58();
+const tokenBasePrivateKey = PrivateKey.random();
+const tokenBasePrivateKeyBase58 = tokenBasePrivateKey.toBase58();
+
+const tokenBaseAllowUpdates = true;
 
 let adminPublicKey: PublicKey;
 if (isPublicKey(possibleAdminPublicKey)) {
@@ -148,96 +159,119 @@ if (isPublicKey(possibleAdminPublicKey)) {
 
 logger.log(`storeHashHex provided: '${possibleStoreHashHex}'`);
 
-// Util to save ZKAPP_PRIVATE_KEY and ZKAPP_ADDRESS to a file.
-function writeSuccessDetailsToEnvFileFile(zkAppAddressBase58: string) {
+function writeSuccessDetailsToEnvFile(
+    zkAppAddressBase58: string,
+    tokenBaseAddressBase58: string,
+    tokenBaseTokenId: string,
+    noriTokenBridgeTokenId: string
+) {
     const env = {
         ZKAPP_PRIVATE_KEY: zkAppPrivateKeyBase58,
         ZKAPP_ADDRESS: zkAppAddressBase58,
+        TOKEN_BASE_PRIVATE_KEY: tokenBasePrivateKeyBase58,
+        TOKEN_BASE_ADDRESS: tokenBaseAddressBase58,
+        ADMIN_PUBLIC_KEY: adminPublicKey.toBase58(),
+        TOKEN_BASE_TOKEN_ID: tokenBaseTokenId,
+        NORI_TOKEN_BRIDGE_TOKEN_ID: noriTokenBridgeTokenId,
+        UPDATE_TOKEN_BASE_VK: tokenBaseAllowUpdates.toString(),
+        UPDATE_NORI_TOKEN_BRIDGE_VK: 'false',
     };
     const envFileStr =
         Object.entries(env)
             .map(([key, value]) => `${key}=${value}`)
             .join('\n') + `\n`;
-    const envFileOutputPath = resolve(rootDir, '..', '.env.nori-eth-processor');
+    const envFileOutputPath = resolve(rootDir, '..', '.env.nori-token-bridge');
     logger.info(`Writing env file with the details: '${envFileOutputPath}'`);
     writeFileSync(envFileOutputPath, envFileStr, 'utf8');
     logger.log(`Wrote '${envFileOutputPath}' successfully.`);
 }
 
 async function deploy() {
-    // Gather keys
     const deployerAccount = deployerKey.toPublicKey();
     const zkAppAddress = zkAppPrivateKey.toPublicKey();
-    const zkAppAddressBase58 = zkAppAddress.toBase58();
+    const tokenBaseAddress = tokenBasePrivateKey.toPublicKey();
     logger.log(`Deployer address: '${deployerAccount.toBase58()}'.`);
-    logger.log(`ZkApp contract address: '${zkAppAddressBase58}'.`);
+    logger.log(`NoriTokenBridge address: '${zkAppAddress.toBase58()}'.`);
+    logger.log(`FungibleToken address: '${tokenBaseAddress.toBase58()}'.`);
 
-    // Configure Mina network
-    const Network = Mina.Network({
-        networkId,
-        mina: networkUrl,
-    });
+    const Network = Mina.Network({ networkId, mina: networkUrl });
     Mina.setActiveInstance(Network);
 
-    // Compile and verify
-    const { ethProcessorVerificationKey } = await compileAndVerifyContracts(
-        logger,
-        [
+    // Compile and verify all three contracts
+    const { NoriStorageInterfaceVerificationKey, NoriTokenBridgeVerificationKey } =
+        await compileAndVerifyContracts(logger, [
             {
-                name: 'ethVerifier',
-                program: EthVerifier,
-                integrityHash: ethVerifierVkHash,
+                name: 'NoriStorageInterface',
+                program: NoriStorageInterface,
+                integrityHash: noriStorageInterfaceVkHash,
             },
             {
-                name: 'ethProcessor',
-                program: EthProcessor,
-                integrityHash: ethProcessorVkHash,
+                name: 'FungibleToken',
+                program: FungibleToken,
+                integrityHash: fungibleTokenVkHash,
             },
-        ]
-    );
+            {
+                name: 'NoriTokenBridge',
+                program: NoriTokenBridge,
+                integrityHash: noriTokenBridgeVkHash,
+            },
+        ]);
 
-    // Initialize contract
-    const zkApp = new EthProcessor(zkAppAddress);
+    const zkApp = new NoriTokenBridge(zkAppAddress);
+    const fungibleToken = new FungibleToken(tokenBaseAddress);
+    const initialStoreHash = Bytes32FieldPair.fromBytes32(storeHash);
 
-    // Deploy transaction
-    logger.log(`Creating deployment transaction...`);
+    logger.log('Creating deployment transaction...');
     const txn = await Mina.transaction(
         { fee, sender: deployerAccount },
         async () => {
+            AccountUpdate.fundNewAccount(deployerAccount, 3);
             logger.log(
-                `Deploying smart contract with verification key hash: '${ethProcessorVerificationKey.hash}'`
+                `Deploying NoriTokenBridge with verification key hash: '${NoriTokenBridgeVerificationKey.hash}'`
             );
-            AccountUpdate.fundNewAccount(deployerAccount);
             await zkApp.deploy({
-                verificationKey: ethProcessorVerificationKey,
-            });
-            logger.log(
-                `Initializing with adminPublicKey '${adminPublicKey.toBase58()}' and store hash '${storeHash.toHex()}'.`
-            );
-            await zkApp.initialize(
+                verificationKey: NoriTokenBridgeVerificationKey,
                 adminPublicKey,
-                Bytes32FieldPair.fromBytes32(storeHash)
+                tokenBaseAddress,
+                storageVKHash: NoriStorageInterfaceVerificationKey.hash,
+                newStoreHash: initialStoreHash,
+            });
+            logger.log('Deploying FungibleToken.');
+            await fungibleToken.deploy({
+                symbol: 'nETH',
+                src: 'https://github.com/2nori/nori-bridge-sdk',
+                allowUpdates: tokenBaseAllowUpdates,
+            });
+            await fungibleToken.initialize(
+                zkAppAddress,
+                UInt8.from(6),
+                Bool(false)
             );
         }
     );
 
     logger.log('Proving transaction');
     await txn.prove();
-    const signedTx = txn.sign([deployerKey, zkAppPrivateKey]);
+    const signedTx = txn.sign([deployerKey, zkAppPrivateKey, tokenBasePrivateKey]);
     logger.log('Sending transaction...');
     const pendingTx = await signedTx.send();
     logger.log('Waiting for transaction to be included in a block...');
     await pendingTx.wait();
 
-    await fetchAccount({ publicKey: zkAppAddress });
-    const currentAdmin = await zkApp.admin.fetch();
-    logger.log('Deployment successful!');
-    logger.log(`Contract admin: '${currentAdmin?.toBase58()}'.`);
+    const tokenBaseTokenId = fungibleToken.deriveTokenId().toString();
+    const noriTokenBridgeTokenId = zkApp.deriveTokenId().toString();
+    logger.log(`Token Base Token ID: ${tokenBaseTokenId}`);
+    logger.log(`NoriTokenBridge Token ID: ${noriTokenBridgeTokenId}`);
 
-    writeSuccessDetailsToEnvFileFile(zkAppAddressBase58);
+    logger.log('Deployment successful!');
+    writeSuccessDetailsToEnvFile(
+        zkAppAddress.toBase58(),
+        tokenBaseAddress.toBase58(),
+        tokenBaseTokenId,
+        noriTokenBridgeTokenId
+    );
 }
 
-// Execute deployment
 deploy().catch((err) => {
     logger.fatal(`Deploy function encountered an error.\n${String(err)}`);
     process.exit(1);
