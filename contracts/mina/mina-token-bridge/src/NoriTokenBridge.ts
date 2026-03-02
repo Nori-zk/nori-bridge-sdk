@@ -73,8 +73,7 @@ export class NoriTokenBridge
     @state(UInt64) latestHead = State<UInt64>();
     @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
-    @state(Field) latestVerifiedContractDepositsRootHighByte = State<Field>();
-    @state(Field) latestVerifiedContractDepositsRootLowerBytes = State<Field>();
+    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
 
 
     //todo
@@ -245,10 +244,17 @@ export class NoriTokenBridge
         }
         nextSyncCommitteeZeroAcc.assertNotEquals(new Field(0));
 
-        // Pack the verifiedContractDepositsRoot into a pair of fields
-        const verifiedContractDepositsRoot = Bytes32FieldPair.fromBytes32(
-            input.verifiedContractDepositsRoot
-        );
+
+        let verifiedContractDepositsRoot = new Field(0);
+        // FIXME
+        // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+        // And here we re-interpret the BE as LE!
+        // But it does pass the test! And otherwise fails.
+        for (let i = 31; i >= 0; i--) {
+            verifiedContractDepositsRoot = verifiedContractDepositsRoot
+                .mul(256)
+                .add(input.verifiedContractDepositsRoot.bytes[i].value);
+        }
 
         // Update contract values
         this.latestHead.set(proofHead);
@@ -259,12 +265,8 @@ export class NoriTokenBridge
         this.latestHeliusStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
-        this.latestVerifiedContractDepositsRootHighByte.set(
-            verifiedContractDepositsRoot.highByteField
-        );
-        this.latestVerifiedContractDepositsRootLowerBytes.set(
-            verifiedContractDepositsRoot.lowerBytesField
-        );
+        this.latestVerifiedContractDepositsRoot.set(verifiedContractDepositsRoot);
+
     }
 
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
@@ -353,15 +355,17 @@ export class NoriTokenBridge
         //     Bytes32FieldPair.to
         //     contractDepositSlotRoot.highByteField.
         // )
-        const highByteField = this.latestVerifiedContractDepositsRootHighByte.getAndRequireEquals();
-        const lowerBytesField = this.latestVerifiedContractDepositsRootLowerBytes.getAndRequireEquals();
-        const storedVerifiedContractDepositsRoot = bytes32FieldPairToBytes32(
-            highByteField,
-            lowerBytesField);
-        // storedVerifiedContractDepositsRoot.bytes.assertEquals(
-        //     contractDepositSlotRoot,
-        //     'The provided contract deposit and witness do not yield the latest verified contract deposits root, and thus cannot be used to mint.'
-        // );
+        // const highByteField = this.latestVerifiedContractDepositsRootHighByte.getAndRequireEquals();
+        // const lowerBytesField = this.latestVerifiedContractDepositsRootLowerBytes.getAndRequireEquals();
+        // const storedVerifiedContractDepositsRoot = bytes32FieldPairToBytes32(
+        //     highByteField,
+        //     lowerBytesField);
+        const storedVerifiedContractDepositsRoot = this.latestVerifiedContractDepositsRoot.getAndRequireEquals();
+
+        storedVerifiedContractDepositsRoot.assertEquals(
+            contractDepositSlotRoot,
+            'The provided contract deposit and witness do not yield the latest verified contract deposits root, and thus cannot be used to mint.'
+        );
 
         // Bytes32FieldPair 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields

@@ -24,18 +24,18 @@ export class ContractDeposit extends Struct({
     address: Bytes20.provable,
     attestationHash: Bytes32.provable,
     value: Bytes32.provable,
-}) {}
+}) { }
 
 const treeDepth = 16;
 
 export const MerklePath = DynamicArray(Field, { maxLength: treeDepth });
 
 export class MerkleTreeContractDepositAttestorInput extends Struct({
-    rootHash: Field,
+    rootHash: Field, //TODO remove that as we don't need to passs it 
     path: MerklePath,
     index: UInt64,
     value: ContractDeposit,
-}) {}
+}) { }
 
 export type MerkleTreeContractDepositAttestorInputJson = {
     depositIndex: number;
@@ -163,6 +163,7 @@ export function getContractDepositSlotRootFromContractDepositAndWitness(
         currentHash = Provable.if(isDummy, Field, currentHash, nextHash);
     });
 
+    //TODO not needed as we need to constaraint that in contract
     currentHash.assertEquals(
         rootHash,
         'MerkleTreeContractDepositAttestorInput root hash does not match currentHash'
