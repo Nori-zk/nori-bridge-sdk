@@ -9,24 +9,24 @@
     ],
     "type": "module",
     "private": "true",
-    "main": "target/src/index.js",
-    "types": "target/src/index.d.ts",
+    "main": "build/index.js",
+    "types": "build/index.d.ts",
     "publishConfig": {
         "registry": "https://registry.npmjs.org/",
         "access": "public"
     },
     "scripts": {
-        "clean": "rimraf target",
+        "clean": "rimraf build",
         "build": "npm run clean && tsc",
         "build:cache": "cd ../contracts/mina/token-bridge/ && npm run build:cache-layouts",
-        "serve": "npm run build && node target/src/bin/server.js",
+        "serve": "npm run build && node build/bin/server.js",
         "lint": "npx eslint src/*",
         "lint:fix": "npx eslint src/* --fix",
         "format": "prettier --check --ignore-unknown **/*",
         "format:fix": "prettier --write --ignore-unknown **/*"
     },
     "exports": {
-        ".": "./target/src/index.js"
+        ".": "./build/index.js"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.29.0",

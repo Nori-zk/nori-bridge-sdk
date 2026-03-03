@@ -5,9 +5,10 @@
     "type": "module",
     "private": "true",
     "scripts": {
-        "build": "tsc",
-        "test:e2e": "npm run build && node target/src/test-utils/browserNoriTestRunnerCli.js",
-        "test:e2e:browser": "npm run build && node target/src/test-utils/browserNoriTestRunner.js"
+        "clean": "rimraf build",
+        "build": "npm run clean && tsc",
+        "test:e2e": "npm run build && node build/test-utils/browserNoriTestRunnerCli.js",
+        "test:e2e:browser": "npm run build && node build/test-utils/browserNoriTestRunner.js"
     },
     "author": "",
     "license": "Apache-2.0",
@@ -18,6 +19,7 @@
         "esbuild": "^0.27.3",
         "express": "^5.2.1",
         "puppeteer": "^24.37.2",
+        "rimraf": "^6.1.2",
         "typescript": "^5.9.3"
     },
     "peerDependencies": {

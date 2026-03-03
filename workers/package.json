@@ -12,21 +12,21 @@
         "access": "public"
     },
     "type": "module",
-    "main": "build/src/index.js",
-    "types": "build/src/index.d.ts",
+    "main": "build/index.js",
+    "types": "build/index.d.ts",
     "exports": {
-        ".": "./build/src/index.js",
+        ".": "./build/index.js",
         "./node/parent": {
-            "import": "./build/src/parent/index.node.js"
+            "import": "./build/parent/index.node.js"
         },
         "./node/child": {
-            "import": "./build/src/child/index.node.js"
+            "import": "./build/child/index.node.js"
         },
         "./browser/parent": {
-            "import": "./build/src/parent/index.browser.js"
+            "import": "./build/parent/index.browser.js"
         },
         "./browser/child": {
-            "import": "./build/src/child/index.browser.js"
+            "import": "./build/child/index.browser.js"
         }
     },
     "scripts": {

@@ -4,3 +4,4 @@ node_modules/
 .env.nori-eth-processor*
 build
 .env.nori-token-bridge
+tsconfig.tsbuildinfo

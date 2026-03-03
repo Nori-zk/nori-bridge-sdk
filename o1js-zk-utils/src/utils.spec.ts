@@ -1,5 +1,5 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { decodeConsensusMptProof } from './utils';
+import { decodeConsensusMptProof } from './utils.js';
 import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 import { Field, UInt8 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';

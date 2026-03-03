@@ -8,6 +8,9 @@
   "main": "build/index.node.js",
   "types": "build/index.node.d.ts",
   "exports": {
+    ".": {
+      "import": "./build/index.node.js"
+    },
     "./node": {
       "import": "./build/index.node.js"
     },
@@ -16,7 +19,7 @@
     }
   },
   "scripts": {
-    "clean": "rimraf build tsconfig.tsbuildinfo",
+    "clean": "rimraf build",
     "build": "npm run clean && tsc",
     "build:cache-layouts": "node --experimental-vm-modules build/bin/buildCacheServerLayouts.js",
     "buildw": "tsc --watch",

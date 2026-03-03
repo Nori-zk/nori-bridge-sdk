@@ -15,33 +15,33 @@
         "access": "public"
     },
     "type": "module",
-    "main": "target/src/index.js",
-    "types": "target/src/index.d.ts",
+    "main": "build/index.js",
+    "types": "build/index.d.ts",
     "exports": {
-        ".": "./target/src/index.js",
+        ".": "./build/index.js",
         "./rx/deposit": {
-            "import": "./target/src/rx/deposit.js"
+            "import": "./build/rx/deposit.js"
         },
         "./rx/socket": {
-            "import": "./target/src/rx/socket.js"
+            "import": "./build/rx/socket.js"
         },
         "./rx/topics": {
-            "import": "./target/src/rx/topics.js"
+            "import": "./build/rx/topics.js"
         },
         "./node/workers/zkAppWorker": {
-            "import": "./target/src/workers/zkAppWorker/node/parent.js"
+            "import": "./build/workers/zkAppWorker/node/parent.js"
         },
         "./workers/defs": {
-            "import": "./target/src/workers/defs.js"
+            "import": "./build/workers/defs.js"
         },
         "./env": {
-            "import": "./target/src/env.js"
+            "import": "./build/env.js"
         }
     },
     "scripts": {
-        "clean": "rimraf target",
+        "clean": "rimraf build",
         "build": "npm run clean && tsc",
-        "build:cache-layouts": "node --experimental-vm-modules target/src/bin/buildCacheServerLayouts.js",
+        "build:cache-layouts": "node --experimental-vm-modules build/bin/buildCacheServerLayouts.js",
         "buildw": "tsc --watch",
         "coverage": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --coverage",
         "format": "prettier --check --ignore-unknown **/*",
@@ -52,11 +52,11 @@
         "lint:fix": "npx eslint src/* --fix",
         "testn": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm",
         "testOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm",
-        "controller": "tsc && NODE_NO_WARNINGS=1 node --test ./target/src/NoriTokenController.test.js --loader ts-node/esm",
+        "controller": "tsc && NODE_NO_WARNINGS=1 node --test ./build/NoriTokenController.test.js --loader ts-node/esm",
         "nori": "tsc && NODE_NO_WARNINGS=1 node --test --loader ts-node/esm --test-name-pattern='NoriCore' ",
         "noriOnly": "tsc && NODE_NO_WARNINGS=1 node --test --test-only --loader ts-node/esm --test-name-pattern='NoriCore' ",
-        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules target/src/bin/deploy.js",
-        "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules target/src/bin/bakeVkHashes.js && npm run build"
+        "deploy": "npm run build && node --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
+        "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js && npm run build"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.29.0",
