@@ -1,11 +1,35 @@
-import { type Cache, Field, type SmartContract, UInt64, UInt8, type VerificationKey } from 'o1js';
+import {
+    type Cache,
+    Field,
+    type SmartContract,
+    UInt64,
+    UInt8,
+    type VerificationKey,
+} from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
-import {
-    Bytes32,
-    type CompilableZkProgram,
-} from './types.js';
+import { Bytes32, type CompilableZkProgram } from './types.js';
 import { type Logger } from 'esm-iso-logger';
+
+// Bytes32 Field utils
+
+export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
+    // Guard: bytes[31] is the most significant byte in LE and must not exceed 64 (top byte of Field.ORDER)
+    // See the utils.spec.ts 'Field order wrapping bytes 32 validation'
+    uint8ArrayLength32[31].value.assertLessThanOrEqual(new Field(64n));
+    
+    // CHECKME
+    // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+    // And here we re-interpret the BE as LE!
+    // But it does pass the test! And otherwise fails.
+    let field = new Field(0);
+    for (let i = 31; i >= 0; i--) {
+        field = field
+            .mul(256)
+            .add(uint8ArrayLength32[i].value);
+    }
+    return field;
+}
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -209,23 +233,23 @@ export async function compileAndVerifyContracts(
 }
 
 export type VerificationKeySafe = {
-  hashStr: string;
-  data: string;
+    hashStr: string;
+    data: string;
 };
 
 export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
-  const { data, hash } = vk;
-  return {
-    hashStr: hash.toBigInt().toString(),
-    data,
-  };
+    const { data, hash } = vk;
+    return {
+        hashStr: hash.toBigInt().toString(),
+        data,
+    };
 }
 
 export function vkSafeToVk(vkSafe: VerificationKeySafe): VerificationKey {
-  return {
-    data: vkSafe.data,
-    hash: new Field(BigInt(vkSafe.hashStr)),
-  };
+    return {
+        data: vkSafe.data,
+        hash: new Field(BigInt(vkSafe.hashStr)),
+    };
 }
 
 /**
@@ -262,78 +286,82 @@ export function vkSafeToVk(vkSafe: VerificationKeySafe): VerificationKey {
  * ```
  */
 export async function compileAndOptionallyVerifyContracts<
-  T extends readonly {
-    name: string;
-    program: typeof SmartContract | CompilableZkProgram;
-    integrityHash?: string;
-  }[]
+    T extends readonly {
+        name: string;
+        program: typeof SmartContract | CompilableZkProgram;
+        integrityHash?: string;
+    }[],
 >(
-  logger: { log: (msg: string) => void },
-  contracts: T,
-  cache?: Cache,
-  //cacheConfig?: CacheConfig
-): Promise<
-  { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey }
-> {
-  type ReturnMap = { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey };
+    logger: { log: (msg: string) => void },
+    contracts: T,
+    cache?: Cache
+    //cacheConfig?: CacheConfig
+): Promise<{
+    [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey;
+}> {
+    type ReturnMap = {
+        [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey;
+    };
 
-  //const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
+    //const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
 
-  const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
-  const mismatches: string[] = [];
+    const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
+    const mismatches: string[] = [];
 
-  for (const c of contracts) {
-    const { name, program, integrityHash } = c;
+    for (const c of contracts) {
+        const { name, program, integrityHash } = c;
 
-    logger.log(`Compiling ${name} contract/program.`);
-    const timer = createTimer();
-    const compiled = await (cache ? program.compile({cache}) : program.compile());
-    logger.log(`${name} compiled in ${timer()}`);
+        logger.log(`Compiling ${name} contract/program.`);
+        const timer = createTimer();
+        const compiled = await (cache
+            ? program.compile({ cache })
+            : program.compile());
+        logger.log(`${name} compiled in ${timer()}`);
 
-    const vk = compiled.verificationKey;
-    const hashStr = vk.hash.toBigInt().toString();
+        const vk = compiled.verificationKey;
+        const hashStr = vk.hash.toBigInt().toString();
 
-    logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
+        logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
 
-    // Validate only if integrityHash is provided
-    if (integrityHash && hashStr !== integrityHash) {
-      mismatches.push(
-        `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
-      );
+        // Validate only if integrityHash is provided
+        if (integrityHash && hashStr !== integrityHash) {
+            mismatches.push(
+                `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
+            );
+        }
+
+        const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
+        entries.push([mappedKey, vk]);
     }
 
-    const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
-    entries.push([mappedKey, vk]);
-  }
+    if (mismatches.length > 0) {
+        const errorMessage = [
+            'Verification key hash mismatch detected:',
+            ...mismatches,
+            '',
+            `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
+        ].join('\n');
 
-  if (mismatches.length > 0) {
-    const errorMessage = [
-      'Verification key hash mismatch detected:',
-      ...mismatches,
-      '',
-      `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
-    ].join('\n');
+        throw new Error(errorMessage);
+    }
 
-    throw new Error(errorMessage);
-  }
+    logger.log('All contracts compiled successfully.');
 
-  logger.log('All contracts compiled successfully.');
-
-  return Object.fromEntries(entries) as ReturnMap;
+    return Object.fromEntries(entries) as ReturnMap;
 }
 
 export type ZKCache = {
     name: string;
     integrityHash?: string;
-}
+};
 
 export type ZKCacheWithProgram = ZKCache & {
     program: typeof SmartContract | CompilableZkProgram;
-}
+};
 
 export type ZKCacheLayout = ZKCache & {
     files: string[];
-}
+};
 
 // Timing utilities to replace console.time/timeEnd
 export function createTimer() {

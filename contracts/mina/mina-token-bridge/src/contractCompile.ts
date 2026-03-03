@@ -2,9 +2,8 @@
  * This script can be used to interact with the Payout zkApp, after deploying it on pre-Mesa local Blockchain.
  */
 
-import { UInt64, AccountUpdate, Mina, PrivateKey, Provable, Cache } from 'o1js';
+import { UInt64, AccountUpdate, Mina, PrivateKey, Cache } from 'o1js';
 import { NoriTokenBridge } from './NoriTokenBridge.js';
-import { EthVerifier } from '@nori-zk/o1js-zk-utils';
 
 async function main() {
     // Set up the Mina local blockchain
@@ -20,23 +19,22 @@ async function main() {
 
     const dannyKey = Local.testAccounts[2].key;
     const dannyPubKey = dannyKey.toPublicKey();
+    void dannyPubKey;
 
     const eveKey = Local.testAccounts[3].key;
     const evePubKey = eveKey.toPublicKey();
+    void evePubKey;
 
     // zkApp keypair
     const zkappKey = PrivateKey.random();
     const zkappAddress = zkappKey.toPublicKey();
     const zkapp = new NoriTokenBridge(zkappAddress);
+    void zkapp;
 
     console.log('Alice PK:', alicePubKey.toBase58());
     console.log('Bob PK:', bobPubKey.toBase58());
     console.log('ZkApp:', zkappAddress.toBase58());
 
-    // Compile (only needed if proofsEnabled = true, but safe to keep)
-    // await EthVerifier.compile({
-    //     cache: Cache.None
-    // });
     await NoriTokenBridge.compile({
         cache: Cache.None
     });
@@ -54,6 +52,7 @@ async function main() {
             // await zkapp.deploy();
         }
     );
+    void deployTx;
 
     // console.log('Deploy Transaction Info:', logTxInfo(deployTx));
     // await deployTx.prove();

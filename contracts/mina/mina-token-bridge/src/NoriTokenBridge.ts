@@ -30,7 +30,7 @@ import {
 import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { EthInput } from '@nori-zk/o1js-zk-utils';
+import { bytes32LEToFieldProvable, EthInput } from '@nori-zk/o1js-zk-utils';
 
 import {  Bytes32, Bytes32FieldPair, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils';
 import { Logger } from 'esm-iso-logger';
@@ -247,16 +247,8 @@ export class NoriTokenBridge
         }
         nextSyncCommitteeZeroAcc.assertNotEquals(new Field(0));
 
-        let verifiedContractDepositsRoot = new Field(0);
-        // FIXME
-        // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
-        // And here we re-interpret the BE as LE!
-        // But it does pass the test! And otherwise fails.
-        for (let i = 31; i >= 0; i--) {
-            verifiedContractDepositsRoot = verifiedContractDepositsRoot
-                .mul(256)
-                .add(input.verifiedContractDepositsRoot.bytes[i].value);
-        }
+        // Extract the verifiedContractDepositsRoot and convert it to a Field
+        const verifiedContractDepositsRootField = bytes32LEToFieldProvable(input.verifiedContractDepositsRoot.bytes);
 
         // Update contract values
         this.latestHead.set(proofHead);
@@ -267,7 +259,7 @@ export class NoriTokenBridge
         this.latestHeliusStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
-        this.latestVerifiedContractDepositsRoot.set(verifiedContractDepositsRoot);
+        this.latestVerifiedContractDepositsRoot.set(verifiedContractDepositsRootField);
     }
 
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {

@@ -55,6 +55,7 @@ import {
     getMerklePathFromLeaves,
     getMerkleZeros,
     Bytes20,
+    bytes32LEToFieldProvable,
 } from '@nori-zk/o1js-zk-utils';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type. Cast with `as any` at call sites.
@@ -83,6 +84,7 @@ let noriTokenBridge: NoriTokenBridge;
 
 let storageInterfaceVK: VerificationKey;
 let noriTokenBridgeVK: VerificationKey;
+void noriTokenBridgeVK;
 let tokenBaseVK: VerificationKey;
 
 let allAccounts: PublicKey[];
@@ -512,22 +514,33 @@ describe('NoriTokenBridge', () => {
 
         test('latestVerifiedContractDepositsRoot should match last proof output', async () => {
             await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-            const hb =
-                await noriTokenBridge.latestVerifiedContractDepositsRootHighByte.fetch();
-            const lb =
-                await noriTokenBridge.latestVerifiedContractDepositsRootLowerBytes.fetch();
-            const expected = Bytes32FieldPair.fromBytes32(
-                ethInput4.verifiedContractDepositsRoot
+            // const hb =
+            //     await noriTokenBridge.latestVerifiedContractDepositsRootHighByte.fetch();
+            // const lb =
+            //     await noriTokenBridge.latestVerifiedContractDepositsRootLowerBytes.fetch();
+            // const expected = Bytes32FieldPair.fromBytes32(
+            //     ethInput4.verifiedContractDepositsRoot
+            // );
+            // assert.equal(
+            //     hb.toBigInt(),
+            //     expected.highByteField.toBigInt(),
+            //     'deposits root high byte'
+            // );
+            // assert.equal(
+            //     lb.toBigInt(),
+            //     expected.lowerBytesField.toBigInt(),
+            //     'deposits root lower bytes'
+            // );
+
+            const latestVerifiedContractDepositsRoot =
+                await noriTokenBridge.latestVerifiedContractDepositsRoot.fetch();
+            const expected = bytes32LEToFieldProvable(
+                ethInput4.verifiedContractDepositsRoot.bytes
             );
             assert.equal(
-                hb.toBigInt(),
-                expected.highByteField.toBigInt(),
-                'deposits root high byte'
-            );
-            assert.equal(
-                lb.toBigInt(),
-                expected.lowerBytesField.toBigInt(),
-                'deposits root lower bytes'
+                latestVerifiedContractDepositsRoot.toBigInt(),
+                expected.toBigInt(),
+                'deposits root'
             );
         }, 1_000_000);
     });
