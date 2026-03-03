@@ -10,14 +10,14 @@
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noUncheckedIndexedAccess": true,
-    "outDir": "target",
+    "outDir": "build",
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
     "strictNullChecks": false,
     "typeRoots": ["../../../node_modules/@types"],
-    "rootDir": ".",
+    "rootDir": "src",
     "baseUrl": ".", // affects where output files end up
     "target": "es2021", // goal: ship *the most modern syntax* that is supported by *all* browsers that support our Wasm
     "module": "nodenext", // allow top-level await
@@ -41,8 +41,8 @@
       "*": ["*", "src/*", "../../../node_modules/*"]
     }
   },
-  "exclude": ["../../../node_modules", "node_modules", "target"],
-  "include": ["src/**/*", "**/*.json"]
+  "exclude": ["../../../node_modules", "node_modules", "build"],
+  "include": ["src/**/*"]
 }
 
 // {

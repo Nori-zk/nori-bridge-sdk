@@ -16,7 +16,7 @@
     }
   },
   "scripts": {
-    "clean": "rimraf build",
+    "clean": "rimraf build tsconfig.tsbuildinfo",
     "build": "npm run clean && tsc",
     "build:cache-layouts": "node --experimental-vm-modules build/bin/buildCacheServerLayouts.js",
     "buildw": "tsc --watch",

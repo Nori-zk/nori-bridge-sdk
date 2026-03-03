@@ -63,6 +63,7 @@ describe('e2e', () => {
                 contractSenderPrivateKey.toPublicKey().toBase58(), // Admin
                 noriTokenBridgePrivateKey.toBase58(),
                 tokenBasePrivateKey.toBase58(),
+                "FIXMETHISISTHEWRONGSTOREHASH",
                 noriStorageInterfaceVerificationKeySafe,
                 0.1 * 1e9,
                 {
