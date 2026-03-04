@@ -173,7 +173,7 @@ function writeSuccessDetailsToEnvFile(
         ADMIN_PUBLIC_KEY: adminPublicKey.toBase58(),
         TOKEN_BASE_TOKEN_ID: tokenBaseTokenId,
         NORI_TOKEN_BRIDGE_TOKEN_ID: noriTokenBridgeTokenId,
-        UPDATE_TOKEN_BASE_VK: tokenBaseAllowUpdates.toString(),
+        UPDATE_TOKEN_BASE_VK: tokenBaseAllowUpdates.toString(), // ALWAYS TRUE
         UPDATE_NORI_TOKEN_BRIDGE_VK: 'false',
     };
     const envFileStr =
