@@ -32,9 +32,9 @@ new LogPrinter('NoriTokenBridge');
 
 // Collect all inputs upfront
 const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
-const possibleNetwork = process.env.NETWORK;
-const possibleDeployerKeyBase58 = process.env.SENDER_PRIVATE_KEY;
-const fee = Number(process.env.TX_FEE || 0.1) * 1e9;
+const possibleNetwork = process.env.MINA_NETWORK;
+const possibleDeployerKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY;
+const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 const possibleStoreHashHex = process.argv[2];
 const possibleAdminPublicKeyBase58 = process.argv[3];
 
@@ -43,16 +43,16 @@ const issues: string[] = [];
 
 if (!possibleNetworkUrl)
     issues.push('Missing required env: MINA_RPC_NETWORK_URL');
-if (!possibleNetwork) issues.push('Missing required env: NETWORK');
+if (!possibleNetwork) issues.push('Missing required env: MINA_NETWORK');
 if (!possibleDeployerKeyBase58)
-    issues.push('Missing required env: SENDER_PRIVATE_KEY');
-if (process.env.ZKAPP_PRIVATE_KEY)
+    issues.push('Missing required env: MINA_SENDER_PRIVATE_KEY (must be the contract deployer private key)');
+if (process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY)
     issues.push(
-        'ZKAPP_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
+        'NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
     );
-if (process.env.TOKEN_BASE_PRIVATE_KEY)
+if (process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY)
     issues.push(
-        'TOKEN_BASE_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
+        'NORI_MINA_TOKEN_BASE_PRIVATE_KEY must not be set for initial deployment — this script generates a random key. Remove it.'
     );
 if (!possibleStoreHashHex)
     issues.push('Missing required first argument: storeHashHex');
@@ -63,7 +63,7 @@ if (possibleDeployerKeyBase58) {
         possibleDeployerKey = PrivateKey.fromBase58(possibleDeployerKeyBase58);
     } catch (e) {
         issues.push(
-            `SENDER_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
+            `MINA_SENDER_PRIVATE_KEY (contract deployer) is not a valid private key: ${(e as Error).message}`
         );
     }
 }
@@ -137,8 +137,8 @@ const networkId: NetworkId =
     possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
 
 // Generate fresh keys for both contracts
-const zkAppPrivateKey = PrivateKey.random();
-const zkAppPrivateKeyBase58 = zkAppPrivateKey.toBase58();
+const tokenBridgePrivateKey = PrivateKey.random();
+const tokenBridgePrivateKeyBase58 = tokenBridgePrivateKey.toBase58();
 const tokenBasePrivateKey = PrivateKey.random();
 const tokenBasePrivateKeyBase58 = tokenBasePrivateKey.toBase58();
 
@@ -152,7 +152,7 @@ if (isPublicKey(possibleAdminPublicKey)) {
     adminPublicKey = possibleAdminPublicKey;
 } else {
     logger.warn(
-        'No adminPublicKeyBase58 provided as second argument. Defaulting to the public key derived from SENDER_PRIVATE_KEY.'
+        'No adminPublicKeyBase58 provided as second argument. Defaulting to the public key derived from MINA_SENDER_PRIVATE_KEY.'
     );
     adminPublicKey = deployerKey.toPublicKey();
 }
@@ -160,27 +160,27 @@ if (isPublicKey(possibleAdminPublicKey)) {
 logger.log(`storeHashHex provided: '${possibleStoreHashHex}'`);
 
 function writeSuccessDetailsToEnvFile(
-    zkAppAddressBase58: string,
+    tokenBridgeAddressBase58: string,
     tokenBaseAddressBase58: string,
     tokenBaseTokenId: string,
-    noriTokenBridgeTokenId: string
+    tokenBridgeTokenId: string
 ) {
     const env = {
-        ZKAPP_PRIVATE_KEY: zkAppPrivateKeyBase58,
-        ZKAPP_ADDRESS: zkAppAddressBase58,
-        TOKEN_BASE_PRIVATE_KEY: tokenBasePrivateKeyBase58,
-        TOKEN_BASE_ADDRESS: tokenBaseAddressBase58,
-        ADMIN_PUBLIC_KEY: adminPublicKey.toBase58(),
-        TOKEN_BASE_TOKEN_ID: tokenBaseTokenId,
-        NORI_TOKEN_BRIDGE_TOKEN_ID: noriTokenBridgeTokenId,
-        UPDATE_TOKEN_BASE_VK: tokenBaseAllowUpdates.toString(), // ALWAYS TRUE
-        UPDATE_NORI_TOKEN_BRIDGE_VK: 'false',
+        NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY: tokenBridgePrivateKeyBase58,
+        NORI_MINA_TOKEN_BRIDGE_ADDRESS: tokenBridgeAddressBase58,
+        NORI_MINA_TOKEN_BASE_PRIVATE_KEY: tokenBasePrivateKeyBase58,
+        NORI_MINA_TOKEN_BASE_ADDRESS: tokenBaseAddressBase58,
+        NORI_MINA_TOKEN_BRIDGE_ADMIN: adminPublicKey.toBase58(),
+        NORI_MINA_TOKEN_BASE_TOKEN_ID: tokenBaseTokenId,
+        NORI_MINA_TOKEN_BRIDGE_TOKEN_ID: tokenBridgeTokenId,
+        NORI_MINA_TOKEN_BASE_ALLOW_VK_UPDATE: tokenBaseAllowUpdates.toString(), // ALWAYS TRUE
+        NORI_MINA_TOKEN_BRIDGE_ALLOW_VK_UPDATE: 'false',
     };
     const envFileStr =
         Object.entries(env)
             .map(([key, value]) => `${key}=${value}`)
             .join('\n') + `\n`;
-    const envFileOutputPath = resolve(rootDir, '..', '.env.nori-token-bridge');
+    const envFileOutputPath = resolve(rootDir, '..', '.env.nori-mina-token-bridge');
     logger.info(`Writing env file with the details: '${envFileOutputPath}'`);
     writeFileSync(envFileOutputPath, envFileStr, 'utf8');
     logger.log(`Wrote '${envFileOutputPath}' successfully.`);
@@ -188,10 +188,10 @@ function writeSuccessDetailsToEnvFile(
 
 async function deploy() {
     const deployerAccount = deployerKey.toPublicKey();
-    const zkAppAddress = zkAppPrivateKey.toPublicKey();
+    const tokenBridgeAddress = tokenBridgePrivateKey.toPublicKey();
     const tokenBaseAddress = tokenBasePrivateKey.toPublicKey();
     logger.log(`Deployer address: '${deployerAccount.toBase58()}'.`);
-    logger.log(`NoriTokenBridge address: '${zkAppAddress.toBase58()}'.`);
+    logger.log(`NoriTokenBridge address: '${tokenBridgeAddress.toBase58()}'.`);
     logger.log(`FungibleToken address: '${tokenBaseAddress.toBase58()}'.`);
 
     const Network = Mina.Network({ networkId, mina: networkUrl });
@@ -217,8 +217,8 @@ async function deploy() {
             },
         ]);
 
-    const zkApp = new NoriTokenBridge(zkAppAddress);
-    const fungibleToken = new FungibleToken(tokenBaseAddress);
+    const tokenBridge = new NoriTokenBridge(tokenBridgeAddress);
+    const tokenBase = new FungibleToken(tokenBaseAddress);
     const initialStoreHash = Bytes32FieldPair.fromBytes32(storeHash);
 
     logger.log('Creating deployment transaction...');
@@ -229,7 +229,7 @@ async function deploy() {
             logger.log(
                 `Deploying NoriTokenBridge with verification key hash: '${NoriTokenBridgeVerificationKey.hash}'`
             );
-            await zkApp.deploy({
+            await tokenBridge.deploy({
                 verificationKey: NoriTokenBridgeVerificationKey,
                 adminPublicKey,
                 tokenBaseAddress,
@@ -237,13 +237,13 @@ async function deploy() {
                 newStoreHash: initialStoreHash,
             });
             logger.log('Deploying FungibleToken.');
-            await fungibleToken.deploy({
+            await tokenBase.deploy({
                 symbol: 'nETH',
                 src: 'https://github.com/2nori/nori-bridge-sdk',
                 allowUpdates: tokenBaseAllowUpdates,
             });
-            await fungibleToken.initialize(
-                zkAppAddress,
+            await tokenBase.initialize(
+                tokenBridgeAddress,
                 UInt8.from(6),
                 Bool(false)
             );
@@ -252,23 +252,23 @@ async function deploy() {
 
     logger.log('Proving transaction');
     await txn.prove();
-    const signedTx = txn.sign([deployerKey, zkAppPrivateKey, tokenBasePrivateKey]);
+    const signedTx = txn.sign([deployerKey, tokenBridgePrivateKey, tokenBasePrivateKey]);
     logger.log('Sending transaction...');
     const pendingTx = await signedTx.send();
     logger.log('Waiting for transaction to be included in a block...');
     await pendingTx.wait();
 
-    const tokenBaseTokenId = fungibleToken.deriveTokenId().toString();
-    const noriTokenBridgeTokenId = zkApp.deriveTokenId().toString();
+    const tokenBaseTokenId = tokenBase.deriveTokenId().toString();
+    const tokenBridgeTokenId = tokenBridge.deriveTokenId().toString();
     logger.log(`Token Base Token ID: ${tokenBaseTokenId}`);
-    logger.log(`NoriTokenBridge Token ID: ${noriTokenBridgeTokenId}`);
+    logger.log(`NoriTokenBridge Token ID: ${tokenBridgeTokenId}`);
 
     logger.log('Deployment successful!');
     writeSuccessDetailsToEnvFile(
-        zkAppAddress.toBase58(),
+        tokenBridgeAddress.toBase58(),
         tokenBaseAddress.toBase58(),
         tokenBaseTokenId,
-        noriTokenBridgeTokenId
+        tokenBridgeTokenId
     );
 }
 

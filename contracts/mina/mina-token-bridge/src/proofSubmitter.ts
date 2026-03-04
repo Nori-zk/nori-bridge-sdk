@@ -40,8 +40,8 @@ export class NoriTokenBridgeSubmitter {
     readonly #zkApp: NoriTokenBridge;
     readonly #fungibleToken: FungibleToken;
     readonly #senderPrivateKey: PrivateKey;
-    readonly #zkAppPrivateKey: PrivateKey;
-    readonly #fungibleTokenPrivateKey: PrivateKey;
+    readonly #tokenBridgePrivateKey: PrivateKey;
+    readonly #tokenBasePrivateKey: PrivateKey;
     readonly #network: NetworkId | 'lightnet';
     readonly #txFee: number;
     readonly noriTokenBridgeVerificationKey: VerificationKey;
@@ -58,21 +58,21 @@ export class NoriTokenBridgeSubmitter {
         logger.info(`NoriTokenBridgeSubmitter constructor called.`);
         const errors: string[] = [];
 
-        const senderPrivateKeyBase58 = process.env.SENDER_PRIVATE_KEY as string;
-        const network = process.env.NETWORK as string;
-        const zkAppPrivateKeyBase58 = process.env.ZKAPP_PRIVATE_KEY as string;
-        const fungibleTokenPrivateKeyBase58 = process.env
-            .FUNGIBLE_TOKEN_PRIVATE_KEY as string;
+        const senderPrivateKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY as string;
+        const network = process.env.MINA_NETWORK as string;
+        const tokenBridgePrivateKeyBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY as string;
+        const tokenBasePrivateKeyBase58 = process.env
+            .NORI_MINA_TOKEN_BASE_PRIVATE_KEY as string;
         const networkUrl = process.env.MINA_RPC_NETWORK_URL as string;
 
         if (!senderPrivateKeyBase58)
-            errors.push('SENDER_PRIVATE_KEY is required');
+            errors.push('MINA_SENDER_PRIVATE_KEY is required');
 
         if (!network) {
-            errors.push('NETWORK is required');
+            errors.push('MINA_NETWORK is required');
         } else if (!['devnet', 'mainnet', 'lightnet'].includes(network)) {
             errors.push(
-                `NETWORK must be one of: devnet, mainnet, lightnet (got "${network}")`
+                `MINA_NETWORK must be one of: devnet, mainnet, lightnet (got "${network}")`
             );
         } else {
             this.#network = network as NetworkId;
@@ -80,14 +80,14 @@ export class NoriTokenBridgeSubmitter {
 
         if (!networkUrl) errors.push('MINA_RPC_NETWORK_URL is required');
 
-        if (!zkAppPrivateKeyBase58)
+        if (!tokenBridgePrivateKeyBase58)
             errors.push(
-                'ZKAPP_PRIVATE_KEY is required when not in lightnet mode'
+                'NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY is required when not in lightnet mode'
             );
 
-        if (!fungibleTokenPrivateKeyBase58)
+        if (!tokenBasePrivateKeyBase58)
             errors.push(
-                'FUNGIBLE_TOKEN_PRIVATE_KEY is required when not in lightnet mode'
+                'NORI_MINA_TOKEN_BASE_PRIVATE_KEY is required when not in lightnet mode'
             );
 
         if (errors.length > 0) {
@@ -95,16 +95,16 @@ export class NoriTokenBridgeSubmitter {
         }
 
         this.#senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
-        this.#zkAppPrivateKey = PrivateKey.fromBase58(zkAppPrivateKeyBase58);
-        this.#fungibleTokenPrivateKey = PrivateKey.fromBase58(
-            fungibleTokenPrivateKeyBase58
+        this.#tokenBridgePrivateKey = PrivateKey.fromBase58(tokenBridgePrivateKeyBase58);
+        this.#tokenBasePrivateKey = PrivateKey.fromBase58(
+            tokenBasePrivateKeyBase58
         );
-        this.#zkApp = new NoriTokenBridge(this.#zkAppPrivateKey.toPublicKey());
+        this.#zkApp = new NoriTokenBridge(this.#tokenBridgePrivateKey.toPublicKey());
         this.#fungibleToken = new FungibleToken(
-            this.#fungibleTokenPrivateKey.toPublicKey()
+            this.#tokenBasePrivateKey.toPublicKey()
         );
-        this.#txFee = Number(process.env.TX_FEE || 0.1) * 1e9;
-        this.#testMode = process.env.NETWORK === 'lightnet';
+        this.#txFee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
+        this.#testMode = process.env.MINA_NETWORK === 'lightnet';
         this.minaRPCNetworkUrl = networkUrl;
 
         logger.log('Loaded constants from: .env');
@@ -221,8 +221,8 @@ export class NoriTokenBridgeSubmitter {
         await deployTx
             .sign([
                 this.#senderPrivateKey,
-                this.#zkAppPrivateKey,
-                this.#fungibleTokenPrivateKey,
+                this.#tokenBridgePrivateKey,
+                this.#tokenBasePrivateKey,
             ])
             .send()
             .wait();

@@ -22,10 +22,10 @@ new LogPrinter('NoriTokenBridge');
 
 // Collect all inputs upfront
 const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
-const possibleNetwork = process.env.NETWORK;
-const possibleDeployerKeyBase58 = process.env.SENDER_PRIVATE_KEY;
-const possibleZkAppKeyBase58 = process.env.ZKAPP_PRIVATE_KEY;
-const fee = Number(process.env.TX_FEE || 0.1) * 1e9;
+const possibleNetwork = process.env.MINA_NETWORK;
+const possibleAdminKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY;
+const possibleTokenBridgeKeyBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY;
+const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 const possibleVkDataFilePath = process.argv[2];
 const possibleVkHashFilePath = process.argv[3];
 
@@ -34,34 +34,34 @@ const issues: string[] = [];
 
 if (!possibleNetworkUrl)
     issues.push('Missing required env: MINA_RPC_NETWORK_URL');
-if (!possibleNetwork) issues.push('Missing required env: NETWORK');
-if (!possibleDeployerKeyBase58)
-    issues.push('Missing required env: SENDER_PRIVATE_KEY');
-if (!possibleZkAppKeyBase58)
-    issues.push('Missing required env: ZKAPP_PRIVATE_KEY');
+if (!possibleNetwork) issues.push('Missing required env: MINA_NETWORK');
+if (!possibleAdminKeyBase58)
+    issues.push('Missing required env: MINA_SENDER_PRIVATE_KEY (must be the contract admin private key)');
+if (!possibleTokenBridgeKeyBase58)
+    issues.push('Missing required env: NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY');
 if (!possibleVkDataFilePath)
     issues.push('Missing required first argument: path to new VkData.json');
 if (!possibleVkHashFilePath)
     issues.push('Missing required second argument: path to new VkHash.json');
 
-let possibleDeployerKey: PrivateKey | undefined;
-if (possibleDeployerKeyBase58) {
+let possibleAdminKey: PrivateKey | undefined;
+if (possibleAdminKeyBase58) {
     try {
-        possibleDeployerKey = PrivateKey.fromBase58(possibleDeployerKeyBase58);
+        possibleAdminKey = PrivateKey.fromBase58(possibleAdminKeyBase58);
     } catch (e) {
         issues.push(
-            `SENDER_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
+            `MINA_SENDER_PRIVATE_KEY (contract admin) is not a valid private key: ${(e as Error).message}`
         );
     }
 }
 
-let possibleZkAppKey: PrivateKey | undefined;
-if (possibleZkAppKeyBase58) {
+let possibleTokenBridgeKey: PrivateKey | undefined;
+if (possibleTokenBridgeKeyBase58) {
     try {
-        possibleZkAppKey = PrivateKey.fromBase58(possibleZkAppKeyBase58);
+        possibleTokenBridgeKey = PrivateKey.fromBase58(possibleTokenBridgeKeyBase58);
     } catch (e) {
         issues.push(
-            `ZKAPP_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
+            `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
         );
     }
 }
@@ -111,8 +111,8 @@ function isVkSafe(
 }
 
 if (
-    !isPrivateKey(possibleDeployerKey) ||
-    !isPrivateKey(possibleZkAppKey) ||
+    !isPrivateKey(possibleAdminKey) ||
+    !isPrivateKey(possibleTokenBridgeKey) ||
     !isString(possibleNetworkUrl) ||
     !isString(possibleNetwork) ||
     !isVkSafe(possibleVkSafe)
@@ -121,8 +121,8 @@ if (
     process.exit(1);
 }
 
-const deployerKey = possibleDeployerKey;
-const zkAppPrivateKey = possibleZkAppKey;
+const adminKey = possibleAdminKey;
+const tokenBridgePrivateKey = possibleTokenBridgeKey;
 const networkUrl = possibleNetworkUrl;
 const networkId: NetworkId =
     possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
@@ -134,10 +134,10 @@ logger.log(`VkData file: '${possibleVkDataFilePath}'`);
 logger.log(`VkHash file: '${possibleVkHashFilePath}'`);
 
 async function updateVk() {
-    const deployerAccount = deployerKey.toPublicKey();
-    const zkAppAddress = zkAppPrivateKey.toPublicKey();
-    logger.log(`Deployer (admin) address: '${deployerAccount.toBase58()}'.`);
-    logger.log(`NoriTokenBridge address: '${zkAppAddress.toBase58()}'.`);
+    const adminAccount = adminKey.toPublicKey();
+    const tokenBridgeAddress = tokenBridgePrivateKey.toPublicKey();
+    logger.log(`Admin address: '${adminAccount.toBase58()}'.`);
+    logger.log(`NoriTokenBridge address: '${tokenBridgeAddress.toBase58()}'.`);
 
     const Network = Mina.Network({ networkId, mina: networkUrl });
     Mina.setActiveInstance(Network);
@@ -161,28 +161,28 @@ async function updateVk() {
         },
     ]);
 
-    const zkApp = new NoriTokenBridge(zkAppAddress);
+    const tokenBridge = new NoriTokenBridge(tokenBridgeAddress);
 
     logger.log('Creating update VK transaction...');
     const txn = await Mina.transaction(
-        { fee, sender: deployerAccount },
+        { fee, sender: adminAccount },
         async () => {
             logger.log(
                 `Setting new verification key with hash: '${newVkHashStr}'`
             );
-            await zkApp.updateVerificationKey(newVerificationKey);
+            await tokenBridge.updateVerificationKey(newVerificationKey);
         }
     );
 
     logger.log('Proving transaction');
     await txn.prove();
-    const signedTx = txn.sign([deployerKey, zkAppPrivateKey]);
+    const signedTx = txn.sign([adminKey, tokenBridgePrivateKey]);
     logger.log('Sending transaction...');
     const pendingTx = await signedTx.send();
     logger.log('Waiting for transaction to be included in a block...');
     await pendingTx.wait();
 
-    await fetchAccount({ publicKey: zkAppAddress });
+    await fetchAccount({ publicKey: tokenBridgeAddress });
     logger.log('VK update successful!');
 }
 

@@ -18,7 +18,7 @@ import { getNewMinaLiteNetAccountSK } from './testUtils.js';
 
 new LogPrinter('TestNoriTokenBridge');
 
-process.env.NETWORK = process.env.NETWORK || 'lightnet';
+process.env.MINA_NETWORK = process.env.MINA_NETWORK || 'lightnet';
 process.env.MINA_RPC_NETWORK_URL =
     process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
 
@@ -73,17 +73,17 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
 
     test('should run the proof submission process correctly', async () => {
         // Generate a random contract key
-        process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
+        process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
-        // Generate a random fungible token key
-        process.env.FUNGIBLE_TOKEN_PRIVATE_KEY = PrivateKey.toBase58(
+        // Generate a random token base key
+        process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
-        // Generate a random SENDER_PRIVATE_KEY
-        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
+        // Generate a random MINA_SENDER_PRIVATE_KEY
+        process.env.MINA_SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
         //const cacheDir = getRandomCacheDir();
         try {
@@ -125,17 +125,17 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
 
     test('should perform a series of proof submissions', async () => {
         // Generate a random contract key
-        process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
+        process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
-        // Generate a random fungible token key
-        process.env.FUNGIBLE_TOKEN_PRIVATE_KEY = PrivateKey.toBase58(
+        // Generate a random token base key
+        process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
-        // Generate a random SENDER_PRIVATE_KEY
-        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
+        // Generate a random MINA_SENDER_PRIVATE_KEY
+        process.env.MINA_SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
         // const cacheDir = getRandomCacheDir();
         try {
@@ -186,17 +186,17 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
 
     test('should invoke a hash validation issue when we skip transition proofs', async () => {
         // Generate a random contract key
-        process.env.ZKAPP_PRIVATE_KEY = PrivateKey.toBase58(
+        process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
-        // Generate a random fungible token key
-        process.env.FUNGIBLE_TOKEN_PRIVATE_KEY = PrivateKey.toBase58(
+        // Generate a random token base key
+        process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
-        // Generate a random SENDER_PRIVATE_KEY
-        process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
+        // Generate a random MINA_SENDER_PRIVATE_KEY
+        process.env.MINA_SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
         // const cacheDir = getRandomCacheDir();
         try {

@@ -18,7 +18,6 @@ import {
     Bool,
     fetchAccount,
     Field,
-    Lightnet,
     Mina,
     type NetworkId,
     Poseidon,
@@ -58,14 +57,15 @@ import {
     bytes32LEToFieldProvable,
 } from '@nori-zk/o1js-zk-utils';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
-// NoriTokenBridge.update() takes the raw proof-conversion type. Cast with `as any` at call sites.
+// NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair } from './testUtils.js';
 
 new LogPrinter('TestNoriTokenBridgeE2E');
 const logger = new Logger('NoriTokenBridgeE2ESpec');
 
-const FEE = Number(process.env.TX_FEE ?? 0.1) * 1e9;
+const fee = Number(process.env.MINA_TX_FEE ?? 0.1) * 1e9;
 
 type Keypair = { publicKey: PublicKey; privateKey: PrivateKey };
 
@@ -107,7 +107,7 @@ async function txSend({
     body,
     sender,
     signers,
-    fee: txFee = FEE,
+    fee: txFee = fee,
 }: {
     body: () => Promise<void>;
     sender: PublicKey;
@@ -184,14 +184,13 @@ describe('NoriTokenBridge', () => {
         // Configure Lightnet
         const Network = Mina.Network({
             networkId: 'testnet' as NetworkId,
-            mina: process.env.NETWORK_URL ?? 'http://localhost:8080/graphql',
-            lightnetAccountManager: 'http://localhost:8181',
+            mina: process.env.MINA_RPC_NETWORK_URL ?? 'http://localhost:8080/graphql',
         });
         Mina.setActiveInstance(Network);
 
-        deployer = await Lightnet.acquireKeyPair();
-        admin = await Lightnet.acquireKeyPair();
-        alice = await Lightnet.acquireKeyPair();
+        deployer = keyPairBase58ToKeyPair(await getNewMinaLiteNetAccountKeyPair());
+        admin = keyPairBase58ToKeyPair(await getNewMinaLiteNetAccountKeyPair());
+        alice = keyPairBase58ToKeyPair(await getNewMinaLiteNetAccountKeyPair());
 
         tokenBaseKeypair = PrivateKey.randomKeypair();
         noriTokenBridgeKeypair = PrivateKey.randomKeypair();

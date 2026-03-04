@@ -3,10 +3,10 @@ import { type NetworkId } from 'o1js';
 type EnvName = 'development' | 'staging' | 'production';
 
 type Env = {
-    NORI_TOKEN_BRIDGE_ADDRESS: string;
-    TOKEN_BASE_ADDRESS: string;
-    TOKEN_BASE_TOKEN_ID: string;
-    NORI_TOKEN_BRIDGE_TOKEN_ID: string;
+    NORI_MINA_TOKEN_BRIDGE_ADDRESS: string;
+    NORI_MINA_TOKEN_BASE_ADDRESS: string;
+    NORI_MINA_TOKEN_BASE_TOKEN_ID: string;
+    NORI_MINA_TOKEN_BRIDGE_TOKEN_ID: string;
     MINA_ARCHIVE_RPC_URL: string;
     MINA_RPC_NETWORK_URL: string;
     MINA_RPC_NETWORK_ID: NetworkId;
@@ -21,13 +21,13 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
     {
         mina: {
             staging: {
-                NORI_TOKEN_BRIDGE_ADDRESS:
+                NORI_MINA_TOKEN_BRIDGE_ADDRESS:
                     'B62qjG4nddBC6SMDNXXiLwDgf49SSKHG51cnsD4Xh4zgGh8h99DsaQB',
-                TOKEN_BASE_ADDRESS:
+                NORI_MINA_TOKEN_BASE_ADDRESS:
                     'B62qqDnDEEAkFatsN3WdbuJ9mxb7y5VywFzKCA7Yj93SkkoQU1pfpio',
-                TOKEN_BASE_TOKEN_ID:
+                NORI_MINA_TOKEN_BASE_TOKEN_ID:
                     '11721631656846901930765495286036281890935381019970777414550300219117311353736',
-                NORI_TOKEN_BRIDGE_TOKEN_ID:
+                NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:
                     '14538635346799249748896588374890265616689045468986440153413394516122841324583',
                 MINA_ARCHIVE_RPC_URL: 'https://archive-node.devnet.nori.it.com',
                 MINA_RPC_NETWORK_URL:

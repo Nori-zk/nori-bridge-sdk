@@ -1,5 +1,5 @@
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { Bytes, Field, Mina } from 'o1js';
+import { Bytes, Field, Mina, PrivateKey, PublicKey } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 
 const logger = new Logger('NoriTokenBridgeTestUtils');
@@ -18,11 +18,11 @@ export function validateEnv(): {
     const {
         ETH_PRIVATE_KEY,
         ETH_RPC_URL,
-        NORI_TOKEN_BRIDGE_ADDRESS,
-        ZKAPP_ADDRESS,
+        NORI_ETH_TOKEN_BRIDGE_ADDRESS,
+        NORI_MINA_TOKEN_BRIDGE_ADDRESS,
         MINA_RPC_NETWORK_URL,
-        SENDER_PRIVATE_KEY,
-        TOKEN_BASE_ADDRESS,
+        MINA_SENDER_PRIVATE_KEY,
+        NORI_MINA_TOKEN_BASE_ADDRESS,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -36,29 +36,29 @@ export function validateEnv(): {
     }
 
     if (
-        !NORI_TOKEN_BRIDGE_ADDRESS ||
-        !/^0x[a-fA-F0-9]{40}$/.test(NORI_TOKEN_BRIDGE_ADDRESS)
+        !NORI_ETH_TOKEN_BRIDGE_ADDRESS ||
+        !/^0x[a-fA-F0-9]{40}$/.test(NORI_ETH_TOKEN_BRIDGE_ADDRESS)
     ) {
         errors.push(
-            'NORI_TOKEN_BRIDGE_ADDRESS missing or invalid (expected 0x-prefixed 40 hex chars)'
+            'NORI_ETH_TOKEN_BRIDGE_ADDRESS missing or invalid (expected 0x-prefixed 40 hex chars)'
         );
     }
 
     if (
-        !ZKAPP_ADDRESS ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(ZKAPP_ADDRESS)
+        !NORI_MINA_TOKEN_BRIDGE_ADDRESS ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_MINA_TOKEN_BRIDGE_ADDRESS)
     ) {
         errors.push(
-            'ZKAPP_ADDRESS missing or invalid (expected Base58 string)'
+            'NORI_MINA_TOKEN_BRIDGE_ADDRESS missing or invalid (expected Base58 string)'
         );
     }
 
     if (
-        !TOKEN_BASE_ADDRESS ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(TOKEN_BASE_ADDRESS)
+        !NORI_MINA_TOKEN_BASE_ADDRESS ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_MINA_TOKEN_BASE_ADDRESS)
     ) {
         errors.push(
-            'TOKEN_BASE_ADDRESS missing or invalid (expected Base58 string)'
+            'NORI_MINA_TOKEN_BASE_ADDRESS missing or invalid (expected Base58 string)'
         );
     }
 
@@ -69,11 +69,11 @@ export function validateEnv(): {
     }
 
     if (
-        !SENDER_PRIVATE_KEY ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(SENDER_PRIVATE_KEY)
+        !MINA_SENDER_PRIVATE_KEY ||
+        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(MINA_SENDER_PRIVATE_KEY)
     ) {
         errors.push(
-            'SENDER_PRIVATE_KEY missing or invalid (expected Base58 string)'
+            'MINA_SENDER_PRIVATE_KEY missing or invalid (expected Base58 string)'
         );
     }
 
@@ -85,48 +85,42 @@ export function validateEnv(): {
     return {
         ethPrivateKey: ETH_PRIVATE_KEY,
         ethRpcUrl: ETH_RPC_URL,
-        noriETHBridgeAddressHex: NORI_TOKEN_BRIDGE_ADDRESS,
-        noriTokenBridgeAddressBase58: ZKAPP_ADDRESS,
-        noriTokenBaseAddressBase58: TOKEN_BASE_ADDRESS,
+        noriETHBridgeAddressHex: NORI_ETH_TOKEN_BRIDGE_ADDRESS,
+        noriTokenBridgeAddressBase58: NORI_MINA_TOKEN_BRIDGE_ADDRESS,
+        noriTokenBaseAddressBase58: NORI_MINA_TOKEN_BASE_ADDRESS,
         minaRpcUrl: MINA_RPC_NETWORK_URL,
-        minaSenderPrivateKeyBase58: SENDER_PRIVATE_KEY,
+        minaSenderPrivateKeyBase58: MINA_SENDER_PRIVATE_KEY,
     };
 }
 
 export async function getNewMinaLiteNetAccountSK(): Promise<string> {
-    const { request } = await import('http');
-    return new Promise((resolve, reject) => {
-        const req = request(
-            {
-                host: 'localhost',
-                port: 8181,
-                path: '/acquire-account',
-                method: 'GET',
-            },
-            (res) => {
-                res.setEncoding('utf8');
-                let buffer = '';
-                res.on('data', (data) => (buffer += data));
-                res.on('end', () => {
-                    try {
-                        const data = JSON.parse(buffer);
-                        logger.log(`Received new sk from acquire account.`);
-                        resolve(data.sk);
-                    } catch (e) {
-                        const error = e as unknown as Error;
-                        logger.error(
-                            `Failed to retreive a new account:\n${String(
-                                error.stack
-                            )}`
-                        );
-                        reject(error);
-                    }
-                });
-            }
-        );
-        req.on('error', (err) => reject(err));
-        req.end();
-    });
+    const rpcUrl = process?.env?.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
+    const url = new URL(rpcUrl);
+    const host = url.hostname;
+
+    const response = await fetch(`http://${host}:8181/acquire-account`);
+    const data = await response.json();
+    logger.log(`Received new sk from acquire account.`);
+    return data.sk;
+}
+
+export async function getNewMinaLiteNetAccountKeyPair(): Promise<{sk: string, pk: string}> {
+    const rpcUrl = process?.env?.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
+    const url = new URL(rpcUrl);
+    const host = url.hostname;
+
+    const response = await fetch(`http://${host}:8181/acquire-account`);
+    const data = await response.json();
+    logger.log(`Received new keyPair from acquire account.`);
+    const {sk, pk} = data;
+    return {sk, pk};
+}
+
+export function keyPairBase58ToKeyPair({ sk, pk }: { sk: string; pk: string }): { privateKey: PrivateKey; publicKey: PublicKey } {
+    return {
+        privateKey: PrivateKey.fromBase58(sk),
+        publicKey: PublicKey.fromBase58(pk),
+    };
 }
 
 export class InvertedPromise<T = void, E = void> {

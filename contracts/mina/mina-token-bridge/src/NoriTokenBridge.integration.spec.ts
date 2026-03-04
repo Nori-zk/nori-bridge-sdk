@@ -59,14 +59,14 @@ import {
     bytes32LEToFieldProvable,
 } from '@nori-zk/o1js-zk-utils';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
-// NoriTokenBridge.update() takes the raw proof-conversion type. Cast with `as any` at call sites.
+// NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
 
 new LogPrinter('TestNoriTokenBridgeIntegration');
 const logger = new Logger('NoriTokenBridgeIntegrationSpec');
 
-const FEE = Number(process.env.TX_FEE ?? 0.1) * 1e9;
+const fee = Number(process.env.MINA_TX_FEE ?? 0.1) * 1e9;
 
 type Keypair = { publicKey: PublicKey; privateKey: PrivateKey };
 
@@ -109,7 +109,7 @@ async function txSend({
     body,
     sender,
     signers,
-    fee: txFee = FEE,
+    fee: txFee = fee,
 }: {
     body: () => Promise<void>;
     sender: PublicKey;
