@@ -1,6 +1,8 @@
 import {
+    Bool,
     type Cache,
     Field,
+    Provable,
     type SmartContract,
     UInt64,
     UInt8,
@@ -13,20 +15,84 @@ import { type Logger } from 'esm-iso-logger';
 
 // Bytes32 Field utils
 
+export function isLessThanFieldPrimeLE(bytes: UInt8[]): Bool {
+    // Mina field prime p in LE as Fields
+    const P_LE: Field[] = [
+        1n,
+        0n,
+        0n,
+        0n,
+        237n,
+        48n,
+        45n,
+        153n,
+        27n,
+        249n,
+        76n,
+        9n,
+        252n,
+        152n,
+        70n,
+        34n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        64n,
+    ].map((b) => new Field(b));
+    // Scan from bytes[31] (MSB) down to bytes[0] (LSB).
+    // `strictlyLess` starts false and can only ever flip true — never reset.
+    // `different` latches true the moment any byte differs from p's byte.
+    // Once `different` is true, `different.not()` is false, so no future byte
+    // can update `strictlyLess` — it is frozen at whatever it was set to.
+    // Therefore: `strictlyLess` becomes true if at the first differing byte
+    // position (from MSB), the input byte was less than p's byte.
+    // If all bytes match (input == p), `different` never latches and
+    // `strictlyLess` stays false — correctly rejecting p itself.
+    let strictlyLess = Bool(false);
+    let different = Bool(false);
+    for (let i = 31; i >= 0; i--) {
+        const pField = P_LE[i] as Field;
+        const byteField = (bytes[i] as UInt8).value;
+        const lt = byteField.lessThan(pField);
+        const eq = byteField.equals(pField);
+        strictlyLess = Provable.if(
+            different.not().and(lt),
+            Bool,
+            Bool(true),
+            strictlyLess
+        );
+        different = different.or(eq.not());
+    }
+    return strictlyLess;
+}
+
 export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
-    // Guard: bytes[31] is the most significant byte in LE and must not exceed 64 (top byte of Field.ORDER)
-    // See the utils.spec.ts 'Field order wrapping bytes 32 validation'
-    uint8ArrayLength32[31].value.assertLessThanOrEqual(new Field(64n));
-    
+    // What if the Bytes32 represents a value greater than P - 1? We should do some
+    // assertion that it isnt FIXME
+    // See 'Field order wrapping bytes 32 validation'
+    isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
+        'Given a uint8ArrayLength32 which exceeded p - 1'
+    );
+
     // CHECKME
     // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
     // And here we re-interpret the BE as LE!
     // But it does pass the test! And otherwise fails.
     let field = new Field(0);
     for (let i = 31; i >= 0; i--) {
-        field = field
-            .mul(256)
-            .add(uint8ArrayLength32[i].value);
+        field = field.mul(256).add(uint8ArrayLength32[i].value);
     }
     return field;
 }
