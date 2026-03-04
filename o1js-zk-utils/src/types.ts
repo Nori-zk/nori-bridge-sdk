@@ -1,20 +1,17 @@
+import { Bytes, Field, type ProvableType, Struct, UInt8 } from 'o1js';
+import { type EthVerifier } from './ethVerifier.js';
+import { type Tuple } from 'o1js/dist/node/lib/util/types.js';
 import {
-    Bytes,
-    Field,
-    Provable,
-    ProvableType,
-    Struct,
-    UInt64,
-    UInt8,
-} from 'o1js';
-import { EthVerifier } from './ethVerifier.js';
-import { Tuple } from 'o1js/dist/node/lib/util/types.js';
-import {
-    PrivateInput,
-    ZkProgram as ZkProgramFunc,
+    type PrivateInput,
+    type ZkProgram as ZkProgramFunc,
 } from 'o1js/dist/node/lib/proof-system/zkprogram.js';
-
-export type Constructor<T = any> = new (...args: any) => T;
+import {
+    type ConversionOutput,
+    type SP1ProofWithPublicValuesPlonkNoTee,
+} from '@nori-zk/proof-conversion/build/src/index.min.js';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Constructor<T = unknown> = new (...args: any[]) => T;
 
 export type ZkProgram<
     Config extends {
@@ -26,11 +23,11 @@ export type ZkProgram<
                 auxiliaryOutput?: ProvableType;
             };
         };
-    }
+    },
 > = ReturnType<typeof ZkProgramFunc<Config>>;
 
 export type CompilableZkProgram = {
-    compile: (options?: any) => Promise<{
+    compile: (options?: unknown) => Promise<{
         verificationKey: {
             data: string;
             hash: Field;
@@ -38,47 +35,9 @@ export type CompilableZkProgram = {
     }>;
 };
 
-export interface Proof {
-    Plonk: {
-        encoded_proof: string;
-        plonk_vkey_hash: number[];
-        public_inputs: string[];
-        raw_proof: string;
-    };
-}
-
-export interface PublicValues {
-    buffer: {
-        data: number[];
-    };
-}
-
-export interface PlonkProof {
-    proof: Proof;
-    public_values: PublicValues;
-    sp1_version: string;
-}
-
-export interface ConvertedProofProofData {
-    maxProofsVerified: 0 | 1 | 2;
-    proof: string;
-    publicInput: string[];
-    publicOutput: string[];
-}
-
-export interface ConvertedProofVkData {
-    data: string;
-    hash: string;
-}
-
-export interface ConvertedProof {
-    vkData: ConvertedProofVkData;
-    proofData: ConvertedProofProofData;
-}
-
 export interface CreateProofArgument {
-    sp1PlonkProof: PlonkProof;
-    conversionOutputProof: ConvertedProof;
+    sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee;
+    conversionOutputProof: ConversionOutput;
 }
 
 export type EthVerifierComputeOutput = Awaited<
@@ -100,6 +59,16 @@ export class Bytes20 extends Bytes(20) {
     static get zero() {
         return new this(new Array(20).map(() => new UInt8(0)));
     }
+}
+
+export function bytes32FieldPairToBytes32(
+    highByteField: Field,
+    lowerBytesField: Field
+) {
+    // wordToBytes returns little-endian (LSB first), so reverse to restore big-endian order.
+    const highByte = wordToBytes(highByteField, 1)[0];
+    const lowerBytes = wordToBytes(lowerBytesField, 31).reverse();
+    return Bytes32.from([highByte, ...lowerBytes]);
 }
 
 export class Bytes32FieldPair extends Struct({
@@ -125,6 +94,13 @@ export class Bytes32FieldPair extends Struct({
             highByteField: storeHashHighByteField,
             lowerBytesField: storeHashLowerBytesField,
         });
+    }
+
+    toBytes32(): Bytes32 {
+        return bytes32FieldPairToBytes32(
+            this.highByteField,
+            this.lowerBytesField
+        );
     }
 }
 

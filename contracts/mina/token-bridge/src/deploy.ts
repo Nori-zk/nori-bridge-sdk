@@ -1,9 +1,47 @@
 import 'dotenv/config';
 import { PrivateKey } from 'o1js';
 import { getTokenDeployerWorker } from './workers/tokenDeployer/node/parent.js';
+import { Logger } from 'esm-iso-logger';
+import { writeFileSync } from 'fs';
+import { resolve } from 'path';
+import { rootDir } from './rootDir.js';
+
+const logger = new Logger('DeployTokenController');
+
+// Util to save deployment details to a file
+function writeSuccessDetailsToEnvFile(
+    noriTokenControllerPrivateKey: string,
+    noriTokenControllerAddress: string,
+    tokenBasePrivateKey: string,
+    tokenBaseAddress: string,
+    adminPublicKey: string,
+    tokenBaseTokenId: string,
+    noriTokenControllerTokenId: string,
+    tokenBaseAllowUpdates: boolean
+) {
+    const env = {
+        NORI_CONTROLLER_PRIVATE_KEY: noriTokenControllerPrivateKey,
+        NORI_TOKEN_CONTROLLER_ADDRESS: noriTokenControllerAddress,
+        TOKEN_BASE_PRIVATE_KEY: tokenBasePrivateKey,
+        TOKEN_BASE_ADDRESS: tokenBaseAddress,
+        ADMIN_PUBLIC_KEY: adminPublicKey,
+        TOKEN_BASE_TOKEN_ID: tokenBaseTokenId,
+        NORI_TOKEN_CONTROLLER_TOKEN_ID: noriTokenControllerTokenId,
+        UPDATE_TOKEN_BASE_VK: tokenBaseAllowUpdates.toString(),
+        UPDATE_TOKEN_CONTROLLER_VK: 'false',
+    };
+    const envFileStr =
+        Object.entries(env)
+            .map(([key, value]) => `${key}=${value}`)
+            .join('\n') + `\n`;
+    const envFileOutputPath = resolve(rootDir, '..', '..', '.env.nori-token-bridge');
+    logger.info(`Writing env file with the details: '${envFileOutputPath}'`);
+    writeFileSync(envFileOutputPath, envFileStr, 'utf8');
+    logger.log(`Wrote '${envFileOutputPath}' successfully.`);
+}
 
 export async function deployTokenController() {
-    console.log('Deploying Nori Token Controller...');
+    logger.log('Deploying Nori Token Controller...');
     const defaultLightnetUrl = 'http://localhost:8080/graphql';
     const networkUrl = process.env.MINA_RPC_NETWORK_URL || defaultLightnetUrl;
     const network =
@@ -11,7 +49,7 @@ export async function deployTokenController() {
             ? 'testnet'
             : 'mainnet';
 
-    console.log(`🚀 Starting deployment to ${network}`);
+    logger.log(`🚀 Starting deployment to ${network}`);
     // Configuration
     // Get or generate sender private key
     let senderPrivateKey = process.env.SENDER_PRIVATE_KEY;
@@ -21,6 +59,20 @@ export async function deployTokenController() {
             'SENDER_PRIVATE_KEY environment variable is required for non-local deployments'
         );
     }
+
+    // Track if we're creating new keys (new deployment) or using existing ones (VK update)
+    const hasControllerKey = !!process.env.NORI_CONTROLLER_PRIVATE_KEY;
+    const hasTokenBaseKey = !!process.env.TOKEN_BASE_PRIVATE_KEY;
+
+    // Both provided = VK update, neither provided = new deployment, one provided = error
+    if (hasControllerKey !== hasTokenBaseKey) {
+        throw new Error(
+            'Both NORI_CONTROLLER_PRIVATE_KEY and TOKEN_BASE_PRIVATE_KEY must be provided together for VK updates, or both omitted for new deployment'
+        );
+    }
+
+    const keysWereCreated = !hasControllerKey; // If no keys, we're creating new ones
+
     const noriTokenControllerPrivateKey =
         process.env.NORI_CONTROLLER_PRIVATE_KEY ||
         PrivateKey.random().toBase58();
@@ -29,7 +81,7 @@ export async function deployTokenController() {
 
     // Determine if we are a mock
     const mock = !!process.env.MOCK;
-    console.log('mock', mock);
+    logger.log('mock', mock);
 
     // Create the config with the saved variables
     const config = {
@@ -46,9 +98,9 @@ export async function deployTokenController() {
         mock: mock,
     };
 
-    console.log('config', config);
+    logger.log('config', config);
 
-    console.log(`Configuration loaded: {
+    logger.log(`Configuration loaded: {
             network: ${network},
             networkUrl: ${config.networkUrl},
             adminPublicKey: ${config.adminPublicKey},
@@ -59,58 +111,137 @@ export async function deployTokenController() {
         }`);
 
     // Log private keys (warning: sensitive information)
-    console.log('Private Keys (keep secure):');
-    console.log(`Sender: ${senderPrivateKey}`);
-    console.log(`Token Controller: ${noriTokenControllerPrivateKey}`);
-    console.log(`Token Base: ${tokenBasePrivateKey}`);
+    logger.log('Private Keys (keep secure):');
+    logger.log(`Sender: ${senderPrivateKey}`);
+    logger.log(`Token Controller: ${noriTokenControllerPrivateKey}`);
+    logger.log(`Token Base: ${tokenBasePrivateKey}`);
 
-    let ethProcessorAddress: string = config.ethProcessorAddress;
-    if (!ethProcessorAddress) {
-        console.log('Inventing a random eth processor address.');
-        ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
-    }
-
-    console.log('Constructing and compiling token deployer worker.');
+    logger.log('Constructing and compiling token deployer worker.');
     const TokenDeployerWorker = getTokenDeployerWorker();
     const tokenDeployer = new TokenDeployerWorker();
-    const { noriStorageInterfaceVerificationKeySafe } =
-        await tokenDeployer.compile();
+    const {
+        noriStorageInterfaceVerificationKeySafe,
+        noriTokenControllerVerificationKeySafe,
+        fungibleTokenVerificationKeySafe,
+    } = await tokenDeployer.compile();
 
-    console.log('Calling minaSetup.');
+    logger.log('Calling minaSetup.');
     await tokenDeployer.minaSetup({
         networkId: network,
         mina: networkUrl,
     });
 
-    console.log('Deploying contract.');
-    const { tokenBaseAddress, noriTokenControllerAddress, txHash } =
-        await tokenDeployer.deployContracts(
-            config.senderPrivateKey, //contractSenderPrivateKeyBase58,
-            config.adminPublicKey, // contractSenderPrivateKeyBase58, // Admin
-            config.noriTokenControllerPrivateKey, //tokenControllerPrivateKey.toBase58(),
-            config.tokenBasePrivateKey, // tokenBasePrivateKey.toBase58(),
-            ethProcessorAddress, //ethProcessorAddress,
+    let tokenBaseAddress: string;
+    let noriTokenControllerAddress: string;
+    let tokenBaseTokenId: string;
+    let noriTokenControllerTokenId: string;
+    let txHash: string;
+
+    const tokenBaseAllowUpdates = true;
+
+    if (keysWereCreated) {
+        // Set up eth processor address (only needed for deployment, not VK updates)
+        let ethProcessorAddress: string = config.ethProcessorAddress;
+        if (!ethProcessorAddress) {
+            logger.warn('ETH_PROCESSOR_ADDRESS not provided. Generating random address.');
+            ethProcessorAddress = PrivateKey.random().toPublicKey().toBase58();
+        }
+
+        // New deployment mode
+        logger.log('Deploying contracts...');
+
+        const result = await tokenDeployer.deployContracts(
+            config.senderPrivateKey,
+            config.adminPublicKey,
+            config.noriTokenControllerPrivateKey,
+            config.tokenBasePrivateKey,
+            ethProcessorAddress,
             noriStorageInterfaceVerificationKeySafe,
             0.1 * 1e9,
             {
                 symbol: 'nETH',
-                decimals: 18,
-                allowUpdates: true,
+                decimals: 6,
+                allowUpdates: tokenBaseAllowUpdates,
             }
         );
+        tokenBaseAddress = result.tokenBaseAddress;
+        noriTokenControllerAddress = result.noriTokenControllerAddress;
+        tokenBaseTokenId = result.tokenBaseTokenId;
+        noriTokenControllerTokenId = result.noriTokenControllerTokenId;
+        txHash = result.txHash;
+    } else {
+        // VK update mode
+        logger.log('Updating verification keys...');
 
-    console.log('🎉 Deployment completed successfully!');
-    console.log(`Contract addresses/public keys:
+        // Require contract addresses for VK update
+        if (!process.env.NORI_TOKEN_CONTROLLER_ADDRESS || !process.env.TOKEN_BASE_ADDRESS) {
+            throw new Error(
+                'VK update mode requires NORI_TOKEN_CONTROLLER_ADDRESS and TOKEN_BASE_ADDRESS environment variables'
+            );
+        }
+
+        // Read VK update flags
+        const updateTokenBaseVK = process.env.UPDATE_TOKEN_BASE_VK === 'true';
+        const updateTokenControllerVK = process.env.UPDATE_TOKEN_CONTROLLER_VK === 'true';
+
+        // Validate: at least one contract must be updated
+        if (!updateTokenBaseVK && !updateTokenControllerVK) {
+            throw new Error(
+                'At least one of UPDATE_TOKEN_BASE_VK or UPDATE_TOKEN_CONTROLLER_VK must be true'
+            );
+        }
+
+        logger.log(`VK Update flags: TokenBase=${updateTokenBaseVK}, TokenController=${updateTokenControllerVK}`);
+
+        const result = await tokenDeployer.updateVerificationKeys(
+            config.senderPrivateKey,
+            process.env.NORI_TOKEN_CONTROLLER_ADDRESS,
+            process.env.TOKEN_BASE_ADDRESS,
+            noriTokenControllerVerificationKeySafe,
+            fungibleTokenVerificationKeySafe,
+            0.1 * 1e9,
+            updateTokenBaseVK,
+            updateTokenControllerVK
+        );
+        tokenBaseAddress = result.tokenBaseAddress;
+        noriTokenControllerAddress = result.noriTokenControllerAddress;
+        tokenBaseTokenId = result.tokenBaseTokenId;
+        noriTokenControllerTokenId = result.noriTokenControllerTokenId;
+        txHash = result.txHash;
+    }
+
+    const operationType = keysWereCreated ? 'Deployment' : 'Verification key update';
+    logger.log(`🎉 ${operationType} completed successfully!`);
+
+    if (keysWereCreated) {
+        logger.log(`Contract addresses/public keys:
             NoriTokenController: ${noriTokenControllerAddress},
             TokenBase: ${tokenBaseAddress},
+            TokenBase Token ID: ${tokenBaseTokenId},
+            NoriTokenController Token ID: ${noriTokenControllerTokenId},
             TransactionHash: ${txHash}
             `);
 
-    // Print environment variables for easy setup
-    console.log('\n📋 Environment variables for future use:');
-    console.log(`NORI_TOKEN_CONTROLLER_ADDRESS=${noriTokenControllerAddress}`);
-    console.log(`TOKEN_BASE_ADDRESS=${tokenBaseAddress}`);
-    console.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
+        // Print environment variables for future use
+        logger.log('\n📋 Environment variables for future use:');
+        logger.log(`NORI_TOKEN_CONTROLLER_ADDRESS=${noriTokenControllerAddress}`);
+        logger.log(`TOKEN_BASE_ADDRESS=${tokenBaseAddress}`);
+        logger.log(`TOKEN_BASE_TOKEN_ID=${tokenBaseTokenId}`);
+        logger.log(`NORI_TOKEN_CONTROLLER_TOKEN_ID=${noriTokenControllerTokenId}`);
+        logger.log(`ADMIN_PUBLIC_KEY=${config.adminPublicKey}`);
+
+        // Write env file
+        writeSuccessDetailsToEnvFile(
+            noriTokenControllerPrivateKey,
+            noriTokenControllerAddress,
+            tokenBasePrivateKey,
+            tokenBaseAddress,
+            config.adminPublicKey,
+            tokenBaseTokenId,
+            noriTokenControllerTokenId,
+            tokenBaseAllowUpdates
+        );
+    }
 
     return {
         tokenBaseAddress,

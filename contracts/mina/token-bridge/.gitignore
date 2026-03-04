@@ -19,3 +19,5 @@ cache
 output.md
 output.svg
 output.png
+
+.env.nori-token-bridge.old

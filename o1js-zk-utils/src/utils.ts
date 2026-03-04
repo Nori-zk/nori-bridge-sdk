@@ -1,11 +1,101 @@
-import { Field, SmartContract, UInt64, UInt8, VerificationKey } from 'o1js';
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import {
-    PlonkProof,
-    Bytes32,
-    ZkProgram,
-    CompilableZkProgram,
-} from './types.js';
+    Bool,
+    type Cache,
+    Field,
+    Provable,
+    type SmartContract,
+    UInt64,
+    UInt8,
+    type VerificationKey,
+} from 'o1js';
+import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
+import { Bytes32, type CompilableZkProgram } from './types.js';
+import { type Logger } from 'esm-iso-logger';
+
+// Bytes32 Field utils
+
+export function isLessThanFieldPrimeLE(bytes: UInt8[]): Bool {
+    // Mina field prime p in LE as Fields
+    const P_LE: Field[] = [
+        1n,
+        0n,
+        0n,
+        0n,
+        237n,
+        48n,
+        45n,
+        153n,
+        27n,
+        249n,
+        76n,
+        9n,
+        252n,
+        152n,
+        70n,
+        34n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        64n,
+    ].map((b) => new Field(b));
+    // Scan from bytes[31] (MSB) down to bytes[0] (LSB).
+    // `strictlyLess` starts false and can only ever flip true — never reset.
+    // `different` latches true the moment any byte differs from p's byte.
+    // Once `different` is true, `different.not()` is false, so no future byte
+    // can update `strictlyLess` — it is frozen at whatever it was set to.
+    // Therefore: `strictlyLess` becomes true if at the first differing byte
+    // position (from MSB), the input byte was less than p's byte.
+    // If all bytes match (input == p), `different` never latches and
+    // `strictlyLess` stays false — correctly rejecting p itself.
+    let strictlyLess = Bool(false);
+    let different = Bool(false);
+    for (let i = 31; i >= 0; i--) {
+        const pField = P_LE[i] as Field;
+        const byteField = (bytes[i] as UInt8).value;
+        const lt = byteField.lessThan(pField);
+        const eq = byteField.equals(pField);
+        strictlyLess = Provable.if(
+            different.not().and(lt),
+            Bool,
+            Bool(true),
+            strictlyLess
+        );
+        different = different.or(eq.not());
+    }
+    return strictlyLess;
+}
+
+export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
+    // What if the Bytes32 represents a value greater than P - 1? We should do some
+    // assertion that it isnt FIXME
+    // See 'Field order wrapping bytes 32 validation'
+    isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
+        'Given a uint8ArrayLength32 which exceeded p - 1'
+    );
+
+    // CHECKME
+    // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+    // And here we re-interpret the BE as LE!
+    // But it does pass the test! And otherwise fails.
+    let field = new Field(0);
+    for (let i = 31; i >= 0; i--) {
+        field = field.mul(256).add(uint8ArrayLength32[i].value);
+    }
+    return field;
+}
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -79,7 +169,7 @@ const proofOffsets = {
 
 const proofTotalLength = 176;
 
-export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
+export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
         ethSP1Proof.public_values.buffer.data
         // Buffer.from() this is nodejs specific and seemingly redundant
@@ -147,8 +237,9 @@ export function decodeConsensusMptProof(ethSP1Proof: PlonkProof) {
 
 // Compile and verify contracts utility
 
+// Deprecate this!
 export async function compileAndVerifyContracts(
-    logger: any, // Logger fix this later
+    logger: Logger,
     contracts: {
         name: string;
         program: typeof SmartContract | CompilableZkProgram; // Ideally we would use CompilableZkProgram
@@ -167,9 +258,9 @@ export async function compileAndVerifyContracts(
 
         for (const { name, program, integrityHash } of contracts) {
             logger.log(`Compiling ${name} contract.`);
-            console.time(`${name} compile`);
+            const timer = createTimer();
             const compiled = await program.compile();
-            console.timeEnd(`${name} compile`);
+            logger.log(`${name} compiled in ${timer()}`);
             const verificationKey = compiled.verificationKey;
             const calculatedHash = verificationKey.hash.toString();
 
@@ -202,71 +293,152 @@ export async function compileAndVerifyContracts(
         return results;
     } catch (err) {
         logger.error(`Error compiling contracts:\n${String(err)}`);
-        console.error((err as Error).stack);
+        logger.error((err as Error).stack);
         throw err;
     }
 }
 
-export function vkToVkSafe(vk: VerificationKey) {
-  const { data, hash } = vk;
-  return {
-    hashStr: hash.toBigInt().toString(),
-    data,
-  };
+export type VerificationKeySafe = {
+    hashStr: string;
+    data: string;
+};
+
+export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
+    const { data, hash } = vk;
+    return {
+        hashStr: hash.toBigInt().toString(),
+        data,
+    };
 }
+
+export function vkSafeToVk(vkSafe: VerificationKeySafe): VerificationKey {
+    return {
+        data: vkSafe.data,
+        hash: new Field(BigInt(vkSafe.hashStr)),
+    };
+}
+
+/**
+ * Compiles a list of SmartContracts or CompilableZkPrograms and optionally verifies their
+ * verification key hashes against provided integrity hashes.
+ *
+ * @template T - An array of contract descriptors. Each descriptor must include:
+ *  - `name`: The contract/program name (used as a key for the returned verification key).
+ *  - `program`: Either a `SmartContract` class or a `CompilableZkProgram`.
+ *  - `integrityHash` (optional): The expected verification key hash to validate against.
+ *
+ * @param logger - Logger object with a `.log(string)` method for outputting progress messages.
+ *                 Type: `{ log: (msg: string) => void }`.
+ * @param contracts - Array of contract/program descriptors to compile and optionally verify.
+ * @param cacheConfig - Optional cache configuration (`FileSystem` or `Network`) to use during compilation.
+ *
+ * @returns A Promise resolving to an object mapping each contract name to its `VerificationKey`.
+ *          Keys are of the form `${name}VerificationKey`.
+ *
+ * @throws Will throw an Error if any computed verification key hash does not match
+ *         its expected `integrityHash`, including a helpful message on clearing the cache
+ *         or regenerating verification keys.
+ *
+ * Example usage:
+ * ```ts
+ * const vks = await compileAndOptionallyVerifyContracts(
+ *   { log: console.log },
+ *   [
+ *     { name: 'MyContract', program: MyContract, integrityHash: '12345' },
+ *     { name: 'MyProgram', program: MyZkProgram },
+ *   ],
+ *   cacheConfig
+ * );
+ * ```
+ */
 export async function compileAndOptionallyVerifyContracts<
-  T extends readonly {
-    name: string;
-    program: typeof SmartContract | CompilableZkProgram;
-    integrityHash?: string;
-  }[]
+    T extends readonly {
+        name: string;
+        program: typeof SmartContract | CompilableZkProgram;
+        integrityHash?: string;
+    }[],
 >(
-  logger: any,
-  contracts: T
-): Promise<
-  { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey }
-> {
-  type ReturnMap = { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey };
+    logger: { log: (msg: string) => void },
+    contracts: T,
+    cache?: Cache
+    //cacheConfig?: CacheConfig
+): Promise<{
+    [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey;
+}> {
+    type ReturnMap = {
+        [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey;
+    };
 
-  const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
-  const mismatches: string[] = [];
+    //const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
 
-  for (const c of contracts) {
-    const { name, program, integrityHash } = c;
+    const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
+    const mismatches: string[] = [];
 
-    logger.log(`Compiling ${name} contract/program.`);
-    console.time(`${name} compiled`);
-    const compiled = await program.compile();
-    console.timeEnd(`${name} compiled`);
+    for (const c of contracts) {
+        const { name, program, integrityHash } = c;
 
-    const vk = compiled.verificationKey;
-    const hashStr = vk.hash.toBigInt().toString();
+        logger.log(`Compiling ${name} contract/program.`);
+        const timer = createTimer();
+        const compiled = await (cache
+            ? program.compile({ cache })
+            : program.compile());
+        logger.log(`${name} compiled in ${timer()}`);
 
-    logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
+        const vk = compiled.verificationKey;
+        const hashStr = vk.hash.toBigInt().toString();
 
-    // Validate only if integrityHash is provided
-    if (integrityHash && hashStr !== integrityHash) {
-      mismatches.push(
-        `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
-      );
+        logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
+
+        // Validate only if integrityHash is provided
+        if (integrityHash && hashStr !== integrityHash) {
+            mismatches.push(
+                `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
+            );
+        }
+
+        const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
+        entries.push([mappedKey, vk]);
     }
 
-    const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
-    entries.push([mappedKey, vk]);
-  }
+    if (mismatches.length > 0) {
+        const errorMessage = [
+            'Verification key hash mismatch detected:',
+            ...mismatches,
+            '',
+            `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
+        ].join('\n');
 
-  if (mismatches.length > 0) {
-    const errorMessage = [
-      'Verification key hash mismatch detected:',
-      ...mismatches,
-      '',
-      `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
-    ].join('\n');
+        throw new Error(errorMessage);
+    }
 
-    throw new Error(errorMessage);
-  }
+    logger.log('All contracts compiled successfully.');
 
-  logger.log('All contracts compiled successfully.');
+    return Object.fromEntries(entries) as ReturnMap;
+}
 
-  return Object.fromEntries(entries) as ReturnMap;
+export type ZKCache = {
+    name: string;
+    integrityHash?: string;
+};
+
+export type ZKCacheWithProgram = ZKCache & {
+    program: typeof SmartContract | CompilableZkProgram;
+};
+
+export type ZKCacheLayout = ZKCache & {
+    files: string[];
+};
+
+// Timing utilities to replace console.time/timeEnd
+export function createTimer() {
+    const start = Date.now();
+    return () => formatDuration(Date.now() - start);
+}
+
+export function formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(2);
+    return `${minutes}m ${seconds}s`;
 }

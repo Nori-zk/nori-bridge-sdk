@@ -10,19 +10,13 @@ export {
     getMerklePathFromTree,
 } from './merkle-attestor/merkleTree.js';
 
-export {
-    fieldToHexBE,
-    fieldToHexLE,
-    fieldToBigIntBE,
-    fieldToBigIntLE,
-    uint8ArrayToBigIntBE,
-    decodeConsensusMptProof,
-    compileAndVerifyContracts,
-    compileAndOptionallyVerifyContracts,
-    vkToVkSafe,
-} from './utils.js';
+export * from './utils.js';
 
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
+
+export { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP1HeliosProgram.pi0.js';
+export { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
+export { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js'
 
 export { EthVerifier, EthProof, EthInput, EthProofType } from './ethVerifier.js';
 
@@ -38,3 +32,6 @@ export {
 } from './ContractDepositAttestor.js';
 
 export * from './nodeProofLeft.patch.js';
+
+export * from './o1js-cache/index.js';
+

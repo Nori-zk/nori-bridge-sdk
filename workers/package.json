@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/workers",
-    "version": "0.0.3",
+    "version": "0.0.5",
     "description": "An abstraction to enable workers which operate on node and the browser.",
     "author": "Jonathan Kelsey",
     "license": "Apache-2.0",
@@ -12,21 +12,21 @@
         "access": "public"
     },
     "type": "module",
-    "main": "build/src/index.js",
-    "types": "build/src/index.d.ts",
+    "main": "build/index.js",
+    "types": "build/index.d.ts",
     "exports": {
-        ".": "./build/src/index.js",
+        ".": "./build/index.js",
         "./node/parent": {
-            "import": "./build/src/parent/index.node.js"
+            "import": "./build/parent/index.node.js"
         },
         "./node/child": {
-            "import": "./build/src/child/index.node.js"
+            "import": "./build/child/index.node.js"
         },
         "./browser/parent": {
-            "import": "./build/src/parent/index.browser.js"
+            "import": "./build/parent/index.browser.js"
         },
         "./browser/child": {
-            "import": "./build/src/child/index.browser.js"
+            "import": "./build/child/index.browser.js"
         }
     },
     "scripts": {
@@ -34,30 +34,34 @@
         "build": "npm run clean && tsc",
         "buildw": "tsc --watch",
         "coverage": "node ../node_modules/jest/bin/jest.js --coverage",
-        "format": "prettier --write --ignore-unknown **/*",
+        "format": "prettier --check --ignore-unknown **/*",
+        "format:fix": "prettier --write --ignore-unknown **/*",
         "test": "npm run build && node --experimental-vm-modules ../node_modules/jest/bin/jest.js",
         "testw": "node ../node_modules/jest/bin/jest.js --watch",
-        "lint": "npx eslint src/* --fix"
+        "lint": "npx eslint src/*",
+        "lint:fix": "npx eslint src/* --fix"
     },
     "devDependencies": {
-        "@babel/preset-env": "^7.16.4",
-        "@babel/preset-typescript": "^7.16.0",
-        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-        "@nori-zk/pts-types": "^3.0.13",
-        "@types/jest": "^29.5.12",
-        "@typescript-eslint/eslint-plugin": "^5.5.0",
-        "@typescript-eslint/parser": "^5.5.0",
-        "eslint": "^8.7.0",
+        "@babel/preset-env": "^7.29.0",
+        "@babel/preset-typescript": "^7.28.5",
+        "@types/jest": "^30.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.55.0",
+        "@typescript-eslint/parser": "^8.55.0",
+        "eslint": "^9.39.2",
         "eslint-plugin-o1js": "^0.4.0",
-        "jest": "^29.7.0",
-        "npm-workspaces-publish-tool": "^0.0.9",
-        "prettier": "^2.3.2",
-        "rimraf": "^6.0.1",
-        "ts-jest": "^29.2.4",
+        "jest": "^30.2.0",
+        "npm-workspaces-publish-tool": "0.0.17",
+        "prettier": "^3.8.1",
+        "rimraf": "^6.1.2",
+        "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
-        "typescript": "^5.4.5"
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.55.0"
     },
     "engines": {
         "node": ">=18.14.0"
+    },
+    "dependencies": {
+        "esm-iso-logger": "1.0.2"
     }
 }

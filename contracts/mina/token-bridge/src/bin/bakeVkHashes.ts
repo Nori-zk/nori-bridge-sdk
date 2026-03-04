@@ -1,47 +1,18 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { resolve } from 'path';
-import { Cache, ProofBase, SmartContract } from 'o1js';
+import { Cache, type SmartContract } from 'o1js';
 import { randomBytes } from 'crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import {
-    CompilableZkProgram,
-    EthVerifier,
-    ethVerifierVkHash,
-} from '@nori-zk/o1js-zk-utils';
+import { EthVerifier, ethVerifierVkHash } from '@nori-zk/o1js-zk-utils';
 import { rootDir } from '../rootDir.js';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriTokenController } from '../NoriTokenController.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
-import { type Gate } from 'o1js/dist/node/snarky.js';
-import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
+import { type CompilableZkProgramWithAnalyze } from '../types.js';
 
-new LogPrinter('[NoriMinaTokenBridge]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriMinaTokenBridge');
 
 const logger = new Logger('CompileZks');
-
-type ProofClass = Subclass<typeof ProofBase>;
-type CompilableZkProgramWithAnalyze = CompilableZkProgram & {
-    analyzeMethods: () => Promise<
-        Record<
-            string,
-            {
-                actions: number;
-                rows: number;
-                digest: string;
-                gates: Gate[];
-                proofs: ProofClass[];
-            }
-        >
-    >;
-};
 
 type ContractInfo = {
     name: string;
@@ -68,7 +39,8 @@ const contracts: ContractInfo[] = [
 ];
 
 async function compileAll(cacheDir: string) {
-    const results: Record<string, string> = {};
+    const vkHashes: Record<string, string> = {};
+    const vkData: Record<string, string> = {};
 
     for (const { name, contract } of contracts) {
         logger.log(`Analyzing methods for ${name}.`);
@@ -90,21 +62,25 @@ async function compileAll(cacheDir: string) {
         const vkHash = verificationKey.hash.toString();
         logger.log(`${name} compiled VK: '${vkHash}'.`);
 
-        results[name] = vkHash;
+        vkHashes[name] = vkHash;
+        vkData[name] = verificationKey.data;
     }
 
-    return results;
+    return { vkHashes, vkData };
 }
 
-function writeIntegrityFiles(vkHashes: Record<string, string>) {
+function writeIntegrityFiles(vkHashes: Record<string, string>, vkData: Record<string, string>) {
     const integrityFolder = resolve(rootDir, '..', '..', 'src', 'integrity');
     logger.log(`Writing VK hashes to '${integrityFolder}'`);
 
     for (const [name, hash] of Object.entries(vkHashes)) {
         if (name === 'EthVerifier') continue;
-        const filePath = resolve(integrityFolder, `${name}.VkHash.json`);
-        writeFileSync(filePath, `"${hash}"`, 'utf8');
-        logger.log(`Wrote ${name} VK hash to '${filePath}'.`);
+        const vkHashFilePath = resolve(integrityFolder, `${name}.VkHash.json`);
+        writeFileSync(vkHashFilePath, `"${hash}"`, 'utf8');
+        logger.log(`Wrote ${name} VK hash to '${vkHashFilePath}'.`);
+        const vkDataFilePath = resolve(integrityFolder, `${name}.VkData.json`);
+        writeFileSync(vkDataFilePath, `"${vkData[name]}"`, 'utf8');
+        logger.log(`Wrote ${name} VK data to '${vkDataFilePath}'.`);
     }
 }
 
@@ -119,7 +95,7 @@ async function main() {
 
     try {
         // Step 1: compile/analyze all contracts
-        const vkHashes = await compileAll(ephemeralCacheDir);
+        const { vkHashes, vkData } = await compileAll(ephemeralCacheDir);
 
         // Validate that eth processor vk matches the baked integrity key
         if (ethVerifierVkHash !== vkHashes['EthVerifier']) {
@@ -129,7 +105,7 @@ async function main() {
         }
 
         // Step 2: write integrity files
-        writeIntegrityFiles(vkHashes);
+        writeIntegrityFiles(vkHashes, vkData);
     } finally {
         rmSync(ephemeralCacheDir, { recursive: true, force: true });
         logger.log(`Removed ephemeral cache '${ephemeralCacheDir}'`);
@@ -137,7 +113,6 @@ async function main() {
 }
 
 main().catch((err) => {
-    logger.fatal(`Main function had an error:\n${String(err.stack)}`);
     rmSync(ephemeralCacheDir, { recursive: true, force: true });
-    process.exit(1);
+    logger.fatal(`Main function had an error:\n${String(err.stack)}`);
 });

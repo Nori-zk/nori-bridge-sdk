@@ -38,7 +38,7 @@ Make sure your .env is set to deploy to the correct network.
 
 `npm run deploy`
 
-You will see output like:
+You will see output something like:
 
 ```sh
 Running on network "holesky"
@@ -52,11 +52,11 @@ Deployed in block: 3840406
 Gas used for deployment: 296589
 ```
 
-A file `.env.nori-token-bridge` will have been created with `NORI_TOKEN_BRIDGE_ADDRESS` set within it.
+A file `.env.nori-eth-token-bridge` will have been created with `NORI_ETH_TOKEN_BRIDGE_ADDRESS` set within it.
 
 ## Lock (for testing purposes)
 
-Make sure your .env is set to deploy to the correct testing network. Copy NORI_TOKEN_BRIDGE_ADDRESS from the deploy stage. Also you must add `NORI_TOKEN_BRIDGE_TEST_MODE=true` to run this test facility.
+Make sure your .env is set to deploy to the correct testing network. Copy NORI_ETH_TOKEN_BRIDGE_ADDRESS from the deploy stage. Also you must add `NORI_ETH_TOKEN_BRIDGE_TEST_MODE=true` to run this test facility.
 
 `npm run test:lock <attestationHashHex> <optionalAmountToLock (defaults to 0.000001)>`
 
@@ -70,11 +70,17 @@ One can (again for testing purposes) lock periodically in a loop, every 383 seco
 
 ## Get total deposited
 
-Ensure NORI_TOKEN_BRIDGE_ADDRESS is within your .env file.
+Ensure NORI_ETH_TOKEN_BRIDGE_ADDRESS is within your .env file.
 
 `npm run get-deposited <depositorAddressHex> <attestationHashHex>`
 
 e.g. `npm run get-deposited 0xc7e910807dd2e3f49b34efe7133cfb684520da69 0x13cceb5b591e742c13fd7f3894f97139c964606f2928eefdc234e8a3a55c10b1`
+
+## Withdraw
+
+Ensure NORI_ETH_TOKEN_BRIDGE_ADDRESS and ETH_PRIVATE_KEY are within your .env file.
+
+`npm run withdraw`
 
 ## Package details
 

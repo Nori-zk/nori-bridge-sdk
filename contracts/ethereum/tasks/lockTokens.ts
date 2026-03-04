@@ -36,21 +36,21 @@ export const lockTokens = task('lockTokens', 'Lock tokens with attestation hash 
             const lockAmount = ethers.parseEther(parsedAmount.toString());
 
             if (
-                !process.env.NORI_TOKEN_BRIDGE_TEST_MODE ||
-                process.env.NORI_TOKEN_BRIDGE_TEST_MODE !== 'true'
+                !process.env.NORI_ETH_TOKEN_BRIDGE_TEST_MODE ||
+                process.env.NORI_ETH_TOKEN_BRIDGE_TEST_MODE !== 'true'
             ) {
                 throw new Error(
                     "Not in test mode! Denied the use of the deposit facility. It's just for testing!"
                 );
             }
 
-            const deployedAddress = process.env.NORI_TOKEN_BRIDGE_ADDRESS;
+            const deployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;
             if (!deployedAddress || !/^0x[a-fA-F0-9]{40}$/.test(deployedAddress)) {
                 throw new Error(
-                    'Invalid or missing environment variable NORI_TOKEN_BRIDGE_ADDRESS'
+                    'Invalid or missing environment variable NORI_ETH_TOKEN_BRIDGE_ADDRESS'
                 );
             }
-            console.log(`NORI_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
+            console.log(`NORI_ETH_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
 
             const [signer] = await ethers.getSigners();
             const signerAddress = await signer.getAddress();

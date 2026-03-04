@@ -1,0 +1,35 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-9dca623566a54dab9fc22711359e5298c81e01bb",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/NoriTokenBridge.sol": "project/contracts/NoriTokenBridge.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/NoriTokenBridge.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\n/// @title NoriTokenBridge\n/// @notice Lock ETH for Mina accounts with bridge unit validation and depositor binding\ncontract NoriTokenBridge {\n    // -------------------------------\n    // Constants (these should be slotless and converted to bytecode)\n    // -------------------------------\n    uint8 public constant DECIMALS = 6; \n    uint64 public constant MAX_MAGNITUDE = (1 << 64) - 1; // 64-bit magnitude\n    uint256 public constant WEI_PER_BRIDGE_UNIT = 10 ** (18 - DECIMALS); // smallest bridge unit in wei\n\n    // -------------------------------\n    // State Variables\n    // -------------------------------\n    address public bridgeOperator;\n\n    // ETH locked per ETH address per Mina account (attestationHash)\n    mapping(address => mapping(uint256 => uint256)) public lockedTokens;\n\n    // Total locked supply in bridge units\n    uint256 public totalLocked;\n\n    // Mina account (attestationHash) -> ETH depositor\n    mapping(uint256 => address) public codeChallengeToEthAddress;\n\n    // -------------------------------\n    // Events\n    // -------------------------------\n    event TokensLocked(address indexed user, uint256 attestationHash, uint256 amount, uint256 when);\n\n    // -------------------------------\n    // Constructor\n    // -------------------------------\n    constructor() {\n        bridgeOperator = msg.sender;\n    }\n\n    // -------------------------------\n    // Lock ETH for a Mina account\n    // -------------------------------\n    function lockTokens(uint256 attestationHash) public payable {\n        // ===============================\n        // VALIDATION\n        // ===============================\n        require(msg.value > 0, \"You must send some Ether to lock\");\n\n        // Convert wei to bridge units\n        uint256 bridgeAmount = msg.value / WEI_PER_BRIDGE_UNIT;\n\n        // Ensure deposit is a whole multiple of bridge unit\n        require(msg.value % WEI_PER_BRIDGE_UNIT == 0, \"Must be multiple of smallest bridge unit\");\n\n        // Ensure total locked supply does not exceed MAX_MAGNITUDE\n        require(totalLocked + bridgeAmount <= MAX_MAGNITUDE, \"Total locked exceeds maximum allowed\");\n\n        // Enforce one ETH depositor per Mina account\n        address linkedEth = codeChallengeToEthAddress[attestationHash];\n        if (linkedEth == address(0)) {\n            // First deposit: bind Mina account to sender\n            codeChallengeToEthAddress[attestationHash] = msg.sender;\n        } else {\n            require(linkedEth == msg.sender, \"This Mina account is already linked to a different ETH address\");\n        }\n\n        // ===============================\n        // LOCK LOGIC\n        // ===============================\n        lockedTokens[msg.sender][attestationHash] += msg.value;\n        totalLocked += bridgeAmount;\n\n        emit TokensLocked(msg.sender, attestationHash, msg.value, block.timestamp);\n    }\n\n    // -------------------------------\n    // Admin-only withdraw all ETH\n    // -------------------------------\n    function withdraw() public {\n        require(msg.sender == bridgeOperator, \"Only bridge operator can withdraw\");\n\n        uint256 balance = address(this).balance;\n        require(balance > 0, \"No ETH to withdraw\");\n\n        payable(bridgeOperator).transfer(balance);\n    }\n}"
+      }
+    }
+  }
+}

@@ -1,20 +1,20 @@
 // NOTE THIS TEST IS NO LONGER VIABLE DUE TO PKARM VERIFYING THE RECIPENT BUT IS LEFT HERE FOR POSTERITY
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     AccountUpdate,
     Bool,
-    Cache,
     fetchAccount,
     Field,
     Lightnet,
     Mina,
-    NetworkId,
+    type NetworkId,
     Poseidon,
     PrivateKey,
-    PublicKey,
+    type PublicKey,
     UInt64,
     UInt8,
     // Keypair,
-    VerificationKey,
+    type VerificationKey,
 } from 'o1js';
 import { FungibleToken } from '../TokenBase.js';
 import assert from 'node:assert';
@@ -35,6 +35,9 @@ import {
     computeDepositAttestationWitnessAndEthVerifier,
 } from '../depositAttestation.js';
 import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+
+new LogPrinter('TestTokenBridge');
+const logger = new Logger('NoriTokenControllerSpec');
 
 async function computeDepositAttestationWitnessAndEthVerifier2(
     codeChallengePKARM: string,
@@ -67,27 +70,30 @@ describe('NoriTokenController', () => {
     let storageInterfaceVK: VerificationKey;
     let ethVerifierVk: VerificationKey;
     let allAccounts: PublicKey[] = [];
+    void tokenBaseVK;
+    void noriTokenControllerVK;
+    void ethVerifierVk;
 
     beforeAll(async () => {
         // compile contracts
 
         // compile ethverifier
-        console.log('compiling eth verifier');
+        logger.log('compiling eth verifier');
         ethVerifierVk = (
             await EthVerifier.compile()
         ).verificationKey;
-        console.log('compiling nori storage');
+        logger.log('compiling nori storage');
 
         storageInterfaceVK = (
             await NoriStorageInterface.compile()
         ).verificationKey;
         // if (proofsEnabled) {
-        console.log('compiling FungibleToken');
+        logger.log('compiling FungibleToken');
         tokenBaseVK = (
             await FungibleToken.compile()
         ).verificationKey;
 
-        console.log('compiling NoriTokenController');
+        logger.log('compiling NoriTokenController');
         noriTokenControllerVK = (
             await NoriTokenController.compile()
         ).verificationKey;
@@ -111,7 +117,7 @@ describe('NoriTokenController', () => {
         noriTokenController = new NoriTokenController(
             noriTokenControllerKeypair.publicKey
         );
-        console.log(`
+        logger.log(`
       deployer ${deployer.publicKey.toBase58()}
       admin ${admin.publicKey.toBase58()}
       alice ${alice.publicKey.toBase58()}
@@ -176,7 +182,7 @@ describe('NoriTokenController', () => {
             'decimals do not match'
         );
 
-        console.log('initilising and deploying contracts done');
+        logger.log('initilising and deploying contracts done');
     });
     test('should set up storage for Alice', async () => {
         await txSend({
@@ -224,7 +230,7 @@ describe('NoriTokenController', () => {
             noriTokenController.deriveTokenId()
         );
         let valueBefore = await storage.mintedSoFar.fetch();
-        console.log(
+        logger.log(
             'minted so far before failed update',
             valueBefore.toString()
         );
@@ -250,7 +256,7 @@ describe('NoriTokenController', () => {
             signers: [alice.privateKey, tokenBaseKeypair.privateKey],
         });
         const valueAfter = await storage.mintedSoFar.fetch();
-        console.log('minted so far after failed update', valueAfter.toString());
+        logger.log('minted so far after failed update', valueAfter.toString());
         assert.equal(
             valueAfter.toBigInt(),
             valueBefore.toBigInt(),
@@ -270,14 +276,14 @@ describe('NoriTokenController', () => {
             '0xC7e910807Dd2E3F49B34EfE7133cfb684520Da69'.toLowerCase();
         const depositBlockNumber = 4432612;
 
-        console.log('Computing eth verifier and calculating deposit witness.');
+        logger.log('Computing eth verifier and calculating deposit witness.');
         const { ethVerifierProofJson, depositAttestationInput } =
             await computeDepositAttestationWitnessAndEthVerifier2(
                 codeChallengePKARMStr,
                 depositBlockNumber,
                 ethAddressLowerHex
             );
-        console.log('Computed eth verifier and calculated deposit witness.');
+        logger.log('Computed eth verifier and calculated deposit witness.');
 
         // Reconstruct ethVerifierProof
         const ethVerifierProof = await EthProofType.fromJSON(
@@ -289,7 +295,7 @@ describe('NoriTokenController', () => {
                 depositAttestationInput
             );
 
-        const tx = await txSend({
+        await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
                 await noriTokenController.noriMint(
@@ -305,9 +311,9 @@ describe('NoriTokenController', () => {
             publicKey: alice.publicKey,
             tokenId: tokenBase.deriveTokenId(),
         });
-        // console.log('tx ', tx.toPretty());
+        // logger.log('tx ', tx.toPretty());
         const balance = await tokenBase.getBalanceOf(alice.publicKey);
-        console.log('balance of alice', balance.toString());
+        logger.log('balance of alice', balance.toString());
         assert.equal(
             balance.toBigInt(),
             11000000000000n,
@@ -365,7 +371,7 @@ describe('NoriTokenController', () => {
         });
 
         const balanceBefore = await tokenBase.getBalanceOf(alice.publicKey);
-        console.log('balance of alice before', balanceBefore.toString());
+        logger.log('balance of alice before', balanceBefore.toString());
         const tx = await txSend({
             body: async () => {
                 // AccountUpdate.fundNewAccount(alice, 1);
@@ -383,9 +389,9 @@ describe('NoriTokenController', () => {
             publicKey: alice.publicKey,
             tokenId: tokenBase.deriveTokenId(),
         });
-        // console.log('tx ', tx.toPretty());
+        // logger.log('tx ', tx.toPretty());
         const balance = await tokenBase.getBalanceOf(alice.publicKey);
-        console.log('balance of alice after', balance.toString());
+        logger.log('balance of alice after', balance.toString());
         assert.equal(
             balance.toBigInt(),
             amount.toBigInt(),

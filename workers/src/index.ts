@@ -1,3 +1,7 @@
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('Workers');
+
 /**
  * Base interface for a communication endpoint between a parent and a worker.
  */
@@ -12,7 +16,7 @@ export interface BaseWorkerEndpoint {
      * Registers a handler for error events.
      * @param callback - Callback to invoke with the error.
      */
-    onErrorHandler(callback: (error: any) => void): void;
+    onErrorHandler(callback: (error: unknown) => void): void;
 
     /**
      * Terminates the communication channel.
@@ -73,7 +77,7 @@ export class DeferredPromise<T = void, E = void> {
  */
 export class WorkerParentBase {
     child: WorkerParentChildInterface;
-    pendingRequests = new Map<number, DeferredPromise<any, any>>();
+    pendingRequests = new Map<number, DeferredPromise<unknown, unknown>>();
     workerSpawnedDeferred = new DeferredPromise();
     workerReadyDeferred = new DeferredPromise<void, Error>();
     requestId = 0;
@@ -121,7 +125,7 @@ export class WorkerParentBase {
      * @param args - Arguments to pass to the child method.
      * @returns A promise that resolves with the result of the child method call.
      */
-    async call<Res>(methodName: string, ...args: any[]): Promise<Res> {
+    async call<Res>(methodName: string, ...args: unknown[]): Promise<Res> {
         if (methodName === 'worker-construct') {
             // Await child init
             await this.workerSpawnedDeferred.promise;
@@ -143,7 +147,7 @@ export class WorkerParentBase {
         const deferred = new DeferredPromise<Res, Error>();
 
         // Track the pending request using its ID
-        this.pendingRequests.set(id, deferred);
+        this.pendingRequests.set(id, deferred as DeferredPromise<unknown, unknown>);
 
         // Send the serialized message to the child
         this.child.send(messageStr);
@@ -163,7 +167,7 @@ export class WorkerParentBase {
         let response: {
             id: number;
             methodName: string;
-            data?: any;
+            data?: unknown;
             error?: string;
         };
 
@@ -200,7 +204,7 @@ export class WorkerParentBase {
      * Rejects all in-flight promises on error.
      * @param error - The error to reject with.
      */
-    onError(error: any) {
+    onError(error: unknown) {
         this.pendingRequests.forEach((deferred) => deferred.reject(error));
         this.pendingRequests.clear();
     }
@@ -229,10 +233,13 @@ export class WorkerParentBase {
  * Child-side base handler for responding to messages from the parent.
  */
 export class WorkerChildBase {
-    pendingRequests = new Map<number, DeferredPromise<any, any>>();
+    pendingRequests = new Map<number, DeferredPromise<unknown, unknown>>();
     parent: WorkerChildParentInterface;
-    workerInstance: any = null;
-    ChildClass: new (...args: any[]) => any;
+    workerInstance: unknown = null;
+    // Using any[] instead of unknown[] to allow constructors with specific parameter types.
+    // unknown is not assignable to specific types like string, causing type errors.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ChildClass: new (...args: any[]) => unknown;
 
     /**
      * Constructs the WorkerChildBase and attaches communication handlers.
@@ -240,7 +247,9 @@ export class WorkerChildBase {
      */
     constructor(
         parent: WorkerChildParentInterface,
-        ChildClass: new (...args: any[]) => any
+        // Using any[] instead of unknown[] to allow constructors with specific parameter types.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ChildClass: new (...args: any[]) => unknown
     ) {
         this.parent = parent;
         this.parent.onMessageHandler(this.onMessage.bind(this));
@@ -258,8 +267,8 @@ export class WorkerChildBase {
         let message: {
             id: number;
             methodName: string;
-            args?: any[];
-            data?: any;
+            args?: unknown[];
+            data?: unknown;
             error?: string;
         };
 
@@ -271,8 +280,8 @@ export class WorkerChildBase {
         }
 
         // Handle a response to a previous call
-        if (this.pendingRequests.has(message.id)) {
-            const deferred = this.pendingRequests.get(message.id)!;
+        const deferred = this.pendingRequests.get(message.id);
+        if (deferred) {
             if (message.error) deferred.reject(new Error(message.error));
             else deferred.resolve(message.data);
             this.pendingRequests.delete(message.id);
@@ -284,7 +293,7 @@ export class WorkerChildBase {
         if (methodName === 'worker-terminate') {
             // Call the terminate function on the Child ParentInterface which
             // will contain the endpoint (node or browser) terminate method.
-            console.log('Calling terminate on self', this.parent);
+            logger.log('Calling terminate on self', this.parent);
             // So this is the child killing itself even though the 'parent' naming falls down hear.
             // We are not requesting the parent thread/process terminate themselves. We are termining ourselves.
             this.parent.terminate();
@@ -295,8 +304,10 @@ export class WorkerChildBase {
             try {
                 this.workerInstance = new this.ChildClass(...args);
                 this.sendResponse(id, methodName, null);
-            } catch (err: any) {
-                this.sendError(id, methodName, err?.message ?? String(err));
+            } catch (err: unknown) {
+                const message =
+                    err instanceof Error ? err.message : String(err);
+                this.sendError(id, methodName, message);
             }
             return;
         }
@@ -308,7 +319,7 @@ export class WorkerChildBase {
         }
 
         // Dispatch method calls to the worker instance
-        const fn = this.workerInstance[methodName];
+        const fn = (this.workerInstance as Record<string, unknown>)[methodName];
         if (typeof fn !== 'function') {
             this.sendError(id, methodName, `Method '${methodName}' not found`);
             return;
@@ -317,8 +328,12 @@ export class WorkerChildBase {
         try {
             const result = await fn.apply(this.workerInstance, args);
             this.sendResponse(id, methodName, result);
-        } catch (err: any) {
-            this.sendError(id, methodName, err?.stack ?? err?.message ?? String(err));
+        } catch (err: unknown) {
+            const message =
+                err instanceof Error
+                    ? err.stack ?? err.message
+                    : String(err);
+            this.sendError(id, methodName, message);
         }
     }
 
@@ -328,7 +343,7 @@ export class WorkerChildBase {
      * @param methodName - Name of the method.
      * @param data - Result data to send.
      */
-    sendResponse(id: number, methodName: string, data: any) {
+    sendResponse(id: number, methodName: string, data: unknown) {
         const response = { id, methodName, data };
         this.parent.send(JSON.stringify(response));
     }
@@ -348,7 +363,7 @@ export class WorkerChildBase {
      * Rejects all in-flight promises on error.
      * @param error - The error to reject with.
      */
-    onError(error: any) {
+    onError(error: unknown) {
         this.pendingRequests.forEach((deferred) => deferred.reject(error));
         this.pendingRequests.clear();
     }
@@ -368,6 +383,8 @@ export class WorkerChildBase {
  */
 export function createWorker<T>(
     parent: WorkerChildParentInterface,
+    // Using any[] instead of unknown[] to allow constructors with specific parameter types.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ChildClass: new (...args: any[]) => T
 ) {
     const childBase = new WorkerChildBase(parent, ChildClass);
@@ -391,7 +408,9 @@ export function createWorker<T>(
  *  - `terminate()`: Terminates the worker
  *  - `ready`: Promise that resolves when the worker has been constructed and is ready
  */
-export function createProxy<T extends new (...args: any) => any>(
+// Using any[] instead of unknown[] to allow constructors with specific parameter types.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createProxy<T extends new (...args: any[]) => unknown>(
     child: WorkerParentChildInterface
 ) {
     const parentBase = new WorkerParentBase(child);
@@ -431,7 +450,7 @@ export function createProxy<T extends new (...args: any) => any>(
                     if (propName === 'signalTerminate')
                         return () => parentBase.signalTerminate();
                     if (propName === 'ready') return ready;
-                    return async (...args: any[]) =>
+                    return async (...args: unknown[]) =>
                         parentBase.call(propName, ...args);
                 },
             }) as InstanceType<T> & {

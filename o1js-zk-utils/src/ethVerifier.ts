@@ -2,7 +2,7 @@ import {
     Provable,
     VerificationKey,
     Poseidon,
-    UInt8,
+    type UInt8,
     Bytes,
     ZkProgram,
     Struct,
@@ -27,7 +27,7 @@ class EthInput extends Struct({
     executionStateRoot: Bytes32.provable,
     verifiedContractDepositsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
-}) {}
+}) { }
 
 const EthVerifier = ZkProgram({
     name: 'EthVerifier',
@@ -51,7 +51,7 @@ const EthVerifier = ZkProgram({
                 // vk = proofConversionOutput.vkData
                 // this is also from nodeVK
                 const vk = VerificationKey.fromJSON(
-                    proofConversionSP1ToPlonkVkData as unknown as string
+                    proofConversionSP1ToPlonkVkData
                 );
 
                 // [zkProgram / circuit][eth processor /  contract ie on-chain state]
@@ -99,6 +99,6 @@ const EthVerifier = ZkProgram({
 
 const EthProof = ZkProgram.Proof(EthVerifier);
 
-export class EthProofType extends EthProof {}
+export class EthProofType extends EthProof { }
 
 export { EthVerifier, EthProof, EthInput };

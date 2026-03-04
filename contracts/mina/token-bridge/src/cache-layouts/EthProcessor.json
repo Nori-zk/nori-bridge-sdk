@@ -1,0 +1,19 @@
+{
+  "name": "EthProcessor",
+  "integrityHash": "16375727480181698295344882509107377771742941301007165304646002967283296547813",
+  "files": [
+    "lagrange-basis-fp-1024",
+    "lagrange-basis-fp-16384",
+    "lagrange-basis-fp-2048",
+    "step-pk-ethprocessor-initialize",
+    "step-pk-ethprocessor-setverificationkey",
+    "step-pk-ethprocessor-update",
+    "step-pk-ethprocessor-updatestorehash",
+    "step-vk-ethprocessor-initialize",
+    "step-vk-ethprocessor-setverificationkey",
+    "step-vk-ethprocessor-update",
+    "step-vk-ethprocessor-updatestorehash",
+    "wrap-pk-ethprocessor",
+    "wrap-vk-ethprocessor"
+  ]
+}

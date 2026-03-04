@@ -8,9 +8,9 @@ A zk-program to verify an Ethereum consensus MPT transition proof, made verifiab
 
 It depends on:
 
-- Public input 0 from the SP1 consensus MPT transition proof (`sp1Proof.proof.Plonk.public_inputs[0]`)
-- Public output 2 from the converted consensus MPT transition proof (`proofConversionOutput.proofData.publicOutput[2]`)
-- The verification key data from the `sp1ToPlonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion)
+- Public input 0 from the SP1 consensus MPT transition proof (`sp1Proof.proof.Plonk.public_inputs[0]`), the Nori SP1 Helios program identifier (`bridgeHeadNoriSP1HeliosProgramPi0`), stored in [`src/integrity/nori-sp1-helios-program.pi0.json`](./src/integrity/nori-sp1-helios-program.pi0.json) — a copy of [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from [bridge-head](https://github.com/Nori-zk/nori-bridge-head). Changes frequently as the Helios light client evolves — when bridge-head releases a new version, copy [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from the appropriate release tag into [`src/integrity/nori-sp1-helios-program.pi0.json`](./src/integrity/nori-sp1-helios-program.pi0.json) before re-running `bake-vk-hashes`.
+- Public output 2 from the converted consensus MPT transition proof (`proofConversionOutput.proofData.publicOutput[2]`). Infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion.
+- The verification key data from the `sp1Plonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion). Unlikely to change.
 
 Whenever any of these change, you must run:
 

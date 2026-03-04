@@ -29,16 +29,16 @@ export const getTotalDeposited = task('getTotalDeposited', 'Get the total deposi
                 );
             }
 
-            const deployedAddress = process.env.NORI_TOKEN_BRIDGE_ADDRESS;
+            const deployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;
             if (
                 !deployedAddress ||
                 !/^0x[a-fA-F0-9]{40}$/.test(deployedAddress)
             ) {
                 throw new Error(
-                    'Invalid or missing environment variable NORI_TOKEN_BRIDGE_ADDRESS'
+                    'Invalid or missing environment variable NORI_ETH_TOKEN_BRIDGE_ADDRESS'
                 );
             }
-            console.log(`NORI_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
+            console.log(`NORI_ETH_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
 
             const tokenBridge = await ethers.getContractAt(
                 'NoriTokenBridge',

@@ -1,8 +1,8 @@
 // Load environment variables from .env file
 import 'dotenv/config';
 // Other imports
-import { Mina, PrivateKey, NetworkId, fetchAccount, Bytes } from 'o1js';
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Mina, PrivateKey, type NetworkId, fetchAccount } from 'o1js';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import { EthProcessor } from '../ethProcessor.js';
 import {
     Bytes32,
@@ -13,114 +13,144 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
-const logger = new Logger('Deploy');
+const logger = new Logger('UpdateStoreHash');
 
-new LogPrinter('[NoriEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('NoriEthProcessor');
 
-const missingEnvVariables: string[] = [];
-
-// Declare sender private key
-const deployerKeyBase58 = process.env.SENDER_PRIVATE_KEY as string;
-
-// Get zkAppPrivateKey
-if (!process.env.ZKAPP_PRIVATE_KEY) {
-    logger.fatal('ZKAPP_PRIVATE_KEY not set.');
-    process.exit(1);
-}
-let zkAppPrivateKeyBase58 = process.env.ZKAPP_PRIVATE_KEY as string;
-
-// Validate
-if (!deployerKeyBase58) missingEnvVariables.push('SENDER_PRIVATE_KEY');
-if (!zkAppPrivateKeyBase58) missingEnvVariables.push('ZKAPP_PRIVATE_KEY');
-if (missingEnvVariables.length > 0) {
-    logger.fatal(
-        `Missing required environment variable(s): ${missingEnvVariables.join(
-            ' and '
-        )}`
-    );
-    process.exit(1);
-}
-
-// Network configuration
-const networkUrl =
-    process.env.MINA_RPC_NETWORK_URL || 'http://localhost:3000/graphql'; // Should probably validate here the network type. FIXME
+// Collect all inputs upfront
+const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL;
+const possibleNetwork = process.env.NETWORK;
+const possibleDeployerKeyBase58 = process.env.SENDER_PRIVATE_KEY;
+const possibleZkAppKeyBase58 = process.env.ZKAPP_PRIVATE_KEY;
 const fee = Number(process.env.TX_FEE || 0.1) * 1e9; // in nanomina (1 billion = 1.0 mina)
+const possibleStoreHashHex = process.argv[2];
 
-// Get cli argument
-const storeHashHex = process.argv[2];
-console.log('storeHashHex', storeHashHex);
+// Validate everything in one pass
+const issues: string[] = [];
 
-let storeHash: Bytes;
-try {
-    const possibleStoreHash = storeHashHex
-        ? Bytes32.fromHex(storeHashHex)
-        : undefined;
-    if (possibleStoreHash === undefined)
-        throw new Error(
-            'Store hash hex value was not defined. Please provide it as a first argument.'
+if (!possibleNetworkUrl)
+    issues.push('Missing required env: MINA_RPC_NETWORK_URL');
+if (!possibleNetwork) issues.push('Missing required env: NETWORK');
+if (!possibleDeployerKeyBase58)
+    issues.push('Missing required env: SENDER_PRIVATE_KEY');
+if (!possibleZkAppKeyBase58)
+    issues.push('Missing required env: ZKAPP_PRIVATE_KEY');
+if (!possibleStoreHashHex)
+    issues.push('Missing required first argument: storeHashHex');
+
+let possibleDeployerKey: PrivateKey | undefined;
+if (possibleDeployerKeyBase58) {
+    try {
+        possibleDeployerKey = PrivateKey.fromBase58(possibleDeployerKeyBase58);
+    } catch (e) {
+        issues.push(
+            `SENDER_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
         );
-    storeHash = possibleStoreHash;
-} catch (err) {
-    logger.fatal(
-        `Store hash was not provided as a first argument or was invalid:\n${
-            (err as Error).stack
-        }`
-    );
+    }
+}
+
+let possibleZkAppKey: PrivateKey | undefined;
+if (possibleZkAppKeyBase58) {
+    try {
+        possibleZkAppKey = PrivateKey.fromBase58(possibleZkAppKeyBase58);
+    } catch (e) {
+        issues.push(
+            `ZKAPP_PRIVATE_KEY is not a valid private key: ${(e as Error).message}`
+        );
+    }
+}
+
+let possibleStoreHash: Bytes32 | undefined;
+if (possibleStoreHashHex) {
+    try {
+        possibleStoreHash = Bytes32.fromHex(possibleStoreHashHex);
+    } catch (e) {
+        issues.push(
+            `storeHashHex '${possibleStoreHashHex}' is not a valid 32-byte hex string: ${(e as Error).message}`
+        );
+    }
+}
+
+if (issues.length) {
+    const formatted = [
+        'UpdateStoreHash encountered issues:',
+        ...issues.flatMap((issue, idx) => {
+            const lines = issue.split('\n');
+            return lines.map((line, lineIdx) =>
+                lineIdx === 0 ? `\t${idx + 1}: ${line}` : `\t   ${line}`
+            );
+        }),
+    ].join('\n');
+    logger.fatal(formatted);
     process.exit(1);
 }
+
+// Type guards — all required values are guaranteed defined after the issues exit above
+function isPrivateKey(val: PrivateKey | undefined): val is PrivateKey {
+    return val !== undefined;
+}
+function isBytes32(val: Bytes32 | undefined): val is Bytes32 {
+    return val !== undefined;
+}
+function isString(val: string | undefined): val is string {
+    return val !== undefined;
+}
+
+if (
+    !isPrivateKey(possibleDeployerKey) ||
+    !isPrivateKey(possibleZkAppKey) ||
+    !isBytes32(possibleStoreHash) ||
+    !isString(possibleNetworkUrl) ||
+    !isString(possibleNetwork)
+) {
+    logger.fatal('Internal error: required values undefined after validation.');
+    process.exit(1);
+}
+
+const deployerKey = possibleDeployerKey;
+const zkAppPrivateKey = possibleZkAppKey;
+const storeHash = possibleStoreHash;
+const networkUrl = possibleNetworkUrl;
+const networkId: NetworkId =
+    possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
+
+logger.log(`storeHashHex provided: '${possibleStoreHashHex}'`);
 
 async function updateStoreHash() {
-    // Initialize keys
-    const deployerKey = PrivateKey.fromBase58(deployerKeyBase58);
-    const zkAppPrivateKey = PrivateKey.fromBase58(zkAppPrivateKeyBase58);
     const deployerAccount = deployerKey.toPublicKey();
     const zkAppAddress = zkAppPrivateKey.toPublicKey();
     const zkAppAddressBase58 = zkAppAddress.toBase58();
-
     logger.log(`Deployer address: '${deployerAccount.toBase58()}'.`);
     logger.log(`ZkApp contract address: '${zkAppAddressBase58}'.`);
 
     // Configure Mina network
     const Network = Mina.Network({
-        networkId: 'testnet' as NetworkId,
+        networkId,
         mina: networkUrl,
     });
     Mina.setActiveInstance(Network);
 
     // Compile and verify
-    await compileAndVerifyContracts(
-        logger,
-        [
-            {
-                name: 'ethVerifier',
-                program: EthVerifier,
-                integrityHash: ethVerifierVkHash,
-            },
-            {
-                name: 'ethProcessor',
-                program: EthProcessor,
-                integrityHash: ethProcessorVkHash,
-            },
-        ]
-    );
+    await compileAndVerifyContracts(logger, [
+        {
+            name: 'ethVerifier',
+            program: EthVerifier,
+            integrityHash: ethVerifierVkHash,
+        },
+        {
+            name: 'ethProcessor',
+            program: EthProcessor,
+            integrityHash: ethProcessorVkHash,
+        },
+    ]);
 
-    // Initialize contract
     const zkApp = new EthProcessor(zkAppAddress);
 
-    // Deploy transaction
-    logger.log('Creating deployment transaction...');
+    logger.log('Creating update store hash transaction...');
     const txn = await Mina.transaction(
         { fee, sender: deployerAccount },
         async () => {
-            logger.log(`Updating the store hash to '${storeHashHex}'.`);
+            logger.log(`Updating the store hash to '${possibleStoreHashHex}'.`);
             await zkApp.updateStoreHash(
                 Bytes32FieldPair.fromBytes32(storeHash)
             );
@@ -143,6 +173,8 @@ async function updateStoreHash() {
 
 // Execute update
 updateStoreHash().catch((err) => {
-    logger.fatal(`Deploy function encountered an error.\n${String(err)}`);
+    logger.fatal(
+        `UpdateStoreHash function encountered an error.\n${String(err)}`
+    );
     process.exit(1);
 });

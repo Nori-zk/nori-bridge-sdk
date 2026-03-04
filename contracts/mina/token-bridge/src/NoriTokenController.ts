@@ -1,32 +1,40 @@
 import {
     AccountUpdate,
-    AccountUpdateForest,
     assert,
     Bool,
-    DeployArgs,
+    type DeployArgs,
     Field,
     method,
     Permissions,
     Poseidon,
     Provable,
     PublicKey,
-    SmartContract,
+    type SmartContract,
     State,
     state,
     TokenContract,
     UInt64,
-    VerificationKey,
 } from 'o1js';
+// VerificationKey and AccountUpdateForest must be value imports for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { VerificationKey, AccountUpdateForest } from 'o1js';
+import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
+// EthProofType must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { EthProofType } from '@nori-zk/o1js-zk-utils';
 import {
     contractDepositCredentialAndTotalLockedToFields,
     getContractDepositSlotRootFromContractDepositAndWitness,
-    MerkleTreeContractDepositAttestorInput,
     verifyDepositSlotRoot,
 } from './depositAttestation.js';
+// MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
 import { verifyCodeChallenge } from './pkarm.js';
+
+const logger = new Logger('NoriTokenController');
 
 export type FungibleTokenAdminBase = SmartContract & {
     canMint(accountUpdate: AccountUpdate): Promise<Bool>;
@@ -71,7 +79,7 @@ export class NoriTokenController
         });
     }
 
-    approveBase(forest: AccountUpdateForest): Promise<void> {
+    approveBase(_forest: AccountUpdateForest): Promise<void> {
         throw Error('block updates');
     }
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
@@ -152,10 +160,12 @@ export class NoriTokenController
         verifyDepositSlotRoot(contractDepositSlotRoot, ethVerifierProof);
 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
-        const { totalLocked, attestationHash: codeChallengePKARM } =
-            contractDepositCredentialAndTotalLockedToFields(
-                merkleTreeContractDepositAttestorInput
-            );
+        const {
+            totalLocked: totalLockedWei,
+            attestationHash: codeChallengePKARM,
+        } = contractDepositCredentialAndTotalLockedToFields(
+            merkleTreeContractDepositAttestorInput
+        );
 
         // Verify the code challenge
         verifyCodeChallenge(codeVerifierPKARM, userAddress, codeChallengePKARM);
@@ -173,9 +183,26 @@ export class NoriTokenController
 
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
+        // Ensure totalLockedWei is at least one bridge unit
+        totalLockedWei.assertGreaterThanOrEqual(
+            new Field(1_000_000_000_000n),
+            'Cannot mint: total locked wei is less than one bridge unit (atleast 1e12 wei is needed)'
+        );
+
+        // Convert totalLockedWei to bridge units
+        // Divide by number bridge scale factor, we have min deposit of 1e-6 ETH (6dp) and 1 ETH is 1e18 wei
+        // So factor is 18-6=12 1e12
+        const totalLockedBridgeUnits = totalLockedWei.div(new Field(1_000_000_000_000n));
+        /*const totalLockedBridgeUnits = Provable.witness(
+            Field,
+            () => new Field(totalLockedWei.toBigInt() / 1_000_000_000_000n)
+        );
+        totalLockedBridgeUnits.mul(new Field(1_000_000_000_000n)).assertEquals(totalLockedWei);*/
+
+
         // Derive amount to mint based of the total locked so far.
         const amountToMint = await storage.increaseMintedAmount(
-            totalLocked
+            totalLockedBridgeUnits
         );
         Provable.log(amountToMint, 'amount to mint');
 
@@ -183,7 +210,7 @@ export class NoriTokenController
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
         Provable.asProver(() => {
-            console.log(
+            logger.log(
                 'UInt64.Unsafe.fromField(amountToMint)',
                 UInt64.Unsafe.fromField(amountToMint).toBigInt()
             );

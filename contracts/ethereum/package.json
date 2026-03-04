@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/ethereum-token-bridge",
-    "version": "0.0.7",
+    "version": "0.0.10",
     "description": "NoriTokenBridge contract",
     "main": "build/index.js",
     "publishConfig": {
@@ -14,6 +14,7 @@
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
         "deploy": "dotenv -e .env -- sh -c 'npx hardhat run bin/deploy.ts --network $ETH_NETWORK'",
+        "withdraw": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK withdrawAll \"$@\"' --",
         "test:lock": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK lockTokens \"$@\"' --",
         "test:lock-loop": "dotenv -e .env -- sh -c 'while true; do npx hardhat --network \"$ETH_NETWORK\" lockTokens \"$@\" || break; sleep 384; done' --",
         "get-deposited": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK getTotalDeposited \"$@\"' --"
@@ -26,10 +27,11 @@
         "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
         "@nomicfoundation/hardhat-typechain": "^3.0.0",
         "@nomicfoundation/hardhat-viem": "^3.0.0",
-        "dotenv": "^16.5.0",
-        "dotenv-cli": "^8.0.0",
         "hardhat": "^3.0.6",
-        "npm-workspaces-publish-tool": "^0.0.8"
+        "dotenv": "^17.2.4",
+        "chai": "^4.5.0",
+        "dotenv-cli": "^8.0.0",
+        "npm-workspaces-publish-tool": "0.0.17"
     },
     "files": [
         "build/",

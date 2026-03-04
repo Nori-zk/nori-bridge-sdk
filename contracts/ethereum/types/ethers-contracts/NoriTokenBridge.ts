@@ -6,17 +6,29 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "bridgeOperator" | "lockTokens" | "lockedTokens"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "MAX_MAGNITUDE" | "WEI_PER_BRIDGE_UNIT" | "bridgeOperator" | "codeChallengeToEthAddress" | "lockTokens" | "lockedTokens" | "totalLocked" | "withdraw"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "TokensLocked"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'bridgeOperator', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'DECIMALS', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_MAGNITUDE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'WEI_PER_BRIDGE_UNIT', values?: undefined): string;
+encodeFunctionData(functionFragment: 'bridgeOperator', values?: undefined): string;
+encodeFunctionData(functionFragment: 'codeChallengeToEthAddress', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'lockTokens', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'lockedTokens', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'totalLocked', values?: undefined): string;
+encodeFunctionData(functionFragment: 'withdraw', values?: undefined): string;
 
-    decodeFunctionResult(functionFragment: 'bridgeOperator', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'DECIMALS', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_MAGNITUDE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'WEI_PER_BRIDGE_UNIT', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'bridgeOperator', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'codeChallengeToEthAddress', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalLocked', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
   }
 
   
@@ -66,8 +78,40 @@ decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
 
     
     
+    DECIMALS: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    MAX_MAGNITUDE: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    WEI_PER_BRIDGE_UNIT: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     bridgeOperator: TypedContractMethod<
       [],
+      [string],
+      'view'
+    >
+    
+
+    
+    codeChallengeToEthAddress: TypedContractMethod<
+      [arg0: BigNumberish, ],
       [string],
       'view'
     >
@@ -89,11 +133,47 @@ decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
     >
     
 
+    
+    totalLocked: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    withdraw: TypedContractMethod<
+      [],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'bridgeOperator'): TypedContractMethod<
+    getFunction(nameOrSignature: 'DECIMALS'): TypedContractMethod<
       [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MAX_MAGNITUDE'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'WEI_PER_BRIDGE_UNIT'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'bridgeOperator'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'codeChallengeToEthAddress'): TypedContractMethod<
+      [arg0: BigNumberish, ],
       [string],
       'view'
     >;
@@ -106,6 +186,16 @@ getFunction(nameOrSignature: 'lockedTokens'): TypedContractMethod<
       [arg0: AddressLike, arg1: BigNumberish, ],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'totalLocked'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'withdraw'): TypedContractMethod<
+      [],
+      [void],
+      'nonpayable'
     >;
 
     getEvent(key: 'TokensLocked'): TypedContractEvent<TokensLockedEvent.InputTuple, TokensLockedEvent.OutputTuple, TokensLockedEvent.OutputObject>;
