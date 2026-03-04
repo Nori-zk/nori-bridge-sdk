@@ -37,7 +37,8 @@
         "hardhat-gas-reporter": "^2.3.0",
         "npm-workspaces-publish-tool": "0.0.17",
         "solidity-coverage": "^0.8.17",
-        "typechain": "^8.3.2"
+        "typechain": "^8.3.2",
+        "hardhat-preprocessor": "^0.1.5"
     },
     "files": [
         "build/",
