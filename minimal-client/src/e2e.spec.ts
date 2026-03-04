@@ -15,7 +15,7 @@ import {
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { getZkAppWorker } from './zkAppWorkerClient.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
-import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge';
 import { createTimer } from '@nori-zk/o1js-zk-utils';
 import { describe, test } from './test-utils/browserTestRunner.js'
@@ -249,7 +249,7 @@ describe('e2e_testnet', () => {
 
             logger.log('Locking eth tokens');
             const lockingTokensTimer = createTimer();
-            const abi = noriTokenBridgeJson.abi;
+            const abi = noriEthTokenBridgeJson.abi;
             const contract = new ethers.Contract(
                 noriETHBridgeAddressHex,
                 abi,

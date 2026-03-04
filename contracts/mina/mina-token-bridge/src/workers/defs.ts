@@ -1,1 +1,1 @@
-export { ZkAppWorker } from './zkAppWorker/worker.js';
+export { TokenBridgeWorker } from './tokenBridgeWorker/worker.js';

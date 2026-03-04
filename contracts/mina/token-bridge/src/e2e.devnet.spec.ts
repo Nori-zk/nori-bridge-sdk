@@ -17,7 +17,7 @@ import {
 import { signSecretWithEthWallet } from './ethSignature.js';
 import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
-import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
@@ -160,7 +160,7 @@ describe('e2e_testnet', () => {
 
             logger.log('Locking eth tokens');
             const lockingTokensTimer = createTimer();
-            const abi = noriTokenBridgeJson.abi;
+            const abi = noriEthTokenBridgeJson.abi;
             const contract = new ethers.Contract(
                 noriETHBridgeAddressHex,
                 abi,

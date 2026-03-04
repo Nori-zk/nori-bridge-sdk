@@ -42,8 +42,8 @@ import { cacheFactory } from '@nori-zk/o1js-zk-utils';
 
 void NoriTokenBridgeCacheLayout;
 
-new LogPrinter('ZkAppWorker');
-const logger = new Logger('ZkAppWorker');
+new LogPrinter('TokenBridgeWorker');
+const logger = new Logger('TokenBridgeWorker');
 
 export function isBrowser(): boolean {
     return (
@@ -56,9 +56,9 @@ export function isBrowser(): boolean {
     );
 }
 
-logger.log('Constructing ZkAppWorker. isBrowser:', isBrowser());
+logger.log('Constructing TokenBridgeWorker. isBrowser:', isBrowser());
 
-export class ZkAppWorker {
+export class TokenBridgeWorker {
     /// WALLET METHOD DONT USE IN FRONT END
 
     // Initialise methods

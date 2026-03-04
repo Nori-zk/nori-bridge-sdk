@@ -34,9 +34,9 @@ async function main() {
   console.log(`Deployed in block: ${receipt.blockNumber}`);
   console.log(`Gas used for deployment: ${receipt.gasUsed.toString()}`);
 
-  // Write the contract address to .env.nori-token-bridge file
-  const envFilePath = path.resolve(__dirname, "..", ".env.nori-token-bridge");
-  const envContent = `NORI_TOKEN_BRIDGE_ADDRESS=${noriTokenBridgeDeployedContract.target}\n`;
+  // Write the contract address to .env.nori-eth-token-bridge file
+  const envFilePath = path.resolve(__dirname, "..", ".env.nori-eth-token-bridge");
+  const envContent = `NORI_ETH_TOKEN_BRIDGE_ADDRESS=${noriTokenBridgeDeployedContract.target}\n`;
 
   writeFileSync(envFilePath, envContent, { encoding: "utf8" });
 }

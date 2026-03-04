@@ -16,6 +16,27 @@
     },
     "./browser": {
       "import": "./build/index.browser.js"
+    },
+    "./node/workers/tokenBridgeWorker": {
+      "import": "./build/workers/tokenBridgeWorker/node/parent.js"
+    },
+    "./node/workers/tokenBridgeDeployer": {
+      "import": "./build/workers/tokenBridgeDeployer/node/parent.js"
+    },
+    "./workers/defs": {
+      "import": "./build/workers/defs.js"
+    },
+    "./rx/deposit": {
+      "import": "./build/rx/deposit.js"
+    },
+    "./rx/socket": {
+      "import": "./build/rx/socket.js"
+    },
+    "./rx/topics": {
+      "import": "./build/rx/topics.js"
+    },
+    "./env": {
+      "import": "./build/env.js"
     }
   },
   "scripts": {

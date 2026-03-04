@@ -1,4 +1,4 @@
-import { TokenDeployerWorker } from '../worker.js';
+import { TokenBridgeWorker } from '../worker.js';
 import { WorkerChild } from '@nori-zk/workers/node/child';
 import { createWorker } from '@nori-zk/workers';
-createWorker(new WorkerChild(), TokenDeployerWorker);
+createWorker(new WorkerChild(), TokenBridgeWorker);

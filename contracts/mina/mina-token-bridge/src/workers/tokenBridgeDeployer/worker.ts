@@ -57,7 +57,7 @@ function removeCacheDir(cacheConfig: FileSystemCacheConfig) {
     rmSync(cacheConfig.dir, { recursive: true, force: true });
 }
 
-export class TokenDeployerWorker {
+export class TokenBridgeDeployerWorker {
     #cacheConfig: FileSystemCacheConfig | undefined;
 
     async minaSetup(options: {

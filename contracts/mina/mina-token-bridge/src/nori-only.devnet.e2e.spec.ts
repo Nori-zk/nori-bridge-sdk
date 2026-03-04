@@ -15,9 +15,9 @@ import {
     readyToComputeMintProof,
 } from './rx/deposit.js';
 import { signSecretWithEthWallet } from './ethSignature.js';
-import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
+import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
-import { noriTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
@@ -160,7 +160,7 @@ describe('e2e_testnet', () => {
 
             logger.log('Locking eth tokens');
             const lockingTokensTimer = createTimer();
-            const abi = noriTokenBridgeJson.abi;
+            const abi = noriEthTokenBridgeJson.abi;
             const contract = new ethers.Contract(
                 noriETHBridgeAddressHex,
                 abi,
@@ -213,30 +213,30 @@ describe('e2e_testnet', () => {
 
             // INIT WORKER **************************************************
             logger.log('Fetching zkApp worker.');
-            const ZkAppWorker = getZkAppWorker();
+            const TokenBridgeWorker = getTokenBridgeWorker();
 
-            // Compile zkAppWorker dependancies
-            logger.log('Compiling dependancies of zkAppWorker');
-            const zkAppWorker = new ZkAppWorker();
-            const zkAppWorkerReady = zkAppWorker.compileAll(); // ?? Can we move this earlier...
+            // Compile tokenBridgeWorker dependancies
+            logger.log('Compiling dependancies of tokenBridgeWorker');
+            const tokenBridgeWorker = new TokenBridgeWorker();
+            const tokenBridgeWorkerReady = tokenBridgeWorker.compileAll(); // ?? Can we move this earlier...
 
             // PREPARE FOR MINTING **************************************************
 
             // Configure wallet
             // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
-            await zkAppWorker.WALLET_setMinaPrivateKey(
+            await tokenBridgeWorker.WALLET_setMinaPrivateKey(
                 minaSenderPrivateKeyBase58
             );
-            await zkAppWorker.minaSetup(minaConfig);
+            await tokenBridgeWorker.minaSetup(minaConfig);
 
-            // Get noriStorageInterfaceVerificationKeySafe from zkAppWorkerReady resolution.
+            // Get noriStorageInterfaceVerificationKeySafe from tokenBridgeWorkerReady resolution.
             const { noriStorageInterfaceVerificationKeySafe } =
-                await zkAppWorkerReady;
-            logger.log('Awaited compilation of zkAppWorkerReady');
+                await tokenBridgeWorkerReady;
+            logger.log('Awaited compilation of tokenBridgeWorkerReady');
 
             // SETUP STORAGE **************************************************
             // TODO IMPROVE THIS
-            const setupRequired = await zkAppWorker.needsToSetupStorage(
+            const setupRequired = await tokenBridgeWorker.needsToSetupStorage(
                 noriTokenBridgeAddressBase58,
                 minaSenderPublicKeyBase58
             );
@@ -246,17 +246,17 @@ describe('e2e_testnet', () => {
                 logger.log('Setting up storage');
                 const setupStorageTimer = createTimer();
                 const { txHash: setupTxHash } =
-                    await zkAppWorker.MOCK_setupStorage(
+                    await tokenBridgeWorker.MOCK_setupStorage(
                         minaSenderPublicKeyBase58,
                         noriTokenBridgeAddressBase58,
                         0.1 * 1e9,
                         noriStorageInterfaceVerificationKeySafe
                     );
                 // NOTE! ************
-                // Really a client would use await zkAppWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
-                // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.setupStorage should be used on the
+                // Really a client would use await tokenBridgeWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
+                // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenBridgeWorker.setupStorage should be used on the
                 // frontend.
-                /*const provedSetupTxStr = await zkAppWorker.setupStorage(
+                /*const provedSetupTxStr = await tokenBridgeWorker.setupStorage(
                     senderPublicKeyBase58,
                     noriTokenBridgeAddressBase58,
                     0.1 * 1e9,
@@ -265,7 +265,7 @@ describe('e2e_testnet', () => {
                 logger.log('provedSetupTxStr', provedSetupTxStr);*/
                 // The below should use a real wallets signAndSend method.
                 /*const { txHash: setupTxHash } =
-                await zkAppWorker.WALLET_signAndSend(provedSetupTxStr);*/
+                await tokenBridgeWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
                 logger.log('setupTxHash', setupTxHash);
                 logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
@@ -285,7 +285,7 @@ describe('e2e_testnet', () => {
                 'Computing eth verifier and calculating deposit witness.'
             );
             const { depositAttestationInput } =
-                await zkAppWorker.computeDepositAttestationWitnessAndEthVerifier(
+                await tokenBridgeWorker.computeDepositAttestationWitnessAndEthVerifier(
                     codeChallengePKARMStr,
                     depositBlockNumber,
                     ethAddressLowerHex
@@ -297,7 +297,7 @@ describe('e2e_testnet', () => {
             // PRE-COMPUTE MINT PROOF ****************************************************
 
             logger.log('Determining user funding status.');
-            const needsToFundAccount = await zkAppWorker.needsToFundAccount(
+            const needsToFundAccount = await tokenBridgeWorker.needsToFundAccount(
                 noriTokenBaseAddressBase58,
                 minaSenderPublicKeyBase58
             );
@@ -306,7 +306,7 @@ describe('e2e_testnet', () => {
             logger.log('Computing mint proof.');
 
             const mintProofComputationTimer = createTimer();
-            await zkAppWorker.MOCK_computeMintProofAndCache(
+            await tokenBridgeWorker.MOCK_computeMintProofAndCache(
                 minaSenderPublicKeyBase58,
                 noriTokenBridgeAddressBase58,
                 depositAttestationInput,
@@ -316,10 +316,10 @@ describe('e2e_testnet', () => {
             );
             logger.log(`Mint proof computation in ${mintProofComputationTimer()}`);
             // NOTE!
-            // Really a client would use await zkAppWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
-            // Currently we don't have the correct logic for emulating the wallet signAndSend method. However zkAppWorker.mint should be used on the
+            // Really a client would use await tokenBridgeWorker.mint(...args) and get a provedMintTxStr which would be submitted to the WALLET for signing
+            // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenBridgeWorker.mint should be used on the
             // frontend, and at this stage, instead of the above:
-            /*const provedMintTxStr = await zkAppWorker.mint(
+            /*const provedMintTxStr = await tokenBridgeWorker.mint(
                 senderPublicKeyBase58,
                 noriTokenBridgeAddressBase58, // CHECKME @Karol
                 {
@@ -348,23 +348,23 @@ describe('e2e_testnet', () => {
 
             const mintTransactionFinalizedTimer = createTimer();
             const { txHash: mintTxHash } =
-                await zkAppWorker.WALLET_MOCK_signAndSendMintProofCache();
+                await tokenBridgeWorker.WALLET_MOCK_signAndSendMintProofCache();
             // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
             // And ideally when WALLET_signAndSend works properly we would replace the above(within this test only!) with the below MOCK for wallet behaviour.
             /*const { txHash: mintTxHash } =
-            await zkAppWorker.WALLET_signAndSend(provedMintTxStr);*/
+            await tokenBridgeWorker.WALLET_signAndSend(provedMintTxStr);*/
             logger.log('mintTxHash', mintTxHash);
             logger.log(`Mint transaction finalized in ${mintTransactionFinalizedTimer()}`);
             logger.log('Minted!');
 
             // Get the amount minted so far and print it
-            const mintedSoFar = await zkAppWorker.mintedSoFar(
+            const mintedSoFar = await tokenBridgeWorker.mintedSoFar(
                 noriTokenBridgeAddressBase58,
                 minaSenderPublicKeyBase58
             );
             logger.log('mintedSoFar', mintedSoFar);
 
-            const balanceOfUser = await zkAppWorker.getBalanceOf(
+            const balanceOfUser = await tokenBridgeWorker.getBalanceOf(
                 noriTokenBaseAddressBase58,
                 minaSenderPublicKeyBase58
             );
