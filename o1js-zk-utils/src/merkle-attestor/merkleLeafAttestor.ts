@@ -1,7 +1,6 @@
 import {
     Field,
     Poseidon,
-    Proof,
     Provable,
     Struct,
     UInt64,
@@ -13,7 +12,7 @@ import {
     getMerklePathFromLeaves as getMerklePathFromLeavesInner,
     getMerkleZeros,
 } from './merkleTree.js';
-import { Constructor } from '../types.js';
+import { type Constructor } from '../types.js';
 
 export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
     treeDepth: number,

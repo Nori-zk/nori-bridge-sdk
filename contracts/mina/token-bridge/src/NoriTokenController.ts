@@ -1,32 +1,40 @@
 import {
     AccountUpdate,
-    AccountUpdateForest,
     assert,
     Bool,
-    DeployArgs,
+    type DeployArgs,
     Field,
     method,
     Permissions,
     Poseidon,
     Provable,
     PublicKey,
-    SmartContract,
+    type SmartContract,
     State,
     state,
     TokenContract,
     UInt64,
-    VerificationKey,
 } from 'o1js';
+// VerificationKey and AccountUpdateForest must be value imports for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { VerificationKey, AccountUpdateForest } from 'o1js';
+import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
+// EthProofType must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { EthProofType } from '@nori-zk/o1js-zk-utils';
 import {
     contractDepositCredentialAndTotalLockedToFields,
     getContractDepositSlotRootFromContractDepositAndWitness,
-    MerkleTreeContractDepositAttestorInput,
     verifyDepositSlotRoot,
 } from './depositAttestation.js';
+// MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
 import { verifyCodeChallenge } from './pkarm.js';
+
+const logger = new Logger('NoriTokenController');
 
 export type FungibleTokenAdminBase = SmartContract & {
     canMint(accountUpdate: AccountUpdate): Promise<Bool>;
@@ -79,6 +87,7 @@ export class NoriTokenController
      * @param forest 
      */
     approveBase(forest: AccountUpdateForest): Promise<void> {
+        void forest;
         throw Error('block updates');
     }
 
@@ -213,7 +222,7 @@ export class NoriTokenController
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
         Provable.asProver(() => {
-            console.log(
+            logger.log(
                 'UInt64.Unsafe.fromField(amountToMint)',
                 UInt64.Unsafe.fromField(amountToMint).toBigInt()
             );

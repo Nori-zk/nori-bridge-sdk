@@ -1,4 +1,4 @@
-import { Logger, LogPrinter } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     buildExampleProofCreateArgument,
     buildExampleProofSeriesCreateArguments,
@@ -9,22 +9,14 @@ import { PrivateKey } from 'o1js';
 import {
     CacheType,
     decodeConsensusMptProof,
-    FileSystemCacheConfig,
+    type FileSystemCacheConfig,
 } from '@nori-zk/o1js-zk-utils';
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
 import { getNewMinaLiteNetAccountSK } from './testUtils.js';
 
-new LogPrinter('[TestEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('TestEthProcessor');
 
 process.env.NETWORK = process.env.NETWORK || 'lightnet';
 process.env.MINA_RPC_NETWORK_URL = process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
@@ -44,10 +36,12 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         };
         return cacheConfig;
     }
+    void getRandomCacheDir;
 
     function removeCacheDir(cacheConfig: FileSystemCacheConfig) {
         rmSync(cacheConfig.dir, { recursive: true, force: true });
     }
+    void removeCacheDir;
 
     // Read only cache idea did not work indicating that the cache written to disk
     // is simply not reconstructing the same in memory state as when created from an empty cache.
@@ -85,11 +79,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         // Generate a random SENDER_PRIVATE_KEY
         process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
-        const cacheDir = getRandomCacheDir();
+        //const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
             const proofSubmitter = new MinaEthProcessorSubmitter(
-                cacheDir // readOnlyCacheConfig
+                //cacheDir // readOnlyCacheConfig
             );
 
             // Establish the network
@@ -115,11 +109,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
             const result = await proofSubmitter.submit(ethProof.proof);
 
             // Wait for finalization
-            await wait(result.txId, process.env.MINA_RPC_NETWORK_URL!);
+            await wait(result.txId, process.env.MINA_RPC_NETWORK_URL as string);
 
             logger.log('Awaited finalization succesfully.');
         } finally {
-            removeCacheDir(cacheDir);
+            // removeCacheDir(cacheDir);
         }
     }, 10000000);
 
@@ -132,11 +126,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         // Generate a random SENDER_PRIVATE_KEY
         process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
-        const cacheDir = getRandomCacheDir();
+        // const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
             const proofSubmitter = new MinaEthProcessorSubmitter(
-                cacheDir // readOnlyCacheConfig
+                // cacheDir // readOnlyCacheConfig
             );
 
             // Establish the network
@@ -175,7 +169,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
                 i++;
             }
         } finally {
-            removeCacheDir(cacheDir);
+            // removeCacheDir(cacheDir);
         }
     }, 10000000);
 
@@ -188,11 +182,11 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
         // Generate a random SENDER_PRIVATE_KEY
         process.env.SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
-        const cacheDir = getRandomCacheDir();
+        // const cacheDir = getRandomCacheDir();
         try {
             // Construct a MinaEthProcessorSubmittor
             const proofSubmitter = new MinaEthProcessorSubmitter(
-                cacheDir // readOnlyCacheConfig
+                // cacheDir // readOnlyCacheConfig
             );
 
             // Establish the network
@@ -225,7 +219,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
             logger.log(`txHash: ${result0.txHash}`);
 
             // Wait for finalization
-            await wait(result0.txId, process.env.MINA_RPC_NETWORK_URL!);
+            await wait(result0.txId, process.env.MINA_RPC_NETWORK_URL as string);
 
             logger.log(
                 `Running Example 3 -------------------------------------------------------`
@@ -245,7 +239,7 @@ describe('MinaEthProcessorSubmittor Integration Test', () => {
                 proofSubmitter.submit(ethProof2.proof)
             ).rejects.toThrow();
         } finally {
-            removeCacheDir(cacheDir);
+            // removeCacheDir(cacheDir);
         }
     }, 10000000);
 

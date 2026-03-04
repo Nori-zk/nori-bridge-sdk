@@ -100,6 +100,8 @@ export const MinaFileSystem = (cacheFiles: CacheMap): Cache => ({
     },
 
     write(header: CacheHeader, value: Uint8Array) {
+        void header;
+        void value;
         // No-op in this implementation
     },
 

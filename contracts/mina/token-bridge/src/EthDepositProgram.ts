@@ -1,10 +1,14 @@
 import {
+    createTimer,
     EthProof,
     ContractDepositAttestorProof,
     ContractDepositAttestor,
     EthVerifier,
 } from '@nori-zk/o1js-zk-utils';
 import { Field, Provable, Struct, ZkProgram } from 'o1js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('EthDepositProgram');
 
 export class EthDepositProgramInput extends Struct({
     credentialAttestationHash: Field,
@@ -98,7 +102,7 @@ export const EthDepositProgram = ZkProgram({
                 );
 
                 Provable.asProver(() => {
-                    console.log(
+                    logger.log(
                         contractDepositAttestorPublicInputs.value.bytes.map(
                             (byte) => byte.toBigInt()
                         )
@@ -145,27 +149,27 @@ export class EthDepositProgramProofType extends EthDepositProgramProof {}
 export async function compilePreRequisites() {
     // TODO optimise not all of these need to be compiled immediately
 
-    console.time('ContractDepositAttestor compile');
+    let timer = createTimer();
     const { verificationKey: contractDepositAttestorVerificationKey } =
         await ContractDepositAttestor.compile({ forceRecompile: true });
-    console.timeEnd('ContractDepositAttestor compile');
-    console.log(
+    logger.log(`ContractDepositAttestor compiled in ${timer()}`);
+    logger.log(
         `ContractDepositAttestor contract compiled vk: '${contractDepositAttestorVerificationKey.hash}'.`
     );
 
-    console.time('EthVerifier compile');
+    timer = createTimer();
     const { verificationKey: ethVerifierVerificationKey } =
         await EthVerifier.compile({ forceRecompile: true });
-    console.timeEnd('EthVerifier compile');
-    console.log(
+    logger.log(`EthVerifier compiled in ${timer()}`);
+    logger.log(
         `EthVerifier compiled vk: '${ethVerifierVerificationKey.hash}'.`
     );
 
-    console.time('E2EPrerequisitesProgram compile');
+    timer = createTimer();
     const { verificationKey: e2ePrerequisitesVerificationKey } =
         await EthDepositProgram.compile({ forceRecompile: true });
-    console.timeEnd('E2EPrerequisitesProgram compile');
-    console.log(
+    logger.log(`E2EPrerequisitesProgram compiled in ${timer()}`);
+    logger.log(
         `E2EPrerequisitesProgram contract compiled vk: '${e2ePrerequisitesVerificationKey.hash}'.`
     );
 }

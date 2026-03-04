@@ -1,4 +1,4 @@
-import { Field, SmartContract, state, State, method, Provable, Types, assert, Permissions } from 'o1js';
+import { Field, SmartContract, state, State, method } from 'o1js';
 
 const UNDERFLOW_PROTECTION_MESSAGE = `lockedSoFar is less than mintedSoFar. 
 This would cause a negative mint amount (underflow), so minting is blocked. 
@@ -7,8 +7,9 @@ which is outside the supported design and must be avoided.`;
 
 const ZERO_MINT_ERROR_MESSAGE = `No new amount to mint. The requested lockedSoFar equals mintedSoFar, minting zero tokens is not allowed.`;
 
+// CHECKME why is this not used!!
 const PERMISSION_CHECK_ERROR_MESSAGE  = `\`editState\` MUST be by proof and \`setPermissions\` MUST be by proof `;
-
+void PERMISSION_CHECK_ERROR_MESSAGE;
 /**
  * The contract stores the cumulative amount of token user has minted or burned. 
  * 

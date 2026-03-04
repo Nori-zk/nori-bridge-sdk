@@ -1,7 +1,8 @@
 import { UInt64 } from 'o1js';
 import { merkleLeafAttestorGenerator } from './merkleLeafAttestor.js';
 import { Bytes20, Bytes32 } from '../types.js';
-import { Logger, LogPrinter, wordToBytes } from '@nori-zk/proof-conversion';
+import { Logger, LogPrinter } from 'esm-iso-logger';
+import { wordToBytes } from '@nori-zk/proof-conversion';
 import {
     computeMerkleTreeDepthAndSize,
     foldMerkleLeft,
@@ -18,15 +19,7 @@ import {
 } from './testUtils.js';
 
 const logger = new Logger('TestMerkle');
-new LogPrinter('[TestEthProcessor]', [
-    'log',
-    'info',
-    'warn',
-    'error',
-    'debug',
-    'fatal',
-    'verbose',
-]);
+new LogPrinter('TestO1JsZkUtils');
 
 const {
     MerkleTreeLeafAttestorInput,

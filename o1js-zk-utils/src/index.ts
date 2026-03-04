@@ -14,6 +14,10 @@ export * from './utils.js';
 
 export { ethVerifierVkHash } from './integrity/EthVerifier.VKHash.js';
 
+export { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP1HeliosProgram.pi0.js';
+export { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
+export { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js'
+
 export { EthVerifier, EthProof, EthInput, EthProofType } from './ethVerifier.js';
 
 export * from './types.js';

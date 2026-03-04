@@ -1,6 +1,7 @@
 import {
     Bytes20,
-    EthProofType,
+    createTimer,
+    type EthProofType,
     Bytes32,
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
@@ -12,15 +13,18 @@ import {
     EthVerifier,
 } from '@nori-zk/o1js-zk-utils';
 import { DynamicArray } from 'mina-attestations';
-import { Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
+import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
+import { Logger } from 'esm-iso-logger';
 // ------- Deposit attestation ---------------------------------
+
+const logger = new Logger('DepositAttestation');
 
 export class ContractDeposit extends Struct({
     address: Bytes20.provable,
     attestationHash: Bytes32.provable,
     value: Bytes32.provable,
-}) {}
+}) { }
 
 const treeDepth = 16;
 
@@ -31,7 +35,7 @@ export class MerkleTreeContractDepositAttestorInput extends Struct({
     path: MerklePath,
     index: UInt64,
     value: ContractDeposit,
-}) {}
+}) { }
 
 export type MerkleTreeContractDepositAttestorInputJson = {
     depositIndex: number;
@@ -240,14 +244,14 @@ export function contractDepositCredentialAndTotalLockedToFields(
     // FIX ME ABOVE??? do we need to not test this here?
 
     Provable.asProver(() => {
-        console.log('contractDepositAttestorPublicInputs value bytes');
-        console.log(
+        logger.log('contractDepositAttestorPublicInputs value bytes');
+        logger.log(
             contractDepositAttestorPublicInputs.value.bytes.map((byte) =>
                 byte.toBigInt()
             )
         );
-        console.log('contractDepositAttestorProofCredential');
-        console.log(contractDepositAttestorProofCredential.toBigInt());
+        logger.log('contractDepositAttestorProofCredential');
+        logger.log(contractDepositAttestorProofCredential.toBigInt());
     });
 
     // Turn totalLocked into a field
@@ -304,9 +308,9 @@ async function proofConversionServiceRequest(
     const fetchResponse = await fetch(
         `${domain}/converted-consensus-mpt-proofs/${depositBlockNumber}`
     );
-    console.log('fetchResponse GET', fetchResponse);
+    logger.log('fetchResponse GET', fetchResponse);
     const json = await fetchResponse.json();
-    console.log('parsedjson', json, typeof json);
+    logger.log('parsedjson', json, typeof json);
     if ('error' in json) throw new Error(json.error as string);
     return json;
 }
@@ -315,11 +319,11 @@ async function fetchContractWindowSlotProofs(
     depositBlockNumber: number,
     domain = 'https://pcs.nori.it.com'
 ) {
-    console.log(
+    logger.log(
         `Fetching proof bundle for deposit with block number: ${depositBlockNumber}`
     );
 
-    console.time('proofConversionServiceRequest');
+    const proofConversionTimer = createTimer();
     const {
         consensusMPTProof: {
             proof: consensusMPTProofProof,
@@ -327,9 +331,9 @@ async function fetchContractWindowSlotProofs(
         },
         consensusMPTProofVerification: consensusMPTProofVerification,
     } = await proofConversionServiceRequest(depositBlockNumber, domain);
-    console.timeEnd('proofConversionServiceRequest');
+    logger.log(`proofConversionServiceRequest: ${proofConversionTimer()}`);
 
-    console.log(
+    logger.log(
         'consensusMPTProofVerification, consensusMPTProofProof, consensusMPTProofContractStorageSlots',
         consensusMPTProofVerification,
         consensusMPTProofProof,
@@ -358,7 +362,7 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
     } = await fetchContractWindowSlotProofs(depositBlockNumber, domain);
 
     // Find deposit
-    console.log(
+    logger.log(
         `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
     const paddedConsensusMPTProofContractStorageSlots =
@@ -385,13 +389,13 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
                 4
             )}`
         );
-    console.log(
+    logger.log(
         `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
     const despositSlotRaw =
         paddedConsensusMPTProofContractStorageSlots[depositIndex];
     const totalDespositedValue = despositSlotRaw.value; // this is a hex // would be nice here to print a bigint
-    console.log(`Total deposited to date (hex): ${totalDespositedValue}`);
+    logger.log(`Total deposited to date (hex): ${totalDespositedValue}`);
 
     // Build contract storage slots (to be hashed)
     const contractStorageSlots =
@@ -399,7 +403,7 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
             const addr = slot.slot_key_address;
             const attr = slot.slot_nested_key_attestation_hash;
             const value = slot.value;
-            console.log({ addr, attr, value });
+            logger.log({ addr, attr, value });
             return new ContractDeposit({
                 address: Bytes20.fromHex(addr.slice(2)),
                 attestationHash: Bytes32.fromHex(attr.slice(2)),
@@ -410,16 +414,16 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
     // Build deposit witness
 
     // Build leaves
-    console.time('buildContractDepositLeaves');
+    const buildLeavesTimer = createTimer();
     const leaves = buildContractDepositLeaves(contractStorageSlots);
-    console.timeEnd('buildContractDepositLeaves');
-    console.log(
+    logger.log(`buildContractDepositLeaves: ${buildLeavesTimer()}`);
+    logger.log(
         'leaves',
         leaves.map((leaf) => leaf.toBigInt())
     );
 
     // Compute path
-    console.time('getContractDepositWitness');
+    const merklePathTimer = createTimer();
     const nLeaves = leaves.length;
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
     const path = getMerklePathFromLeaves(
@@ -429,49 +433,49 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
         depositIndex,
         getMerkleZeros(depth)
     );
-    console.timeEnd('getContractDepositWitness');
-    console.log(
+    logger.log(`getContractDepositWitness: ${merklePathTimer()}`);
+    logger.log(
         'path',
         path.map((pathEle) => pathEle.toBigInt())
     );
 
     // Compute root
-    console.time('foldMerkleLeft');
+    const merkleRootTimer = createTimer();
     const rootHash = foldMerkleLeft(
         leaves,
         paddedSize,
         depth,
         getMerkleZeros(depth)
     );
-    console.timeEnd('foldMerkleLeft');
-    console.log(`Computed Merkle root: ${rootHash.toString()}`);
+    logger.log(`foldMerkleLeft: ${merkleRootTimer()}`);
+    logger.log(`Computed Merkle root: ${rootHash.toString()}`);
 
-    console.log('Loaded sp1PlonkProof and conversionOutputProof');
+    logger.log('Loaded sp1PlonkProof and conversionOutputProof');
     const decodedInputs = decodeConsensusMptProof(consensusMPTProofProof);
-    console.log(
+    logger.log(
         'decodedInputs verifiedContractDepositsRoot',
         decodedInputs.verifiedContractDepositsRoot.bytes.map((byte) =>
             byte.toNumber()
         )
     );
     const ethVerifierInput = new EthInput(decodedInputs);
-    console.log('Decoded EthInput from MPT proof');
+    logger.log('Decoded EthInput from MPT proof');
 
-    console.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
+    logger.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
 
     const rawProof = await NodeProofLeft.fromJSON(
         consensusMPTProofVerification.proofData
     );
-    console.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
+    logger.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
 
-    console.log('Computing EthVerifier');
-    console.time('EthVerifier.compute');
+    logger.log('Computing EthVerifier');
+    const ethVerifierTimer = createTimer();
     const ethVerifierProof = (
         await EthVerifier.compute(ethVerifierInput, rawProof)
     ).proof;
-    console.timeEnd('EthVerifier.compute');
+    logger.log(`EthVerifier.compute: ${ethVerifierTimer()}`);
 
-    console.log(`All proofs inputs built needed to compute mint proof!`);
+    logger.log(`All proofs inputs built needed to compute mint proof!`);
 
     return {
         ethVerifierProofJson: ethVerifierProof.toJSON(),

@@ -1,18 +1,18 @@
 import 'dotenv/config';
-import { AccountUpdate, Mina, PrivateKey, NetworkId, fetchAccount } from 'o1js';
-import { Logger } from '@nori-zk/proof-conversion';
-import { EthProcessor, EthProofType } from './ethProcessor.js';
+import { AccountUpdate, Mina, PrivateKey, type NetworkId, fetchAccount } from 'o1js';
+import { Logger } from 'esm-iso-logger';
+import { EthProcessor, type EthProofType } from './ethProcessor.js';
 import {
     EthVerifier,
     EthInput,
     ethVerifierVkHash,
-    CreateProofArgument,
-    VerificationKey,
+    type CreateProofArgument,
+    type VerificationKey,
     decodeConsensusMptProof,
-    Bytes32,
+    type Bytes32,
     Bytes32FieldPair,
     NodeProofLeft,
-    FileSystemCacheConfig,
+    type FileSystemCacheConfig,
     compileAndOptionallyVerifyContracts,
 } from '@nori-zk/o1js-zk-utils';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
@@ -38,6 +38,8 @@ export class MinaEthProcessorSubmitter {
     }
 
     constructor(private cache: FileSystemCacheConfig = undefined) {
+        void this.#ethVerifierVerificationKey;
+        void this.#testMode;
         logger.info(`🛠 MinaEthProcessorSubmitter constructor called!`);
         const errors: string[] = [];
 
@@ -103,7 +105,7 @@ export class MinaEthProcessorSubmitter {
             ? await cacheFactory(this.cache)
             : undefined;
 
-        console.log('fileSystemCache', fileSystemCache, this.cache);
+        logger.log('fileSystemCache', fileSystemCache, this.cache);
 
         const { ethVerifierVerificationKey, ethProcessorVerificationKey } =
             await compileAndOptionallyVerifyContracts(
@@ -237,8 +239,11 @@ export class MinaEthProcessorSubmitter {
 
             const tx = await updateTx.sign([this.#senderPrivateKey]).send();
             logger.log(`Transaction sent to '${this.#network}'.`);
-            const txId = tx.data!.sendZkapp.zkapp.id;
-            const txHash = tx.data!.sendZkapp.zkapp.hash;
+            if (!tx.data) {
+                throw new Error('Transaction data is undefined');
+            }
+            const txId = tx.data.sendZkapp.zkapp.id;
+            const txHash = tx.data.sendZkapp.zkapp.hash;
             if (!txId) {
                 throw new Error('txId is undefined');
             }

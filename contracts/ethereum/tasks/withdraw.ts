@@ -2,13 +2,13 @@ import { task } from 'hardhat/config';
 
 task('withdrawAll', 'Withdraw all ETH from the bridge to the operator account')
     .setAction(async (_, hre) => {
-        const deployedAddress = process.env.NORI_TOKEN_BRIDGE_ADDRESS;
+        const deployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;
         if (!deployedAddress || !/^0x[a-fA-F0-9]{40}$/.test(deployedAddress)) {
             throw new Error(
-                'Invalid or missing environment variable NORI_TOKEN_BRIDGE_ADDRESS'
+                'Invalid or missing environment variable NORI_ETH_TOKEN_BRIDGE_ADDRESS'
             );
         }
-        console.log(`NORI_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
+        console.log(`NORI_ETH_TOKEN_BRIDGE_ADDRESS: ${deployedAddress}`);
 
         const [signer] = await hre.ethers.getSigners();
         const signerAddress = await signer.getAddress();
