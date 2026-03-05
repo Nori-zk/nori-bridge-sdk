@@ -1,4 +1,4 @@
-import { type CreateProofArgument } from '@nori-zk/o1js-zk-utils';
+import { type CreateProofArgument } from '@nori-zk/o1js-zk-utils-new';
 import seriesExample1 from './test_examples/9578560/index.js';
 import seriesExample2 from './test_examples/9578592/index.js';
 import seriesExample3 from './test_examples/9578624/index.js';

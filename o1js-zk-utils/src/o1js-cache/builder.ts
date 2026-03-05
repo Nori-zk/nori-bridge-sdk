@@ -57,7 +57,7 @@ export async function cacheBuilder(
         // Save corresponding TS file
         const tsPath = path.resolve(layoutsDir, `${name}.ts`);
         const tsContent = `import ${name}Json from './${name}.json' with { type: "json" };
-import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils';
+import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils-new';
 
 export const ${name}CacheLayout: ZKCacheLayout = ${name}Json;
 `;
@@ -69,7 +69,7 @@ export const ${name}CacheLayout: ZKCacheLayout = ${name}Json;
     // Create index.ts
     const indexTsPath = path.resolve(layoutsDir, 'index.ts');
     const indexContent =
-        `import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils';\n` +
+        `import { ZKCacheLayout } from '@nori-zk/o1js-zk-utils-new';\n` +
         layoutNames
             .map((name) => `import { ${name}CacheLayout } from './${name}.js';`)
             .join('\n') +

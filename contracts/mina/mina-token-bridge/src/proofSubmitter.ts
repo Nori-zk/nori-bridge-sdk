@@ -22,8 +22,8 @@ import {
     NodeProofLeft,
     type FileSystemCacheConfig,
     compileAndOptionallyVerifyContracts,
-} from '@nori-zk/o1js-zk-utils';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
+} from '@nori-zk/o1js-zk-utils-new';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from './integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from './integrity/NoriStorageInterface.VkHash.js';

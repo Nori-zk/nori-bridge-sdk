@@ -10,7 +10,7 @@ import {
     CacheType,
     decodeConsensusMptProof,
     type FileSystemCacheConfig,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';

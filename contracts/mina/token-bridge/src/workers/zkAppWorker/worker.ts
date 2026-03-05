@@ -6,7 +6,7 @@ import {
     EthVerifier,
     ethVerifierVkHash,
     type NetworkCacheConfig,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import {
     AccountUpdate,
     fetchAccount,
@@ -44,7 +44,7 @@ import {
     NoriTokenControllerCacheLayout,
     EthVerifierCacheLayout,
 } from '../../cache-layouts/index.js';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils-new';
 
 void EthProcessorCacheLayout;
 

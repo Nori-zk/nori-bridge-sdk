@@ -10,7 +10,7 @@ import {
     compileAndVerifyContracts,
     EthVerifier,
     ethVerifierVkHash,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import { ethProcessorVkHash } from '../integrity/EthProcessor.VKHash.js';
 
 const logger = new Logger('UpdateStoreHash');

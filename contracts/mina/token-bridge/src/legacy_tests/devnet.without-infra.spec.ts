@@ -5,7 +5,7 @@ import { type NetworkId, PrivateKey } from 'o1js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils';
+import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 // https://faucet.minaprotocol.com/
 

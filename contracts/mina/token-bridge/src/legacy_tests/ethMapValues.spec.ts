@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { fieldToHexBE } from '@nori-zk/o1js-zk-utils';
+import { fieldToHexBE } from '@nori-zk/o1js-zk-utils-new';
 import { validateEnv } from '../testUtils.js';
 import { ethers } from 'ethers';
 import { signSecretWithEthWallet } from '../ethSignature.js';

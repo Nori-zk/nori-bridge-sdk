@@ -6,7 +6,7 @@ import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
 import { ZkAppWorker as ZkAppWorkerPure } from '../workers/zkAppWorker/worker.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils';
+import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('LitenetWithoutInfraSpec');

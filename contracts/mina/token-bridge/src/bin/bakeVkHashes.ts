@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { Cache, type SmartContract } from 'o1js';
 import { randomBytes } from 'crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import { EthVerifier, ethVerifierVkHash } from '@nori-zk/o1js-zk-utils';
+import { EthVerifier, ethVerifierVkHash } from '@nori-zk/o1js-zk-utils-new';
 import { rootDir } from '../rootDir.js';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriTokenController } from '../NoriTokenController.js';

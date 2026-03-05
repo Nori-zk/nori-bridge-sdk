@@ -3,7 +3,7 @@ import {
     CacheType,
     compileAndOptionallyVerifyContracts,
     type NetworkCacheConfig,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import {
     AccountUpdate,
     fetchAccount,
@@ -38,7 +38,7 @@ import {
     FungibleTokenCacheLayout,
     NoriTokenBridgeCacheLayout,
 } from '../../cache-layouts/index.js';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils-new';
 
 void NoriTokenBridgeCacheLayout;
 

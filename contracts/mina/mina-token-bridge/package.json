@@ -92,7 +92,7 @@
     "node": ">=18.14.0"
   },
   "dependencies": {
-    "@nori-zk/o1js-zk-utils": "*",
+    "@nori-zk/o1js-zk-utils-new": "*",
     "@nori-zk/workers": "*",
     "@nori-zk/proof-conversion": "0.8.17",
     "autrace": "^0.0.25",

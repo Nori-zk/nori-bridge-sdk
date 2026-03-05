@@ -18,7 +18,7 @@ import {
     fieldToHexBE,
     NodeProofLeft,
     uint8ArrayToBigIntBE
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import { EthProcessor } from '@nori-zk/ethprocessor/browser';
 import { bridgeHeadJobSucceededExample } from './test_examples/4666560/bridgeHeadJobSucceeded.js';
 import proofArgument from './test_examples/4666560/index.js';
@@ -28,7 +28,7 @@ import {
     EthDepositProgramInput,
     EthDepositProgram,
 } from './EthDepositProgram.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils';
+import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2EPrerequisitesSpec');
