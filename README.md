@@ -17,7 +17,7 @@ A collection of smart/zk contracts, o1js programs and utilities for Nori Bridge.
    Mina contract for Ethereum state commitment to Mina.
 
 4. **[o1js ZK Utils](./o1js-zk-utils)**  
-   `package: @nori-zk/o1js-zk-utils`  
+   `package: @nori-zk/o1js-zk-utils-new`  
    Zero-knowledge programs and helpers built with o1js.
 
 5. **[Workers](./workers)**  

@@ -17,7 +17,7 @@ import { getTokenBridgeWorker } from './tokenBridgeWorkerClient.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge-new';
-import { createTimer } from '@nori-zk/o1js-zk-utils';
+import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 import { describe, test } from './test-utils/browserTestRunner.js'
 
 function validateEnv(): {
