@@ -16,7 +16,7 @@ const logger = console;
 
 // Extract envs
 const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
-const proofConversionServiceUrl = process.env.PROOF_CONVERSION_SERVICE_URL || 'https://pcs.nori.it.com';
+const proofConversionServiceUrl = process.env.NORI_PCS_URL || 'https://pcs.nori.it.com';
 
 // Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
 const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
@@ -141,25 +141,13 @@ export async function startServer(port = 4003) {
 
 /* Bundle workers */
 async function buildWorkers() {
-    // Build zkApp worker
-    const zkAppWorkerFileName = `zkAppWorker.${HASH}.js`;
-    const zkAppWorkerFilePath = path.resolve(ROOT_DIR, 'public', zkAppWorkerFileName);
+    // Build token bridge worker
+    const tokenBridgeWorkerFileName = `tokenBridgeWorker.${HASH}.js`;
+    const tokenBridgeWorkerFilePath = path.resolve(ROOT_DIR, 'public', tokenBridgeWorkerFileName);
     await esbuild.build({
-        entryPoints: ['src/zkAppWorker.ts'],
+        entryPoints: ['src/tokenBridgeWorker.ts'],
         bundle: true,
-        outfile: zkAppWorkerFilePath,
-        format: 'esm',
-        define,
-        banner: { js: banner },
-    });
-
-    // Build compile worker
-    const compileWorkerFileName = `compileWorker.${HASH}.js`;
-    const compileWorkerFilePath = path.resolve(ROOT_DIR, 'public', compileWorkerFileName);
-    await esbuild.build({
-        entryPoints: ['src/compileWorker.ts'],
-        bundle: true,
-        outfile: compileWorkerFilePath,
+        outfile: tokenBridgeWorkerFilePath,
         format: 'esm',
         define,
         banner: { js: banner },
