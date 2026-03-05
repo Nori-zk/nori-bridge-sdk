@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/mina-token-bridge-new",
-    "version": "0.3.25",
+    "version": "0.3.26",
     "description": "Nori ethereum state settelment and nETH token bridge zkApp",
     "author": "",
     "license": "Apache-2.0",

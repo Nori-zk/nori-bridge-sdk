@@ -1,17 +1,14 @@
 import 'dotenv/config';
 import {
     AccountUpdate,
-    Bool,
     Mina,
     PrivateKey,
-    UInt8,
     type NetworkId,
     fetchAccount,
 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import { NoriTokenBridge } from './NoriTokenBridge.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { FungibleToken } from './TokenBase.js';
 import {
     EthInput,
     decodeConsensusMptProof,
@@ -27,7 +24,6 @@ import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from './integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from './integrity/NoriStorageInterface.VkHash.js';
-import { fungibleTokenVkHash } from './integrity/FungibleToken.VkHash.js';
 
 const logger = new Logger('NoriTokenBridgeSubmitter');
 
@@ -38,15 +34,12 @@ export type NoriTokenBridgeUpdateArgs = {
 
 export class NoriTokenBridgeSubmitter {
     readonly #zkApp: NoriTokenBridge;
-    readonly #fungibleToken: FungibleToken;
     readonly #senderPrivateKey: PrivateKey;
     readonly #tokenBridgePrivateKey: PrivateKey;
-    readonly #tokenBasePrivateKey: PrivateKey;
     readonly #network: NetworkId | 'lightnet';
     readonly #txFee: number;
     readonly noriTokenBridgeVerificationKey: VerificationKey;
     readonly noriStorageInterfaceVerificationKey: VerificationKey;
-    readonly fungibleTokenVerificationKey: VerificationKey;
     readonly #testMode: boolean;
     protected readonly minaRPCNetworkUrl: string;
     get #noriTokenBridgeVerificationKey() {
@@ -61,8 +54,6 @@ export class NoriTokenBridgeSubmitter {
         const senderPrivateKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY as string;
         const network = process.env.MINA_NETWORK as string;
         const tokenBridgePrivateKeyBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY as string;
-        const tokenBasePrivateKeyBase58 = process.env
-            .NORI_MINA_TOKEN_BASE_PRIVATE_KEY as string;
         const networkUrl = process.env.MINA_RPC_NETWORK_URL as string;
 
         if (!senderPrivateKeyBase58)
@@ -85,24 +76,13 @@ export class NoriTokenBridgeSubmitter {
                 'NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY is required when not in lightnet mode'
             );
 
-        if (!tokenBasePrivateKeyBase58)
-            errors.push(
-                'NORI_MINA_TOKEN_BASE_PRIVATE_KEY is required when not in lightnet mode'
-            );
-
         if (errors.length > 0) {
             throw `Configuration errors:\n- ${errors.join('\n- ')}`;
         }
 
         this.#senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         this.#tokenBridgePrivateKey = PrivateKey.fromBase58(tokenBridgePrivateKeyBase58);
-        this.#tokenBasePrivateKey = PrivateKey.fromBase58(
-            tokenBasePrivateKeyBase58
-        );
         this.#zkApp = new NoriTokenBridge(this.#tokenBridgePrivateKey.toPublicKey());
-        this.#fungibleToken = new FungibleToken(
-            this.#tokenBasePrivateKey.toPublicKey()
-        );
         this.#txFee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
         this.#testMode = process.env.MINA_NETWORK === 'lightnet';
         this.minaRPCNetworkUrl = networkUrl;
@@ -130,7 +110,6 @@ export class NoriTokenBridgeSubmitter {
 
         const {
             NoriStorageInterfaceVerificationKey,
-            FungibleTokenVerificationKey,
             NoriTokenBridgeVerificationKey,
         } = await compileAndOptionallyVerifyContracts(
             logger,
@@ -139,11 +118,6 @@ export class NoriTokenBridgeSubmitter {
                     name: 'NoriStorageInterface',
                     program: NoriStorageInterface,
                     integrityHash: noriStorageInterfaceVkHash,
-                },
-                {
-                    name: 'FungibleToken',
-                    program: FungibleToken,
-                    integrityHash: fungibleTokenVkHash,
                 },
                 {
                     name: 'NoriTokenBridge',
@@ -155,12 +129,6 @@ export class NoriTokenBridgeSubmitter {
         );
         Object.defineProperty(this, 'noriStorageInterfaceVerificationKey', {
             value: NoriStorageInterfaceVerificationKey,
-            writable: false,
-            configurable: false,
-            enumerable: true,
-        });
-        Object.defineProperty(this, 'fungibleTokenVerificationKey', {
-            value: FungibleTokenVerificationKey,
             writable: false,
             configurable: false,
             enumerable: true,
@@ -190,43 +158,28 @@ export class NoriTokenBridgeSubmitter {
         const deployTx = await Mina.transaction(
             { sender: senderPublicKey, fee: this.#txFee },
             async () => {
-                AccountUpdate.fundNewAccount(senderPublicKey, 3);
+                AccountUpdate.fundNewAccount(senderPublicKey);
                 logger.log(
                     `Deploying NoriTokenBridge with verification key hash: '${this.#noriTokenBridgeVerificationKey.hash}'`
                 );
                 await this.#zkApp.deploy({
                     verificationKey: this.#noriTokenBridgeVerificationKey,
                     adminPublicKey: senderPublicKey,
-                    tokenBaseAddress: this.#fungibleToken.address,
+                    tokenBaseAddress: PrivateKey.random().toPublicKey(),
                     storageVKHash:
                         this.noriStorageInterfaceVerificationKey.hash,
                     newStoreHash: initialStoreHash,
                 });
-                logger.log('Deploying FungibleToken.');
-                await this.#fungibleToken.deploy({
-                    symbol: 'nETH',
-                    src: 'https://github.com/2nori/nori-bridge-sdk',
-                    allowUpdates: true,
-                });
-                await this.#fungibleToken.initialize(
-                    this.#zkApp.address,
-                    UInt8.from(6),
-                    Bool(false)
-                );
             }
         );
         logger.log('Deploy transaction created successfully. Proving...');
         await deployTx.prove();
         logger.log('Transaction proved. Signing and sending the transaction...');
         await deployTx
-            .sign([
-                this.#senderPrivateKey,
-                this.#tokenBridgePrivateKey,
-                this.#tokenBasePrivateKey,
-            ])
+            .sign([this.#senderPrivateKey, this.#tokenBridgePrivateKey])
             .send()
             .wait();
-        logger.log('NoriTokenBridge and FungibleToken deployed successfully.');
+        logger.log('NoriTokenBridge deployed successfully.');
     }
 
     async createProof(

@@ -77,11 +77,6 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             PrivateKey.random()
         );
 
-        // Generate a random token base key
-        process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY = PrivateKey.toBase58(
-            PrivateKey.random()
-        );
-
         // Generate a random MINA_SENDER_PRIVATE_KEY
         process.env.MINA_SENDER_PRIVATE_KEY = await getNewMinaLiteNetAccountSK();
 
@@ -126,11 +121,6 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
     test('should perform a series of proof submissions', async () => {
         // Generate a random contract key
         process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY = PrivateKey.toBase58(
-            PrivateKey.random()
-        );
-
-        // Generate a random token base key
-        process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
@@ -187,11 +177,6 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
     test('should invoke a hash validation issue when we skip transition proofs', async () => {
         // Generate a random contract key
         process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY = PrivateKey.toBase58(
-            PrivateKey.random()
-        );
-
-        // Generate a random token base key
-        process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY = PrivateKey.toBase58(
             PrivateKey.random()
         );
 
