@@ -218,7 +218,7 @@ describe('e2e_testnet', () => {
             // Establish a connection to the bridge.
             logger.log('Establishing bridge connection and topics.');
             const { bridgeSocket$, bridgeSocketConnectionState$ } =
-                getReconnectingBridgeSocket$();
+                getReconnectingBridgeSocket$('wss://wss.mesa.nori.it.com'); // FIXME ENV VAR
 
             // Subscribe to the sockets connection status.
             bridgeSocketConnectionState$.subscribe({
