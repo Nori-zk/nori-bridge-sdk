@@ -30,8 +30,7 @@ import {
 import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { bytes32LEToFieldProvable, EthInput } from '@nori-zk/o1js-zk-utils';
-
+import { EthInput, bytes32LEToFieldProvable } from '@nori-zk/o1js-zk-utils';
 import {  Bytes32, Bytes32FieldPair, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
@@ -44,7 +43,6 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
 import { verifyCodeChallenge } from './pkarm.js';
-
 
 const logger = new Logger('NoriTokenController');
 
