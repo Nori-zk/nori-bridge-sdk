@@ -22,16 +22,16 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
         mina: {
             staging: {
                 NORI_MINA_TOKEN_BRIDGE_ADDRESS:
-                    'B62qjG4nddBC6SMDNXXiLwDgf49SSKHG51cnsD4Xh4zgGh8h99DsaQB',
+                    'B62qkzWqyEtSHyEaWGQ7AaJiRHqDD9T7ryyQz6fpamwf3z3SPvAiayh',
                 NORI_MINA_TOKEN_BASE_ADDRESS:
-                    'B62qqDnDEEAkFatsN3WdbuJ9mxb7y5VywFzKCA7Yj93SkkoQU1pfpio',
+                    'B62qj8MuZ4efsWBfWeyDaKXukVod8BTvDtKsYq6zSQ6X5dFEELiYjqo',
                 NORI_MINA_TOKEN_BASE_TOKEN_ID:
-                    '11721631656846901930765495286036281890935381019970777414550300219117311353736',
+                    '13548809602186658908121419225753857111133378200542457597649940477922233763750',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:
-                    '14538635346799249748896588374890265616689045468986440153413394516122841324583',
+                    '23257910468495065247555306225437272846379428589965924744755704860109524722427',
                 MINA_ARCHIVE_RPC_URL: 'https://archive-node.devnet.nori.it.com',
                 MINA_RPC_NETWORK_URL:
-                    'https://mina-node.devnet.nori.it.com/graphql',
+                    'https://plain-1-graphql.mina-mesa-network.gcp.o1test.net/graphql',
                 MINA_RPC_NETWORK_ID: 'devnet',
                 MINA_ZKAPP_TRANSACTION_RPC_URL:
                     'https://mina-zkapp-transaction-api.devnet.nori.it.com/api/transactions',
