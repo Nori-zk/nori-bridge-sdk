@@ -129,7 +129,7 @@ describe('e2e_testnet', () => {
             // Establish a connection to the bridge.
             logger.log('Establishing bridge connection and topics.');
             const { bridgeSocket$, bridgeSocketConnectionState$ } =
-                getReconnectingBridgeSocket$();
+                getReconnectingBridgeSocket$('wss://wss.mesa.nori.it.com'); // FIXME hardcoding
 
             // Subscribe to the sockets connection status.
             bridgeSocketConnectionState$.subscribe({
@@ -195,13 +195,13 @@ describe('e2e_testnet', () => {
                 depositBlockNumber,
                 ethStateTopic$,
                 bridgeStateTopic$,
-                bridgeTimingsTopic$
+                bridgeTimingsTopic$,
             );
 
             // Subscribe to the depositProcessingStatus observable to print our progress.
             depositProcessingStatusSubscription =
                 depositProcessingStatus$.subscribe({
-                    next: (msg) => logger.log(msg),
+                    next: (msg) => logger.info(msg),
                     error: (err) => logger.error(err),
                     complete: () =>
                         logger.warn(
@@ -286,7 +286,8 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengePKARMStr,
                     depositBlockNumber,
-                    ethAddressLowerHex
+                    ethAddressLowerHex,
+                    'https://pcs.mesa.nori.it.com' // FIXME hardcoding
                 );
             logger.log('Computed deposit witness.');
 

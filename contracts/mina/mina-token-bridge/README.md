@@ -13,6 +13,7 @@ import {
     FungibleToken,            // Mina fungible token contract (TokenBase)
     NoriTokenBridgeSubmitter, // Tool for building and submitting transition proofs to NoriTokenBridge
     wait,                     // Polls the Mina RPC until a transaction is included or max retries reached
+    signSecretWithEthWallet,  // Signs a secret with an Ethereum wallet for use in minting
     env,                      // Parsed environment configuration object
     noriTokenBridgeVkHash,    // Baked verification key hash for NoriTokenBridge (integrity check)
     noriStorageInterfaceVkHash, // Baked verification key hash for NoriStorageInterface
