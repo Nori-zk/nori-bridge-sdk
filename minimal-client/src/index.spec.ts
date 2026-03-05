@@ -16,7 +16,7 @@ import {
 import { getTokenBridgeWorker } from './tokenBridgeWorkerClient.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge-new';
+import { signSecretWithEthWallet } from '@nori-zk/mina-token-bridge-new/browser';
 import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 import { describe, test } from './test-utils/browserTestRunner.js'
 
@@ -29,6 +29,7 @@ function validateEnv(): {
     proofConversionServiceUrl: string;
     minaSenderPrivateKeyBase58: string;
     noriTokenBaseAddressBase58: string;
+    noriWssUrl: string;
 } {
     const errors: string[] = [];
 
@@ -41,6 +42,7 @@ function validateEnv(): {
         MINA_SENDER_PRIVATE_KEY,
         NORI_MINA_TOKEN_BASE_ADDRESS,
         NORI_PCS_URL,
+        NORI_WSS_URL,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -92,6 +94,12 @@ function validateEnv(): {
         );
     }
 
+    if (!NORI_WSS_URL || !/^wss?:\/\//.test(NORI_WSS_URL)) {
+        errors.push(
+            'NORI_WSS_URL missing or invalid (expected ws(s) URL)'
+        );
+    }
+
     if (
         !MINA_SENDER_PRIVATE_KEY ||
         !/^[1-9A-HJ-NP-Za-km-z]+$/.test(MINA_SENDER_PRIVATE_KEY)
@@ -115,6 +123,7 @@ function validateEnv(): {
         minaRpcUrl: 'http://localhost:4003/graphql', // Note this must be the proxy! MINA_RPC_NETWORK_URL= hardcoding this to be the proxy
         proofConversionServiceUrl: 'http://localhost:4003', // Note this must also be the proxy!
         minaSenderPrivateKeyBase58: MINA_SENDER_PRIVATE_KEY,
+        noriWssUrl: NORI_WSS_URL,
     };
 }
 
@@ -137,6 +146,7 @@ describe('e2e_testnet', () => {
                 minaSenderPrivateKeyBase58,
                 noriTokenBaseAddressBase58,
                 proofConversionServiceUrl,
+                noriWssUrl,
             } = validateEnv();
 
             const minaSenderPrivateKey = PrivateKey.fromBase58(
@@ -218,7 +228,7 @@ describe('e2e_testnet', () => {
             // Establish a connection to the bridge.
             logger.log('Establishing bridge connection and topics.');
             const { bridgeSocket$, bridgeSocketConnectionState$ } =
-                getReconnectingBridgeSocket$('wss://wss.mesa.nori.it.com'); // FIXME ENV VAR
+                getReconnectingBridgeSocket$(noriWssUrl);
 
             // Subscribe to the sockets connection status.
             bridgeSocketConnectionState$.subscribe({
@@ -364,8 +374,8 @@ describe('e2e_testnet', () => {
                 'Computing deposit witness.'
             );
             const depositWitnessTimer = createTimer();
-            const { depositAttestationInput } =
-                await tokenBridgeWorker.computeDepositAttestationWitnessAndEthVerifier(
+            const depositAttestationInput =
+                await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengePKARMStr,
                     depositBlockNumber,
                     ethAddressLowerHex,

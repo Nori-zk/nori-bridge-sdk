@@ -25,7 +25,7 @@ export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
 
 // Root and public folder
-export const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
+export const ROOT_DIR = path.resolve(__dirname, '..', '..');
 export const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
 
 // Build hash

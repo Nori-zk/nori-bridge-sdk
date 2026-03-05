@@ -7,10 +7,6 @@ import {
     getMerklePathFromLeaves,
     getMerkleZeros,
     foldMerkleLeft,
-    decodeConsensusMptProof,
-    EthInput,
-    NodeProofLeft,
-    EthVerifier,
 } from '@nori-zk/o1js-zk-utils-new';
 import { DynamicArray } from 'mina-attestations';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
@@ -347,18 +343,14 @@ async function fetchContractWindowSlotProofs(
     };
 }
 
-// This is more than just deposit attestation its eth verifier as well....
-// fetchProofsAndDepositAttestationInputs
-export async function computeDepositAttestationWitnessAndEthVerifier(
+export async function computeDepositAttestationWitness(
     depositBlockNumber: number,
     ethAddressLowerHex: string,
     attestationBEHex: string,
     domain = 'https://pcs.nori.it.com'
 ) {
     const {
-        consensusMPTProofProof,
         consensusMPTProofContractStorageSlots,
-        consensusMPTProofVerification,
     } = await fetchContractWindowSlotProofs(depositBlockNumber, domain);
 
     // Find deposit
@@ -450,40 +442,12 @@ export async function computeDepositAttestationWitnessAndEthVerifier(
     logger.log(`foldMerkleLeft: ${merkleRootTimer()}`);
     logger.log(`Computed Merkle root: ${rootHash.toString()}`);
 
-    logger.log('Loaded sp1PlonkProof and conversionOutputProof');
-    const decodedInputs = decodeConsensusMptProof(consensusMPTProofProof);
-    logger.log(
-        'decodedInputs verifiedContractDepositsRoot',
-        decodedInputs.verifiedContractDepositsRoot.bytes.map((byte) =>
-            byte.toNumber()
-        )
-    );
-    const ethVerifierInput = new EthInput(decodedInputs);
-    logger.log('Decoded EthInput from MPT proof');
-
-    logger.log('Parsing raw SP1 proof using NodeProofLeft.fromJSON');
-
-    const rawProof = await NodeProofLeft.fromJSON(
-        consensusMPTProofVerification.proofData
-    );
-    logger.log('Parsed raw SP1 proof using NodeProofLeft.fromJSON');
-
-    logger.log('Computing EthVerifier');
-    const ethVerifierTimer = createTimer();
-    const ethVerifierProof = (
-        await EthVerifier.compute(ethVerifierInput, rawProof)
-    ).proof;
-    logger.log(`EthVerifier.compute: ${ethVerifierTimer()}`);
-
-    logger.log(`All proofs inputs built needed to compute mint proof!`);
+    logger.log(`All inputs built needed to compute mint proof!`);
 
     return {
-        ethVerifierProofJson: ethVerifierProof.toJSON(),
-        depositAttestationInput: {
-            path: path.map((it) => it.toBigInt().toString()),
-            depositIndex,
-            rootHash: rootHash.toBigInt().toString(),
-            despositSlotRaw,
-        },
+        path: path.map((it) => it.toBigInt().toString()),
+        depositIndex,
+        rootHash: rootHash.toBigInt().toString(),
+        despositSlotRaw,
     };
 }

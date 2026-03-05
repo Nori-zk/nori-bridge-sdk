@@ -25,7 +25,8 @@ This setup exists only to:
    - NORI_MINA_TOKEN_BRIDGE_ADDRESS=B62qnQmGKK48aUeM8DdDmA6kGNR1oD9cMg3DXs9RuyC4gvR2A3MKVJV
    - NORI_MINA_TOKEN_BASE_ADDRESS=B62qmkVtMBbCnSEzC14Ym5ekJGMXGru6qV4pT6HvXH3FKNomjop5Syc
    - MINA_RPC_NETWORK_URL=https://api.minascan.io/node/devnet/v1/graphql
-   - NORI_PCS_URL=https://pcs.nori.it.com
+   - NORI_PCS_URL=https://pcs.mesa.nori.it.com
+   - NORI_WSS_URL=wss://wss.mesa.nori.it.com
    - MINA_SENDER_PRIVATE_KEY=private key of the Mina address for which you wish to claim nETH
 
 ## Testing:

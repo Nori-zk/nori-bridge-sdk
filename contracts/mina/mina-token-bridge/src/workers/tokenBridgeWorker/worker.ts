@@ -20,7 +20,7 @@ import { FungibleToken } from '../../TokenBase.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
     buildMerkleTreeContractDepositAttestorInput,
-    computeDepositAttestationWitnessAndEthVerifier,
+    computeDepositAttestationWitness,
     type MerkleTreeContractDepositAttestorInputJson,
 } from '../../depositAttestation.js';
 import {
@@ -151,7 +151,7 @@ export class TokenBridgeWorker {
         Mina.setActiveInstance(Network);
     }
 
-    async computeDepositAttestationWitnessAndEthVerifier(
+    async computeDepositAttestationWitness(
         codeChallengePKARM: string,
         depositBlockNumber: number,
         ethAddressLowerHex: string,
@@ -161,7 +161,7 @@ export class TokenBridgeWorker {
         const codeChallengeField = new Field(codeChallengeBigInt);
         const codeChallengeFieldBEHex =
             codeChallengeFieldToBEHex(codeChallengeField);
-        return computeDepositAttestationWitnessAndEthVerifier(
+        return computeDepositAttestationWitness(
             depositBlockNumber,
             ethAddressLowerHex,
             codeChallengeFieldBEHex,

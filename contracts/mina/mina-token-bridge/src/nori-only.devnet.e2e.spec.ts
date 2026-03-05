@@ -280,19 +280,15 @@ describe('e2e_testnet', () => {
             // Throws if we have missed our minting opportunity.
             await readyToComputeMintProof(depositProcessingStatus$);
 
-            // Compute eth verifier and deposit witness
-            logger.log(
-                'Computing eth verifier and calculating deposit witness.'
-            );
-            const { depositAttestationInput } =
-                await tokenBridgeWorker.computeDepositAttestationWitnessAndEthVerifier(
+            // Compute deposit witness
+            logger.log('Computing deposit witness.');
+            const depositAttestationInput =
+                await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengePKARMStr,
                     depositBlockNumber,
                     ethAddressLowerHex
                 );
-            logger.log(
-                'Computed eth verifier and calculated deposit witness.'
-            );
+            logger.log('Computed deposit witness.');
 
             // PRE-COMPUTE MINT PROOF ****************************************************
 
