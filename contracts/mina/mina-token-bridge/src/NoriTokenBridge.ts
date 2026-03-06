@@ -31,7 +31,13 @@ import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { EthInput, bytes32LEToFieldProvable } from '@nori-zk/o1js-zk-utils-new';
-import {  Bytes32, Bytes32FieldPair, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils-new';
+import {
+    Bytes32,
+    Bytes32FieldPair,
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
+    proofConversionSP1ToPlonkVkData,
+} from '@nori-zk/o1js-zk-utils-new';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
@@ -54,8 +60,10 @@ export type FungibleTokenAdminBase = SmartContract & {
     canChangeVerificationKey(vk: VerificationKey): Promise<Bool>;
 };
 
-export interface NoriTokenControllerDeployProps
-    extends Exclude<DeployArgs, undefined> {
+export interface NoriTokenControllerDeployProps extends Exclude<
+    DeployArgs,
+    undefined
+> {
     adminPublicKey: PublicKey;
     tokenBaseAddress: PublicKey;
     storageVKHash: Field;
@@ -64,7 +72,8 @@ export interface NoriTokenControllerDeployProps
 
 export class NoriTokenBridge
     extends TokenContract
-    implements FungibleTokenAdminBase {
+    implements FungibleTokenAdminBase
+{
     @state(PublicKey) adminPublicKey = State<PublicKey>();
     @state(PublicKey) tokenBaseAddress = State<PublicKey>();
     @state(Field) storageVKHash = State<Field>();
@@ -74,12 +83,50 @@ export class NoriTokenBridge
     @state(UInt64) latestHead = State<UInt64>();
     @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
-    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
+    @state(Field) latestVerifiedContractDepositsRoot = State<Field>(); // 2 + 2 + 7 = 11
 
+    @state(Field) counter = State<Field>();
+    private counterMod = new Field(16);
+    @state(Field) depositRoot0 = State<Field>();
+    @state(Field) depositRoot1 = State<Field>();
+    @state(Field) depositRoot2 = State<Field>();
+    @state(Field) depositRoot3 = State<Field>();
+    @state(Field) depositRoot4 = State<Field>();
+    @state(Field) depositRoot5 = State<Field>();
+    @state(Field) depositRoot6 = State<Field>();
+    @state(Field) depositRoot7 = State<Field>();
+    @state(Field) depositRoot8 = State<Field>();
+    @state(Field) depositRoot9 = State<Field>();
+    @state(Field) depositRoot10 = State<Field>();
+    @state(Field) depositRoot11 = State<Field>();
+    @state(Field) depositRoot12 = State<Field>();
+    @state(Field) depositRoot13 = State<Field>();
+    @state(Field) depositRoot14 = State<Field>(); // 27
+    @state(Field) depositRoot15 = State<Field>();
+
+    private windowOfSlots() {
+        return [
+            this.depositRoot0,
+            this.depositRoot1,
+            this.depositRoot2,
+            this.depositRoot3,
+            this.depositRoot4,
+            this.depositRoot5,
+            this.depositRoot6,
+            this.depositRoot7,
+            this.depositRoot8,
+            this.depositRoot9,
+            this.depositRoot10,
+            this.depositRoot11,
+            this.depositRoot12,
+            this.depositRoot13,
+            this.depositRoot14,
+            this.depositRoot15,
+        ];
+    }
 
     //todo
     // events = { 'executionStateRoot-set': Bytes32.provable };//todo change type, if events even possible
-
 
     async deploy(props: NoriTokenControllerDeployProps) {
         await super.deploy(props);
@@ -89,8 +136,7 @@ export class NoriTokenBridge
         this.mintLock.set(Bool(true));
         this.account.permissions.set({
             ...Permissions.default(),
-            setVerificationKey:
-                Permissions.VerificationKey.proofOrSignature(),
+            setVerificationKey: Permissions.VerificationKey.proofOrSignature(),
             setPermissions: Permissions.impossible(),
             editState: Permissions.proof(),
             send: Permissions.proof(),
@@ -104,7 +150,9 @@ export class NoriTokenBridge
         // Set inital state of store hash.
         // await this.updateStoreHash(newStoreHash); // Reintroduce this instead of the immediate below when we can
         // verify that this.admin.getAndRequireEquals() == adminPublicKey immediately after this.admin.set(adminPublicKey);
-        this.latestHeliusStoreInputHashHighByte.set(props.newStoreHash.highByteField);
+        this.latestHeliusStoreInputHashHighByte.set(
+            props.newStoreHash.highByteField
+        );
         this.latestHeliusStoreInputHashLowerBytes.set(
             props.newStoreHash.lowerBytesField
         );
@@ -113,7 +161,6 @@ export class NoriTokenBridge
     approveBase(_forest: AccountUpdateForest): Promise<void> {
         throw Error('block updates');
     }
-
 
     private ethVerify(input: EthInput, proof: NodeProofLeft) {
         // JK to swap in CI after contract gets updated and redeployed
@@ -129,9 +176,7 @@ export class NoriTokenBridge
         // Verification of proof conversion
         // vk = proofConversionOutput.vkData
         // this is also from nodeVK
-        const vk = VerificationKey.fromJSON(
-            proofConversionSP1ToPlonkVkData
-        );
+        const vk = VerificationKey.fromJSON(proofConversionSP1ToPlonkVkData);
 
         // [zkProgram / circuit][eth processor /  contract ie on-chain state]
 
@@ -155,10 +200,10 @@ export class NoriTokenBridge
         const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
         const pi1 = parsePlonkPublicInputsProvable(Bytes.from(bytes));
 
-        const piDigest = Poseidon.hashPacked(
-            Provable.Array(FrC.provable, 2),
-            [pi0, pi1]
-        );
+        const piDigest = Poseidon.hashPacked(Provable.Array(FrC.provable, 2), [
+            pi0,
+            pi1,
+        ]);
 
         Provable.log('piDigest', piDigest);
         Provable.log(
@@ -167,11 +212,9 @@ export class NoriTokenBridge
         );
 
         piDigest.assertEquals(proof.publicOutput.rightOut);
-
     }
 
     @method async update(input: EthInput, proof: NodeProofLeft) {
-
         // Verify transition proof.
         this.ethVerify(input, proof);
         const proofHead = input.outputSlot;
@@ -186,9 +229,7 @@ export class NoriTokenBridge
             Provable.log('Proof input store hash values were:');
             Provable.log(input.outputStoreHash.bytes[0].value);
             Provable.log(
-                input.outputStoreHash.bytes
-                    .slice(1, 33)
-                    .map((b) => b.value)
+                input.outputStoreHash.bytes.slice(1, 33).map((b) => b.value)
             );
             Provable.log(
                 'Public outputs created:',
@@ -246,7 +287,9 @@ export class NoriTokenBridge
         nextSyncCommitteeZeroAcc.assertNotEquals(new Field(0));
 
         // Extract the verifiedContractDepositsRoot and convert it to a Field
-        const verifiedContractDepositsRootField = bytes32LEToFieldProvable(input.verifiedContractDepositsRoot.bytes);
+        const verifiedContractDepositsRootField = bytes32LEToFieldProvable(
+            input.verifiedContractDepositsRoot.bytes
+        );
 
         // Update contract values
         this.latestHead.set(proofHead);
@@ -257,7 +300,45 @@ export class NoriTokenBridge
         this.latestHeliusStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
-        this.latestVerifiedContractDepositsRoot.set(verifiedContractDepositsRootField);
+        this.latestVerifiedContractDepositsRoot.set(
+            verifiedContractDepositsRootField
+        );
+
+        // Set verifiedContractDepositsRootField into window of slots
+        let counter = this.counter.getAndRequireEquals();
+        const windowOfSlots = this.windowOfSlots();
+
+        // INSERT NON SILLY METHOD HERE
+        // const accountUpdate = AccountUpdate.create(this.address);
+        // for (let i = 0; i < 16; i++) {
+        //     const index = new Field(i);
+        //     const slot = windowOfSlots[i];
+        //     const slotValue = slot.getAndRequireEquals();
+        //     const newSlotValue = Provable.if(
+        //         index.equals(counter),
+        //         Field,
+        //         verifiedContractDepositsRootField,
+        //         slotValue
+        //     );
+        //     AccountUpdate.setValue(accountUpdate.body.update.appState[i], newSlotValue);
+        // }
+        // JK GUESS
+        for (let i = 0; i < 16; i++) {
+            const index = new Field(i);
+            const slot = windowOfSlots[i];
+            const slotValue = slot.getAndRequireEquals();
+            const newSlotValue = Provable.if(
+                index.equals(counter),
+                Field,
+                verifiedContractDepositsRootField,
+                slotValue
+            );
+            slot.set(newSlotValue);
+        }
+
+        counter = counter.add(1);
+        counter = Provable.if(counter.greaterThanOrEqual(this.counterMod), new Field(0), counter);
+        this.counter.set(counter);
     }
 
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
@@ -331,7 +412,6 @@ export class NoriTokenBridge
         const userAddress = this.sender.getAndRequireSignature();
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
 
-
         // Calculate the deposit slot root
         // This just proves that the index and value with the witness yield a root
         // Aka some value exists at some index and yields a certain root
@@ -351,14 +431,15 @@ export class NoriTokenBridge
         // const storedVerifiedContractDepositsRoot = bytes32FieldPairToBytes32(
         //    highByteField,
         //    lowerBytesField);
-        const storedVerifiedContractDepositsRoot = this.latestVerifiedContractDepositsRoot.getAndRequireEquals();
+        const storedVerifiedContractDepositsRoot =
+            this.latestVerifiedContractDepositsRoot.getAndRequireEquals();
 
         storedVerifiedContractDepositsRoot.assertEquals(
             contractDepositSlotRoot,
             'The provided contract deposit and witness do not yield the latest verified contract deposits root, and thus cannot be used to mint.'
         );
 
-        // Bytes32FieldPair 
+        // Bytes32FieldPair
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
         const {
             totalLocked: totalLockedWei,
@@ -392,13 +473,14 @@ export class NoriTokenBridge
         // Convert totalLockedWei to bridge units
         // Divide by number bridge scale factor, we have min deposit of 1e-6 ETH (6dp) and 1 ETH is 1e18 wei
         // So factor is 18-6=12 1e12
-        const totalLockedBridgeUnits = totalLockedWei.div(new Field(1_000_000_000_000n));
+        const totalLockedBridgeUnits = totalLockedWei.div(
+            new Field(1_000_000_000_000n)
+        );
         /*const totalLockedBridgeUnits = Provable.witness(
             Field,
             () => new Field(totalLockedWei.toBigInt() / 1_000_000_000_000n)
         );
         totalLockedBridgeUnits.mul(new Field(1_000_000_000_000n)).assertEquals(totalLockedWei);*/
-
 
         // Derive amount to mint based of the total locked so far.
         const amountToMint = await storage.increaseMintedAmount(
