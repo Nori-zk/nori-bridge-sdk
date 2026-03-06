@@ -85,8 +85,10 @@ export class NoriTokenBridge
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
     @state(Field) latestVerifiedContractDepositsRoot = State<Field>(); // 2 + 2 + 7 = 11
 
+    private counterMod = 16;
+    private counterModField = new Field(this.counterMod);
     @state(Field) counter = State<Field>();
-    private counterMod = new Field(16);
+
     @state(Field) depositRoot0 = State<Field>();
     @state(Field) depositRoot1 = State<Field>();
     @state(Field) depositRoot2 = State<Field>();
@@ -308,22 +310,8 @@ export class NoriTokenBridge
         let counter = this.counter.getAndRequireEquals();
         const windowOfSlots = this.windowOfSlots();
 
-        // INSERT NON SILLY METHOD HERE
-        // const accountUpdate = AccountUpdate.create(this.address);
-        // for (let i = 0; i < 16; i++) {
-        //     const index = new Field(i);
-        //     const slot = windowOfSlots[i];
-        //     const slotValue = slot.getAndRequireEquals();
-        //     const newSlotValue = Provable.if(
-        //         index.equals(counter),
-        //         Field,
-        //         verifiedContractDepositsRootField,
-        //         slotValue
-        //     );
-        //     AccountUpdate.setValue(accountUpdate.body.update.appState[i], newSlotValue);
-        // }
-        // JK GUESS
-        for (let i = 0; i < 16; i++) {
+        // Update the current ring buffer slot and set the old to their contemporary values.
+        for (let i = 0; i < this.counterMod; i++) {
             const index = new Field(i);
             const slot = windowOfSlots[i];
             const slotValue = slot.getAndRequireEquals();
@@ -336,8 +324,13 @@ export class NoriTokenBridge
             slot.set(newSlotValue);
         }
 
+        // Increment the ring buffer index (counter) and reset it to zero if we reach the mod
         counter = counter.add(1);
-        counter = Provable.if(counter.greaterThanOrEqual(this.counterMod), new Field(0), counter);
+        counter = Provable.if(
+            counter.greaterThanOrEqual(this.counterModField),
+            new Field(0),
+            counter
+        );
         this.counter.set(counter);
     }
 
@@ -431,12 +424,28 @@ export class NoriTokenBridge
         // const storedVerifiedContractDepositsRoot = bytes32FieldPairToBytes32(
         //    highByteField,
         //    lowerBytesField);
-        const storedVerifiedContractDepositsRoot =
-            this.latestVerifiedContractDepositsRoot.getAndRequireEquals();
 
-        storedVerifiedContractDepositsRoot.assertEquals(
-            contractDepositSlotRoot,
-            'The provided contract deposit and witness do not yield the latest verified contract deposits root, and thus cannot be used to mint.'
+        // Read and constrain all deposit root slots from the rolling window.
+        const getAndRequiredContractDepositSlots = this.windowOfSlots().map(
+            (slotState) => slotState.getAndRequireEquals()
+        );
+
+        // Check if the computed deposit slot root matches any root in the verified window.
+        // Once a match is found the accumulator stays true for all remaining iterations.
+        let depositInDepositWindowSlotSet = new Bool(false);
+        for (let i = 0; i < this.counterMod; i++) {
+            const currentSlotToCheck = getAndRequiredContractDepositSlots[i];
+            depositInDepositWindowSlotSet = Provable.if(
+                contractDepositSlotRoot.equals(currentSlotToCheck),
+                Bool,
+                new Bool(true),
+                depositInDepositWindowSlotSet
+            );
+        }
+
+        // Assert that at least one slot in the window matched — reject mint if the deposit root was never verified.
+        depositInDepositWindowSlotSet.assertTrue(
+            'The provided contract deposit and witness are not in the stored window of verified contract deposits root, and thus cannot be used to mint.'
         );
 
         // Bytes32FieldPair
