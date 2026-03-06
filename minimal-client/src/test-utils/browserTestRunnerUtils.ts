@@ -21,6 +21,7 @@ const proofConversionServiceUrl = process.env.NORI_PCS_URL || 'https://pcs.nori.
 // Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
 const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
 
+
 export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
 
@@ -120,6 +121,12 @@ export async function startServer(port = 4003) {
         });
     });
 
+    proxy.on('error', (err, req, res) => {
+        void req;
+        void res;
+        logger.error('Proxy error:', err.message);
+    });
+
     // Create HTTP server for WebSocket upgrade support
     const server = http.createServer(app);
 
@@ -131,9 +138,10 @@ export async function startServer(port = 4003) {
     return new Promise<{ server: http.Server; url: string }>((resolve) => {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
-            logger.log(
-                `Server running at: ${url}.`
-            );
+            logger.log(`Server running at: ${url}.`);
+            logger.log(`Mina RPC URL: ${minaRpcNetworkUrl}`);
+            logger.log(`Mina RPC base (proxy target): ${minaRpcBaseUrl}`);
+            logger.log(`PCS URL: ${proofConversionServiceUrl}`);
             resolve({ server, url });
         });
     });

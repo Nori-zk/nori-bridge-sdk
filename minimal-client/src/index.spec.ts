@@ -157,7 +157,7 @@ describe('e2e_testnet', () => {
 
             // Define litenet mina config
             const minaConfig = {
-                networkId: 'testnet' as NetworkId,
+                networkId: 'devnet' as NetworkId,
                 mina: minaRpcUrl,
             };
 
