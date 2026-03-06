@@ -395,6 +395,19 @@ describe('e2e_testnet', () => {
             );
             logger.log('needsToFundAccount', needsToFundAccount);
 
+            // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
+
+            logger.log(
+                'Waiting for deposit processing completion before we can sign and send the mint proof.'
+            );
+
+            // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
+            // Throws if we have missed our minting opportunity
+            await canMint(depositProcessingStatus$);
+            logger.log(
+                'Deposit is processed signing and sending the mint proof.'
+            );
+
             logger.log('Computing mint proof.');
 
             const mintProofComputationTimer = createTimer();
@@ -422,19 +435,6 @@ describe('e2e_testnet', () => {
                 true
             );
             logger.log('provedMintTxStr', provedMintTxStr);*/
-
-            // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
-
-            logger.log(
-                'Waiting for deposit processing completion before we can sign and send the mint proof.'
-            );
-
-            // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
-            // Throws if we have missed our minting opportunity
-            await canMint(depositProcessingStatus$);
-            logger.log(
-                'Deposit is processed signing and sending the mint proof.'
-            );
 
             // SIGN AND SEND MINT PROOF **************************************************
 
