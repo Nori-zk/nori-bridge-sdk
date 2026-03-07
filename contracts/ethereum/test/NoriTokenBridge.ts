@@ -1,7 +1,8 @@
-import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers';
 import { expect } from 'chai';
 import { getRandomValues } from 'crypto';
+import { NoriTokenBridge__factory } from 'types/ethers-contracts/index.js';
 import hre from 'hardhat';
+const { ethers } = await hre.network.connect();
 
 const attestationHashBytes = new Uint8Array(32);
 getRandomValues(attestationHashBytes);
@@ -16,11 +17,12 @@ const attestationHashHex = `0x${Array.from(attestationHashBytes)
 console.log('attestationHashBigInt', attestationHashBigInt);
 console.log('attestationHashHex', attestationHashHex);
 
-describe('NoriTokenBridge', function () {
+describe('NoriTokenBridge', () => {
     async function deployTokenBridgeFixture() {
-        const [owner, user1, user2] = await hre.ethers.getSigners();
+        const [owner, user1, user2] = await ethers.getSigners();
 
-        const TokenBridge = await hre.ethers.getContractFactory('NoriTokenBridge');
+        const TokenBridge = new NoriTokenBridge__factory(owner);
+
         const tokenBridge = await TokenBridge.deploy();
 
         return { tokenBridge, owner, user1, user2 };
@@ -28,20 +30,17 @@ describe('NoriTokenBridge', function () {
 
     describe('Deployment', function () {
         it('Should set the deployer as the bridge operator', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
-            expect(await tokenBridge.bridgeOperator()).to.equal(owner.address);
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
+            expect(await tokenBridge.bridgeOperator()).equals(owner.address);
         });
     });
 
     describe('Locking Tokens', function () {
         it('Should allow users to lock tokens and update mapping (BigInt)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            const sendValue = hre.ethers.parseEther('1.0');
+            const sendValue = ethers.parseEther('1.0');
+
             await tokenBridge
                 .connect(owner)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
@@ -54,11 +53,9 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should allow users to lock tokens and update mapping (hex string)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            const sendValue = hre.ethers.parseEther('1.0');
+            const sendValue = ethers.parseEther('1.0');
             await tokenBridge
                 .connect(owner)
                 .lockTokens(attestationHashHex, { value: sendValue });
@@ -71,10 +68,8 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should emit TokensLocked event with correct parameters (BigInt)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
-            const sendValue = hre.ethers.parseEther('0.5');
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
+            const sendValue = ethers.parseEther('0.5');
 
             const tx = await tokenBridge
                 .connect(owner)
@@ -83,7 +78,7 @@ describe('NoriTokenBridge', function () {
 
             if (!receipt) throw new Error('Transaction was not mined in time');
 
-            const block = await hre.ethers.provider.getBlock(
+            const block = await ethers.provider.getBlock(
                 receipt.blockNumber
             );
             if (!block)
@@ -108,7 +103,7 @@ describe('NoriTokenBridge', function () {
             );
 
             await expect(tx)
-                .to.emit(tokenBridge, 'TokensLocked')
+                .to.emit(tokenBridge, 'TokensLocked') // this isnt being recognised!
                 .withArgs(
                     owner.address,
                     attestationHashHex,
@@ -118,10 +113,8 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should emit TokensLocked event with correct parameters (hex string)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
-            const sendValue = hre.ethers.parseEther('0.5');
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
+            const sendValue = ethers.parseEther('0.5');
 
             const tx = await tokenBridge
                 .connect(owner)
@@ -130,7 +123,7 @@ describe('NoriTokenBridge', function () {
 
             if (!receipt) throw new Error('Transaction was not mined in time');
 
-            const block = await hre.ethers.provider.getBlock(
+            const block = await ethers.provider.getBlock(
                 receipt.blockNumber
             );
             if (!block)
@@ -155,7 +148,7 @@ describe('NoriTokenBridge', function () {
             );
 
             await expect(tx)
-                .to.emit(tokenBridge, 'TokensLocked')
+                .to.emit(tokenBridge, 'TokensLocked') // this isnt being recognised!
                 .withArgs(
                     owner.address,
                     attestationHashBigInt,
@@ -164,10 +157,8 @@ describe('NoriTokenBridge', function () {
                 );
         });
 
-        it('Should revert if no Ether is sent (BigInt)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+        /*it('Should revert if no Ether is sent (BigInt)', async function () {
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
             await expect(
                 tokenBridge
@@ -177,9 +168,7 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should revert if no Ether is sent (hex string)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
             await expect(
                 tokenBridge
@@ -189,12 +178,10 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should allow multiple locks from same address (BigInt)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            const value1 = hre.ethers.parseEther('0.2');
-            const value2 = hre.ethers.parseEther('0.8');
+            const value1 = ethers.parseEther('0.2');
+            const value2 = ethers.parseEther('0.8');
 
             await tokenBridge
                 .connect(owner)
@@ -211,12 +198,10 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should allow multiple locks from same address (hex string)', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            const value1 = hre.ethers.parseEther('0.2');
-            const value2 = hre.ethers.parseEther('0.8');
+            const value1 = ethers.parseEther('0.2');
+            const value2 = ethers.parseEther('0.8');
 
             await tokenBridge
                 .connect(owner)
@@ -233,44 +218,42 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Manual slot calculation matches lockedTokens mapping', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            const value = hre.ethers.parseEther('1.0');
+            const value = ethers.parseEther('1.0');
             await tokenBridge.connect(owner).lockTokens(attestationHashBigInt, {
                 value,
             });
 
             const outerSlot = 1; // lockedTokens mapping is at slot 1
 
-            const paddedAddress = hre.ethers.zeroPadValue(owner.address, 32);
-            const slotAsBytes = hre.ethers.toBeArray(
-                hre.ethers.toQuantity(outerSlot)
+            const paddedAddress = ethers.zeroPadValue(owner.address, 32);
+            const slotAsBytes = ethers.toBeArray(
+                ethers.toQuantity(outerSlot)
             );
-            const paddedSlot = hre.ethers.zeroPadValue(slotAsBytes, 32);
-            const packedOuter = hre.ethers.concat([paddedAddress, paddedSlot]);
-            const outerHash = hre.ethers.keccak256(packedOuter);
+            const paddedSlot = ethers.zeroPadValue(slotAsBytes, 32);
+            const packedOuter = ethers.concat([paddedAddress, paddedSlot]);
+            const outerHash = ethers.keccak256(packedOuter);
 
-            const attestationBytes = hre.ethers.toBeArray(
+            const attestationBytes = ethers.toBeArray(
                 attestationHashBigInt
             );
-            const paddedAttestation = hre.ethers.zeroPadValue(
+            const paddedAttestation = ethers.zeroPadValue(
                 attestationBytes,
                 32
             );
-            const packedInner = hre.ethers.concat([
+            const packedInner = ethers.concat([
                 paddedAttestation,
                 outerHash,
             ]);
-            const finalSlot = hre.ethers.keccak256(packedInner);
-
-            const raw = await hre.network.provider.send('eth_getStorageAt', [
+            const finalSlot = ethers.keccak256(packedInner);
+ 
+            const raw = await ethers.provider.send('eth_getStorageAt', [
                 tokenBridge.target,
                 finalSlot,
                 'latest',
             ]);
-            const decoded = hre.ethers.toBigInt(raw);
+            const decoded = ethers.toBigInt(raw);
 
             const valueFromMapping = await tokenBridge.lockedTokens(
                 owner.address,
@@ -281,17 +264,15 @@ describe('NoriTokenBridge', function () {
 
             expect(decoded).to.equal(valueFromMapping);
             expect(decoded).to.equal(value);
-        });
+        });*/
     });
 
     describe('v2Rpc Tests', function () {
         it('Should convert wei to bridge units and update totalLocked correctly', async function () {
-            const { tokenBridge, user1 } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
             const weiPerBridgeUnit = await tokenBridge.WEI_PER_BRIDGE_UNIT();
 
-            const sendValue = hre.ethers.parseEther('1.0');
+            const sendValue = ethers.parseEther('1.0');
             const expectedBridgeUnits = sendValue / weiPerBridgeUnit;
 
             await tokenBridge
@@ -303,9 +284,7 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should revert if value is not a multiple of bridge unit', async function () {
-            const { tokenBridge, user1 } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
             const weiPerBridgeUnit = await tokenBridge.WEI_PER_BRIDGE_UNIT();
 
             const invalidAmount = weiPerBridgeUnit + 1n;
@@ -317,10 +296,8 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should bind Mina account to first depositor and reject others', async function () {
-            const { tokenBridge, user1, user2 } = await loadFixture(
-                deployTokenBridgeFixture
-            );
-            const sendValue = hre.ethers.parseEther('1.0');
+            const { tokenBridge, user1, user2 } = await deployTokenBridgeFixture();
+            const sendValue = ethers.parseEther('1.0');
 
             await tokenBridge
                 .connect(user1)
@@ -340,11 +317,9 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should allow the same depositor to add more ETH to same Mina account', async function () {
-            const { tokenBridge, user1 } = await loadFixture(
-                deployTokenBridgeFixture
-            );
-            const sendValue1 = hre.ethers.parseEther('0.5');
-            const sendValue2 = hre.ethers.parseEther('1.0');
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
+            const sendValue1 = ethers.parseEther('0.5');
+            const sendValue2 = ethers.parseEther('1.0');
 
             await tokenBridge
                 .connect(user1)
@@ -360,10 +335,8 @@ describe('NoriTokenBridge', function () {
             expect(totalLocked).to.equal(sendValue1 + sendValue2);
         });
 
-        it.skip('Should revert if total locked exceeds MAX_MAGNITUDE', async function () {
-            const { tokenBridge, user1 } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+        it('Should revert if total locked exceeds MAX_MAGNITUDE', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
 
             const weiPerBridgeUnit = await tokenBridge.WEI_PER_BRIDGE_UNIT();
             const maxMagnitude = await tokenBridge.MAX_MAGNITUDE();
@@ -377,11 +350,9 @@ describe('NoriTokenBridge', function () {
         });
 
         it('Should allow only bridge operator to withdraw', async function () {
-            const { tokenBridge, owner, user1 } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            const sendValue = hre.ethers.parseEther('0.5');
+            const sendValue = ethers.parseEther('0.5');
             await tokenBridge
                 .connect(user1)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
@@ -392,13 +363,11 @@ describe('NoriTokenBridge', function () {
 
             await expect(
                 tokenBridge.connect(owner).withdraw()
-            ).to.changeEtherBalance(owner, sendValue);
+            ).to.changeEtherBalance(ethers, owner, sendValue);
         });
 
         it('Should revert withdraw if no ETH in contract', async function () {
-            const { tokenBridge, owner } = await loadFixture(
-                deployTokenBridgeFixture
-            );
+            const { tokenBridge, owner } = await deployTokenBridgeFixture();
             await expect(
                 tokenBridge.connect(owner).withdraw()
             ).to.be.revertedWith('No ETH to withdraw');

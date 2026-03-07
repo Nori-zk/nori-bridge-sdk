@@ -3,10 +3,6 @@ node_modules
 # Hardhat files
 /cache
 
-# TypeChain files
-/typechain
-/typechain-types
-
 # solidity-coverage files
 /coverage
 /coverage.json

@@ -17,7 +17,7 @@ import {
 import { signSecretWithEthWallet } from './ethSignature.js';
 import { getZkAppWorker } from './workers/zkAppWorker/node/parent.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
-import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
+import { NoriTokenBridge__factory } from '@nori-zk/ethereum-token-bridge';
 import {
     createCodeChallenge,
     obtainCodeVerifierFromEthSignature,
@@ -158,14 +158,15 @@ describe('e2e_testnet', () => {
 
             // LOCK TOKENS **************************************************
 
+            console.log('Locking eth tokens');
+            console.time('lockingTokens');
+
+            const tokenBridge = new NoriTokenBridge__factory(ethWallet);
+            
+            const contract = tokenBridge.attach(noriETHBridgeAddressHex);
+            
             logger.log('Locking eth tokens');
             const lockingTokensTimer = createTimer();
-            const abi = noriEthTokenBridgeJson.abi;
-            const contract = new ethers.Contract(
-                noriETHBridgeAddressHex,
-                abi,
-                ethWallet
-            );
             const credentialAttestationBigNumberIsh: BigNumberish =
                 codeChallengePKARMBigInt;
             const depositAmountStr = '0.000001';

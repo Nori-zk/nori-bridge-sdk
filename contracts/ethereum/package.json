@@ -7,6 +7,7 @@
         "registry": "https://registry.npmjs.org/",
         "access": "public"
     },
+    "type": "module",
     "scripts": {
         "build": "mkdir -p lib && (test -d lib/aligned_layer || git clone https://github.com/yetanotherco/aligned_layer --recursive lib/aligned_layer) && ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
@@ -21,24 +22,17 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
-        "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
-        "@nomicfoundation/hardhat-ethers": "^3.1.3",
-        "@nomicfoundation/hardhat-ignition-ethers": "^0.15.17",
-        "@nomicfoundation/hardhat-network-helpers": "^1.1.2",
-        "@nomicfoundation/hardhat-toolbox": "^6.1.0",
-        "@nomicfoundation/hardhat-verify": "^2.1.3",
-        "@typechain/ethers-v6": "^0.5.1",
-        "@typechain/hardhat": "^9.1.0",
-        "@types/mocha": "^10.0.10",
-        "chai": "^4.5.0",
+        "@nomicfoundation/hardhat-ethers": "^4.0.1",
+        "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.0",
+        "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
+        "@nomicfoundation/hardhat-typechain": "^3.0.0",
+        "@nomicfoundation/hardhat-viem": "^3.0.0",
+        "hardhat": "^3.1.11",
         "dotenv": "^17.2.4",
+        "chai": "^5.1.2",
         "dotenv-cli": "^8.0.0",
-        "hardhat": "^2.24.0",
-        "hardhat-gas-reporter": "^2.3.0",
         "npm-workspaces-publish-tool": "0.0.17",
-        "solidity-coverage": "^0.8.17",
-        "typechain": "^8.3.2",
-        "hardhat-preprocessor": "^0.1.5"
+        "typechain": "^8.3.2"
     },
     "files": [
         "build/",
