@@ -19,11 +19,14 @@ console.log('attestationHashHex', attestationHashHex);
 
 describe('NoriTokenBridge', () => {
     async function deployTokenBridgeFixture() {
-        const [owner, user1, user2] = await ethers.getSigners();
+        const [owner, user1, user2, dummyState, dummyAccount] = await ethers.getSigners();
 
         const TokenBridge = new NoriTokenBridge__factory(owner);
 
         const tokenBridge = await TokenBridge.deploy();
+
+        // Configure with dummy aligned contract addresses so onlyConfigured passes
+        await tokenBridge.setAlignedContracts(dummyState.address, dummyAccount.address);
 
         return { tokenBridge, owner, user1, user2 };
     }
@@ -359,7 +362,7 @@ describe('NoriTokenBridge', () => {
 
             await expect(
                 tokenBridge.connect(user1).withdraw()
-            ).to.be.revertedWith('Only bridge operator can withdraw');
+            ).to.be.revertedWithCustomError(tokenBridge, 'NotBridgeOperator');
 
             await expect(
                 tokenBridge.connect(owner).withdraw()
