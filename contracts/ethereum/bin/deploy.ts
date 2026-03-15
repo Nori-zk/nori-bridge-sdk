@@ -15,12 +15,16 @@ async function main() {
   const network = await hre.ethers.provider.getNetwork();
   console.log(`Network: ${network.name} (chainId: ${network.chainId})`);
 
+  // Resolve bridge operator address from env, defaulting to deployer
+  const bridgeOperator = process.env.BRIDGE_OPERATOR_ADDRESS || deployer.address;
+  console.log(`Bridge operator: ${bridgeOperator}`);
+
   // Get the ContractFactory via the Ignition contract name
   const NoriTokenBridge = await hre.ethers.getContractFactory(
     "NoriTokenBridge"
   );
-  // Deploy contract
-  const noriTokenBridgeDeployedContract = await NoriTokenBridge.deploy();
+  // Deploy contract with explicit bridgeOperator
+  const noriTokenBridgeDeployedContract = await NoriTokenBridge.deploy(bridgeOperator);
 
   const deployTx = noriTokenBridgeDeployedContract.deploymentTransaction();
   if (!deployTx) throw new Error(`NoriTokenBridge did not deploy`);

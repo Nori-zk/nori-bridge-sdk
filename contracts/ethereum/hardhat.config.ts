@@ -106,6 +106,16 @@ const config: HardhatUserConfig = {
       viaIR: true,
     },
   },
+  test: {
+    mocha: {
+      rootHooks: {
+        afterAll() {
+          // Force exit after tests — ethers .once() listeners keep the process alive
+          setTimeout(() => process.exit(0), 100);
+        },
+      },
+    },
+  },
   paths: {
     sources: "./contracts",
     cache: "./cache",

@@ -3,14 +3,18 @@ pragma solidity ^0.8.28;
 
 import "./MinaStateSettlementExample.sol";
 import "./MinaAccountValidationExample.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title NoriTokenBridge
-/// @notice Lock ETH for Mina accounts with bridge unit validation and depositor binding
-contract NoriTokenBridge {
+/// @notice Lock ETH for Mina accounts with bridge unit validation and depositor binding.
+/// @dev The `bridgeOperator` is expected to be a Safe (multisig) smart account in production.
+///      This contract does not implement multisig logic internally — it trusts a single admin
+///      address and delegates multi-signature governance to the Safe contract itself.
+contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // Constants (these should be slotless and converted to bytecode)
     // -------------------------------
-    uint8 public constant DECIMALS = 6; 
+    uint8 public constant DECIMALS = 6;
     uint64 public constant MAX_MAGNITUDE = (1 << 64) - 1; // 64-bit magnitude
     uint256 public constant WEI_PER_BRIDGE_UNIT = 10 ** (18 - DECIMALS); // smallest bridge unit in wei
 
@@ -20,6 +24,17 @@ contract NoriTokenBridge {
     error AlignedContractsNotConfigured();
     error ZeroAddress();
     error NotBridgeOperator();
+    error InvalidAmount();
+    error InvalidBridgeUnitMultiple();
+    error TotalLockedOverflow();
+    error MinaAccountAlreadyLinked();
+    error InvalidLedger();
+    error InvalidZkappAccount();
+    error InvalidUnlockAmount();
+    error NoEthToWithdraw();
+    error EthTransferFailed();
+    error BurnAmountUnderflow();
+    error IncorrectTokenHolderAccount();
 
     // -------------------------------
     // State Variables
@@ -50,7 +65,6 @@ contract NoriTokenBridge {
     // Hash(publicKey, tokenId) -> burnSoFar
     mapping(uint256 => uint256) public burnSoFarSet;
 
-
     // -------------------------------
     // Events
     // -------------------------------
@@ -58,6 +72,7 @@ contract NoriTokenBridge {
     event TokensUnlocked(uint256 indexed pubKeyTokenIdHash, uint256 amount, address receiver, uint256 when);
     event StateSettlementSet(address indexed newAddress);
     event AccountValidationSet(address indexed newAddress);
+    event BridgeOperatorSet(address indexed oldOperator, address indexed newOperator);
 
     // -------------------------------
     // Modifiers
@@ -75,8 +90,25 @@ contract NoriTokenBridge {
     // -------------------------------
     // Constructor
     // -------------------------------
-    constructor() payable /*TODO Keep Payable for TEST(Mina->ETHEREUM)*/{
-        bridgeOperator = msg.sender;
+    /// @param _bridgeOperator The admin address (expected to be a Safe in production).
+    constructor(address _bridgeOperator) payable {
+        if (_bridgeOperator == address(0)) revert ZeroAddress();
+        bridgeOperator = _bridgeOperator;
+    }
+
+    // -------------------------------
+    // Admin: Operator Rotation
+    // -------------------------------
+    /// @notice Rotate the bridge operator to a new address.
+    /// @dev Allows migration from one Safe to another without redeploying.
+    /// @param newOperator The new bridge operator address.
+    function setBridgeOperator(address newOperator) external onlyBridgeOperator {
+        if (newOperator == address(0)) revert ZeroAddress();
+
+        address oldOperator = bridgeOperator;
+        bridgeOperator = newOperator;
+
+        emit BridgeOperatorSet(oldOperator, newOperator);
     }
 
     // -------------------------------
@@ -103,16 +135,16 @@ contract NoriTokenBridge {
         // ===============================
         // VALIDATION
         // ===============================
-        require(msg.value > 0, "You must send some Ether to lock");
+        if (msg.value == 0) revert InvalidAmount();
 
         // Convert wei to bridge units
         uint256 bridgeAmount = msg.value / WEI_PER_BRIDGE_UNIT;
 
         // Ensure deposit is a whole multiple of bridge unit
-        require(msg.value % WEI_PER_BRIDGE_UNIT == 0, "Must be multiple of smallest bridge unit");
+        if (msg.value % WEI_PER_BRIDGE_UNIT != 0) revert InvalidBridgeUnitMultiple();
 
         // Ensure total locked supply does not exceed MAX_MAGNITUDE
-        require(totalLocked + bridgeAmount <= MAX_MAGNITUDE, "Total locked exceeds maximum allowed");
+        if (totalLocked + bridgeAmount > MAX_MAGNITUDE) revert TotalLockedOverflow();
 
         // Enforce one ETH depositor per Mina account
         address linkedEth = codeChallengeToEthAddress[attestationHash];
@@ -120,7 +152,7 @@ contract NoriTokenBridge {
             // First deposit: bind Mina account to sender
             codeChallengeToEthAddress[attestationHash] = msg.sender;
         } else {
-            require(linkedEth == msg.sender, "This Mina account is already linked to a different ETH address");
+            if (linkedEth != msg.sender) revert MinaAccountAlreadyLinked();
         }
 
         // ===============================
@@ -131,8 +163,10 @@ contract NoriTokenBridge {
 
         emit TokensLocked(msg.sender, attestationHash, msg.value, block.timestamp);
     }
-    
-    /// @notice unlock the tokens by bridging from Mina
+
+    /// @notice Unlock tokens by bridging from Mina.
+    /// @dev Permissionless — anyone can submit a valid proof to unlock. Protected by
+    ///      `nonReentrant` since ETH is sent via low-level `call`.
     function unlockTokens(
         uint256 toUnlockAmount, // token to unlock
         bytes32 proofCommitment,
@@ -143,9 +177,9 @@ contract NoriTokenBridge {
         uint256 verificationDataBatchIndex,
         bytes calldata pubInput,
         address batcherPaymentService
-    ) external onlyConfigured {
+    ) external onlyConfigured nonReentrant {
         bytes32 ledgerHash = bytes32(pubInput[:32]);
-        require(stateSettlement.isLedgerVerified(ledgerHash), "Invalid Ledger");
+        if (!stateSettlement.isLedgerVerified(ledgerHash)) revert InvalidLedger();
 
         MinaAccountValidationExample.AlignedArgs memory args = MinaAccountValidationExample.AlignedArgs(
             proofCommitment,
@@ -157,7 +191,7 @@ contract NoriTokenBridge {
             pubInput,
             batcherPaymentService
         );
-        require(accountValidation.validateAccount(args), "Invalid Zkapp Account");
+        if (!accountValidation.validateAccount(args)) revert InvalidZkappAccount();
 
         bytes calldata encodedAccount = pubInput[32 + 8:];
         MinaAccountValidationExample.Account memory account = abi.decode(encodedAccount, (MinaAccountValidationExample.Account));
@@ -168,29 +202,32 @@ contract NoriTokenBridge {
         //    abi.encode(account.zkapp.verificationKey)
         // ));
         // require(verificationKeyHash == NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH, "Incorrect Zkapp Account"); // TODO Do we need check vk??
-        
+
         // check if the tokenId is aligned
-        require(uint256(account.tokenIdKeyHash) == NORI_STORAGE_ZKAPP_ACCT_TOKEN_ID, "Incorrect Token Holder Account");
+        if (uint256(account.tokenIdKeyHash) != NORI_STORAGE_ZKAPP_ACCT_TOKEN_ID) revert IncorrectTokenHolderAccount();
 */
 
         // check if burnedSoFar at Mina account is greater than the existing burnSoFar
         uint256 pubKeyTokenIdHash = uint256(keccak256(abi.encode(account.publicKey, account.tokenIdKeyHash)));
         uint256 burnSoFar0 = burnSoFarSet[pubKeyTokenIdHash];
         uint256 bridgeAmount = uint256(account.zkapp.appState[2]) - burnSoFar0;
-        require(bridgeAmount > 0, "Burn so far is greater than the amount to burn");
+        if (bridgeAmount == 0) revert BurnAmountUnderflow();
 
         // ===============================
-        // UNLOCK LOGIC
+        // UNLOCK LOGIC (checks-effects-interactions)
         // ===============================
-        require(toUnlockAmount <= bridgeAmount, "To unlock amount is greater than the amount to unlock");
+        if (toUnlockAmount > bridgeAmount) revert InvalidUnlockAmount();
+
+        // Effects: update state before external call
         burnSoFarSet[pubKeyTokenIdHash] = burnSoFar0 + toUnlockAmount;
 
-        // transfer the tokens to the user
+        // Interaction: transfer ETH to the receiver
         address receiver = address(uint160(uint256(account.zkapp.appState[3])));
 
         // TODO FOR TEST-ALIGN
         // totalLocked -= toUnlockAmount;
-        payable(receiver).transfer(toUnlockAmount);
+        (bool ok, ) = payable(receiver).call{value: toUnlockAmount}("");
+        if (!ok) revert EthTransferFailed();
 
         emit TokensUnlocked(pubKeyTokenIdHash, toUnlockAmount, receiver, block.timestamp);
     }
@@ -198,11 +235,11 @@ contract NoriTokenBridge {
     // -------------------------------
     // Admin-only withdraw all ETH
     // -------------------------------
-    function withdraw() public onlyBridgeOperator onlyConfigured {
-
+    function withdraw() public onlyBridgeOperator onlyConfigured nonReentrant {
         uint256 balance = address(this).balance;
-        require(balance > 0, "No ETH to withdraw");
+        if (balance == 0) revert NoEthToWithdraw();
 
-        payable(bridgeOperator).transfer(balance);
+        (bool ok, ) = payable(bridgeOperator).call{value: balance}("");
+        if (!ok) revert EthTransferFailed();
     }
 }

@@ -7,7 +7,6 @@ error MinaProvingSystemIdIsNotValid(bytes32); // c35f1ecd
 error MinaNetworkIsWrong(); // 042eb0cf
 error NewStateIsNotValid(); // 114602f0
 error TipStateIsWrong(bytes32 pubInputTipStateHash, bytes32 tipStatehash); // bbd80128
-error AccountIsNotValid(bytes32 accountIdHash);
 
 /// @title Mina to Ethereum Bridge's smart contract for verifying and storing a valid state chain.
 /// WARNING: This contract is meant ot be used as an example of how to use the Bridge.

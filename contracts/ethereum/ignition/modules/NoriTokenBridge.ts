@@ -1,7 +1,9 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 const NoriTokenBridgeModule = buildModule("NoriTokenBridgeModule", (m) => {
-  const tokenBridge = m.contract("NoriTokenBridge");
+  const bridgeOperator = m.getParameter("bridgeOperator");
+
+  const tokenBridge = m.contract("NoriTokenBridge", [bridgeOperator]);
 
   return { tokenBridge };
 });

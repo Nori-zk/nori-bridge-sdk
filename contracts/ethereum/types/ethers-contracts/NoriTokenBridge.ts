@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "MAX_MAGNITUDE" | "WEI_PER_BRIDGE_UNIT" | "bridgeOperator" | "burnSoFarSet" | "codeChallengeToEthAddress" | "isConfigured" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "totalLocked" | "unlockTokens" | "withdraw"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "MAX_MAGNITUDE" | "WEI_PER_BRIDGE_UNIT" | "bridgeOperator" | "burnSoFarSet" | "codeChallengeToEthAddress" | "isConfigured" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "totalLocked" | "unlockTokens" | "withdraw"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DECIMALS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_MAGNITUDE', values?: undefined): string;
@@ -20,6 +20,7 @@ encodeFunctionData(functionFragment: 'isConfigured', values?: undefined): string
 encodeFunctionData(functionFragment: 'lockTokens', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'lockedTokens', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setAlignedContracts', values: [AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'setBridgeOperator', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'totalLocked', values?: undefined): string;
 encodeFunctionData(functionFragment: 'unlockTokens', values: [BigNumberish, BytesLike, BytesLike, BytesLike, BytesLike, BytesLike, BigNumberish, BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'withdraw', values?: undefined): string;
@@ -34,6 +35,7 @@ decodeFunctionResult(functionFragment: 'isConfigured', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAlignedContracts', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setBridgeOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalLocked', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'unlockTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
@@ -44,6 +46,18 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
       export type InputTuple = [newAddress: AddressLike];
       export type OutputTuple = [newAddress: string];
       export interface OutputObject {newAddress: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace BridgeOperatorSetEvent {
+      export type InputTuple = [oldOperator: AddressLike, newOperator: AddressLike];
+      export type OutputTuple = [oldOperator: string, newOperator: string];
+      export interface OutputObject {oldOperator: string, newOperator: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -202,6 +216,14 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
     
 
     
+    setBridgeOperator: TypedContractMethod<
+      [newOperator: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     totalLocked: TypedContractMethod<
       [],
       [bigint],
@@ -278,6 +300,11 @@ getFunction(nameOrSignature: 'setAlignedContracts'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setBridgeOperator'): TypedContractMethod<
+      [newOperator: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'totalLocked'): TypedContractMethod<
       [],
       [bigint],
@@ -295,6 +322,7 @@ getFunction(nameOrSignature: 'withdraw'): TypedContractMethod<
     >;
 
     getEvent(key: 'AccountValidationSet'): TypedContractEvent<AccountValidationSetEvent.InputTuple, AccountValidationSetEvent.OutputTuple, AccountValidationSetEvent.OutputObject>;
+getEvent(key: 'BridgeOperatorSet'): TypedContractEvent<BridgeOperatorSetEvent.InputTuple, BridgeOperatorSetEvent.OutputTuple, BridgeOperatorSetEvent.OutputObject>;
 getEvent(key: 'StateSettlementSet'): TypedContractEvent<StateSettlementSetEvent.InputTuple, StateSettlementSetEvent.OutputTuple, StateSettlementSetEvent.OutputObject>;
 getEvent(key: 'TokensLocked'): TypedContractEvent<TokensLockedEvent.InputTuple, TokensLockedEvent.OutputTuple, TokensLockedEvent.OutputObject>;
 getEvent(key: 'TokensUnlocked'): TypedContractEvent<TokensUnlockedEvent.InputTuple, TokensUnlockedEvent.OutputTuple, TokensUnlockedEvent.OutputObject>;
@@ -303,6 +331,10 @@ getEvent(key: 'TokensUnlocked'): TypedContractEvent<TokensUnlockedEvent.InputTup
       
       'AccountValidationSet(address)': TypedContractEvent<AccountValidationSetEvent.InputTuple, AccountValidationSetEvent.OutputTuple, AccountValidationSetEvent.OutputObject>;
       AccountValidationSet: TypedContractEvent<AccountValidationSetEvent.InputTuple, AccountValidationSetEvent.OutputTuple, AccountValidationSetEvent.OutputObject>;
+    
+
+      'BridgeOperatorSet(address,address)': TypedContractEvent<BridgeOperatorSetEvent.InputTuple, BridgeOperatorSetEvent.OutputTuple, BridgeOperatorSetEvent.OutputObject>;
+      BridgeOperatorSet: TypedContractEvent<BridgeOperatorSetEvent.InputTuple, BridgeOperatorSetEvent.OutputTuple, BridgeOperatorSetEvent.OutputObject>;
     
 
       'StateSettlementSet(address)': TypedContractEvent<StateSettlementSetEvent.InputTuple, StateSettlementSetEvent.OutputTuple, StateSettlementSetEvent.OutputObject>;
