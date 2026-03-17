@@ -16,7 +16,7 @@ async function main() {
   console.log(`Network: ${network.name} (chainId: ${network.chainId})`);
 
   // Resolve bridge operator address from env, defaulting to deployer
-  const bridgeOperator = process.env.BRIDGE_OPERATOR_ADDRESS || deployer.address;
+  const bridgeOperator = process.env.NORI_ETH_BRIDGE_OPERATOR_ADDRESS || deployer.address;
   console.log(`Bridge operator: ${bridgeOperator}`);
 
   // Get the ContractFactory via the Ignition contract name
@@ -37,6 +37,28 @@ async function main() {
   console.log(`NoriTokenBridge deployed to: ${noriTokenBridgeDeployedContract.target}`);
   console.log(`Deployed in block: ${receipt.blockNumber}`);
   console.log(`Gas used for deployment: ${receipt.gasUsed.toString()}`);
+
+  // Optional post-deploy fee configuration
+  const feeRecipient = process.env.NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS;
+  if (feeRecipient) {
+    console.log(`Setting fee recipient: ${feeRecipient}`);
+    const tx1 = await noriTokenBridgeDeployedContract.setFeeRecipient(feeRecipient);
+    await tx1.wait();
+  }
+
+  const lockFeeBps = process.env.NORI_ETH_BRIDGE_LOCK_FEE_BPS;
+  if (lockFeeBps) {
+    console.log(`Setting lock fee: ${lockFeeBps} bps`);
+    const tx2 = await noriTokenBridgeDeployedContract.setLockFeeBps(parseInt(lockFeeBps));
+    await tx2.wait();
+  }
+
+  const unlockFeeBps = process.env.NORI_ETH_BRIDGE_UNLOCK_FEE_BPS;
+  if (unlockFeeBps) {
+    console.log(`Setting unlock fee: ${unlockFeeBps} bps`);
+    const tx3 = await noriTokenBridgeDeployedContract.setUnlockFeeBps(parseInt(unlockFeeBps));
+    await tx3.wait();
+  }
 
   // Write the contract address to .env.nori-eth-token-bridge file
   const envFilePath = path.resolve(__dirname, "..", ".env.nori-eth-token-bridge");

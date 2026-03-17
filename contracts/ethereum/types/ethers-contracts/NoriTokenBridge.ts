@@ -6,39 +6,57 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "MAX_MAGNITUDE" | "WEI_PER_BRIDGE_UNIT" | "bridgeOperator" | "burnSoFarSet" | "codeChallengeToEthAddress" | "isConfigured" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "totalLocked" | "unlockTokens" | "withdraw"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "MAX_FEE_BPS" | "MAX_MAGNITUDE" | "WEI_PER_BRIDGE_UNIT" | "accumulatedFees" | "bridgeOperator" | "burnSoFarSet" | "calcGrossLockAmount" | "codeChallengeToEthAddress" | "feeRecipient" | "isConfigured" | "lockFeeBps" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeBps" | "setUnlockFeeBps" | "totalLocked" | "unlockFeeBps" | "unlockTokens" | "withdrawFees"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "FeeRecipientSet" | "FeesWithdrawn" | "LockFeeBpsSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked" | "UnlockFeeBpsSet"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DECIMALS', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_FEE_BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_MAGNITUDE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'WEI_PER_BRIDGE_UNIT', values?: undefined): string;
+encodeFunctionData(functionFragment: 'accumulatedFees', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bridgeOperator', values?: undefined): string;
 encodeFunctionData(functionFragment: 'burnSoFarSet', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'calcGrossLockAmount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'codeChallengeToEthAddress', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'feeRecipient', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isConfigured', values?: undefined): string;
+encodeFunctionData(functionFragment: 'lockFeeBps', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lockTokens', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'lockedTokens', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setAlignedContracts', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBridgeOperator', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setFeeRecipient', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setLockFeeBps', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setUnlockFeeBps', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'totalLocked', values?: undefined): string;
-encodeFunctionData(functionFragment: 'unlockTokens', values: [BigNumberish, BytesLike, BytesLike, BytesLike, BytesLike, BytesLike, BigNumberish, BytesLike, AddressLike]): string;
-encodeFunctionData(functionFragment: 'withdraw', values?: undefined): string;
+encodeFunctionData(functionFragment: 'unlockFeeBps', values?: undefined): string;
+encodeFunctionData(functionFragment: 'unlockTokens', values: [BytesLike, BytesLike, BytesLike, BytesLike, BytesLike, BigNumberish, BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'withdrawFees', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'DECIMALS', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_FEE_BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_MAGNITUDE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'WEI_PER_BRIDGE_UNIT', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'accumulatedFees', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnSoFarSet', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'calcGrossLockAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'codeChallengeToEthAddress', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'feeRecipient', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isConfigured', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'lockFeeBps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAlignedContracts', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBridgeOperator', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setFeeRecipient', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setLockFeeBps', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setUnlockFeeBps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalLocked', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'unlockFeeBps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'unlockTokens', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
   }
 
   
@@ -66,6 +84,42 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
 
   
 
+    export namespace FeeRecipientSetEvent {
+      export type InputTuple = [oldRecipient: AddressLike, newRecipient: AddressLike];
+      export type OutputTuple = [oldRecipient: string, newRecipient: string];
+      export interface OutputObject {oldRecipient: string, newRecipient: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace FeesWithdrawnEvent {
+      export type InputTuple = [recipient: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [recipient: string, amount: bigint];
+      export interface OutputObject {recipient: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace LockFeeBpsSetEvent {
+      export type InputTuple = [oldBps: BigNumberish, newBps: BigNumberish];
+      export type OutputTuple = [oldBps: bigint, newBps: bigint];
+      export interface OutputObject {oldBps: bigint, newBps: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace StateSettlementSetEvent {
       export type InputTuple = [newAddress: AddressLike];
       export type OutputTuple = [newAddress: string];
@@ -79,9 +133,9 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
   
 
     export namespace TokensLockedEvent {
-      export type InputTuple = [user: AddressLike, attestationHash: BigNumberish, amount: BigNumberish, when: BigNumberish];
-      export type OutputTuple = [user: string, attestationHash: bigint, amount: bigint, when: bigint];
-      export interface OutputObject {user: string, attestationHash: bigint, amount: bigint, when: bigint };
+      export type InputTuple = [user: AddressLike, attestationHash: BigNumberish, amount: BigNumberish, fee: BigNumberish, when: BigNumberish];
+      export type OutputTuple = [user: string, attestationHash: bigint, amount: bigint, fee: bigint, when: bigint];
+      export interface OutputObject {user: string, attestationHash: bigint, amount: bigint, fee: bigint, when: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -91,9 +145,21 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
   
 
     export namespace TokensUnlockedEvent {
-      export type InputTuple = [pubKeyTokenIdHash: BigNumberish, amount: BigNumberish, receiver: AddressLike, when: BigNumberish];
-      export type OutputTuple = [pubKeyTokenIdHash: bigint, amount: bigint, receiver: string, when: bigint];
-      export interface OutputObject {pubKeyTokenIdHash: bigint, amount: bigint, receiver: string, when: bigint };
+      export type InputTuple = [pubKeyTokenIdHash: BigNumberish, amount: BigNumberish, fee: BigNumberish, receiver: AddressLike, when: BigNumberish];
+      export type OutputTuple = [pubKeyTokenIdHash: bigint, amount: bigint, fee: bigint, receiver: string, when: bigint];
+      export interface OutputObject {pubKeyTokenIdHash: bigint, amount: bigint, fee: bigint, receiver: string, when: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UnlockFeeBpsSetEvent {
+      export type InputTuple = [oldBps: BigNumberish, newBps: BigNumberish];
+      export type OutputTuple = [oldBps: bigint, newBps: bigint];
+      export interface OutputObject {oldBps: bigint, newBps: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -144,6 +210,14 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
     
 
     
+    MAX_FEE_BPS: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     MAX_MAGNITUDE: TypedContractMethod<
       [],
       [bigint],
@@ -153,6 +227,14 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
 
     
     WEI_PER_BRIDGE_UNIT: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    accumulatedFees: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -176,8 +258,24 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
     
 
     
+    calcGrossLockAmount: TypedContractMethod<
+      [desiredNetAmount: BigNumberish, ],
+      [[bigint, bigint] & {grossAmount: bigint, fee: bigint }],
+      'view'
+    >
+    
+
+    
     codeChallengeToEthAddress: TypedContractMethod<
       [arg0: BigNumberish, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    feeRecipient: TypedContractMethod<
+      [],
       [string],
       'view'
     >
@@ -187,6 +285,14 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
     isConfigured: TypedContractMethod<
       [],
       [boolean],
+      'view'
+    >
+    
+
+    
+    lockFeeBps: TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >
     
@@ -224,6 +330,30 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
     
 
     
+    setFeeRecipient: TypedContractMethod<
+      [newRecipient: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setLockFeeBps: TypedContractMethod<
+      [newBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setUnlockFeeBps: TypedContractMethod<
+      [newBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     totalLocked: TypedContractMethod<
       [],
       [bigint],
@@ -232,15 +362,23 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
     
 
     
+    unlockFeeBps: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     unlockTokens: TypedContractMethod<
-      [toUnlockAmount: BigNumberish, proofCommitment: BytesLike, provingSystemAuxDataCommitment: BytesLike, proofGeneratorAddr: BytesLike, batchMerkleRoot: BytesLike, merkleProof: BytesLike, verificationDataBatchIndex: BigNumberish, pubInput: BytesLike, batcherPaymentService: AddressLike, ],
+      [proofCommitment: BytesLike, provingSystemAuxDataCommitment: BytesLike, proofGeneratorAddr: BytesLike, batchMerkleRoot: BytesLike, merkleProof: BytesLike, verificationDataBatchIndex: BigNumberish, pubInput: BytesLike, batcherPaymentService: AddressLike, ],
       [void],
       'nonpayable'
     >
     
 
     
-    withdraw: TypedContractMethod<
+    withdrawFees: TypedContractMethod<
       [],
       [void],
       'nonpayable'
@@ -255,12 +393,22 @@ decodeFunctionResult(functionFragment: 'withdraw', data: BytesLike): Result;
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'MAX_FEE_BPS'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'MAX_MAGNITUDE'): TypedContractMethod<
       [],
       [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'WEI_PER_BRIDGE_UNIT'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'accumulatedFees'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -275,14 +423,29 @@ getFunction(nameOrSignature: 'burnSoFarSet'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'calcGrossLockAmount'): TypedContractMethod<
+      [desiredNetAmount: BigNumberish, ],
+      [[bigint, bigint] & {grossAmount: bigint, fee: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'codeChallengeToEthAddress'): TypedContractMethod<
       [arg0: BigNumberish, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'feeRecipient'): TypedContractMethod<
+      [],
       [string],
       'view'
     >;
 getFunction(nameOrSignature: 'isConfigured'): TypedContractMethod<
       [],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'lockFeeBps'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'lockTokens'): TypedContractMethod<
@@ -305,17 +468,37 @@ getFunction(nameOrSignature: 'setBridgeOperator'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setFeeRecipient'): TypedContractMethod<
+      [newRecipient: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setLockFeeBps'): TypedContractMethod<
+      [newBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setUnlockFeeBps'): TypedContractMethod<
+      [newBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'totalLocked'): TypedContractMethod<
       [],
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'unlockFeeBps'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'unlockTokens'): TypedContractMethod<
-      [toUnlockAmount: BigNumberish, proofCommitment: BytesLike, provingSystemAuxDataCommitment: BytesLike, proofGeneratorAddr: BytesLike, batchMerkleRoot: BytesLike, merkleProof: BytesLike, verificationDataBatchIndex: BigNumberish, pubInput: BytesLike, batcherPaymentService: AddressLike, ],
+      [proofCommitment: BytesLike, provingSystemAuxDataCommitment: BytesLike, proofGeneratorAddr: BytesLike, batchMerkleRoot: BytesLike, merkleProof: BytesLike, verificationDataBatchIndex: BigNumberish, pubInput: BytesLike, batcherPaymentService: AddressLike, ],
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'withdraw'): TypedContractMethod<
+getFunction(nameOrSignature: 'withdrawFees'): TypedContractMethod<
       [],
       [void],
       'nonpayable'
@@ -323,9 +506,13 @@ getFunction(nameOrSignature: 'withdraw'): TypedContractMethod<
 
     getEvent(key: 'AccountValidationSet'): TypedContractEvent<AccountValidationSetEvent.InputTuple, AccountValidationSetEvent.OutputTuple, AccountValidationSetEvent.OutputObject>;
 getEvent(key: 'BridgeOperatorSet'): TypedContractEvent<BridgeOperatorSetEvent.InputTuple, BridgeOperatorSetEvent.OutputTuple, BridgeOperatorSetEvent.OutputObject>;
+getEvent(key: 'FeeRecipientSet'): TypedContractEvent<FeeRecipientSetEvent.InputTuple, FeeRecipientSetEvent.OutputTuple, FeeRecipientSetEvent.OutputObject>;
+getEvent(key: 'FeesWithdrawn'): TypedContractEvent<FeesWithdrawnEvent.InputTuple, FeesWithdrawnEvent.OutputTuple, FeesWithdrawnEvent.OutputObject>;
+getEvent(key: 'LockFeeBpsSet'): TypedContractEvent<LockFeeBpsSetEvent.InputTuple, LockFeeBpsSetEvent.OutputTuple, LockFeeBpsSetEvent.OutputObject>;
 getEvent(key: 'StateSettlementSet'): TypedContractEvent<StateSettlementSetEvent.InputTuple, StateSettlementSetEvent.OutputTuple, StateSettlementSetEvent.OutputObject>;
 getEvent(key: 'TokensLocked'): TypedContractEvent<TokensLockedEvent.InputTuple, TokensLockedEvent.OutputTuple, TokensLockedEvent.OutputObject>;
 getEvent(key: 'TokensUnlocked'): TypedContractEvent<TokensUnlockedEvent.InputTuple, TokensUnlockedEvent.OutputTuple, TokensUnlockedEvent.OutputObject>;
+getEvent(key: 'UnlockFeeBpsSet'): TypedContractEvent<UnlockFeeBpsSetEvent.InputTuple, UnlockFeeBpsSetEvent.OutputTuple, UnlockFeeBpsSetEvent.OutputObject>;
 
     filters: {
       
@@ -337,16 +524,32 @@ getEvent(key: 'TokensUnlocked'): TypedContractEvent<TokensUnlockedEvent.InputTup
       BridgeOperatorSet: TypedContractEvent<BridgeOperatorSetEvent.InputTuple, BridgeOperatorSetEvent.OutputTuple, BridgeOperatorSetEvent.OutputObject>;
     
 
+      'FeeRecipientSet(address,address)': TypedContractEvent<FeeRecipientSetEvent.InputTuple, FeeRecipientSetEvent.OutputTuple, FeeRecipientSetEvent.OutputObject>;
+      FeeRecipientSet: TypedContractEvent<FeeRecipientSetEvent.InputTuple, FeeRecipientSetEvent.OutputTuple, FeeRecipientSetEvent.OutputObject>;
+    
+
+      'FeesWithdrawn(address,uint256)': TypedContractEvent<FeesWithdrawnEvent.InputTuple, FeesWithdrawnEvent.OutputTuple, FeesWithdrawnEvent.OutputObject>;
+      FeesWithdrawn: TypedContractEvent<FeesWithdrawnEvent.InputTuple, FeesWithdrawnEvent.OutputTuple, FeesWithdrawnEvent.OutputObject>;
+    
+
+      'LockFeeBpsSet(uint16,uint16)': TypedContractEvent<LockFeeBpsSetEvent.InputTuple, LockFeeBpsSetEvent.OutputTuple, LockFeeBpsSetEvent.OutputObject>;
+      LockFeeBpsSet: TypedContractEvent<LockFeeBpsSetEvent.InputTuple, LockFeeBpsSetEvent.OutputTuple, LockFeeBpsSetEvent.OutputObject>;
+    
+
       'StateSettlementSet(address)': TypedContractEvent<StateSettlementSetEvent.InputTuple, StateSettlementSetEvent.OutputTuple, StateSettlementSetEvent.OutputObject>;
       StateSettlementSet: TypedContractEvent<StateSettlementSetEvent.InputTuple, StateSettlementSetEvent.OutputTuple, StateSettlementSetEvent.OutputObject>;
     
 
-      'TokensLocked(address,uint256,uint256,uint256)': TypedContractEvent<TokensLockedEvent.InputTuple, TokensLockedEvent.OutputTuple, TokensLockedEvent.OutputObject>;
+      'TokensLocked(address,uint256,uint256,uint256,uint256)': TypedContractEvent<TokensLockedEvent.InputTuple, TokensLockedEvent.OutputTuple, TokensLockedEvent.OutputObject>;
       TokensLocked: TypedContractEvent<TokensLockedEvent.InputTuple, TokensLockedEvent.OutputTuple, TokensLockedEvent.OutputObject>;
     
 
-      'TokensUnlocked(uint256,uint256,address,uint256)': TypedContractEvent<TokensUnlockedEvent.InputTuple, TokensUnlockedEvent.OutputTuple, TokensUnlockedEvent.OutputObject>;
+      'TokensUnlocked(uint256,uint256,uint256,address,uint256)': TypedContractEvent<TokensUnlockedEvent.InputTuple, TokensUnlockedEvent.OutputTuple, TokensUnlockedEvent.OutputObject>;
       TokensUnlocked: TypedContractEvent<TokensUnlockedEvent.InputTuple, TokensUnlockedEvent.OutputTuple, TokensUnlockedEvent.OutputObject>;
+    
+
+      'UnlockFeeBpsSet(uint16,uint16)': TypedContractEvent<UnlockFeeBpsSetEvent.InputTuple, UnlockFeeBpsSetEvent.OutputTuple, UnlockFeeBpsSetEvent.OutputObject>;
+      UnlockFeeBpsSet: TypedContractEvent<UnlockFeeBpsSetEvent.InputTuple, UnlockFeeBpsSetEvent.OutputTuple, UnlockFeeBpsSetEvent.OutputObject>;
     
     };
   }

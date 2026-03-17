@@ -13,7 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import "./tasks/lockTokens";
 import "./tasks/getTotalDeposited";
-import "./tasks/withdraw";
 
 import { lockTokens } from './tasks/lockTokens.js';
 import { getTotalDeposited } from './tasks/getTotalDeposited.js';

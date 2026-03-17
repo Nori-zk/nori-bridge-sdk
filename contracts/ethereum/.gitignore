@@ -31,3 +31,6 @@ ignition/deployments/chain-31337
 .env.nori-token-bridge
 lib
 .env.nori-eth-token-bridge
+
+
+artifacts/build-info
