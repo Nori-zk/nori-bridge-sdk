@@ -5,6 +5,120 @@ import './MinaStateSettlementExample.sol';
 import './MinaAccountValidationExample.sol';
 import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
+/*
+Minimal deposit and Fee calculation
+
+Definitions:
+
+User makes deposit D (in wei)
+We calculate a fee F(D) (in wei)
+lockFeeBps is set by the admin in bps and a hard cap of MAX_FEE_BPS is enforced.
+1 BU is 1 Bridge unit = WEI_PER_BRIDGE_UNIT (wei)
+
+Constraints:
+-------------------------------
+
+1. D % WEI_PER_BRIDGE_UNIT == 0        (deposit must be whole bridge units)
+2. F(D) % WEI_PER_BRIDGE_UNIT == 0     (fee must be whole bridge units)
+3. F(D) >= WEI_PER_BRIDGE_UNIT         (fee is at least 1 BU, bridge is never free)
+4. (D - F(D)) fits in UInt64 BU on Mina
+
+Decimals and maximum circulating supply:
+-------------------------------
+
+Units we track must not go below WEI_PER_BRIDGE_UNIT to enforce enough maximum circulating supply with DECIMALS on Mina.
+
+On Mina, token amounts must fit in UInt64, so:
+max bridge units = 2^64 - 1 = 18,446,744,073,709,551,615
+
+With DECIMALS = 6, WEI_PER_BRIDGE_UNIT = 10^(18 - 6) = 10^12
+Bridge units = lockedWei / WEI_PER_BRIDGE_UNIT
+
+Max representable wei = (2^64 - 1) * 10^12 ≈ 1.844 × 10^31 wei ≈ 1.844 × 10^13 ETH
+
+Total ETH supply is ~120M (1.2 × 10^8) ETH, so this constraint is always satisfied with DECIMALS = 6.
+
+Fee calculation:
+-------------------------------
+
+We define a fee as the raw result of applying the bps rate to the deposit:
+fee_unconstrained = (D * lockFeeBps) / BPS_DENOMINATOR
+
+However this is unconstrained and we need to ensure that fee % WEI_PER_BRIDGE_UNIT == 0.
+We round up to the next whole bridge unit so that the fee is never zero (the bridge is never free)
+and so that subtracting the fee from D leaves no leftover wei that cannot be represented in bridge units.
+F(D) = ((fee_unconstrained + WEI_PER_BRIDGE_UNIT - 1) / WEI_PER_BRIDGE_UNIT) * WEI_PER_BRIDGE_UNIT
+
+Minimum deposit:
+-------------------------------
+
+We can thus define a minimum deposit given a particular lockFeeBps such that F(D) > WEI_PER_BRIDGE_UNIT * 1 BU (Bridge unit)
+
+D_min = ceil((WEI_PER_BRIDGE_UNIT * BPS_DENOMINATOR) / lockFeeBps)
+      = (WEI_PER_BRIDGE_UNIT * BPS_DENOMINATOR + lockFeeBps - 1) / lockFeeBps
+
+Example (lockFeeBps = MAX_FEE_BPS = 1e4 i.e. 10%):
+-------------------------------
+
+Given:
+  WEI_PER_BRIDGE_UNIT = 1e12
+  BPS_DENOMINATOR     = 1e5
+  lockFeeBps          = 1e4
+
+Minimum deposit:
+  D_min = (WEI_PER_BRIDGE_UNIT * BPS_DENOMINATOR + lockFeeBps - 1) / lockFeeBps
+        = ((1e12 * 1e5) + 1e4 - 1) / 1e4
+        = (1e17 + 9.999e3) / 1e4
+        = 1e13 wei (integer division truncates the remainder)
+        = 1e-5 ETH
+        = 10 BU
+
+Constrained fee (round up to nearest BU):
+  F(D) = (((D * lockFeeBps) / BPS_DENOMINATOR + (WEI_PER_BRIDGE_UNIT - 1)) / WEI_PER_BRIDGE_UNIT) * WEI_PER_BRIDGE_UNIT
+
+  where:
+    D * lockFeeBps        = 1e13 * 1e4 = 1e17
+    WEI_PER_BRIDGE_UNIT-1 = 1e12 - 1   = 9.999e11
+
+  F(D) = (((1e17 / 1e5) + 9.999e11) / 1e12) * 1e12
+       = ((1e12 + 9.999e11) / 1e12) * 1e12
+       = (1.9999e12 / 1e12) * 1e12
+       = 1 * 1e12 (integer division truncates 1.9999 to 1)
+       = 1e12 wei
+       = 1 BU
+
+Net locked:
+  net_locked = D - F(D)
+             = 1e13 - 1e12
+             = 9e12 wei
+             = 9 BU
+
+Justification for D_min:
+-------------------------------
+
+When a user deposits D wei, the contract deducts a fee F(D) and the remaining
+netAmount = D - F(D) is converted to bridge units via integer division:
+bridgeUnits = netAmount / WEI_PER_BRIDGE_UNIT. This is what gets minted on Mina.
+
+There are two failure modes if D is too small:
+
+First, if D * lockFeeBps < BPS_DENOMINATOR, floor division produces F(D) = 0.
+The user's entire deposit is locked and minted on Mina without the protocol
+collecting anything. The bridge is free.
+
+Second, if the fee consumes enough of D that netAmount < WEI_PER_BRIDGE_UNIT,
+the integer division truncates to 0 BU. The user has paid ETH — some to the fee,
+the rest stuck as dust in the contract — and receives nothing on Mina.
+Their funds are irrecoverable.
+
+Both failures are prevented by enforcing D >= D_min, which guarantees the fee is
+at least 1 BU and the net amount after fee is at least 1 BU. The BU-alignment of
+the fee itself is not a protocol requirement — it is a UX choice about whether the
+user loses a sub-BU amount to truncation dust. The protocol functions correctly
+either way as long as D >= D_min.
+
+*/
+
 /// @title NoriTokenBridge
 /// @notice Lock ETH for Mina accounts with bridge unit validation, depositor binding, and fee collection.
 /// @dev The `bridgeOperator` is expected to be a Safe (multisig) smart account in production.
@@ -19,7 +133,8 @@ contract NoriTokenBridge is ReentrancyGuard {
     uint8 public constant DECIMALS = 6;
     uint64 public constant MAX_MAGNITUDE = (1 << 64) - 1; // 64-bit magnitude
     uint256 public constant WEI_PER_BRIDGE_UNIT = 10 ** (18 - DECIMALS); // smallest bridge unit in wei
-    uint16 public constant MAX_FEE_BPS = 10000; // 10% hard cap (1 bps = 0.001%)
+    uint32 public constant BPS_DENOMINATOR = 100_000; // 1 bps = 0.001%
+    uint16 public constant MAX_FEE_BPS = 10_000; // 10% hard cap
 
     // -------------------------------
     // Custom Errors
@@ -169,7 +284,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         // ===============================
         // FEE DEDUCTION
         // ===============================
-        uint256 fee = (msg.value * lockFeeBps) / 100000;
+        uint256 fee = (msg.value * lockFeeBps) / BPS_DENOMINATOR;
         uint256 netAmount = msg.value - fee;
 
         // Convert net amount to bridge units
@@ -278,7 +393,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         burnSoFarSet[pubKeyTokenIdHash] = burnSoFar0 + bridgeAmount;
 
         // Fee deduction right before transfer
-        uint256 fee = (bridgeAmount * unlockFeeBps) / 100000;
+        uint256 fee = (bridgeAmount * unlockFeeBps) / BPS_DENOMINATOR;
         uint256 netPayout = bridgeAmount - fee;
         accumulatedFees += fee;
 
@@ -381,11 +496,11 @@ contract NoriTokenBridge is ReentrancyGuard {
         uint256 desiredNetAmount
     ) external view returns (uint256 grossAmount, uint256 fee) {
         if (lockFeeBps == 0) return (desiredNetAmount, 0);
-        // grossAmount - (grossAmount * lockFeeBps / 100000) >= desiredNetAmount
+        // grossAmount - (grossAmount * lockFeeBps / BPS_DENOMINATOR) >= desiredNetAmount
         // Ceiling division to ensure net >= desiredNetAmount
         grossAmount =
-            (desiredNetAmount * 100000 + (100000 - lockFeeBps) - 1) /
-            (100000 - lockFeeBps);
+            (desiredNetAmount * BPS_DENOMINATOR + (BPS_DENOMINATOR - lockFeeBps) - 1) /
+            (BPS_DENOMINATOR - lockFeeBps);
         fee = grossAmount - desiredNetAmount;
     }
 }
