@@ -7,3 +7,4 @@ build
 .env.nori-token-bridge
 .env.nori-mina-token-bridge
 tsconfig.tsbuildinfo
+.vscode/

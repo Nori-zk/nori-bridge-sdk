@@ -5,7 +5,7 @@ import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, I
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "./common.js"
   
 
-  export interface MinaStateSettlementExampleInterface extends Interface {
+  export interface MinaStateSettlementInterface extends Interface {
     getFunction(nameOrSignature: "BRIDGE_TRANSITION_FRONTIER_LEN" | "getChainLedgerHashes" | "getChainStateHashes" | "getTipLedgerHash" | "getTipStateHash" | "isLedgerVerified" | "updateChain"): FunctionFragment;
 
     
@@ -29,12 +29,12 @@ decodeFunctionResult(functionFragment: 'updateChain', data: BytesLike): Result;
 
   
 
-  export interface MinaStateSettlementExample extends BaseContract {
+  export interface MinaStateSettlement extends BaseContract {
     
-    connect(runner?: ContractRunner | null): MinaStateSettlementExample;
+    connect(runner?: ContractRunner | null): MinaStateSettlement;
     waitForDeployment(): Promise<this>;
 
-    interface: MinaStateSettlementExampleInterface;
+    interface: MinaStateSettlementInterface;
 
     
   queryFilter<TCEvent extends TypedContractEvent>(

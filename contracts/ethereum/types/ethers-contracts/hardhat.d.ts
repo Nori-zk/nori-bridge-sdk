@@ -10,20 +10,20 @@ import * as Contracts from "./index.js";
 
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
-  getContractFactory(name: 'MinaAccountValidationExample', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaAccountValidationExample__factory>
-getContractFactory(name: 'MinaStateSettlementExample', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaStateSettlementExample__factory>
+  getContractFactory(name: 'MinaAccountValidation', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaAccountValidation__factory>
+getContractFactory(name: 'MinaStateSettlement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaStateSettlement__factory>
 getContractFactory(name: 'NoriTokenBridge', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NoriTokenBridge__factory>
 
-  getContractAt(name: 'MinaAccountValidationExample', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaAccountValidationExample>
-getContractAt(name: 'MinaStateSettlementExample', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaStateSettlementExample>
+  getContractAt(name: 'MinaAccountValidation', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaAccountValidation>
+getContractAt(name: 'MinaStateSettlement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaStateSettlement>
 getContractAt(name: 'NoriTokenBridge', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NoriTokenBridge>
 
-  deployContract(name: 'MinaAccountValidationExample', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidationExample>
-deployContract(name: 'MinaStateSettlementExample', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaStateSettlementExample>
+  deployContract(name: 'MinaAccountValidation', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidation>
+deployContract(name: 'MinaStateSettlement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaStateSettlement>
 deployContract(name: 'NoriTokenBridge', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriTokenBridge>
 
-  deployContract(name: 'MinaAccountValidationExample', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidationExample>
-deployContract(name: 'MinaStateSettlementExample', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaStateSettlementExample>
+  deployContract(name: 'MinaAccountValidation', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidation>
+deployContract(name: 'MinaStateSettlement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaStateSettlement>
 deployContract(name: 'NoriTokenBridge', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriTokenBridge>
 
     // default types

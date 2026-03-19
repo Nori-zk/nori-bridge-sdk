@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import './MinaStateSettlementExample.sol';
-import './MinaAccountValidationExample.sol';
+import './MinaStateSettlement.sol';
+import './MinaAccountValidation.sol';
 import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
 /// @title NoriTokenBridge
@@ -64,9 +64,9 @@ contract NoriTokenBridge is ReentrancyGuard {
         0x1b848805a3db129b6b41adca52c9b6f380d58dc9c283f73ce17466a01b90d361; // TODO need change it
 
     /// @notice Mina bridge contract that validates and stores Mina states.
-    MinaStateSettlementExample stateSettlement;
+    MinaStateSettlement stateSettlement;
     /// @notice Mina bridge contract that validates accounts
-    MinaAccountValidationExample accountValidation;
+    MinaAccountValidation accountValidation;
 
     // Hash(publicKey, tokenId) -> burnSoFar
     mapping(uint256 => uint256) public burnSoFarSet;
@@ -143,8 +143,8 @@ contract NoriTokenBridge is ReentrancyGuard {
             _accountValidationAddr == address(0)
         ) revert ZeroAddress();
 
-        stateSettlement = MinaStateSettlementExample(_stateSettlementAddr);
-        accountValidation = MinaAccountValidationExample(
+        stateSettlement = MinaStateSettlement(_stateSettlementAddr);
+        accountValidation = MinaAccountValidation(_accountValidationAddr);
             _accountValidationAddr
         );
 
@@ -229,8 +229,8 @@ contract NoriTokenBridge is ReentrancyGuard {
         if (!stateSettlement.isLedgerVerified(ledgerHash))
             revert InvalidLedger();
 
-        MinaAccountValidationExample.AlignedArgs
-            memory args = MinaAccountValidationExample.AlignedArgs(
+        MinaAccountValidation.AlignedArgs memory args = MinaAccountValidation
+            .AlignedArgs(
                 proofCommitment,
                 provingSystemAuxDataCommitment,
                 proofGeneratorAddr,
@@ -244,9 +244,9 @@ contract NoriTokenBridge is ReentrancyGuard {
             revert InvalidZkappAccount();
 
         bytes calldata encodedAccount = pubInput[32 + 8:];
-        MinaAccountValidationExample.Account memory account = abi.decode(
+        MinaAccountValidation.Account memory account = abi.decode(
             encodedAccount,
-            (MinaAccountValidationExample.Account)
+            (MinaAccountValidation.Account)
         );
 
         /* TODO MUST UNCOMMENT these conditions check in production
