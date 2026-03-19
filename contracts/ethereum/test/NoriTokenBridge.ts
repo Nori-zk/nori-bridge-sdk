@@ -87,7 +87,7 @@ describe('NoriTokenBridge', () => {
 
         it('Should have MIN_LOCK_AMOUNT of 0.0001 ETH', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
-            expect(await tokenBridge.MIN_LOCK_AMOUNT()).to.equal(100n * WEI_PER_BRIDGE_UNIT);
+            expect(await tokenBridge.MIN_LOCK_AMOUNT_WEI()).to.equal(100n * WEI_PER_BRIDGE_UNIT);
         });
     });
 
@@ -441,7 +441,7 @@ describe('NoriTokenBridge', () => {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
             // msg.value must be bridge-unit-aligned (checked BEFORE fee deduction)
-            const minLockAmount = await tokenBridge.MIN_LOCK_AMOUNT();
+            const minLockAmount = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
             const unalignedAmount = minLockAmount + 1n; // not a multiple of WEI_PER_BRIDGE_UNIT
 
             await expect(
@@ -451,15 +451,15 @@ describe('NoriTokenBridge', () => {
             ).to.be.revertedWithCustomError(tokenBridge, 'InvalidBridgeUnitMultiple');
         });
 
-        it('Should round up fee to 1 bridge unit when truncation would yield zero', async function () {
+        it('Should round up fee to MIN_FEE_BU when computed fee is below minimum', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
             // Set 1 bps = 0.001% fee
             await tokenBridge.connect(owner).setLockFeeBps(1);
 
             // Send MIN_LOCK_AMOUNT = 100 bridge units
-            // feeBU = 100 * 1 / 100000 = 0 (truncated) → rounds up to 1
-            // netBU = 100 - 1 = 99
+            // feeBU = 100 * 1 / 100000 = 0 (truncated) → rounds up to MIN_FEE_BU = 10
+            // netBU = 100 - 10 = 90
             const minAmount = 100n * WEI_PER_BRIDGE_UNIT;
 
             await tokenBridge
@@ -467,10 +467,10 @@ describe('NoriTokenBridge', () => {
                 .lockTokens(attestationHashBigInt, { value: minAmount });
 
             const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
-            expect(locked).to.equal(99n); // 99 bridge units (1 taken as fee)
+            expect(locked).to.equal(90n); // 90 bridge units (10 taken as MIN_FEE_BU)
 
             const fees = await tokenBridge.accumulatedFees();
-            expect(fees).to.equal(1n * WEI_PER_BRIDGE_UNIT); // 1 bridge unit fee in wei
+            expect(fees).to.equal(10n * WEI_PER_BRIDGE_UNIT); // MIN_FEE_BU in wei
         });
 
         it('Should handle fee rates that produce non-zero fees', async function () {

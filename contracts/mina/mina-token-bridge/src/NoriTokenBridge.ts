@@ -32,7 +32,7 @@ import { VerificationKey, AccountUpdateForest } from 'o1js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { bytes32LEToFieldProvable, EthInput } from '@nori-zk/o1js-zk-utils';
 
-import {  Bytes32, Bytes32FieldPair, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils';
+import { Bytes32, Bytes32FieldPair, bridgeHeadNoriSP1HeliosProgramPi0, proofConversionSP1ToPlonkPO2, proofConversionSP1ToPlonkVkData } from '@nori-zk/o1js-zk-utils';
 import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
@@ -363,7 +363,7 @@ export class NoriTokenBridge
         // Bytes32FieldPair 
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
         const {
-            totalLocked: totalLockedWei,
+            totalLocked: totalLockedBridgeUnits,
             attestationHash: codeChallengePKARM,
         } = contractDepositCredentialAndTotalLockedToFields(
             merkleTreeContractDepositAttestorInput
@@ -386,20 +386,12 @@ export class NoriTokenBridge
         // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
 
         // Ensure totalLockedWei is at least one bridge unit
-        totalLockedWei.assertGreaterThanOrEqual(
-            new Field(1_000_000_000_000n),
+        totalLockedBridgeUnits.assertGreaterThanOrEqual(
+            new Field(1),
             'Cannot mint: total locked wei is less than one bridge unit (atleast 1e12 wei is needed)'
         );
 
-        // Convert totalLockedWei to bridge units
-        // Divide by number bridge scale factor, we have min deposit of 1e-6 ETH (6dp) and 1 ETH is 1e18 wei
-        // So factor is 18-6=12 1e12
-        const totalLockedBridgeUnits = totalLockedWei.div(new Field(1_000_000_000_000n));
-        /*const totalLockedBridgeUnits = Provable.witness(
-            Field,
-            () => new Field(totalLockedWei.toBigInt() / 1_000_000_000_000n)
-        );
-        totalLockedBridgeUnits.mul(new Field(1_000_000_000_000n)).assertEquals(totalLockedWei);*/
+
 
 
         // Derive amount to mint based of the total locked so far.

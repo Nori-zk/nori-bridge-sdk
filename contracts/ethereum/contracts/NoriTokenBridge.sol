@@ -19,8 +19,10 @@ contract NoriTokenBridge is ReentrancyGuard {
     uint8 public constant DECIMALS = 6;
     uint64 public constant MAX_MAGNITUDE = (1 << 64) - 1; // 64-bit magnitude
     uint256 public constant WEI_PER_BRIDGE_UNIT = 10 ** (18 - DECIMALS); // smallest bridge unit in wei
-    uint16 public constant MAX_FEE_BPS = 10000; // 10% hard cap (1 bps = 0.001%)
-    uint256 public constant MIN_LOCK_AMOUNT = 100 * WEI_PER_BRIDGE_UNIT; // 0.0001 ETH minimum deposit
+    uint16 public constant MAX_FEE_BPS = 10_000; // 10% hard cap (1 bps = 0.001%)
+    uint32 public constant BPS_DENOMINATOR = 100_000;
+    uint256 public constant MIN_FEE_BU = 10;
+    uint256 public constant MIN_LOCK_AMOUNT_WEI = 100 * WEI_PER_BRIDGE_UNIT; // 0.0001 ETH minimum deposit
 
     // -------------------------------
     // Custom Errors
@@ -163,7 +165,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         // ===============================
         // VALIDATION
         // ===============================
-        if (msg.value < MIN_LOCK_AMOUNT) revert BelowMinLockAmount();
+        if (msg.value < MIN_LOCK_AMOUNT_WEI) revert BelowMinLockAmount();
         if (msg.value % WEI_PER_BRIDGE_UNIT != 0)
             revert InvalidBridgeUnitMultiple();
 
@@ -171,11 +173,12 @@ contract NoriTokenBridge is ReentrancyGuard {
         // FEE DEDUCTION (in bridge units)
         // ===============================
         uint256 grossBridgeUnits = msg.value / WEI_PER_BRIDGE_UNIT;
-        uint256 feeBridgeUnits = (grossBridgeUnits * lockFeeBps) / 100000;
-        // Round up: minimum 1 bridge unit fee when a rate is configured
-        if (lockFeeBps > 0 && feeBridgeUnits == 0) feeBridgeUnits = 1;
-        uint256 netBridgeUnits = grossBridgeUnits - feeBridgeUnits;
-        uint256 feeWei = feeBridgeUnits * WEI_PER_BRIDGE_UNIT;
+        uint256 feeBU = (grossBridgeUnits * lockFeeBps) / BPS_DENOMINATOR;
+        // Round up: minimum MIN_FEE_BU fee when a rate is configured
+        if (lockFeeBps > 0 && feeBU < MIN_FEE_BU) feeBU = MIN_FEE_BU;
+
+        uint256 netBridgeUnits = grossBridgeUnits - feeBU;
+        uint256 feeWei = feeBU * WEI_PER_BRIDGE_UNIT;
 
         // Ensure total locked supply does not exceed MAX_MAGNITUDE
         if (totalLocked + netBridgeUnits > MAX_MAGNITUDE)
@@ -263,34 +266,34 @@ contract NoriTokenBridge is ReentrancyGuard {
             keccak256(abi.encode(account.publicKey, account.tokenIdKeyHash))
         );
         uint256 burnSoFar0 = burnSoFarSet[pubKeyTokenIdHash];
-        uint256 bridgeUnits = uint256(account.zkapp.appState[2]) - burnSoFar0;
-        if (bridgeUnits == 0) revert BurnAmountUnderflow();
+        uint256 bridgeAmountBU = uint256(account.zkapp.appState[2]) -
+            burnSoFar0;
+        if (bridgeAmountBU == 0) revert BurnAmountUnderflow();
 
         // ===============================
         // UNLOCK LOGIC (checks-effects-interactions)
         // ===============================
 
-        burnSoFarSet[pubKeyTokenIdHash] = burnSoFar0 + bridgeUnits;
+        burnSoFarSet[pubKeyTokenIdHash] = burnSoFar0 + bridgeAmountBU;
 
-        uint256 feeBridgeUnits = (bridgeUnits * unlockFeeBps) / 100000;
-        // Round up: minimum 1 bridge unit fee when a rate is configured
-        if (unlockFeeBps > 0 && feeBridgeUnits == 0) feeBridgeUnits = 1;
-        uint256 netBridgeUnits = bridgeUnits - feeBridgeUnits;
-        uint256 feeWei = feeBridgeUnits * WEI_PER_BRIDGE_UNIT;
+        uint256 feeBU = (bridgeAmountBU * unlockFeeBps) / BPS_DENOMINATOR;
+        // Round up: minimum 10 bridge unit fee when a rate is configured
+        if (unlockFeeBps > 0 && feeBU < MIN_FEE_BU) feeBU = MIN_FEE_BU;
+        uint256 netBridgeUnits = bridgeAmountBU - feeBU;
+        uint256 feeWei = feeBU * WEI_PER_BRIDGE_UNIT;
         uint256 netWei = netBridgeUnits * WEI_PER_BRIDGE_UNIT;
         accumulatedFees += feeWei;
 
         // Interaction: transfer net payout to the receiver
         address receiver = address(uint160(uint256(account.zkapp.appState[3])));
 
-        // TODO FOR TEST-ALIGN
-        // totalLocked -= bridgeUnits;
+        totalLocked -= bridgeAmountBU;
         (bool ok, ) = payable(receiver).call{value: netWei}('');
         if (!ok) revert EthTransferFailed();
 
         emit TokensUnlocked(
             pubKeyTokenIdHash,
-            bridgeUnits * WEI_PER_BRIDGE_UNIT,
+            bridgeAmountBU * WEI_PER_BRIDGE_UNIT,
             feeWei,
             receiver,
             block.timestamp
@@ -382,8 +385,10 @@ contract NoriTokenBridge is ReentrancyGuard {
         // Work in bridge units for consistency with lockTokens math
         uint256 desiredNetBU = desiredNetAmount / WEI_PER_BRIDGE_UNIT;
         // Ceiling division to ensure net >= desiredNetBU
-        uint256 grossBU = (desiredNetBU * 100000 + (100000 - lockFeeBps) - 1) /
-            (100000 - lockFeeBps);
+        uint256 grossBU = (desiredNetBU *
+            BPS_DENOMINATOR +
+            (BPS_DENOMINATOR - lockFeeBps) -
+            1) / (BPS_DENOMINATOR - lockFeeBps);
         grossAmount = grossBU * WEI_PER_BRIDGE_UNIT;
         fee = grossAmount - desiredNetAmount;
     }

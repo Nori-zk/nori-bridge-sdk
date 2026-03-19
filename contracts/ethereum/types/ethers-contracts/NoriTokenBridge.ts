@@ -6,14 +6,16 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "MAX_FEE_BPS" | "MAX_MAGNITUDE" | "MIN_LOCK_AMOUNT" | "WEI_PER_BRIDGE_UNIT" | "accumulatedFees" | "bridgeOperator" | "burnSoFarSet" | "calcGrossLockAmount" | "codeChallengeToEthAddress" | "feeRecipient" | "isConfigured" | "lockFeeBps" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeBps" | "setUnlockFeeBps" | "totalLocked" | "unlockFeeBps" | "unlockTokens" | "withdrawFees"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "DECIMALS" | "MAX_FEE_BPS" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "WEI_PER_BRIDGE_UNIT" | "accumulatedFees" | "bridgeOperator" | "burnSoFarSet" | "calcGrossLockAmount" | "codeChallengeToEthAddress" | "feeRecipient" | "isConfigured" | "lockFeeBps" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeBps" | "setUnlockFeeBps" | "totalLocked" | "unlockFeeBps" | "unlockTokens" | "withdrawFees"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "FeeRecipientSet" | "FeesWithdrawn" | "LockFeeBpsSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked" | "UnlockFeeBpsSet"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'DECIMALS', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'BPS_DENOMINATOR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'DECIMALS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_FEE_BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_MAGNITUDE', values?: undefined): string;
-encodeFunctionData(functionFragment: 'MIN_LOCK_AMOUNT', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MIN_FEE_BU', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MIN_LOCK_AMOUNT_WEI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'WEI_PER_BRIDGE_UNIT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'accumulatedFees', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bridgeOperator', values?: undefined): string;
@@ -35,10 +37,12 @@ encodeFunctionData(functionFragment: 'unlockFeeBps', values?: undefined): string
 encodeFunctionData(functionFragment: 'unlockTokens', values: [BytesLike, BytesLike, BytesLike, BytesLike, BytesLike, BigNumberish, BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'withdrawFees', values?: undefined): string;
 
-    decodeFunctionResult(functionFragment: 'DECIMALS', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'BPS_DENOMINATOR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'DECIMALS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_FEE_BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_MAGNITUDE', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'MIN_LOCK_AMOUNT', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MIN_FEE_BU', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MIN_LOCK_AMOUNT_WEI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'WEI_PER_BRIDGE_UNIT', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'accumulatedFees', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOperator', data: BytesLike): Result;
@@ -204,6 +208,14 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
 
     
     
+    BPS_DENOMINATOR: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     DECIMALS: TypedContractMethod<
       [],
       [bigint],
@@ -228,7 +240,15 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
     
 
     
-    MIN_LOCK_AMOUNT: TypedContractMethod<
+    MIN_FEE_BU: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    MIN_LOCK_AMOUNT_WEI: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -398,7 +418,12 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'DECIMALS'): TypedContractMethod<
+    getFunction(nameOrSignature: 'BPS_DENOMINATOR'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'DECIMALS'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -413,7 +438,12 @@ getFunction(nameOrSignature: 'MAX_MAGNITUDE'): TypedContractMethod<
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'MIN_LOCK_AMOUNT'): TypedContractMethod<
+getFunction(nameOrSignature: 'MIN_FEE_BU'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MIN_LOCK_AMOUNT_WEI'): TypedContractMethod<
       [],
       [bigint],
       'view'
