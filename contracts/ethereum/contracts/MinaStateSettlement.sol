@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
-import '@aligned_layer/contracts/src/core/IAlignedLayerServiceManager.sol';
+import '@aligned_layer/contracts/src/core/AlignedLayerServiceManager.sol';
 
 error MinaProvingSystemIdIsNotValid(bytes32); // c35f1ecd
 error MinaNetworkIsWrong(); // 042eb0cf
@@ -30,14 +30,14 @@ contract MinaStateSettlement {
     bool devnetFlag;
 
     /// @notice Reference to the AlignedLayerServiceManager contract.
-    IAlignedLayerServiceManager aligned;
+    AlignedLayerServiceManager aligned;
 
     constructor(
         address payable _alignedServiceAddr,
         bytes32 _tipStateHash,
         bool _devnetFlag
     ) {
-        aligned = IAlignedLayerServiceManager(_alignedServiceAddr);
+        aligned = AlignedLayerServiceManager(_alignedServiceAddr);
         chainStateHashes[BRIDGE_TRANSITION_FRONTIER_LEN - 1] = _tipStateHash;
         devnetFlag = _devnetFlag;
     }
@@ -71,14 +71,10 @@ contract MinaStateSettlement {
     }
 
     /// @notice Returns true if this snarked ledger hash was bridged.
+    /// TODO should we store the old verified ledger hashes in an on-chain array and check against it instead of only checking the tip ledger hash?
     function isLedgerVerified(bytes32 ledgerHash) external view returns (bool) {
-        for (uint256 i = 0; i < BRIDGE_TRANSITION_FRONTIER_LEN; i++) {
-            if (
-                chainLedgerHashes[BRIDGE_TRANSITION_FRONTIER_LEN - 1 - i] ==
-                ledgerHash
-            ) {
-                return true;
-            }
+        if (chainLedgerHashes[0] == ledgerHash) {
+            return true;
         }
         return false;
     }

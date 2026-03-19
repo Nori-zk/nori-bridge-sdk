@@ -67,20 +67,18 @@ describe('NoriTokenBridge', () => {
             ).to.be.revertedWithCustomError(TokenBridge, 'ZeroAddress');
         });
 
-        it('Should accept ETH during deployment (payable constructor)', async function () {
+        it('Should deploy with zero balance (non-payable constructor)', async function () {
             const [deployer] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
-            const tokenBridge = await TokenBridge.deploy(deployer.address, {
-                value: ethers.parseEther('1.0'),
-            });
+            const tokenBridge = await TokenBridge.deploy(deployer.address);
             const balance = await ethers.provider.getBalance(tokenBridge.target);
-            expect(balance).to.equal(ethers.parseEther('1.0'));
+            expect(balance).to.equal(0n);
         });
 
         it('Should initialize fees to zero', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
-            expect(await tokenBridge.lockFeeBps()).to.equal(0);
-            expect(await tokenBridge.unlockFeeBps()).to.equal(0);
+            expect(await tokenBridge.lockFeeRate()).to.equal(0);
+            expect(await tokenBridge.unlockFeeRate()).to.equal(0);
             expect(await tokenBridge.accumulatedFees()).to.equal(0n);
             expect(await tokenBridge.feeRecipient()).to.equal(ethers.ZeroAddress);
         });
@@ -138,59 +136,59 @@ describe('NoriTokenBridge', () => {
     // Fee Configuration
     // -----------------------------------------------------------
     describe('Fee Configuration', function () {
-        it('Should allow operator to set lock fee BPS and emit event', async function () {
+        it('Should allow operator to set lock fee rate and emit event', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            await expect(tokenBridge.connect(owner).setLockFeeBps(50))
-                .to.emit(tokenBridge, 'LockFeeBpsSet')
+            await expect(tokenBridge.connect(owner).setLockFeeRate(50))
+                .to.emit(tokenBridge, 'LockFeeRateSet')
                 .withArgs(0, 50);
 
-            expect(await tokenBridge.lockFeeBps()).to.equal(50);
+            expect(await tokenBridge.lockFeeRate()).to.equal(50);
         });
 
-        it('Should allow operator to set unlock fee BPS and emit event', async function () {
+        it('Should allow operator to set unlock fee rate and emit event', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            await expect(tokenBridge.connect(owner).setUnlockFeeBps(100))
-                .to.emit(tokenBridge, 'UnlockFeeBpsSet')
+            await expect(tokenBridge.connect(owner).setUnlockFeeRate(100))
+                .to.emit(tokenBridge, 'UnlockFeeRateSet')
                 .withArgs(0, 100);
 
-            expect(await tokenBridge.unlockFeeBps()).to.equal(100);
+            expect(await tokenBridge.unlockFeeRate()).to.equal(100);
         });
 
-        it('Should revert if lock fee exceeds MAX_FEE_BPS', async function () {
+        it('Should revert if lock fee exceeds MAX_FEE_RATE', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
-            const maxFeeBps = Number(await tokenBridge.MAX_FEE_BPS());
+            const maxFeeRate = Number(await tokenBridge.MAX_FEE_RATE());
 
             await expect(
-                tokenBridge.connect(owner).setLockFeeBps(maxFeeBps + 1)
-            ).to.be.revertedWithCustomError(tokenBridge, 'FeeBpsTooHigh');
+                tokenBridge.connect(owner).setLockFeeRate(maxFeeRate + 1)
+            ).to.be.revertedWithCustomError(tokenBridge, 'FeeRateTooHigh');
         });
 
-        it('Should revert if unlock fee exceeds MAX_FEE_BPS', async function () {
+        it('Should revert if unlock fee exceeds MAX_FEE_RATE', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
-            const maxFeeBps = Number(await tokenBridge.MAX_FEE_BPS());
+            const maxFeeRate = Number(await tokenBridge.MAX_FEE_RATE());
 
             await expect(
-                tokenBridge.connect(owner).setUnlockFeeBps(maxFeeBps + 1)
-            ).to.be.revertedWithCustomError(tokenBridge, 'FeeBpsTooHigh');
+                tokenBridge.connect(owner).setUnlockFeeRate(maxFeeRate + 1)
+            ).to.be.revertedWithCustomError(tokenBridge, 'FeeRateTooHigh');
         });
 
-        it('Should allow setting fee at exactly MAX_FEE_BPS', async function () {
+        it('Should allow setting fee at exactly MAX_FEE_RATE', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            await tokenBridge.connect(owner).setLockFeeBps(10000);
-            expect(await tokenBridge.lockFeeBps()).to.equal(10000);
+            await tokenBridge.connect(owner).setLockFeeRate(10000);
+            expect(await tokenBridge.lockFeeRate()).to.equal(10000);
 
-            await tokenBridge.connect(owner).setUnlockFeeBps(10000);
-            expect(await tokenBridge.unlockFeeBps()).to.equal(10000);
+            await tokenBridge.connect(owner).setUnlockFeeRate(10000);
+            expect(await tokenBridge.unlockFeeRate()).to.equal(10000);
         });
 
         it('Should revert if non-operator sets lock fee', async function () {
             const { tokenBridge, user1 } = await deployTokenBridgeFixture();
 
             await expect(
-                tokenBridge.connect(user1).setLockFeeBps(50)
+                tokenBridge.connect(user1).setLockFeeRate(50)
             ).to.be.revertedWithCustomError(tokenBridge, 'NotBridgeOperator');
         });
 
@@ -198,7 +196,7 @@ describe('NoriTokenBridge', () => {
             const { tokenBridge, user1 } = await deployTokenBridgeFixture();
 
             await expect(
-                tokenBridge.connect(user1).setUnlockFeeBps(50)
+                tokenBridge.connect(user1).setUnlockFeeRate(50)
             ).to.be.revertedWithCustomError(tokenBridge, 'NotBridgeOperator');
         });
 
@@ -228,9 +226,9 @@ describe('NoriTokenBridge', () => {
             ).to.be.revertedWithCustomError(tokenBridge, 'ZeroAddress');
         });
 
-        it('MAX_FEE_BPS should equal 10000', async function () {
+        it('MAX_FEE_RATE should equal 10000', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
-            expect(await tokenBridge.MAX_FEE_BPS()).to.equal(10000);
+            expect(await tokenBridge.MAX_FEE_RATE()).to.equal(10000);
         });
     });
 
@@ -279,21 +277,15 @@ describe('NoriTokenBridge', () => {
             const tx = await tokenBridge
                 .connect(owner)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
-            const receipt = await tx.wait();
-            if (!receipt) throw new Error('Transaction was not mined in time');
 
-            const block = await ethers.provider.getBlock(receipt.blockNumber);
-            if (!block) throw new Error(`Block ${receipt.blockNumber} not found`);
-
-            // Events emit wei amounts
+            // Events emit wei amounts (no timestamp in event)
             await expect(tx)
                 .to.emit(tokenBridge, 'TokensLocked')
                 .withArgs(
                     owner.address,
                     attestationHashHex,
                     sendValue, // netWei = msg.value at 0% fee
-                    0n, // feeWei = 0 at 0%
-                    block.timestamp
+                    0n // feeWei = 0 at 0%
                 );
         });
 
@@ -362,8 +354,8 @@ describe('NoriTokenBridge', () => {
         it('Should deduct fee and store only net bridge units in lockedTokens', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            // Set 500 bps = 0.5% lock fee
-            await tokenBridge.connect(owner).setLockFeeBps(500);
+            // Set 500 rate units = 0.5% lock fee
+            await tokenBridge.connect(owner).setLockFeeRate(500);
 
             const sendValue = ethers.parseEther('1.0'); // 1 ETH = 1_000_000 BU
             // feeBU = 1_000_000 * 500 / 100000 = 5000
@@ -390,7 +382,7 @@ describe('NoriTokenBridge', () => {
         it('Should update totalLocked based on net bridge units', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            await tokenBridge.connect(owner).setLockFeeBps(500); // 0.5%
+            await tokenBridge.connect(owner).setLockFeeRate(500); // 0.5%
 
             const sendValue = ethers.parseEther('1.0');
             const grossBU = sendValue / WEI_PER_BRIDGE_UNIT;
@@ -401,14 +393,14 @@ describe('NoriTokenBridge', () => {
                 .connect(user1)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
 
-            const totalLocked = await tokenBridge.totalLocked();
+            const totalLocked = await tokenBridge.totalLockedBU();
             expect(totalLocked).to.equal(netBU);
         });
 
         it('Should emit TokensLocked with wei amounts', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            await tokenBridge.connect(owner).setLockFeeBps(1000); // 1%
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
 
             const sendValue = ethers.parseEther('2.0'); // 2_000_000 BU
             const grossBU = sendValue / WEI_PER_BRIDGE_UNIT;
@@ -420,20 +412,15 @@ describe('NoriTokenBridge', () => {
             const tx = await tokenBridge
                 .connect(user1)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
-            const receipt = await tx.wait();
-            if (!receipt) throw new Error('Tx not mined');
-            const block = await ethers.provider.getBlock(receipt.blockNumber);
-            if (!block) throw new Error('Block not found');
 
-            // Events emit wei amounts
+            // Events emit wei amounts (no timestamp in event)
             await expect(tx)
                 .to.emit(tokenBridge, 'TokensLocked')
                 .withArgs(
                     user1.address,
                     attestationHashBigInt,
                     netWei,
-                    feeWei,
-                    block.timestamp
+                    feeWei
                 );
         });
 
@@ -454,8 +441,8 @@ describe('NoriTokenBridge', () => {
         it('Should round up fee to MIN_FEE_BU when computed fee is below minimum', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            // Set 1 bps = 0.001% fee
-            await tokenBridge.connect(owner).setLockFeeBps(1);
+            // Set 1 rate units = 0.001% fee
+            await tokenBridge.connect(owner).setLockFeeRate(1);
 
             // Send MIN_LOCK_AMOUNT = 100 bridge units
             // feeBU = 100 * 1 / 100000 = 0 (truncated) → rounds up to MIN_FEE_BU = 10
@@ -476,11 +463,11 @@ describe('NoriTokenBridge', () => {
         it('Should handle fee rates that produce non-zero fees', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            // Set 1000 bps = 1%
+            // Set 1000 rate units = 1%
             // For 1 ETH (1_000_000 BU): feeBU = 1_000_000 * 1000 / 100000 = 10000
             // netBU = 990000
             // feeWei = 10000 * 10^12 = 10^16 = 0.01 ETH
-            await tokenBridge.connect(owner).setLockFeeBps(1000);
+            await tokenBridge.connect(owner).setLockFeeRate(1000);
 
             const sendValue = ethers.parseEther('1.0');
             const grossBU = sendValue / WEI_PER_BRIDGE_UNIT;
@@ -502,7 +489,7 @@ describe('NoriTokenBridge', () => {
         it('Should accumulate fees across multiple locks', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            await tokenBridge.connect(owner).setLockFeeBps(1000); // 1%
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
 
             const value1 = ethers.parseEther('1.0');
             const value2 = ethers.parseEther('2.0');
@@ -532,7 +519,7 @@ describe('NoriTokenBridge', () => {
                 .connect(user1)
                 .lockTokens(attestationHashBigInt, { value: sendValue });
 
-            const totalLocked = await tokenBridge.totalLocked();
+            const totalLocked = await tokenBridge.totalLockedBU();
             expect(totalLocked).to.equal(expectedBridgeUnits);
         });
 
@@ -564,7 +551,7 @@ describe('NoriTokenBridge', () => {
                 tokenBridge
                     .connect(user2)
                     .lockTokens(attestationHashBigInt, { value: sendValue })
-            ).to.be.revertedWithCustomError(tokenBridge, 'MinaAccountAlreadyLinked');
+            ).to.be.revertedWithCustomError(tokenBridge, 'MinaAccountLinkedToDifferentDepositor');
         });
 
         it('Should allow the same depositor to add more ETH to same Mina account', async function () {
@@ -609,7 +596,7 @@ describe('NoriTokenBridge', () => {
             const { tokenBridge, owner, user1, treasury } = await deployTokenBridgeFixture();
 
             // Setup: set fee and recipient
-            await tokenBridge.connect(owner).setLockFeeBps(1000); // 1%
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
             await tokenBridge.connect(owner).setFeeRecipient(treasury.address);
 
             // Lock tokens to accumulate fees
@@ -639,7 +626,7 @@ describe('NoriTokenBridge', () => {
         it('Should emit FeesWithdrawn event', async function () {
             const { tokenBridge, owner, user1, treasury } = await deployTokenBridgeFixture();
 
-            await tokenBridge.connect(owner).setLockFeeBps(500); // 0.5%
+            await tokenBridge.connect(owner).setLockFeeRate(500); // 0.5%
             await tokenBridge.connect(owner).setFeeRecipient(treasury.address);
 
             const sendValue = ethers.parseEther('2.0'); // 2_000_000 BU
@@ -656,7 +643,7 @@ describe('NoriTokenBridge', () => {
         it('Should revert if caller is not feeRecipient', async function () {
             const { tokenBridge, owner, user1, treasury } = await deployTokenBridgeFixture();
 
-            await tokenBridge.connect(owner).setLockFeeBps(1000);
+            await tokenBridge.connect(owner).setLockFeeRate(1000);
             await tokenBridge.connect(owner).setFeeRecipient(treasury.address);
             await tokenBridge.connect(user1).lockTokens(attestationHashBigInt, {
                 value: ethers.parseEther('1.0'),
@@ -694,19 +681,20 @@ describe('NoriTokenBridge', () => {
             const { tokenBridge } = await deployTokenBridgeFixture();
 
             const desiredNet = ethers.parseEther('1.0');
-            const [grossAmount, fee] = await tokenBridge.calcGrossLockAmount(desiredNet);
+            const [grossAmount, fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(desiredNet);
 
             expect(grossAmount).to.equal(desiredNet);
             expect(fee).to.equal(0n);
+            expect(actualNetAmount).to.equal(desiredNet);
         });
 
         it('Should compute correct gross amount for various fee rates', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            // Test at 1000 bps (1%)
-            await tokenBridge.connect(owner).setLockFeeBps(1000);
+            // Test at 1000 rate units (1%)
+            await tokenBridge.connect(owner).setLockFeeRate(1000);
             const desiredNet = ethers.parseEther('1.0');
-            const [grossAmount, fee] = await tokenBridge.calcGrossLockAmount(desiredNet);
+            const [grossAmount, fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(desiredNet);
 
             // Verify using bridge unit math (same as contract)
             const grossBU = grossAmount / WEI_PER_BRIDGE_UNIT;
@@ -715,21 +703,23 @@ describe('NoriTokenBridge', () => {
             const desiredNetBU = desiredNet / WEI_PER_BRIDGE_UNIT;
 
             expect(netBU).to.be.gte(desiredNetBU);
-            expect(fee).to.equal(grossAmount - desiredNet);
+            expect(actualNetAmount).to.equal(netBU * WEI_PER_BRIDGE_UNIT);
+            // fee is computed as feeBU * WEI_PER_BRIDGE_UNIT (always BU-aligned)
+            expect(fee).to.equal(feeBU * WEI_PER_BRIDGE_UNIT);
         });
 
         it('Should produce a usable gross estimate for fee-aligned amounts', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            // Use 1000 bps (1%)
+            // Use 1000 rate units (1%)
             // 0.99 ETH desired net = 990000 BU
             // grossBU = ceil(990000 * 100000 / 99000) = 1000000
             // grossAmount = 1 ETH exactly
-            await tokenBridge.connect(owner).setLockFeeBps(1000);
+            await tokenBridge.connect(owner).setLockFeeRate(1000);
 
             const desiredNet = ethers.parseEther('0.99');
             const desiredNetBU = desiredNet / WEI_PER_BRIDGE_UNIT;
-            const [grossAmount, _fee] = await tokenBridge.calcGrossLockAmount(desiredNet);
+            const [grossAmount, _fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(desiredNet);
 
             // Verify the gross works with lockTokens
             await tokenBridge
@@ -739,6 +729,77 @@ describe('NoriTokenBridge', () => {
             // lockedTokens returns bridge units
             const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
             expect(locked).to.be.gte(desiredNetBU);
+            expect(actualNetAmount).to.equal(locked * WEI_PER_BRIDGE_UNIT);
+        });
+
+        it('Should round up non-BU-aligned desiredNetAmount', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture();
+
+            // Pass a value that's not BU-aligned (e.g. 1 wei more than 1 ETH)
+            const unaligned = ethers.parseEther('1.0') + 1n;
+            const [grossAmount, fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(unaligned);
+
+            // grossAmount should be rounded up to 2 BU more than 1 ETH (next BU boundary)
+            // desiredNetBU = ceil((10^18 + 1) / 10^12) = 1000001
+            // At 0% fee: grossAmount = 1000001 * 10^12
+            expect(grossAmount).to.equal(1000001n * WEI_PER_BRIDGE_UNIT);
+            expect(fee).to.equal(0n);
+            expect(actualNetAmount).to.equal(grossAmount); // 0% fee: net == gross
+            // grossAmount is BU-aligned and >= desiredNetAmount
+            expect(grossAmount).to.be.gte(unaligned);
+            expect(grossAmount % WEI_PER_BRIDGE_UNIT).to.equal(0n);
+        });
+
+        it('Should handle MIN_FEE_BU edge case for small amounts', async function () {
+            const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
+
+            // Set 1 rate unit — at 110 BU deposit, feeBU = 110*1/100000 = 0 → rounds up to MIN_FEE_BU = 10
+            await tokenBridge.connect(owner).setLockFeeRate(1);
+
+            const desiredNet = 100n * WEI_PER_BRIDGE_UNIT; // want 100 BU net (= MIN_LOCK_AMOUNT_WEI)
+            const [grossAmount, fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(desiredNet);
+
+            // grossBU should be desiredNetBU + MIN_FEE_BU = 100 + 10 = 110
+            expect(grossAmount).to.equal(110n * WEI_PER_BRIDGE_UNIT);
+            expect(fee).to.equal(10n * WEI_PER_BRIDGE_UNIT); // MIN_FEE_BU
+            expect(actualNetAmount).to.equal(100n * WEI_PER_BRIDGE_UNIT);
+
+            // Verify it actually works with lockTokens
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: grossAmount });
+
+            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            expect(locked).to.equal(100n); // 100 BU net
+        });
+
+        it('Should clamp gross to MIN_LOCK_AMOUNT when desired net is tiny', async function () {
+            const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
+
+            // Set 500 rate units = 0.5% fee
+            await tokenBridge.connect(owner).setLockFeeRate(500);
+
+            // Request only 50 BU net — below MIN_LOCK_AMOUNT_WEI (100 BU gross)
+            const desiredNet = 50n * WEI_PER_BRIDGE_UNIT;
+            const [grossAmount, fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(desiredNet);
+
+            // grossAmount should be clamped up to at least MIN_LOCK_AMOUNT_WEI
+            expect(grossAmount).to.be.gte(100n * WEI_PER_BRIDGE_UNIT);
+            expect(grossAmount % WEI_PER_BRIDGE_UNIT).to.equal(0n);
+
+            // actualNetAmount should exceed desiredNet (boosted by minimum)
+            expect(actualNetAmount).to.be.gte(desiredNet);
+
+            // fee + actualNetAmount == grossAmount
+            expect(fee + actualNetAmount).to.equal(grossAmount);
+
+            // Verify it actually works with lockTokens
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(attestationHashBigInt, { value: grossAmount });
+
+            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            expect(locked * WEI_PER_BRIDGE_UNIT).to.equal(actualNetAmount);
         });
     });
 

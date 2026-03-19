@@ -46,17 +46,17 @@ async function main() {
     await tx1.wait();
   }
 
-  const lockFeeBps = process.env.NORI_ETH_BRIDGE_LOCK_FEE_BPS;
-  if (lockFeeBps) {
-    console.log(`Setting lock fee: ${lockFeeBps} bps`);
-    const tx2 = await noriTokenBridgeDeployedContract.setLockFeeBps(parseInt(lockFeeBps));
+  const lockFeeRate = process.env.NORI_ETH_BRIDGE_LOCK_FEE_RATE;
+  if (lockFeeRate) {
+    console.log(`Setting lock fee rate: ${lockFeeRate} (1 unit = 0.001%)`);
+    const tx2 = await noriTokenBridgeDeployedContract.setLockFeeRate(parseInt(lockFeeRate));
     await tx2.wait();
   }
 
-  const unlockFeeBps = process.env.NORI_ETH_BRIDGE_UNLOCK_FEE_BPS;
-  if (unlockFeeBps) {
-    console.log(`Setting unlock fee: ${unlockFeeBps} bps`);
-    const tx3 = await noriTokenBridgeDeployedContract.setUnlockFeeBps(parseInt(unlockFeeBps));
+  const unlockFeeRate = process.env.NORI_ETH_BRIDGE_UNLOCK_FEE_RATE;
+  if (unlockFeeRate) {
+    console.log(`Setting unlock fee rate: ${unlockFeeRate} (1 unit = 0.001%)`);
+    const tx3 = await noriTokenBridgeDeployedContract.setUnlockFeeRate(parseInt(unlockFeeRate));
     await tx3.wait();
   }
 
