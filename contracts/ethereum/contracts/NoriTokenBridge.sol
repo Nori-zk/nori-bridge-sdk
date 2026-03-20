@@ -90,12 +90,12 @@ contract NoriTokenBridge is ReentrancyGuard {
     event TokensLocked(
         address indexed user,
         uint256 indexed codeChallenge,
-        uint256 amount,
+        uint256 amount, // @Karol - mention this is net: user sent amount + fee as msg.value, gets amount minted on Mina
         uint256 fee
     );
     event TokensUnlocked(
         uint256 indexed pubKeyTokenIdHash,
-        uint256 amount,
+        uint256 amount, // @Karol - mention this is gross: user burnt amount on Mina, receives amount - fee in ETH
         uint256 fee,
         address receiver
     );
@@ -301,6 +301,14 @@ contract NoriTokenBridge is ReentrancyGuard {
         if (unlockFeeRate > 0 && feeBU < MIN_FEE_BU) feeBU = MIN_FEE_BU;
 
         if (tokensToUnlock <= feeBU) revert InvalidUnlockAmount();
+
+        // @Karol - If a user does a partial burn on Mina say 5BU and unlockFeeRate > 0, then feeBU gets clamped to MIN_FEE_BU (10).
+        // As a consequence tokensToUnlock (5) <= feeBU (10) reverts! Meaning those tokens are burnt on Mina but can never be touched
+        // on ETH, they are stuck!
+        // The lock side is protected by MIN_LOCK_AMOUNT_WEI (100 BU), but there's no equivalent minimum on the Mina burn side.
+        // The Mina zkApp must enforce MIN_BURN_BU = MIN_FEE_BU + 1 (11 BU) in order for this burn to "survive"
+        // — the check is <=, so burns of exactly MIN_FEE_BU also revert.
+
         uint256 netBU;
         unchecked {
             netBU = tokensToUnlock - feeBU; // Safe because of the line above
