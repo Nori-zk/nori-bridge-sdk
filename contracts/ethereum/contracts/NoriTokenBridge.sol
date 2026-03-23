@@ -64,8 +64,8 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Total locked supply in bridge units
     uint256 public totalLockedBU;
 
-    // Mina account (codeChallenge) -> ETH depositor
-    mapping(uint256 => address) public codeChallengeToEthAddress;
+    // Mina account (depositKey) -> ETH depositor
+    mapping(uint256 => address) public depositKeyToEthAddress;
 
     // Idealy these would be immutable... OR change with timelock
     /// @notice Mina bridge contract that validates and stores Mina states.
@@ -167,7 +167,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // Lock ETH for a Mina account
     // -------------------------------
-    function lockTokens(uint256 codeChallenge) external payable onlyConfigured {
+    function lockTokens(uint256 codeChallenge, uint256 depositKey) external payable onlyConfigured {
         // ===============================
         // VALIDATION
         // ===============================
@@ -190,11 +190,13 @@ contract NoriTokenBridge is ReentrancyGuard {
         if (totalLockedBU + netBU > MAX_MAGNITUDE) revert TotalLockedOverflow();
 
         // Enforce one ETH depositor per Mina account
-        address linkedEthAddress = codeChallengeToEthAddress[codeChallenge];
+        // Attack vector if a deposit key is in the mempool they could claim this eth for themselves.
+        // And then when the actual user came to mint they would be locked out, but atleast they wouldn't be bricked.
+        address linkedEthAddress = depositKeyToEthAddress[depositKey];
         if (linkedEthAddress == address(0)) {
-            // First deposit: bind Mina account to sender
+            // First deposit: bind Mina account deposit key to sender
             // TODO emit event?
-            codeChallengeToEthAddress[codeChallenge] = msg.sender;
+            depositKeyToEthAddress[depositKey] = msg.sender;
         } else {
             if (linkedEthAddress != msg.sender)
                 revert MinaAccountLinkedToDifferentDepositor();
