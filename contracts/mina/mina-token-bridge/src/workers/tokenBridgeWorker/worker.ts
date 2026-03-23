@@ -153,18 +153,16 @@ export class TokenBridgeWorker {
     }
 
     async computeDepositAttestationWitness(
-        codeChallengePKARM: string,
+        codeChallengeSCRAM: string,
         depositBlockNumber: number,
-        ethAddressLowerHex: string,
         domain = 'https://pcs.nori.it.com'
     ) {
-        const codeChallengeBigInt = BigInt(codeChallengePKARM);
+        const codeChallengeBigInt = BigInt(codeChallengeSCRAM);
         const codeChallengeField = new Field(codeChallengeBigInt);
         const codeChallengeFieldBEHex =
             codeChallengeFieldToBEHex(codeChallengeField);
         return computeDepositAttestationWitness(
             depositBlockNumber,
-            ethAddressLowerHex,
             codeChallengeFieldBEHex,
             domain
         );

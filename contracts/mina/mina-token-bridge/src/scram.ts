@@ -49,13 +49,6 @@
  *   - Note: SCRAM does not enforce any constraint on what the message is.
  *     Any domain separation or message binding is the caller's responsibility.
  *
- * Comparison with PKARM:
- *   - PKARM binds a codeVerifier (derived from an ETH signature/secret) to a
- *     recipient Mina public key via Poseidon(codeVerifier, hPubK). The
- *     recipient's identity is embedded in the challenge itself.
- *   - SCRAM binds a Mina signature to a commitment via Poseidon(signature)
- *     and verifies key ownership through native Mina signature verification.
- *     Identity is proven at reveal time rather than embedded at commit time.
  */
 
 import {

@@ -503,12 +503,10 @@ describe('NoriTokenBridge', () => {
         let aliceSCRAMWitness: SCRAMWitness;
 
         const ALICE_SCRAM_MSG = 'NoriZK-Alice';
-        const ALICE_ETH_ADDR = 'aa'.repeat(20);
 
         beforeAll(() => {
             const result = buildSyntheticDeposit(
                 alice.privateKey,
-                ALICE_ETH_ADDR,
                 ALICE_SCRAM_MSG,
                 2n
             );
@@ -566,10 +564,8 @@ describe('NoriTokenBridge', () => {
 
             test('should REJECT mint when totalLocked < 1 bridge unit', async () => {
                 const bob = PrivateKey.randomKeypair();
-                const BOB_ADDR = 'bb'.repeat(20);
                 const { merkleInput: bobDepositAttestationInput, scramWitness: bobSCRAMWitness } = buildSyntheticDeposit(
                     bob.privateKey,
-                    BOB_ADDR,
                     'NoriZK-Bob',
                     0n
                 );
@@ -601,7 +597,6 @@ describe('NoriTokenBridge', () => {
                 const wrongKey = PrivateKey.random();
                 const { scramWitness: wrongSCRAMWitness } = buildSyntheticDeposit(
                     wrongKey,
-                    'dd'.repeat(20),
                     'NoriZK-Wrong',
                     2n
                 );
@@ -621,10 +616,8 @@ describe('NoriTokenBridge', () => {
 
             test('should REJECT mint without storage setup (storage.account.isNew must be false)', async () => {
                 const charlie = PrivateKey.randomKeypair();
-                const CHARLIE_ADDR = 'cc'.repeat(20);
                 const { merkleInput: charlieDepositAttestationInput, scramWitness: charlieSCRAMWitness } = buildSyntheticDeposit(
                     charlie.privateKey,
-                    CHARLIE_ADDR,
                     'NoriZK-Charlie',
                     2n
                 );

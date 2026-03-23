@@ -1,5 +1,4 @@
 import {
-    Bytes20,
     createTimer,
     type EthProofType,
     Bytes32,
@@ -14,11 +13,16 @@ import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 // ------- Deposit attestation ---------------------------------
 
+// Replaces VerifiedContractStorageSlot from @nori-zk/pts-types (which still has the old nested mapping shape) FIXME
+type ContractStorageSlot = {
+    slot_key_code_challenge: string;
+    value: string;
+};
+
 const logger = new Logger('DepositAttestation');
 
 export class ContractDeposit extends Struct({
-    address: Bytes20.provable,
-    attestationHash: Bytes32.provable,
+    codeChallenge: Bytes32.provable,
     value: Bytes32.provable,
 }) {}
 
@@ -36,8 +40,7 @@ export class MerkleTreeContractDepositAttestorInput extends Struct({
 export type MerkleTreeContractDepositAttestorInputJson = {
     depositIndex: number;
     despositSlotRaw: {
-        slot_key_address: string;
-        slot_nested_key_attestation_hash: string;
+        slot_key_code_challenge: string;
         value: string;
     };
     path: string[];
@@ -56,13 +59,8 @@ export function buildMerkleTreeContractDepositAttestorInput(
         path: merklePath,
         index: UInt64.fromValue(jsonInputs.depositIndex),
         value: new ContractDeposit({
-            address: Bytes20.fromHex(
-                jsonInputs.despositSlotRaw.slot_key_address.slice(2)
-            ),
-            attestationHash: Bytes32.fromHex(
-                jsonInputs.despositSlotRaw.slot_nested_key_attestation_hash.slice(
-                    2
-                )
+            codeChallenge: Bytes32.fromHex(
+                jsonInputs.despositSlotRaw.slot_key_code_challenge.slice(2)
             ),
             value: Bytes32.fromHex(jsonInputs.despositSlotRaw.value.slice(2)),
         }),
@@ -70,35 +68,32 @@ export function buildMerkleTreeContractDepositAttestorInput(
 }
 
 export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
-    const addressBytes = contractDeposit.address.bytes; // UInt8[]
-    const attestationHashBytes = contractDeposit.attestationHash.bytes; // UInt8[]
+    const codeChallengeBytes = contractDeposit.codeChallenge.bytes; // UInt8[]
     const valueBytes = contractDeposit.value.bytes; // UInt8[]
 
-    // We want 20 bytes from addrBytes (+ 1 byte from attBytes and 1 byte from valueBytes), remaining 31 bytes from attBytes, remaining 31 bytes from valueBytes
+    // 64 bytes total (32 + 32), max 31 bytes per field → 3 fields
+    // Strip high byte off each, pack into firstField; remaining 31 bytes each in secondField/thirdField
 
-    // firstFieldBytes: 20 bytes from addressBytes + 1 byte from attBytes and 1 byte from valueBytes
+    // firstFieldBytes: 1 byte from codeChallengeBytes and 1 byte from valueBytes
     const firstFieldBytes: UInt8[] = [];
 
-    for (let i = 0; i < 20; i++) {
-        firstFieldBytes.push(addressBytes[i]);
-    }
-    firstFieldBytes.push(attestationHashBytes[0]);
+    firstFieldBytes.push(codeChallengeBytes[0]);
     firstFieldBytes.push(valueBytes[0]);
 
-    for (let i = 22; i < 32; i++) {
+    for (let i = 2; i < 32; i++) {
         firstFieldBytes.push(UInt8.zero); // static pad to 32
     }
 
-    // secondFieldBytes: remaining 31 bytes from attBytes (1 to 31)
+    // secondFieldBytes: remaining 31 bytes from codeChallengeBytes (1 to 31)
     const secondFieldBytes: UInt8[] = [];
     for (let i = 1; i < 32; i++) {
-        secondFieldBytes.push(attestationHashBytes[i]);
+        secondFieldBytes.push(codeChallengeBytes[i]);
     }
 
     // already 31 elements; add 1 zero to reach 32
     secondFieldBytes.push(UInt8.zero);
 
-    // secondFieldBytes: remaining 31 bytes from valueBytes (1 to 31)
+    // thirdFieldBytes: remaining 31 bytes from valueBytes (1 to 31)
     const thirdFieldBytes: UInt8[] = [];
     for (let i = 1; i < 32; i++) {
         thirdFieldBytes.push(valueBytes[i]);
@@ -205,53 +200,44 @@ export function verifyDepositSlotRoot(
     };
 }
 
-export function contractDepositCredentialAndTotalLockedToFields(
+export function extractCodeChallengeAndTotalLocked(
     merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput
 ) {
     // Its pretty wierd to have this here now
     // Mock attestation assert
-    const contractDepositAttestorPublicInputs =
-        merkleTreeContractDepositAttestorInput.value;
-    // Convert contractDepositAttestorPublicInputs.attestationHash from bytes into a field
-    const contractDepositAttestorProofCredentialBytes =
-        contractDepositAttestorPublicInputs.attestationHash.bytes;
-    let contractDepositAttestorProofCredential = new Field(0);
-    // Turn into field
+    const deposit = merkleTreeContractDepositAttestorInput.value;
+
+    // Convert deposit.codeChallenge from Bytes32 into a Field
+    const codeChallengeBytes = deposit.codeChallenge.bytes;
+    let codeChallenge = new Field(0);
     for (let i = 0; i < 32; i++) {
-        contractDepositAttestorProofCredential =
-            contractDepositAttestorProofCredential
-                .mul(256)
-                .add(contractDepositAttestorProofCredentialBytes[i].value);
+        codeChallenge = codeChallenge.mul(256).add(codeChallengeBytes[i].value);
     }
 
     /*Provable.asProver(() => {
         Provable.log(
-            'input.credentialAttestationHash',
-            'contractDepositAttestorProofCredential',
+            'input.codeChallenge',
+            'codeChallenge',
             contractDepositSlotRoot,
-            contractDepositAttestorProofCredential
+            codeChallenge
         );
     });
 
     contractDepositSlotRoot.assertEquals(
-        contractDepositAttestorProofCredential
+        codeChallenge
     );*/
 
     // FIX ME ABOVE??? do we need to not test this here?
 
     Provable.asProver(() => {
-        logger.log('contractDepositAttestorPublicInputs value bytes');
-        logger.log(
-            contractDepositAttestorPublicInputs.value.bytes.map((byte) =>
-                byte.toBigInt()
-            )
-        );
-        logger.log('contractDepositAttestorProofCredential');
-        logger.log(contractDepositAttestorProofCredential.toBigInt());
+        logger.log('deposit value bytes');
+        logger.log(deposit.value.bytes.map((byte) => byte.toBigInt()));
+        logger.log('codeChallenge');
+        logger.log(codeChallenge.toBigInt());
     });
 
     // Turn totalLocked into a field
-    const totalLockedBytes = contractDepositAttestorPublicInputs.value.bytes;
+    const totalLockedBytes = deposit.value.bytes;
     let totalLocked = new Field(0);
     /*for (let i = 31; i >= 0; i--) {
         totalLocked = totalLocked
@@ -262,13 +248,9 @@ export function contractDepositCredentialAndTotalLockedToFields(
         totalLocked = totalLocked.mul(256).add(totalLockedBytes[i].value);
     }
 
-    // Perhaps flip this??
-    // We interpret contractDepositAttestorProofCredential to BE so why not this??
-    const attestationHash = contractDepositAttestorProofCredential;
-
     return {
         totalLocked,
-        attestationHash,
+        codeChallenge,
     };
 }
 
@@ -345,37 +327,32 @@ async function fetchContractWindowSlotProofs(
 
 export async function computeDepositAttestationWitness(
     depositBlockNumber: number,
-    ethAddressLowerHex: string,
-    attestationBEHex: string,
+    codeChallengeBEHex: string,
     domain = 'https://pcs.nori.it.com'
 ) {
-    const {
-        consensusMPTProofContractStorageSlots,
-    } = await fetchContractWindowSlotProofs(depositBlockNumber, domain);
+    const { consensusMPTProofContractStorageSlots } =
+        await fetchContractWindowSlotProofs(depositBlockNumber, domain);
 
     // Find deposit
     logger.log(
         `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const paddedConsensusMPTProofContractStorageSlots =
-        consensusMPTProofContractStorageSlots.map((slot) => {
-            return {
-                //prettier-ignore
-                slot_key_address: `0x${slot.slot_key_address.slice(2).padStart(40, '0')}`,
-                //prettier-ignore
-                slot_nested_key_attestation_hash: `0x${slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')}`,
-                //prettier-ignore
-                value: `0x${slot.value.slice(2).padStart(64, '0')}`,
-            };
-        });
+    const paddedConsensusMPTProofContractStorageSlots = (
+        consensusMPTProofContractStorageSlots as unknown as ContractStorageSlot[]
+    ).map((slot) => {
+        return {
+            //prettier-ignore
+            slot_key_code_challenge: `0x${slot.slot_key_code_challenge.slice(2).padStart(64, '0')}`,
+            //prettier-ignore
+            value: `0x${slot.value.slice(2).padStart(64, '0')}`,
+        };
+    });
     const depositIndex = paddedConsensusMPTProofContractStorageSlots.findIndex(
-        (slot) =>
-            slot.slot_key_address === ethAddressLowerHex &&
-            slot.slot_nested_key_attestation_hash === attestationBEHex
+        (slot) => slot.slot_key_code_challenge === codeChallengeBEHex
     );
     if (depositIndex === -1)
         throw new Error(
-            `Could not find deposit index with attestationBEHex: ${attestationBEHex}, ethAddressLowerHex:${ethAddressLowerHex} in slots ${JSON.stringify(
+            `Could not find deposit index with codeChallengeBEHex: ${codeChallengeBEHex} in slots ${JSON.stringify(
                 paddedConsensusMPTProofContractStorageSlots,
                 null,
                 4
@@ -392,13 +369,11 @@ export async function computeDepositAttestationWitness(
     // Build contract storage slots (to be hashed)
     const contractStorageSlots =
         paddedConsensusMPTProofContractStorageSlots.map((slot) => {
-            const addr = slot.slot_key_address;
-            const attr = slot.slot_nested_key_attestation_hash;
+            const codeChallenge = slot.slot_key_code_challenge;
             const value = slot.value;
-            logger.log({ addr, attr, value });
+            logger.log({ codeChallenge, value });
             return new ContractDeposit({
-                address: Bytes20.fromHex(addr.slice(2)),
-                attestationHash: Bytes32.fromHex(attr.slice(2)),
+                codeChallenge: Bytes32.fromHex(codeChallenge.slice(2)),
                 value: Bytes32.fromHex(value.slice(2)),
             });
         });

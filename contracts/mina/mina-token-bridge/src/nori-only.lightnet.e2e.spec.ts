@@ -1,7 +1,6 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { Field, type NetworkId, PrivateKey } from 'o1js';
 import {
-    getEthWallet,
     getNewMinaLiteNetAccountSK,
     lockTokens,
 } from './testUtils.js';
@@ -90,8 +89,7 @@ describe('e2e', () => {
 
             // GET WALLET **************************************************
             logger.log('Getting ETH wallet.');
-            const ethWallet = await getEthWallet();
-            const ethAddressLowerHex = ethWallet.address.toLowerCase();
+
 
             // INIT zkApp WORKER **************************************************
             logger.log('Fetching zkApp worker.');
@@ -228,8 +226,7 @@ describe('e2e', () => {
             const depositAttestationInput =
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
-                    depositBlockNumber,
-                    ethAddressLowerHex
+                    depositBlockNumber
                 );
             logger.log('Computed deposit witness.');
 

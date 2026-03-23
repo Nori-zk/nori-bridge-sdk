@@ -43,7 +43,7 @@ import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
 import {
-    contractDepositCredentialAndTotalLockedToFields,
+    extractCodeChallengeAndTotalLocked,
     getContractDepositSlotRootFromContractDepositAndWitness,
 } from './depositAttestation.js';
 // MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
@@ -453,8 +453,8 @@ export class NoriTokenBridge
         // Extract out the contract deposit credential and the tokens locked from the merkle merkleTreeContractDepositAttestorInput as fields
         const {
             totalLocked: totalLockedBridgeUnits,
-            attestationHash: codeChallengeSCRAM,
-        } = contractDepositCredentialAndTotalLockedToFields(
+            codeChallenge: codeChallengeSCRAM,
+        } = extractCodeChallengeAndTotalLocked(
             merkleTreeContractDepositAttestorInput
         );
 

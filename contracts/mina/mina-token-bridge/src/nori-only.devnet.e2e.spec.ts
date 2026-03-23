@@ -57,7 +57,6 @@ describe('e2e_testnet', () => {
             logger.log('Getting ETH wallet.');
             const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
             const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
-            const ethAddressLowerHex = ethWallet.address.toLowerCase();
 
             // START MAIN FLOW
 
@@ -261,7 +260,6 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
                     depositBlockNumber,
-                    ethAddressLowerHex,
                     'https://pcs.mesa.nori.it.com' // FIXME hardcoding
                 );
             logger.log('Computed deposit witness.');

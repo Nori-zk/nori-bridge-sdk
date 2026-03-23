@@ -17,7 +17,6 @@ import {
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
     getMerkleZeros,
-    Bytes20,
 } from '@nori-zk/o1js-zk-utils-new';
 
 const logger = new Logger('NoriTokenBridgeTestUtils');
@@ -163,21 +162,21 @@ export function hexStringToUint8Array(hex: string): Uint8Array {
     return bytes;
 }
 
-export async function lockTokens(attestationHash: Field, amount: number) {
+export async function lockTokens(codeChallenge: Field, amount: number) {
     // Lock guard
     expect(amount).toBeLessThan(0.001);
 
     // Ensure we can do the field -> hex -> field round trip
-    const beBytes = Bytes.from(wordToBytes(attestationHash, 32).reverse());
-    const attestationHex = beBytes.toHex();
-    logger.log('attestationHex', attestationHex);
-    const bytesFromHex = Bytes.fromHex(attestationHex); // this is be
+    const beBytes = Bytes.from(wordToBytes(codeChallenge, 32).reverse());
+    const codeChallengeHex = beBytes.toHex();
+    logger.log('codeChallengeHex', codeChallengeHex);
+    const bytesFromHex = Bytes.fromHex(codeChallengeHex); // this is be
     let fieldFromHex = new Field(0);
     for (let i = 0; i < 32; i++) {
         fieldFromHex = fieldFromHex.mul(256).add(bytesFromHex.bytes[i].value);
     }
-    expect(fieldFromHex.toBigInt()).toEqual(attestationHash.toBigInt());
-    logger.log(fieldFromHex.toBigInt(), attestationHash.toBigInt());
+    expect(fieldFromHex.toBigInt()).toEqual(codeChallenge.toBigInt());
+    logger.log(fieldFromHex.toBigInt(), codeChallenge.toBigInt());
 
     // Use the ethereum package to lock our tokens
     const { spawn } = await import('node:child_process');
@@ -187,7 +186,7 @@ export async function lockTokens(attestationHash: Field, amount: number) {
     const rootDir = dirname(__filename);
     const commandDetails: [string, string[], { cwd: string }] = [
         'npm',
-        ['run', 'test:lock', `0x${attestationHex}`, amount.toString()],
+        ['run', 'test:lock', `0x${codeChallengeHex}`, amount.toString()],
         { cwd: resolve(rootDir, '..', '..', '..', 'ethereum') },
     ];
     logger.log('commandDetails', commandDetails);
@@ -281,7 +280,6 @@ export async function fetchAccounts(addrs: PublicKey[]) {
  */
 export function buildSyntheticDeposit(
     recipientPrivateKey: PrivateKey,
-    ethAddressHex: string,        // 40-char hex without 0x
     messageSCRAMStr: string,
     totalLockedBU: bigint = 2n
 ): {
@@ -296,8 +294,7 @@ export function buildSyntheticDeposit(
     const valueHex = totalLockedBU.toString(16).padStart(64, '0');
 
     const deposit = new ContractDeposit({
-        address: Bytes20.fromHex(ethAddressHex),
-        attestationHash: Bytes32.fromHex(codeChallengeHex),
+        codeChallenge: Bytes32.fromHex(codeChallengeHex),
         value: Bytes32.fromHex(valueHex),
     });
 
