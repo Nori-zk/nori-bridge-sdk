@@ -273,235 +273,240 @@ describe('NoriTokenBridge', () => {
     // =======================================================================
     // update() — Ethereum state verification
     // =======================================================================
-    describe('update() — block 1 (happy path)', () => {
-        test('should accept the first SP1 proof and advance latestHead (block 1)', async () => {
-            const headBefore = await noriTokenBridge.latestHead.fetch();
+    describe('update()', () => {
+        describe('Happy Path', () => {
+            test('should accept the first SP1 proof and advance latestHead (block 1)', async () => {
+                const headBefore = await noriTokenBridge.latestHead.fetch();
 
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
-                },
-                sender: deployer.publicKey,
-                signers: [deployer.privateKey],
-            });
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                    },
+                    sender: deployer.publicKey,
+                    signers: [deployer.privateKey],
+                });
 
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
-            const headAfter = await noriTokenBridge.latestHead.fetch();
-            assert.ok(
-                headAfter.greaterThan(headBefore).toBoolean(),
-                `latestHead must advance: was ${headBefore}, now ${headAfter}`
-            );
-            assert.equal(
-                headAfter.toBigInt(),
-                ethInput1.outputSlot.toBigInt(),
-                'latestHead must equal proof outputSlot'
-            );
+                const headAfter = await noriTokenBridge.latestHead.fetch();
+                assert.ok(
+                    headAfter.greaterThan(headBefore).toBoolean(),
+                    `latestHead must advance: was ${headBefore}, now ${headAfter}`
+                );
+                assert.equal(
+                    headAfter.toBigInt(),
+                    ethInput1.outputSlot.toBigInt(),
+                    'latestHead must equal proof outputSlot'
+                );
 
-            const expectedPair = Bytes32FieldPair.fromBytes32(ethInput1.outputStoreHash);
-            const hb = await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
-            const lb = await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
-            assert.equal(hb.toBigInt(), expectedPair.highByteField.toBigInt(), 'store hash high byte');
-            assert.equal(lb.toBigInt(), expectedPair.lowerBytesField.toBigInt(), 'store hash lower bytes');
+                const expectedPair = Bytes32FieldPair.fromBytes32(ethInput1.outputStoreHash);
+                const hb = await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
+                const lb = await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
+                assert.equal(hb.toBigInt(), expectedPair.highByteField.toBigInt(), 'store hash high byte');
+                assert.equal(lb.toBigInt(), expectedPair.lowerBytesField.toBigInt(), 'store hash lower bytes');
 
-            logger.log(`latestHead advanced to slot ${headAfter} (block 1)`);
-        }, 1_000_000);
-    });
+                logger.log(`latestHead advanced to slot ${headAfter} (block 1)`);
+            }, 1_000_000);
 
-    describe('update() — blocks 2-4 and negative tests', () => {
-        test('should accept block 2 (consecutive from block 1)', async () => {
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
-                },
-                sender: deployer.publicKey,
-                signers: [deployer.privateKey],
-            });
+            test('should accept block 2 (consecutive from block 1)', async () => {
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                    },
+                    sender: deployer.publicKey,
+                    signers: [deployer.privateKey],
+                });
 
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-            const head = await noriTokenBridge.latestHead.fetch();
-            assert.equal(head.toBigInt(), ethInput2.outputSlot.toBigInt(), 'latestHead after block 2');
-            logger.log(`latestHead advanced to slot ${head} (block 2)`);
-        }, 1_000_000);
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const head = await noriTokenBridge.latestHead.fetch();
+                assert.equal(head.toBigInt(), ethInput2.outputSlot.toBigInt(), 'latestHead after block 2');
+                logger.log(`latestHead advanced to slot ${head} (block 2)`);
+            }, 1_000_000);
 
-        test('should accept block 3 (consecutive from block 2)', async () => {
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.update(ethInput3, rawProof3, Field(0));
-                },
-                sender: deployer.publicKey,
-                signers: [deployer.privateKey],
-            });
+            test('should accept block 3 (consecutive from block 2)', async () => {
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.update(ethInput3, rawProof3, Field(0));
+                    },
+                    sender: deployer.publicKey,
+                    signers: [deployer.privateKey],
+                });
 
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-            const head = await noriTokenBridge.latestHead.fetch();
-            assert.equal(head.toBigInt(), ethInput3.outputSlot.toBigInt(), 'latestHead after block 3');
-            logger.log(`latestHead advanced to slot ${head} (block 3)`);
-        }, 1_000_000);
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const head = await noriTokenBridge.latestHead.fetch();
+                assert.equal(head.toBigInt(), ethInput3.outputSlot.toBigInt(), 'latestHead after block 3');
+                logger.log(`latestHead advanced to slot ${head} (block 3)`);
+            }, 1_000_000);
 
-        test('should accept block 4 (consecutive from block 3)', async () => {
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.update(ethInput4, rawProof4, Field(0));
-                },
-                sender: deployer.publicKey,
-                signers: [deployer.privateKey],
-            });
+            test('should accept block 4 (consecutive from block 3)', async () => {
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.update(ethInput4, rawProof4, Field(0));
+                    },
+                    sender: deployer.publicKey,
+                    signers: [deployer.privateKey],
+                });
 
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-            const head = await noriTokenBridge.latestHead.fetch();
-            assert.equal(head.toBigInt(), ethInput4.outputSlot.toBigInt(), 'latestHead after block 4');
-            logger.log(`latestHead advanced to slot ${head} (block 4)`);
-        }, 1_000_000);
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const head = await noriTokenBridge.latestHead.fetch();
+                assert.equal(head.toBigInt(), ethInput4.outputSlot.toBigInt(), 'latestHead after block 4');
+                logger.log(`latestHead advanced to slot ${head} (block 4)`);
+            }, 1_000_000);
 
-        test('should REJECT replay of old proof (slot not greater than current)', async () => {
-            await assert.rejects(
-                () =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
-                        },
-                        sender: deployer.publicKey,
-                        signers: [deployer.privateKey],
-                    }),
-                'Replay of old proof must fail'
-            );
-        }, 1_000_000);
+            test('verifiedStateRoot should equal Poseidon(executionStateRoot) from last proof', async () => {
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const onchain = await noriTokenBridge.verifiedStateRoot.fetch();
+                const expected = Poseidon.hashPacked(Bytes32.provable, ethInput4.executionStateRoot);
+                assert.equal(
+                    onchain.toBigInt(),
+                    expected.toBigInt(),
+                    'verifiedStateRoot must equal Poseidon(executionStateRoot)'
+                );
+            }, 1_000_000);
 
-        test('should REJECT out-of-order proof (store hash chain broken)', async () => {
-            await assert.rejects(
-                () =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
-                        },
-                        sender: deployer.publicKey,
-                        signers: [deployer.privateKey],
-                    }),
-                'Out-of-order proof (store hash mismatch) must fail'
-            );
-        }, 1_000_000);
+            test('latestVerifiedContractDepositsRoot should match last proof output', async () => {
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
-        test('verifiedStateRoot should equal Poseidon(executionStateRoot) from last proof', async () => {
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-            const onchain = await noriTokenBridge.verifiedStateRoot.fetch();
-            const expected = Poseidon.hashPacked(Bytes32.provable, ethInput4.executionStateRoot);
-            assert.equal(
-                onchain.toBigInt(),
-                expected.toBigInt(),
-                'verifiedStateRoot must equal Poseidon(executionStateRoot)'
-            );
-        }, 1_000_000);
+                // const hb = await noriTokenBridge.latestVerifiedContractDepositsRootHighByte.fetch();
+                // const lb = await noriTokenBridge.latestVerifiedContractDepositsRootLowerBytes.fetch();
+                // const expected = Bytes32FieldPair.fromBytes32(ethInput4.verifiedContractDepositsRoot);
+                // assert.equal(hb.toBigInt(), expected.highByteField.toBigInt(), 'deposits root high byte');
+                // assert.equal(lb.toBigInt(), expected.lowerBytesField.toBigInt(), 'deposits root lower bytes');
+                const latestVerifiedContractDepositsRoot = await noriTokenBridge.latestVerifiedContractDepositsRoot.fetch()
+                const expected = bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes);
+                assert.equal(latestVerifiedContractDepositsRoot.toBigInt(), expected.toBigInt(), 'deposits root');
+            }, 1_000_000);
+        });
 
-        test('latestVerifiedContractDepositsRoot should match last proof output', async () => {
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+        describe('Negative Tests', () => {
+            test('should REJECT replay of old proof (slot not greater than current)', async () => {
 
-            // const hb = await noriTokenBridge.latestVerifiedContractDepositsRootHighByte.fetch();
-            // const lb = await noriTokenBridge.latestVerifiedContractDepositsRootLowerBytes.fetch();
-            // const expected = Bytes32FieldPair.fromBytes32(ethInput4.verifiedContractDepositsRoot);
-            // assert.equal(hb.toBigInt(), expected.highByteField.toBigInt(), 'deposits root high byte');
-            // assert.equal(lb.toBigInt(), expected.lowerBytesField.toBigInt(), 'deposits root lower bytes');
-            const latestVerifiedContractDepositsRoot = await noriTokenBridge.latestVerifiedContractDepositsRoot.fetch()
-            const expected = bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes);
-            assert.equal(latestVerifiedContractDepositsRoot.toBigInt(), expected.toBigInt(), 'deposits root');
-        }, 1_000_000);
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey],
+                        }),
+                    'Replay of old proof must fail'
+                );
+            }, 1_000_000);
+
+            test('should REJECT out-of-order proof (store hash chain broken)', async () => {
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey],
+                        }),
+                    'Out-of-order proof (store hash mismatch) must fail'
+                );
+            }, 1_000_000);
+        });
     });
 
     // =======================================================================
     // setUpStorage() — Per-user storage initialisation
     // =======================================================================
     describe('setUpStorage()', () => {
-        test('should initialise storage for Alice', async () => {
-            await txSend({
-                body: async () => {
-                    AccountUpdate.fundNewAccount(alice.publicKey, 1);
-                    await noriTokenBridge.setUpStorage(alice.publicKey, storageInterfaceVK);
-                },
-                sender: alice.publicKey,
-                signers: [alice.privateKey],
-            });
+        describe('Happy Path', () => {
+            test('should initialise storage for Alice', async () => {
+                await txSend({
+                    body: async () => {
+                        AccountUpdate.fundNewAccount(alice.publicKey, 1);
+                        await noriTokenBridge.setUpStorage(alice.publicKey, storageInterfaceVK);
+                    },
+                    sender: alice.publicKey,
+                    signers: [alice.privateKey],
+                });
 
-            const storage = new NoriStorageInterface(
-                alice.publicKey,
-                noriTokenBridge.deriveTokenId()
-            );
+                const storage = new NoriStorageInterface(
+                    alice.publicKey,
+                    noriTokenBridge.deriveTokenId()
+                );
 
-            const userKeyHash = await storage.userKeyHash.fetch();
-            assert.equal(
-                userKeyHash.toBigInt(),
-                Poseidon.hash(alice.publicKey.toFields()).toBigInt(),
-                'userKeyHash must be Poseidon(alicePublicKey)'
-            );
+                const userKeyHash = await storage.userKeyHash.fetch();
+                assert.equal(
+                    userKeyHash.toBigInt(),
+                    Poseidon.hash(alice.publicKey.toFields()).toBigInt(),
+                    'userKeyHash must be Poseidon(alicePublicKey)'
+                );
 
-            const mintedSoFar = await storage.mintedSoFar.fetch();
-            assert.equal(mintedSoFar.toBigInt(), 0n, 'mintedSoFar must start at 0');
-        }, 1_000_000);
-    });
+                const mintedSoFar = await storage.mintedSoFar.fetch();
+                assert.equal(mintedSoFar.toBigInt(), 0n, 'mintedSoFar must start at 0');
+            }, 1_000_000);
+        });
 
-    describe('setUpStorage() — negative tests', () => {
-        test('should REJECT duplicate storage setup for Alice', async () => {
-            await assert.rejects(
-                () =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.setUpStorage(
-                                alice.publicKey,
-                                storageInterfaceVK
-                            );
-                        },
-                        sender: alice.publicKey,
-                        signers: [alice.privateKey],
-                    }),
-                'Duplicate setUpStorage must fail'
-            );
-        }, 1_000_000);
+        describe('Negative Tests', () => {
+            test('should REJECT duplicate storage setup for Alice', async () => {
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setUpStorage(
+                                    alice.publicKey,
+                                    storageInterfaceVK
+                                );
+                            },
+                            sender: alice.publicKey,
+                            signers: [alice.privateKey],
+                        }),
+                    'Duplicate setUpStorage must fail'
+                );
+            }, 1_000_000);
 
-        test('should REJECT storage setup with wrong VK (hash mismatch)', async () => {
-            const bob = PrivateKey.randomKeypair();
-            await assert.rejects(
-                () =>
-                    txSend({
-                        body: async () => {
-                            AccountUpdate.fundNewAccount(deployer.publicKey, 1);
-                            await noriTokenBridge.setUpStorage(bob.publicKey, tokenBaseVK);
-                        },
-                        sender: deployer.publicKey,
-                        signers: [deployer.privateKey, bob.privateKey],
-                    }),
-                'Wrong VK in setUpStorage must fail'
-            );
-        }, 1_000_000);
+            test('should REJECT storage setup with wrong VK (hash mismatch)', async () => {
+                const bob = PrivateKey.randomKeypair();
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                AccountUpdate.fundNewAccount(deployer.publicKey, 1);
+                                await noriTokenBridge.setUpStorage(bob.publicKey, tokenBaseVK);
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey, bob.privateKey],
+                        }),
+                    'Wrong VK in setUpStorage must fail'
+                );
+            }, 1_000_000);
 
-        test('should REJECT direct mintedSoFar manipulation without a valid proof', async () => {
-            const storage = new NoriStorageInterface(
-                alice.publicKey,
-                noriTokenBridge.deriveTokenId()
-            );
-            const before = await storage.mintedSoFar.fetch();
+            test('should REJECT direct mintedSoFar manipulation without a valid proof', async () => {
+                const storage = new NoriStorageInterface(
+                    alice.publicKey,
+                    noriTokenBridge.deriveTokenId()
+                );
+                const before = await storage.mintedSoFar.fetch();
 
-            await txSend({
-                body: async () => {
-                    const tokenAccUpdate = AccountUpdate.createSigned(
-                        alice.publicKey,
-                        noriTokenBridge.deriveTokenId()
-                    );
-                    AccountUpdate.setValue(
-                        tokenAccUpdate.update.appState[1], // NoriStorageInterface.mintedSoFar
-                        Field(9_999_999)
-                    );
-                    tokenBase.approve(tokenAccUpdate);
-                },
-                sender: alice.publicKey,
-                signers: [alice.privateKey, tokenBaseKeypair.privateKey],
-            });
+                await txSend({
+                    body: async () => {
+                        const tokenAccUpdate = AccountUpdate.createSigned(
+                            alice.publicKey,
+                            noriTokenBridge.deriveTokenId()
+                        );
+                        AccountUpdate.setValue(
+                            tokenAccUpdate.update.appState[1], // NoriStorageInterface.mintedSoFar
+                            Field(9_999_999)
+                        );
+                        tokenBase.approve(tokenAccUpdate);
+                    },
+                    sender: alice.publicKey,
+                    signers: [alice.privateKey, tokenBaseKeypair.privateKey],
+                });
 
-            const after = await storage.mintedSoFar.fetch();
-            assert.equal(
-                after.toBigInt(),
-                before.toBigInt(),
-                'mintedSoFar must not change without a valid proof'
-            );
-        }, 1_000_000);
+                const after = await storage.mintedSoFar.fetch();
+                assert.equal(
+                    after.toBigInt(),
+                    before.toBigInt(),
+                    'mintedSoFar must not change without a valid proof'
+                );
+            }, 1_000_000);
+        });
     });
 
     // =======================================================================
@@ -538,203 +543,206 @@ describe('NoriTokenBridge', () => {
             logger.log('Deposit root seeded into contract window for Alice.');
         }, 1_000_000);
 
-        test('should mint 2 bridge units for Alice on first deposit', async () => {
-            await txSend({
-                body: async () => {
-                    AccountUpdate.fundNewAccount(alice.publicKey, 1);
-                    await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness);
-                },
-                sender: alice.publicKey,
-                signers: [alice.privateKey],
-            });
+        describe('Happy Path', () => {
+            test('should mint 2 bridge units for Alice on first deposit', async () => {
+                await txSend({
+                    body: async () => {
+                        AccountUpdate.fundNewAccount(alice.publicKey, 1);
+                        await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness);
+                    },
+                    sender: alice.publicKey,
+                    signers: [alice.privateKey],
+                });
 
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
+                await fetchAccount({
+                    publicKey: alice.publicKey,
+                    tokenId: tokenBase.deriveTokenId(),
+                });
 
-            const balance = await tokenBase.getBalanceOf(alice.publicKey);
-            assert.equal(balance.toBigInt(), 200n, 'Alice should hold 200 bridge units');
+                const balance = await tokenBase.getBalanceOf(alice.publicKey);
+                assert.equal(balance.toBigInt(), 200n, 'Alice should hold 200 bridge units');
 
-            const storage = new NoriStorageInterface(
-                alice.publicKey,
-                noriTokenBridge.deriveTokenId()
-            );
-            const mintedSoFar = await storage.mintedSoFar.fetch();
-            assert.equal(mintedSoFar.toBigInt(), 200n, 'mintedSoFar should record 200 bridge units');
+                const storage = new NoriStorageInterface(
+                    alice.publicKey,
+                    noriTokenBridge.deriveTokenId()
+                );
+                const mintedSoFar = await storage.mintedSoFar.fetch();
+                assert.equal(mintedSoFar.toBigInt(), 200n, 'mintedSoFar should record 200 bridge units');
 
-            logger.log(`Alice minted ${balance} bridge units successfully.`);
-        }, 1_000_000);
+                logger.log(`Alice minted ${balance} bridge units successfully.`);
+            }, 1_000_000);
 
-        test('should mint 3 additional bridge units for Alice on second deposit (totalLocked=5)', async () => {
-            // Build a new synthetic deposit with a higher cumulative totalLocked.
-            // Same SCRAM key+message → same codeChallenge, but different value → different root.
-            const { merkleInput: aliceDeposit2, scramWitness: aliceSCRAM2 } = buildSyntheticDeposit(
-                alice.privateKey,
-                ALICE_SCRAM_MSG,
-                500n
-            );
+            test('should mint 3 additional bridge units for Alice on second deposit (totalLocked=5)', async () => {
+                // Build a new synthetic deposit with a higher cumulative totalLocked.
+                // Same SCRAM key+message → same codeChallenge, but different value → different root.
+                const { merkleInput: aliceDeposit2, scramWitness: aliceSCRAM2 } = buildSyntheticDeposit(
+                    alice.privateKey,
+                    ALICE_SCRAM_MSG,
+                    500n
+                );
 
-            // Seed the new deposit root into the window
-            const aliceRoot2 = getContractDepositSlotRootFromContractDepositAndWitness(aliceDeposit2);
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
-                },
-                sender: admin.publicKey,
-                signers: [admin.privateKey],
-            });
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                // Seed the new deposit root into the window
+                const aliceRoot2 = getContractDepositSlotRootFromContractDepositAndWitness(aliceDeposit2);
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
-            // Mint — contract computes amountToMint = totalLocked(500) - mintedSoFar(200) = 300
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.noriMint(aliceDeposit2, aliceSCRAM2);
-                },
-                sender: alice.publicKey,
-                signers: [alice.privateKey],
-            });
+                // Mint — contract computes amountToMint = totalLocked(500) - mintedSoFar(200) = 300
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.noriMint(aliceDeposit2, aliceSCRAM2);
+                    },
+                    sender: alice.publicKey,
+                    signers: [alice.privateKey],
+                });
 
-            await fetchAccount({
-                publicKey: alice.publicKey,
-                tokenId: tokenBase.deriveTokenId(),
-            });
+                await fetchAccount({
+                    publicKey: alice.publicKey,
+                    tokenId: tokenBase.deriveTokenId(),
+                });
 
-            const balance = await tokenBase.getBalanceOf(alice.publicKey);
-            assert.equal(balance.toBigInt(), 500n, 'Alice should hold 500 bridge units after second mint');
+                const balance = await tokenBase.getBalanceOf(alice.publicKey);
+                assert.equal(balance.toBigInt(), 500n, 'Alice should hold 500 bridge units after second mint');
 
-            const storage = new NoriStorageInterface(
-                alice.publicKey,
-                noriTokenBridge.deriveTokenId()
-            );
-            const mintedSoFar = await storage.mintedSoFar.fetch();
-            assert.equal(mintedSoFar.toBigInt(), 500n, 'mintedSoFar should record 500 bridge units');
+                const storage = new NoriStorageInterface(
+                    alice.publicKey,
+                    noriTokenBridge.deriveTokenId()
+                );
+                const mintedSoFar = await storage.mintedSoFar.fetch();
+                assert.equal(mintedSoFar.toBigInt(), 500n, 'mintedSoFar should record 500 bridge units');
 
-            logger.log('Alice minted 300 additional bridge units (total=500).');
-        }, 1_000_000);
+                logger.log('Alice minted 300 additional bridge units (total=500).');
+            }, 1_000_000);
+        });
 
         // =================================================================
         // Window rotation — 40 roots, eviction after 32
         // =================================================================
+        describe('Window Rotation', () => {
+            test('window rotation: setup dave and seed prior roots', async () => {
+                // Reconstruct the 6 roots already dispatched by prior tests.
+                // 4 from update():
+                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput1.verifiedContractDepositsRoot.bytes));
+                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedContractDepositsRoot.bytes));
+                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedContractDepositsRoot.bytes));
+                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes));
+                // 1 from alice first deposit root seed:
+                const aliceResult1 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 200n);
+                allDispatchedRoots.push(
+                    getContractDepositSlotRootFromContractDepositAndWitness(aliceResult1.merkleInput)
+                );
+                // 1 from alice second deposit root seed:
+                const aliceResult2 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 500n);
+                allDispatchedRoots.push(
+                    getContractDepositSlotRootFromContractDepositAndWitness(aliceResult2.merkleInput)
+                );
 
-        test('window rotation: setup dave and seed prior roots', async () => {
-            // Reconstruct the 6 roots already dispatched by prior tests.
-            // 4 from update():
-            allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput1.verifiedContractDepositsRoot.bytes));
-            allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedContractDepositsRoot.bytes));
-            allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedContractDepositsRoot.bytes));
-            allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes));
-            // 1 from alice first deposit root seed:
-            const aliceResult1 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 200n);
-            allDispatchedRoots.push(
-                getContractDepositSlotRootFromContractDepositAndWitness(aliceResult1.merkleInput)
-            );
-            // 1 from alice second deposit root seed:
-            const aliceResult2 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 500n);
-            allDispatchedRoots.push(
-                getContractDepositSlotRootFromContractDepositAndWitness(aliceResult2.merkleInput)
-            );
+                // Create dave and set up storage
+                await txSend({
+                    body: async () => {
+                        AccountUpdate.fundNewAccount(dave.publicKey, 1);
+                        await noriTokenBridge.setUpStorage(dave.publicKey, storageInterfaceVK);
+                    },
+                    sender: dave.publicKey,
+                    signers: [dave.privateKey],
+                });
+                logger.log(`Dave created. ${allDispatchedRoots.length} prior roots tracked.`);
+            }, 1_000_000);
 
-            // Create dave and set up storage
-            await txSend({
-                body: async () => {
-                    AccountUpdate.fundNewAccount(dave.publicKey, 1);
-                    await noriTokenBridge.setUpStorage(dave.publicKey, storageInterfaceVK);
-                },
-                sender: dave.publicKey,
-                signers: [dave.privateKey],
-            });
-            logger.log(`Dave created. ${allDispatchedRoots.length} prior roots tracked.`);
-        }, 1_000_000);
+            // Dispatch 40 roots. Mint for Dave after roots #5, #15, #25, #35.
+            // Roots #1-26 fill the remaining window (6 already in).
+            // Root #27+ triggers eviction (window size = 32).
+            for (let i = 1; i <= 40; i++) {
+                const shouldMint = [5, 15, 25, 35, 40].includes(i);
 
-        // Dispatch 40 roots. Mint for Dave after roots #5, #15, #25, #35.
-        // Roots #1-26 fill the remaining window (6 already in).
-        // Root #27+ triggers eviction (window size = 32).
-        for (let i = 1; i <= 40; i++) {
-            const shouldMint = [5, 15, 25, 35, 40].includes(i);
+                if (shouldMint) {
+                    test(`window rotation root #${i}: dispatch + mint for Dave`, async () => {
+                        daveTotalLocked += 100n;
 
-            if (shouldMint) {
-                test(`window rotation root #${i}: dispatch + mint for Dave`, async () => {
-                    daveTotalLocked += 100n;
+                        const { merkleInput, scramWitness } = buildSyntheticDeposit(
+                            dave.privateKey,
+                            'NoriZK',
+                            daveTotalLocked
+                        );
+                        const root = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
 
-                    const { merkleInput, scramWitness } = buildSyntheticDeposit(
-                        dave.privateKey,
-                        'NoriZK',
-                        daveTotalLocked
-                    );
-                    const root = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
+                        // Dispatch this root into the window
+                        const windowIsFull = allDispatchedRoots.length >= 32;
+                        const oldest = windowIsFull
+                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
+                            : Field(0);
+                        await txSend({
+                            body: async () => {
+                                await noriTokenBridge.adminSetDepositRoot(root, oldest);
+                            },
+                            sender: admin.publicKey,
+                            signers: [admin.privateKey],
+                        });
+                        allDispatchedRoots.push(root);
+                        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
-                    // Dispatch this root into the window
-                    const windowIsFull = allDispatchedRoots.length >= 32;
-                    const oldest = windowIsFull
-                        ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                        : Field(0);
-                    await txSend({
-                        body: async () => {
-                            await noriTokenBridge.adminSetDepositRoot(root, oldest);
-                        },
-                        sender: admin.publicKey,
-                        signers: [admin.privateKey],
-                    });
-                    allDispatchedRoots.push(root);
-                    await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                        // Fund token account on first mint only
+                        const isFirstMint = daveMintCount === 0;
+                        await txSend({
+                            body: async () => {
+                                if (isFirstMint) AccountUpdate.fundNewAccount(dave.publicKey, 1);
+                                await noriTokenBridge.noriMint(merkleInput, scramWitness);
+                            },
+                            sender: dave.publicKey,
+                            signers: [dave.privateKey],
+                        });
 
-                    // Fund token account on first mint only
-                    const isFirstMint = daveMintCount === 0;
-                    await txSend({
-                        body: async () => {
-                            if (isFirstMint) AccountUpdate.fundNewAccount(dave.publicKey, 1);
-                            await noriTokenBridge.noriMint(merkleInput, scramWitness);
-                        },
-                        sender: dave.publicKey,
-                        signers: [dave.privateKey],
-                    });
+                        await fetchAccount({
+                            publicKey: dave.publicKey,
+                            tokenId: tokenBase.deriveTokenId(),
+                        });
 
-                    await fetchAccount({
-                        publicKey: dave.publicKey,
-                        tokenId: tokenBase.deriveTokenId(),
-                    });
+                        const balance = await tokenBase.getBalanceOf(dave.publicKey);
+                        assert.equal(balance.toBigInt(), daveTotalLocked, `Dave balance should be ${daveTotalLocked}`);
 
-                    const balance = await tokenBase.getBalanceOf(dave.publicKey);
-                    assert.equal(balance.toBigInt(), daveTotalLocked, `Dave balance should be ${daveTotalLocked}`);
+                        const storage = new NoriStorageInterface(dave.publicKey, noriTokenBridge.deriveTokenId());
+                        const mintedSoFar = await storage.mintedSoFar.fetch();
+                        assert.equal(mintedSoFar.toBigInt(), daveTotalLocked, `Dave mintedSoFar should be ${daveTotalLocked}`);
 
-                    const storage = new NoriStorageInterface(dave.publicKey, noriTokenBridge.deriveTokenId());
-                    const mintedSoFar = await storage.mintedSoFar.fetch();
-                    assert.equal(mintedSoFar.toBigInt(), daveTotalLocked, `Dave mintedSoFar should be ${daveTotalLocked}`);
-
-                    daveMintCount++;
-                    logger.log(`Window rotation root #${i}: Dave minted (totalLocked=${daveTotalLocked})`);
-                }, 1_000_000);
-            } else {
-                test(`window rotation root #${i}: dispatch deposit root`, async () => {
-                    const dummyRoot = Field(1_000_000n + BigInt(i));
-                    const windowIsFull = allDispatchedRoots.length >= 32;
-                    const oldest = windowIsFull
-                        ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                        : Field(0);
-                    await txSend({
-                        body: async () => {
-                            await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
-                        },
-                        sender: admin.publicKey,
-                        signers: [admin.privateKey],
-                    });
-                    allDispatchedRoots.push(dummyRoot);
-                    await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-                    logger.log(`Window rotation root #${i} dispatched (total=${allDispatchedRoots.length}, windowSize=${Math.min(allDispatchedRoots.length, 32)})`);
-                }, 1_000_000);
+                        daveMintCount++;
+                        logger.log(`Window rotation root #${i}: Dave minted (totalLocked=${daveTotalLocked})`);
+                    }, 1_000_000);
+                } else {
+                    test(`window rotation root #${i}: dispatch deposit root`, async () => {
+                        const dummyRoot = Field(1_000_000n + BigInt(i));
+                        const windowIsFull = allDispatchedRoots.length >= 32;
+                        const oldest = windowIsFull
+                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
+                            : Field(0);
+                        await txSend({
+                            body: async () => {
+                                await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
+                            },
+                            sender: admin.publicKey,
+                            signers: [admin.privateKey],
+                        });
+                        allDispatchedRoots.push(dummyRoot);
+                        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                        logger.log(`Window rotation root #${i} dispatched (total=${allDispatchedRoots.length}, windowSize=${Math.min(allDispatchedRoots.length, 32)})`);
+                    }, 1_000_000);
+                }
             }
-        }
 
-        test('window should be capped at 32', async () => {
-            await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const windowSize = (await noriTokenBridge.windowSize.fetch())!;
-            assert.equal(windowSize.toBigInt(), 32n, 'Window size should be capped at 32');
-            logger.log(`Window rotation complete. windowSize=${windowSize}.`);
-        }, 1_000_000);
+            test('window should be capped at 32', async () => {
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                const windowSize = (await noriTokenBridge.windowSize.fetch())!;
+                assert.equal(windowSize.toBigInt(), 32n, 'Window size should be capped at 32');
+                logger.log(`Window rotation complete. windowSize=${windowSize}.`);
+            }, 1_000_000);
+        }); // End Window Rotation
 
-        describe('noriMint() — negative tests', () => {
+        describe('Negative Tests', () => {
             test('should REJECT double-mint with the same deposit (zero new amount)', async () => {
                 await assert.rejects(
                     () =>
