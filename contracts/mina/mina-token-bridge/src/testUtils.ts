@@ -13,7 +13,6 @@ import {
 } from './scram.js';
 import {
     Bytes32,
-    foldMerkleLeft,
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
     getMerkleZeros,
@@ -302,13 +301,11 @@ export function buildSyntheticDeposit(
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
     const zeros = getMerkleZeros(depth);
     const path = getMerklePathFromLeaves([...leaves], paddedSize, depth, 0, zeros);
-    const rootHash = foldMerkleLeft(leaves, paddedSize, depth, zeros);
 
     const merklePath = MerklePath.from([]);
     path.forEach((p) => merklePath.push(p));
 
     const merkleInput = new MerkleTreeContractDepositAttestorInput({
-        rootHash,
         path: merklePath,
         index: UInt64.fromValue(0),
         value: deposit,

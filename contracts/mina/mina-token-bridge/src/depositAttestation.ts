@@ -5,7 +5,6 @@ import {
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
     getMerkleZeros,
-    foldMerkleLeft,
 } from '@nori-zk/o1js-zk-utils-new';
 import { DynamicArray } from 'mina-attestations';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
@@ -31,7 +30,6 @@ const treeDepth = 16;
 export const MerklePath = DynamicArray(Field, { maxLength: treeDepth });
 
 export class MerkleTreeContractDepositAttestorInput extends Struct({
-    rootHash: Field,
     path: MerklePath,
     index: UInt64,
     value: ContractDeposit,
@@ -44,7 +42,6 @@ export type MerkleTreeContractDepositAttestorInputJson = {
         value: string;
     };
     path: string[];
-    rootHash: string;
 };
 
 export function buildMerkleTreeContractDepositAttestorInput(
@@ -55,7 +52,6 @@ export function buildMerkleTreeContractDepositAttestorInput(
         merklePath.push(new Field(BigInt(element)))
     );
     return new MerkleTreeContractDepositAttestorInput({
-        rootHash: new Field(BigInt(jsonInputs.rootHash)),
         path: merklePath,
         index: UInt64.fromValue(jsonInputs.depositIndex),
         value: new ContractDeposit({
@@ -123,7 +119,7 @@ export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
 export function getContractDepositSlotRootFromContractDepositAndWitness(
     input: MerkleTreeContractDepositAttestorInput
 ) {
-    let { index, path, rootHash } = input; // value
+    let { index, path } = input;
 
     let currentHash = provableStorageSlotLeafHash(input.value);
 
@@ -154,10 +150,6 @@ export function getContractDepositSlotRootFromContractDepositAndWitness(
         currentHash = Provable.if(isDummy, Field, currentHash, nextHash);
     });
 
-    currentHash.assertEquals(
-        rootHash,
-        'MerkleTreeContractDepositAttestorInput root hash does not match currentHash'
-    );
     return currentHash;
 }
 
@@ -406,23 +398,11 @@ export async function computeDepositAttestationWitness(
         path.map((pathEle) => pathEle.toBigInt())
     );
 
-    // Compute root
-    const merkleRootTimer = createTimer();
-    const rootHash = foldMerkleLeft(
-        leaves,
-        paddedSize,
-        depth,
-        getMerkleZeros(depth)
-    );
-    logger.log(`foldMerkleLeft: ${merkleRootTimer()}`);
-    logger.log(`Computed Merkle root: ${rootHash.toString()}`);
-
     logger.log(`All inputs built needed to compute mint proof!`);
 
     return {
         path: path.map((it) => it.toBigInt().toString()),
         depositIndex,
-        rootHash: rootHash.toBigInt().toString(),
         despositSlotRaw,
     };
 }

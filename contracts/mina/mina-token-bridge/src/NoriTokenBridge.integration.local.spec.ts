@@ -512,12 +512,12 @@ describe('NoriTokenBridge', () => {
             );
             aliceDepositAttestationInput = result.merkleInput;
             aliceSCRAMWitness = result.scramWitness;
-            logger.log(`Alice synthetic deposit built. rootHash=${aliceDepositAttestationInput.rootHash.toBigInt()}`);
+            logger.log(`Alice synthetic deposit built.`);
         });
 
         // TODO (deposit-root check): Once noriMint() re-enables the deposit-root assertion,
         // this test must first call update() with a block whose verifiedContractDepositsRoot
-        // equals aliceDepositAttestationInput.rootHash. For now the check is skipped on-chain.
+        // matches the computed deposit slot root. For now the check is skipped on-chain.
 
         test('should mint 2 bridge units for Alice on first deposit', async () => {
             await txSend({

@@ -42,7 +42,7 @@ import {
 
 ```typescript
 import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
-import { Bytes20, Bytes32 } from '@nori-zk/o1js-zk-utils-new';
+import { Bytes32 } from '@nori-zk/o1js-zk-utils-new';
 import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils-new';
 
 export class YourLeafType extends Struct({
@@ -92,9 +92,8 @@ A zk-program to prove that a user's deposit is included within a consensus MPT t
 **Leaf format:**
 ```typescript
 export class ContractDeposit extends Struct({
-  address: Bytes20.provable,         // User's Ethereum deposit address
-  attestationHash: Bytes32.provable, // ECDSA attestation hash (user-signed public key hash)
-  value: Bytes32.provable,           // Total locked amount (cumulative)
+  codeChallenge: Bytes32.provable, // SCRAM code challenge (Poseidon hash of Mina signature)
+  value: Bytes32.provable,         // Total locked amount (cumulative)
 }) {}
 ```
 
@@ -131,5 +130,5 @@ import {
 Types for various proof and encoding formats.
 
 ```typescript
-import { PlonkProof, ConvertedProof, EthVerifierComputeOutput, Bytes32, Bytes20 } from '@nori-zk/o1js-zk-utils-new';
+import { PlonkProof, ConvertedProof, EthVerifierComputeOutput, Bytes32 } from '@nori-zk/o1js-zk-utils-new';
 ```

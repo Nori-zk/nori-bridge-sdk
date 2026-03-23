@@ -29,7 +29,6 @@ import {
     codeChallengeFieldToBEHex,
     createCodeChallenge,
     SCRAMWitness,
-    verifyCodeChallenge,
 } from '../../scram.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
