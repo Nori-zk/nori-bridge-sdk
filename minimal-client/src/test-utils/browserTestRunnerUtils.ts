@@ -16,16 +16,17 @@ const logger = console;
 
 // Extract envs
 const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
-const proofConversionServiceUrl = process.env.PROOF_CONVERSION_SERVICE_URL || 'https://pcs.nori.it.com';
+const proofConversionServiceUrl = process.env.NORI_PCS_URL || 'https://pcs.nori.it.com';
 
 // Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
 const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
+
 
 export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
 
 // Root and public folder
-export const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
+export const ROOT_DIR = path.resolve(__dirname, '..', '..');
 export const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
 
 // Build hash
@@ -120,6 +121,12 @@ export async function startServer(port = 4003) {
         });
     });
 
+    proxy.on('error', (err, req, res) => {
+        void req;
+        void res;
+        logger.error('Proxy error:', err.message);
+    });
+
     // Create HTTP server for WebSocket upgrade support
     const server = http.createServer(app);
 
@@ -131,9 +138,10 @@ export async function startServer(port = 4003) {
     return new Promise<{ server: http.Server; url: string }>((resolve) => {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
-            logger.log(
-                `Server running at: ${url}.`
-            );
+            logger.log(`Server running at: ${url}.`);
+            logger.log(`Mina RPC URL: ${minaRpcNetworkUrl}`);
+            logger.log(`Mina RPC base (proxy target): ${minaRpcBaseUrl}`);
+            logger.log(`PCS URL: ${proofConversionServiceUrl}`);
             resolve({ server, url });
         });
     });
@@ -141,25 +149,13 @@ export async function startServer(port = 4003) {
 
 /* Bundle workers */
 async function buildWorkers() {
-    // Build zkApp worker
-    const zkAppWorkerFileName = `zkAppWorker.${HASH}.js`;
-    const zkAppWorkerFilePath = path.resolve(ROOT_DIR, 'public', zkAppWorkerFileName);
+    // Build token bridge worker
+    const tokenBridgeWorkerFileName = `tokenBridgeWorker.${HASH}.js`;
+    const tokenBridgeWorkerFilePath = path.resolve(ROOT_DIR, 'public', tokenBridgeWorkerFileName);
     await esbuild.build({
-        entryPoints: ['src/zkAppWorker.ts'],
+        entryPoints: ['src/tokenBridgeWorker.ts'],
         bundle: true,
-        outfile: zkAppWorkerFilePath,
-        format: 'esm',
-        define,
-        banner: { js: banner },
-    });
-
-    // Build compile worker
-    const compileWorkerFileName = `compileWorker.${HASH}.js`;
-    const compileWorkerFilePath = path.resolve(ROOT_DIR, 'public', compileWorkerFileName);
-    await esbuild.build({
-        entryPoints: ['src/compileWorker.ts'],
-        bundle: true,
-        outfile: compileWorkerFilePath,
+        outfile: tokenBridgeWorkerFilePath,
         format: 'esm',
         define,
         banner: { js: banner },

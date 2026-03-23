@@ -29,7 +29,7 @@ import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
 } from '../depositAttestation.js';
-import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils-new';
 import { getTokenDeployerWorker } from '../workers/tokenDeployer/node/parent.js';
 import { TokenDeployerWorker as TokenDeployerWorkerPure } from '../workers/tokenDeployer/worker.js';
 

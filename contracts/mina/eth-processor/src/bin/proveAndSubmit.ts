@@ -1,5 +1,5 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { type CreateProofArgument } from '@nori-zk/o1js-zk-utils';
+import { type CreateProofArgument } from '@nori-zk/o1js-zk-utils-new';
 import { vkData } from '../proofs/nodeVk.js';
 import { p0 } from '../proofs/p0.js';
 import { sp1PlonkProof } from '../proofs/sp1Proof.js';

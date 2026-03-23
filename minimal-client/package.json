@@ -25,7 +25,7 @@
     "peerDependencies": {
         "@types/express": "^5.0.3",
         "@types/node": "^25.2.3",
-        "o1js": "2.12.0"
+        "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
     },
     "dependencies": {
         "@nori-zk/ethereum-token-bridge": "*",

@@ -34,7 +34,7 @@ import {
     buildMerkleTreeContractDepositAttestorInput,
     computeDepositAttestationWitnessAndEthVerifier,
 } from '../depositAttestation.js';
-import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils';
+import { EthProofType, EthVerifier } from '@nori-zk/o1js-zk-utils-new';
 
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('NoriTokenControllerSpec');

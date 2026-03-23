@@ -4,7 +4,7 @@ import {
     ContractDepositAttestorProof,
     ContractDepositAttestor,
     EthVerifier,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import { Field, Provable, Struct, ZkProgram } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 

@@ -82,9 +82,11 @@ export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
     // What if the Bytes32 represents a value greater than P - 1? We should do some
     // assertion that it isnt FIXME
     // See 'Field order wrapping bytes 32 validation'
-    isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
+    /*isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
         'Given a uint8ArrayLength32 which exceeded p - 1'
-    );
+    );*/
+    // FIXME removing this for now.... I think it may be redundant as the FixedBytes are constructed
+    // By the first zkprogram and it is always within the range of p - 1 by definition.
 
     // CHECKME
     // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());

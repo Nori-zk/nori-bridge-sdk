@@ -3,15 +3,17 @@ import {
     CacheType,
     compileAndOptionallyVerifyContracts,
     type NetworkCacheConfig,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import {
     AccountUpdate,
+    CircuitString,
     fetchAccount,
     Field,
     Mina,
     type NetworkId,
     PrivateKey,
     PublicKey,
+    Signature,
     Transaction,
     type VerificationKey,
 } from 'o1js';
@@ -20,16 +22,15 @@ import { FungibleToken } from '../../TokenBase.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
     buildMerkleTreeContractDepositAttestorInput,
-    computeDepositAttestationWitnessAndEthVerifier,
+    computeDepositAttestationWitness,
     type MerkleTreeContractDepositAttestorInputJson,
 } from '../../depositAttestation.js';
 import {
     codeChallengeFieldToBEHex,
     createCodeChallenge,
-    generateRecipientPublicKeyHash,
-    obtainCodeVerifierFromEthSignature,
+    SCRAMWitness,
     verifyCodeChallenge,
-} from '../../pkarm.js';
+} from '../../scram.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 import { noriTokenBridgeVkHash } from '../../integrity/NoriTokenBridge.VkHash.js';
@@ -38,7 +39,7 @@ import {
     FungibleTokenCacheLayout,
     NoriTokenBridgeCacheLayout,
 } from '../../cache-layouts/index.js';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils-new';
 
 void NoriTokenBridgeCacheLayout;
 
@@ -151,7 +152,7 @@ export class TokenBridgeWorker {
         Mina.setActiveInstance(Network);
     }
 
-    async computeDepositAttestationWitnessAndEthVerifier(
+    async computeDepositAttestationWitness(
         codeChallengePKARM: string,
         depositBlockNumber: number,
         ethAddressLowerHex: string,
@@ -161,7 +162,7 @@ export class TokenBridgeWorker {
         const codeChallengeField = new Field(codeChallengeBigInt);
         const codeChallengeFieldBEHex =
             codeChallengeFieldToBEHex(codeChallengeField);
-        return computeDepositAttestationWitnessAndEthVerifier(
+        return computeDepositAttestationWitness(
             depositBlockNumber,
             ethAddressLowerHex,
             codeChallengeFieldBEHex,
@@ -217,9 +218,7 @@ export class TokenBridgeWorker {
         const noriTokenBridgeAddress = PublicKey.fromBase58(
             noriTokenBridgeAddressBase58
         );
-        const noriTokenBridge = new NoriTokenBridge(
-            noriTokenBridgeAddress
-        );
+        const noriTokenBridge = new NoriTokenBridge(noriTokenBridgeAddress);
         const storage = new NoriStorageInterface(
             minaSenderPublicKey,
             noriTokenBridge.deriveTokenId()
@@ -249,9 +248,7 @@ export class TokenBridgeWorker {
             const noriTokenBridgeAddress = PublicKey.fromBase58(
                 noriTokenBridgeAddressBase58
             );
-            const noriTokenBridge = new NoriTokenBridge(
-                noriTokenBridgeAddress
-            );
+            const noriTokenBridge = new NoriTokenBridge(noriTokenBridgeAddress);
             const storage = new NoriStorageInterface(
                 minaSenderPublicKey,
                 noriTokenBridge.deriveTokenId()
@@ -303,9 +300,7 @@ export class TokenBridgeWorker {
         await this.fetchAccounts([userPublicKey, noriTokenBridgeAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenBridgeInst = new NoriTokenBridge(
-            noriTokenBridgeAddress
-        );
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
 
         const setupTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -356,9 +351,7 @@ export class TokenBridgeWorker {
         logger.log('fetched accounts');
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenBridgeInst = new NoriTokenBridge(
-            noriTokenBridgeAddress
-        );
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
         logger.log('got token bridge inst');
 
         const setupTx = await Mina.transaction(
@@ -579,7 +572,8 @@ export class TokenBridgeWorker {
         userPublicKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
         merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
-        codeVerifierPKARMStr: string,
+        messageSCRAMStr: string,
+        signatureSCRAMBase58: string,
         txFee: number,
         fundNewAccount: boolean
     ) {
@@ -594,9 +588,18 @@ export class TokenBridgeWorker {
                 merkleTreeContractDepositAttestorInputJson
             );
 
-        // Reconstruct codeVerifierPKARM field
-        const codeVerifierPKARMBigInt = BigInt(codeVerifierPKARMStr);
-        const codeVerifierPKARMField = new Field(codeVerifierPKARMBigInt);
+        // Reconstruct SCRAMMessage
+        const msgCS = CircuitString.fromString(messageSCRAMStr);
+        const msgSCRAM = msgCS.values.map((char) => char.toField());
+
+        // Reconstruct signatureSCRAM
+        const signatureSCRAM = Signature.fromBase58(signatureSCRAMBase58);
+
+        // Reconstruct witness for scram
+        const witnessSCRAM = new SCRAMWitness({
+            message: msgSCRAM,
+            signature: signatureSCRAM,
+        });
 
         logger.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
@@ -604,9 +607,7 @@ export class TokenBridgeWorker {
         await this.fetchAccounts([userPublicKey, noriTokenBridgeAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenBridgeInst = new NoriTokenBridge(
-            noriTokenBridgeAddress
-        );
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -616,7 +617,7 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    codeVerifierPKARMField
+                    witnessSCRAM
                 );
             }
         );
@@ -631,7 +632,8 @@ export class TokenBridgeWorker {
         userPublicKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
         merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
-        codeVerifierPKARMStr: string,
+        messageSCRAMStr: string,
+        signatureSCRAMBase58: string,
         txFee: number,
         fundNewAccount: boolean
     ) {
@@ -646,18 +648,25 @@ export class TokenBridgeWorker {
                 merkleTreeContractDepositAttestorInputJson
             );
 
-        // Reconstruct codeVerifierPKARM field
-        const codeVerifierPKARMBigInt = BigInt(codeVerifierPKARMStr);
-        const codeVerifierPKARMField = new Field(codeVerifierPKARMBigInt);
+        // Reconstruct SCRAMMessage
+        const msgCS = CircuitString.fromString(messageSCRAMStr);
+        const msgSCRAM = msgCS.values.map((char) => char.toField());
+
+        // Reconstruct signatureSCRAM
+        const signatureSCRAM = Signature.fromBase58(signatureSCRAMBase58);
+
+        // Reconstruct witness for scram
+        const witnessSCRAM = new SCRAMWitness({
+            message: msgSCRAM,
+            signature: signatureSCRAM,
+        });
 
         logger.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
         //await fetchAccount({ publicKey: userPublicKey }); // DO we need to do this is we are not proving here???
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenBridgeInst = new NoriTokenBridge(
-            noriTokenBridgeAddress
-        );
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -667,7 +676,7 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    codeVerifierPKARMField
+                    witnessSCRAM
                 );
             }
         );
@@ -693,7 +702,8 @@ export class TokenBridgeWorker {
         userPublicKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
         merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
-        codeVerifierPKARMStr: string,
+        messageSCRAMStr: string,
+        signatureSCRAMBase58: string,
         txFee: number,
         fundNewAccount: boolean
         //fundNewAccount = true
@@ -709,9 +719,18 @@ export class TokenBridgeWorker {
                 merkleTreeContractDepositAttestorInputJson
             );
 
-        // Reconstruct codeVerifierPKARM field
-        const codeVerifierPKARMBigInt = BigInt(codeVerifierPKARMStr);
-        const codeVerifierPKARMField = new Field(codeVerifierPKARMBigInt);
+        // Reconstruct SCRAMMessage
+        const msgCS = CircuitString.fromString(messageSCRAMStr);
+        const msgSCRAM = msgCS.values.map((char) => char.toField());
+
+        // Reconstruct signatureSCRAM
+        const signatureSCRAM = Signature.fromBase58(signatureSCRAMBase58);
+
+        // Reconstruct witness for scram
+        const witnessSCRAM = new SCRAMWitness({
+            message: msgSCRAM,
+            signature: signatureSCRAM,
+        });
 
         logger.log(`Minting tokens for user: ${userPublicKeyBase58}`);
 
@@ -719,9 +738,7 @@ export class TokenBridgeWorker {
         await this.fetchAccounts([userPublicKey, noriTokenBridgeAddress]);
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
-        const noriTokenBridgeInst = new NoriTokenBridge(
-            noriTokenBridgeAddress
-        );
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -731,7 +748,7 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    codeVerifierPKARMField
+                    witnessSCRAM
                 );
             }
         );
@@ -754,54 +771,36 @@ export class TokenBridgeWorker {
     // In ZkAppWorker
 
     // =============================
-    // PKARM Helpers (serialisable)
+    // SCRAM Helpers (serialisable)
     // =============================
-
-    /**
-     * Generate recipient public key hash (serialisable).
-     * @deprecated in alpha
-     */
-    async PKARM_generateRecipientPublicKeyHash_Base58(
-        recipientPublicKeyBase58: string
-    ) {
-        const recipientPublicKey = PublicKey.fromBase58(
-            recipientPublicKeyBase58
-        );
-        const hPubK = generateRecipientPublicKeyHash(recipientPublicKey);
-        return hPubK.toBigInt().toString();
-    }
 
     /**
      * Obtain codeVerifier from ETH signature (serialisable).
      */
-    async PKARM_obtainCodeVerifierFromEthSignature(ethSignatureHex: string) {
+    // REMOVEME
+    /*async PKARM_obtainCodeVerifierFromEthSignature(ethSignatureHex: string) {
         const codeVerifier =
             obtainCodeVerifierFromEthSignature(ethSignatureHex);
         return codeVerifier.toBigInt().toString();
-    }
+    }*/
 
     /**
-     * Create codeChallenge from codeVerifier + recipient (serialisable).
+     * Create codeChallenge from a Mina signature (serialisable).
      */
-    async PKARM_createCodeChallenge(
-        codeVerifierStr: string,
-        recipientPublicKeyBase58: string
-    ) {
-        const codeVerifier = new Field(BigInt(codeVerifierStr));
-        const recipientPublicKey = PublicKey.fromBase58(
-            recipientPublicKeyBase58
-        );
-        const codeChallenge = createCodeChallenge(
-            codeVerifier,
-            recipientPublicKey
-        );
+    async SCRAM_createCodeChallenge(signatureSCRAMBase58: string) {
+        // Reconstruct signatureSCRAM
+        const codeVerifier = Signature.fromBase58(signatureSCRAMBase58);
+        // Create code challenge
+        const codeChallenge = createCodeChallenge(codeVerifier);
+        // Return serialized form
         return codeChallenge.toBigInt().toString();
     }
 
     /**
      * Verify a codeChallenge against inputs (serialisable).
      */
-    async PKARM_verifyCodeChallenge(
+    // REMOVE THIS
+    /*async PKARM_verifyCodeChallenge(
         codeVerifierStr: string,
         recipientPublicKeyBase58: string,
         codeChallengeStr: string
@@ -813,13 +812,25 @@ export class TokenBridgeWorker {
         const codeChallenge = new Field(BigInt(codeChallengeStr));
         verifyCodeChallenge(codeVerifier, recipientPublicKey, codeChallenge);
         return true; // if assert passes, no error
-    }
+    }*/
 
     /**
      * Convert codeChallenge field into big-endian hex string.
      */
-    async PKARM_codeChallengeToBEHex(codeChallengeStr: string) {
+    async SCRAM_codeChallengeToBEHex(codeChallengeStr: string) {
         const codeChallenge = new Field(BigInt(codeChallengeStr));
         return codeChallengeFieldToBEHex(codeChallenge); // 0x-prefixed hex
+    }
+
+    /**
+     * Signs a message using the #minaPrivateKey set by the WALLET_setMinaPrivateKey method
+     * @param messageToSign 
+     * @returns 
+     */
+    async MOCK_SCRAM_signMessage(messageToSign: string) {
+        const cs = CircuitString.fromString(messageToSign);
+        const csFields = cs.values.map((char) => char.toField());
+        const signature = Signature.create(this.#minaPrivateKey, csFields);
+        return signature.toBase58();
     }
 }

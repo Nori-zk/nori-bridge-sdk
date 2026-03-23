@@ -1,4 +1,4 @@
-import { type ZKCacheLayout } from '@nori-zk/o1js-zk-utils';
+import { type ZKCacheLayout } from '@nori-zk/o1js-zk-utils-new';
 import { NoriStorageInterfaceCacheLayout } from './NoriStorageInterface.js';
 import { FungibleTokenCacheLayout } from './FungibleToken.js';
 import { NoriTokenBridgeCacheLayout } from './NoriTokenBridge.js';

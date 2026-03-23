@@ -57,9 +57,10 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     address public bridgeOperator;
 
-    // Bridge units locked per ETH address per Mina account (codeChallenge)
+    // Bridge units locked per ETH address per Mina account (codeChallenge) // REMOVEME
     // lifetimeLockedByDepositor
-    mapping(address => mapping(uint256 => uint256)) public lockedTokens;
+    // Mina signature hash -> Bridge units locked amount
+    mapping(uint256 => uint256) public lockedTokens;
 
     // Total locked supply in bridge units
     uint256 public totalLockedBU;
@@ -90,12 +91,12 @@ contract NoriTokenBridge is ReentrancyGuard {
     event TokensLocked(
         address indexed user,
         uint256 indexed codeChallenge,
-        uint256 amount, // @Karol - mention this is net: user sent amount + fee as msg.value, gets amount minted on Mina
+        uint256 amount, 
         uint256 fee
     );
     event TokensUnlocked(
         uint256 indexed pubKeyTokenIdHash,
-        uint256 amount, // @Karol - mention this is gross: user burnt amount on Mina, receives amount - fee in ETH
+        uint256 amount, 
         uint256 fee,
         address receiver
     );
@@ -130,12 +131,24 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Constructor
     // -------------------------------
     /// @param _bridgeOperator The admin address (expected to be a Safe in production).
-    constructor(address _bridgeOperator) {
+    constructor(
+        address _bridgeOperator,
+        address _stateSettlementAddr,
+        address _accountValidationAddr
+    ) {
         assert(DECIMALS < 18);
-        if (_bridgeOperator == address(0)) revert ZeroAddress();
+        if (
+            _bridgeOperator == address(0) ||
+            _stateSettlementAddr == address(0) ||
+            _accountValidationAddr == address(0)
+        ) revert ZeroAddress();
         bridgeOperator = _bridgeOperator;
 
-        //TODO set aligned contracts in constructor to ensure they are set before any lock/unlock can happen, can change later with timelock if needed
+        stateSettlement = MinaStateSettlement(_stateSettlementAddr);
+        accountValidation = MinaAccountValidation(_accountValidationAddr);
+
+        emit StateSettlementSet(_stateSettlementAddr);
+        emit AccountValidationSet(_accountValidationAddr);
     }
     // -------------------------------
     // Configuration
@@ -167,7 +180,8 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // Lock ETH for a Mina account
     // -------------------------------
-    function lockTokens(uint256 codeChallenge, uint256 depositKey) external payable onlyConfigured {
+    // codeChallenge is the hash of the Mina signature
+    function lockTokens(uint256 codeChallenge) external payable onlyConfigured {
         // ===============================
         // VALIDATION
         // ===============================
@@ -192,11 +206,11 @@ contract NoriTokenBridge is ReentrancyGuard {
         // Enforce one ETH depositor per Mina account
         // Attack vector if a deposit key is in the mempool they could claim this eth for themselves.
         // And then when the actual user came to mint they would be locked out, but atleast they wouldn't be bricked.
-        address linkedEthAddress = depositKeyToEthAddress[depositKey];
+        address linkedEthAddress = depositKeyToEthAddress[codeChallenge];
         if (linkedEthAddress == address(0)) {
             // First deposit: bind Mina account deposit key to sender
             // TODO emit event?
-            depositKeyToEthAddress[depositKey] = msg.sender;
+            depositKeyToEthAddress[codeChallenge] = msg.sender;
         } else {
             if (linkedEthAddress != msg.sender)
                 revert MinaAccountLinkedToDifferentDepositor();
@@ -205,7 +219,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         // ===============================
         // LOCK LOGIC (bridge units internally)
         // ===============================
-        lockedTokens[msg.sender][codeChallenge] += netBU;
+        lockedTokens[codeChallenge] += netBU;
         totalLockedBU += netBU;
         accumulatedFees += feeWei;
 
@@ -304,13 +318,6 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         if (tokensToUnlock <= feeBU) revert InvalidUnlockAmount();
 
-        // @Karol - If a user does a partial burn on Mina say 5BU and unlockFeeRate > 0, then feeBU gets clamped to MIN_FEE_BU (10).
-        // As a consequence tokensToUnlock (5) <= feeBU (10) reverts! Meaning those tokens are burnt on Mina but can never be touched
-        // on ETH, they are stuck!
-        // The lock side is protected by MIN_LOCK_AMOUNT_WEI (100 BU), but there's no equivalent minimum on the Mina burn side.
-        // The Mina zkApp must enforce MIN_BURN_BU = MIN_FEE_BU + 1 (11 BU) in order for this burn to "survive"
-        // — the check is <=, so burns of exactly MIN_FEE_BU also revert.
-
         uint256 netBU;
         unchecked {
             netBU = tokensToUnlock - feeBU; // Safe because of the line above
@@ -405,7 +412,9 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         emit FeesWithdrawn(feeRecipient, fees);
     }
-
+    receive() external payable {
+        revert("Use lockTokens to lock Ether");
+    }
     // -------------------------------
     // View Helper: compute gross lock amount for a desired net
     // -------------------------------

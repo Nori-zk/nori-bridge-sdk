@@ -1,6 +1,24 @@
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
-import { Bytes, Field, Mina, PrivateKey, PublicKey } from 'o1js';
+import { Bytes, CircuitString, fetchAccount, Field, Mina, PrivateKey, PublicKey, Signature, UInt64 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
+import {
+    buildContractDepositLeaves,
+    ContractDeposit,
+    MerkleTreeContractDepositAttestorInput,
+    MerklePath,
+} from './depositAttestation.js';
+import {
+    createCodeChallenge,
+    SCRAMWitness,
+} from './scram.js';
+import {
+    Bytes32,
+    foldMerkleLeft,
+    computeMerkleTreeDepthAndSize,
+    getMerklePathFromLeaves,
+    getMerkleZeros,
+    Bytes20,
+} from '@nori-zk/o1js-zk-utils-new';
 
 const logger = new Logger('NoriTokenBridgeTestUtils');
 
@@ -228,4 +246,81 @@ export async function minaSetup() {
         mina: 'http://localhost:8080/graphql',
     });
     Mina.setActiveInstance(Network);
+}
+
+// ---------------------------------------------------------------------------
+// Shared test helpers
+// ---------------------------------------------------------------------------
+
+export async function txSend({
+    body,
+    sender,
+    signers,
+    fee: txFee = 1e8,
+}: {
+    body: () => Promise<void>;
+    sender: PublicKey;
+    signers: PrivateKey[];
+    fee?: number;
+}) {
+    const tx = await Mina.transaction({ sender, fee: txFee }, body);
+    await tx.prove();
+    tx.sign(signers);
+    const pendingTx = await tx.send();
+    return pendingTx.wait();
+}
+
+export async function fetchAccounts(addrs: PublicKey[]) {
+    await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
+}
+
+/**
+ * Build a self-consistent synthetic deposit for noriMint() tests.
+ * Signs a SCRAM message with the recipient's private key and builds
+ * the deposit attestation from the resulting codeChallenge.
+ */
+export function buildSyntheticDeposit(
+    recipientPrivateKey: PrivateKey,
+    ethAddressHex: string,        // 40-char hex without 0x
+    messageSCRAMStr: string,
+    totalLockedBU: bigint = 2n
+): {
+    merkleInput: MerkleTreeContractDepositAttestorInput;
+    scramWitness: SCRAMWitness;
+} {
+    const msgCS = CircuitString.fromString(messageSCRAMStr);
+    const msgFields = msgCS.values.map((char) => char.toField());
+    const signature = Signature.create(recipientPrivateKey, msgFields);
+    const codeChallenge = createCodeChallenge(signature);
+    const codeChallengeHex = codeChallenge.toBigInt().toString(16).padStart(64, '0');
+    const valueHex = totalLockedBU.toString(16).padStart(64, '0');
+
+    const deposit = new ContractDeposit({
+        address: Bytes20.fromHex(ethAddressHex),
+        attestationHash: Bytes32.fromHex(codeChallengeHex),
+        value: Bytes32.fromHex(valueHex),
+    });
+
+    const leaves = buildContractDepositLeaves([deposit]);
+    const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
+    const zeros = getMerkleZeros(depth);
+    const path = getMerklePathFromLeaves([...leaves], paddedSize, depth, 0, zeros);
+    const rootHash = foldMerkleLeft(leaves, paddedSize, depth, zeros);
+
+    const merklePath = MerklePath.from([]);
+    path.forEach((p) => merklePath.push(p));
+
+    const merkleInput = new MerkleTreeContractDepositAttestorInput({
+        rootHash,
+        path: merklePath,
+        index: UInt64.fromValue(0),
+        value: deposit,
+    });
+
+    const scramWitness = new SCRAMWitness({
+        signature,
+        message: msgFields,
+    });
+
+    return { merkleInput, scramWitness };
 }

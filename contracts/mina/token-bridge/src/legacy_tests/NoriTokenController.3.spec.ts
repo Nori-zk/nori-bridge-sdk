@@ -22,7 +22,7 @@ type Keypair = {
     publicKey: PublicKey;
     privateKey: PrivateKey;
 };
-import { EthVerifier, createTimer } from '@nori-zk/o1js-zk-utils';
+import { EthVerifier, createTimer } from '@nori-zk/o1js-zk-utils-new';
 import { getNewMinaLiteNetAccountSK } from '../testUtils.js';
 import { getZkAppWorker } from '../workers/zkAppWorker/node/parent.js';
 

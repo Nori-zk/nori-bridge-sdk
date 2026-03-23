@@ -14,16 +14,11 @@ import {
     getDepositProcessingStatus$,
     readyToComputeMintProof,
 } from './rx/deposit.js';
-import { signSecretWithEthWallet } from './ethSignature.js';
 import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import {
-    createCodeChallenge,
-    obtainCodeVerifierFromEthSignature,
-} from './pkarm.js';
 import { validateEnv } from './testUtils.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils';
+import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 // https://faucet.minaprotocol.com/
 
@@ -66,50 +61,44 @@ describe('e2e_testnet', () => {
 
             // START MAIN FLOW
 
+            // INIT WORKER **************************************************
+            logger.log('Fetching zkApp worker.');
+            const TokenBridgeWorker = getTokenBridgeWorker();
+            const tokenBridgeWorker = new TokenBridgeWorker();
+
+            // Configure wallet
+            // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
+            await tokenBridgeWorker.WALLET_setMinaPrivateKey(
+                minaSenderPrivateKeyBase58
+            );
+            await tokenBridgeWorker.minaSetup(minaConfig);
+
             // OBTAIN CREDENTIAL **************************************************
 
             // CLIENT *******************
 
             // Note this value is used to restrict the domain of the signature but could
             // also be a user provided secret for extra security.
-            const fixedValueOrSecret = 'NoriZK25';
-            // Get signature secret, this is used simply used such that we can deterministically
-            // derive our secret used for the PKARM code exchange without the user having to store
-            // any secret, when a fixed field is used.
-            // If the user uses a fixed value then they could use their eth wallet to re generate
-            // their codeVerifier (secret) on another machine.
-            // If they provided a secret then they would have to keep this themselves and provide it when minting.
-            logger.log('Creating eth signature of our secret / fixed field');
-            const ethSignatureSecretTimer = createTimer();
-            const ethSignatureSecret = await signSecretWithEthWallet(
-                fixedValueOrSecret,
-                ethWallet
-            );
-            logger.log(`Eth signature secret computed in ${ethSignatureSecretTimer()}`);
-
-            // These prints are just for testing purposes.
-            logger.log('ethSignatureSecret', ethSignatureSecret);
-            logger.log(
-                'senderPublicKey.toBase58()',
-                minaSenderPublicKeyBase58
-            );
+            const messageSCRAMStr = 'NoriZK25';
+            // Sign SCRAM message using Mina private key (via worker).
+            // This is used such that we can deterministically derive our codeChallenge
+            // used for the SCRAM code exchange without the user having to store
+            // any secret, when a fixed message is used.
+            // If the user uses a fixed message then they could use their Mina key to re generate
+            // their signature (and therefore codeChallenge) on another machine.
+            // If they provided a secret message then they would have to keep this themselves and provide it when minting.
+            logger.log('Signing SCRAM message');
+            const scramSignTimer = createTimer();
+            const signatureSCRAMBase58 = await tokenBridgeWorker.MOCK_SCRAM_signMessage(messageSCRAMStr);
+            logger.log(`SCRAM signature computed in ${scramSignTimer()}`);
 
             // CLIENT only logic from now on....
 
-            // Generate PKARM code challenge from signature and mina public key
-            const codeVerifierPKARMField =
-                obtainCodeVerifierFromEthSignature(ethSignatureSecret); // This is a secret field
-            const codeVerifierPKARMBigInt = codeVerifierPKARMField.toBigInt();
-            const codeVerifierPKARMStr = codeVerifierPKARMBigInt.toString();
+            // Create code challenge from SCRAM signature
+            const codeChallengeSCRAMStr = await tokenBridgeWorker.SCRAM_createCodeChallenge(signatureSCRAMBase58);
+            const codeChallengeSCRAMBigInt = BigInt(codeChallengeSCRAMStr);
 
-            const codeChallengePKARMField = createCodeChallenge(
-                codeVerifierPKARMField,
-                minaSenderPublicKey
-            ); // This is the code challenge witness which can be stored publically (on chain)
-            const codeChallengePKARMBigInt = codeChallengePKARMField.toBigInt();
-            const codeChallengePKARMStr = codeChallengePKARMBigInt.toString();
-
-            logger.log('ethSignatureSecret', ethSignatureSecret);
+            // These prints are just for testing purposes.
             logger.log(
                 'senderPublicKey.toBase58()',
                 minaSenderPublicKeyBase58
@@ -118,18 +107,16 @@ describe('e2e_testnet', () => {
                 'senderPrivateKey.toBase58()',
                 minaSenderPrivateKeyBase58
             );
-            logger.log('codeVerifierPKARMField', codeVerifierPKARMField);
-            logger.log('codeVerifierPKARMBigInt', codeVerifierPKARMBigInt);
-            logger.log('codeVerifierPKARMStr', codeVerifierPKARMStr);
-            logger.log('codeChallengePKARMBigInt', codeChallengePKARMBigInt);
-            logger.log('codeChallengePKARMStr', codeChallengePKARMStr);
+            logger.log('signatureSCRAMBase58', signatureSCRAMBase58);
+            logger.log('codeChallengeSCRAMBigInt', codeChallengeSCRAMBigInt);
+            logger.log('codeChallengeSCRAMStr', codeChallengeSCRAMStr);
 
             // CONNECT TO BRIDGE **************************************************
 
             // Establish a connection to the bridge.
             logger.log('Establishing bridge connection and topics.');
             const { bridgeSocket$, bridgeSocketConnectionState$ } =
-                getReconnectingBridgeSocket$();
+                getReconnectingBridgeSocket$('wss://wss.mesa.nori.it.com'); // FIXME hardcoding
 
             // Subscribe to the sockets connection status.
             bridgeSocketConnectionState$.subscribe({
@@ -167,7 +154,7 @@ describe('e2e_testnet', () => {
                 ethWallet
             );
             const credentialAttestationBigNumberIsh: BigNumberish =
-                codeChallengePKARMBigInt;
+                codeChallengeSCRAMBigInt;
             const depositAmountStr = '0.000001';
             logger.log('depositAmountStr', depositAmountStr);
             const depositAmount = ethers.parseEther(depositAmountStr);
@@ -195,13 +182,13 @@ describe('e2e_testnet', () => {
                 depositBlockNumber,
                 ethStateTopic$,
                 bridgeStateTopic$,
-                bridgeTimingsTopic$
+                bridgeTimingsTopic$,
             );
 
             // Subscribe to the depositProcessingStatus observable to print our progress.
             depositProcessingStatusSubscription =
                 depositProcessingStatus$.subscribe({
-                    next: (msg) => logger.log(msg),
+                    next: (msg) => logger.info(msg),
                     error: (err) => logger.error(err),
                     complete: () =>
                         logger.warn(
@@ -211,23 +198,11 @@ describe('e2e_testnet', () => {
 
             // COMPUTE DEPOSIT ATTESTATION **************************************************
 
-            // INIT WORKER **************************************************
-            logger.log('Fetching zkApp worker.');
-            const TokenBridgeWorker = getTokenBridgeWorker();
+            // PREPARE FOR MINTING **************************************************
 
             // Compile tokenBridgeWorker dependancies
             logger.log('Compiling dependancies of tokenBridgeWorker');
-            const tokenBridgeWorker = new TokenBridgeWorker();
             const tokenBridgeWorkerReady = tokenBridgeWorker.compileAll(); // ?? Can we move this earlier...
-
-            // PREPARE FOR MINTING **************************************************
-
-            // Configure wallet
-            // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
-            await tokenBridgeWorker.WALLET_setMinaPrivateKey(
-                minaSenderPrivateKeyBase58
-            );
-            await tokenBridgeWorker.minaSetup(minaConfig);
 
             // Get noriStorageInterfaceVerificationKeySafe from tokenBridgeWorkerReady resolution.
             const { noriStorageInterfaceVerificationKeySafe } =
@@ -280,19 +255,16 @@ describe('e2e_testnet', () => {
             // Throws if we have missed our minting opportunity.
             await readyToComputeMintProof(depositProcessingStatus$);
 
-            // Compute eth verifier and deposit witness
-            logger.log(
-                'Computing eth verifier and calculating deposit witness.'
-            );
-            const { depositAttestationInput } =
-                await tokenBridgeWorker.computeDepositAttestationWitnessAndEthVerifier(
-                    codeChallengePKARMStr,
+            // Compute deposit witness
+            logger.log('Computing deposit witness.');
+            const depositAttestationInput =
+                await tokenBridgeWorker.computeDepositAttestationWitness(
+                    codeChallengeSCRAMStr,
                     depositBlockNumber,
-                    ethAddressLowerHex
+                    ethAddressLowerHex,
+                    'https://pcs.mesa.nori.it.com' // FIXME hardcoding
                 );
-            logger.log(
-                'Computed eth verifier and calculated deposit witness.'
-            );
+            logger.log('Computed deposit witness.');
 
             // PRE-COMPUTE MINT PROOF ****************************************************
 
@@ -303,6 +275,19 @@ describe('e2e_testnet', () => {
             );
             logger.log('needsToFundAccount', needsToFundAccount);
 
+            // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
+
+            logger.log(
+                'Waiting for deposit processing completion before we can sign and send the mint proof.'
+            );
+
+            // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
+            // Throws if we have missed our minting opportunity
+            await canMint(depositProcessingStatus$);
+            logger.log(
+                'Deposit is processed signing and sending the mint proof.'
+            );
+
             logger.log('Computing mint proof.');
 
             const mintProofComputationTimer = createTimer();
@@ -310,7 +295,8 @@ describe('e2e_testnet', () => {
                 minaSenderPublicKeyBase58,
                 noriTokenBridgeAddressBase58,
                 depositAttestationInput,
-                codeVerifierPKARMStr,
+                messageSCRAMStr,
+                signatureSCRAMBase58,
                 1e9 * 0.1,
                 needsToFundAccount
             );
@@ -330,19 +316,6 @@ describe('e2e_testnet', () => {
                 true
             );
             logger.log('provedMintTxStr', provedMintTxStr);*/
-
-            // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
-
-            logger.log(
-                'Waiting for deposit processing completion before we can sign and send the mint proof.'
-            );
-
-            // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
-            // Throws if we have missed our minting opportunity
-            await canMint(depositProcessingStatus$);
-            logger.log(
-                'Deposit is processed signing and sending the mint proof.'
-            );
 
             // SIGN AND SEND MINT PROOF **************************************************
 

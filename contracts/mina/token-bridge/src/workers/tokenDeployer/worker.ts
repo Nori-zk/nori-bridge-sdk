@@ -6,8 +6,8 @@ import {
     type FileSystemCacheConfig,
     type VerificationKeySafe,
     vkToVkSafe,
-} from '@nori-zk/o1js-zk-utils';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
+} from '@nori-zk/o1js-zk-utils-new';
+import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import {
     AccountUpdate,
     Bool,

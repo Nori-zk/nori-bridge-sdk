@@ -11,7 +11,7 @@ import {
     EthInput,
     NodeProofLeft,
     EthVerifier,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import { DynamicArray } from 'mina-attestations';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';

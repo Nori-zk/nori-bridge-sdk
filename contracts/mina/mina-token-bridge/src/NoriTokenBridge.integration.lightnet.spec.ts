@@ -33,34 +33,21 @@ import assert from 'node:assert';
 import { FungibleToken } from './TokenBase.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { NoriTokenBridge } from './NoriTokenBridge.js';
-import {
-    buildContractDepositLeaves,
-    ContractDeposit,
-    MerkleTreeContractDepositAttestorInput,
-    MerklePath,
-} from './depositAttestation.js';
-import {
-    createCodeChallenge,
-    obtainCodeVerifierFromEthSignature,
-} from './pkarm.js';
+import type { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
+import type { SCRAMWitness } from './scram.js';
 import {
     EthInput,
     NodeProofLeft,
     decodeConsensusMptProof,
     Bytes32,
     Bytes32FieldPair,
-    foldMerkleLeft,
-    computeMerkleTreeDepthAndSize,
-    getMerklePathFromLeaves,
-    getMerkleZeros,
-    Bytes20,
     bytes32LEToFieldProvable,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
-import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair } from './testUtils.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from './testUtils.js';
 
 new LogPrinter('TestNoriTokenBridgeE2E');
 const logger = new Logger('NoriTokenBridgeE2ESpec');
@@ -125,56 +112,6 @@ async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
 
-/**
- * Build a self-consistent synthetic deposit for noriMint() tests.
- */
-function buildSyntheticDeposit(
-    recipientPublicKey: PublicKey,
-    ethAddressHex: string, // 40-char hex without 0x
-    ethSig65Hex: string, // 130-char hex without 0x (65 bytes)
-    totalWei: bigint = 2_000_000_000_000n
-): {
-    merkleInput: MerkleTreeContractDepositAttestorInput;
-    codeVerifier: Field;
-} {
-    const codeVerifier = obtainCodeVerifierFromEthSignature(`0x${ethSig65Hex}`);
-    const codeChallenge = createCodeChallenge(codeVerifier, recipientPublicKey);
-    const codeChallengeHex = codeChallenge
-        .toBigInt()
-        .toString(16)
-        .padStart(64, '0');
-    const valueHex = totalWei.toString(16).padStart(64, '0');
-
-    const deposit = new ContractDeposit({
-        address: Bytes20.fromHex(ethAddressHex),
-        attestationHash: Bytes32.fromHex(codeChallengeHex),
-        value: Bytes32.fromHex(valueHex),
-    });
-
-    const leaves = buildContractDepositLeaves([deposit]);
-    const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
-    const zeros = getMerkleZeros(depth);
-    const path = getMerklePathFromLeaves(
-        [...leaves],
-        paddedSize,
-        depth,
-        0,
-        zeros
-    );
-    const rootHash = foldMerkleLeft(leaves, paddedSize, depth, zeros);
-
-    const merklePath = MerklePath.from([]);
-    path.forEach((p) => merklePath.push(p));
-
-    const merkleInput = new MerkleTreeContractDepositAttestorInput({
-        rootHash,
-        path: merklePath,
-        index: UInt64.fromValue(0),
-        value: deposit,
-    });
-
-    return { merkleInput, codeVerifier };
-}
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -655,37 +592,37 @@ describe('NoriTokenBridge', () => {
     // noriMint() — Token minting
     // =======================================================================
     describe('noriMint()', () => {
-        let aliceMerkleInput: MerkleTreeContractDepositAttestorInput;
-        let aliceCodeVerifier: Field;
+        let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
+        let aliceSCRAMWitness: SCRAMWitness;
 
-        const ALICE_ETH_SIG = 'ab'.repeat(32) + 'cd'.repeat(32) + '1b';
+        const ALICE_SCRAM_MSG = 'NoriZK-Alice';
         const ALICE_ETH_ADDR = 'aa'.repeat(20);
 
         beforeAll(() => {
             const result = buildSyntheticDeposit(
-                alice.publicKey,
+                alice.privateKey,
                 ALICE_ETH_ADDR,
-                ALICE_ETH_SIG,
-                2_000_000_000_000n
+                ALICE_SCRAM_MSG,
+                2n
             );
-            aliceMerkleInput = result.merkleInput;
-            aliceCodeVerifier = result.codeVerifier;
+            aliceDepositAttestationInput = result.merkleInput;
+            aliceSCRAMWitness = result.scramWitness;
             logger.log(
-                `Alice synthetic deposit built. rootHash=${aliceMerkleInput.rootHash.toBigInt()}`
+                `Alice synthetic deposit built. rootHash=${aliceDepositAttestationInput.rootHash.toBigInt()}`
             );
         });
 
         // TODO (deposit-root check): Once noriMint() re-enables the deposit-root assertion,
         // this test must first call update() with a block whose verifiedContractDepositsRoot
-        // equals aliceMerkleInput.rootHash. For now the check is skipped on-chain.
+        // equals aliceDepositAttestationInput.rootHash. For now the check is skipped on-chain.
 
         test('should mint 2 bridge units for Alice on first deposit', async () => {
             await txSend({
                 body: async () => {
                     AccountUpdate.fundNewAccount(alice.publicKey, 1);
                     await noriTokenBridge.noriMint(
-                        aliceMerkleInput,
-                        aliceCodeVerifier
+                        aliceDepositAttestationInput,
+                        aliceSCRAMWitness
                     );
                 },
                 sender: alice.publicKey,
@@ -725,8 +662,8 @@ describe('NoriTokenBridge', () => {
                         txSend({
                             body: async () => {
                                 await noriTokenBridge.noriMint(
-                                    aliceMerkleInput,
-                                    aliceCodeVerifier
+                                    aliceDepositAttestationInput,
+                                    aliceSCRAMWitness
                                 );
                             },
                             sender: alice.publicKey,
@@ -736,16 +673,15 @@ describe('NoriTokenBridge', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT mint when totalLocked < 1 bridge unit (< 1e12 wei)', async () => {
+            test('should REJECT mint when totalLocked is 0 BU', async () => {
                 const bob = PrivateKey.randomKeypair();
-                const BOB_SIG = 'ff'.repeat(32) + 'ee'.repeat(32) + '1c';
                 const BOB_ADDR = 'bb'.repeat(20);
-                const { merkleInput: bobInput, codeVerifier: bobVerifier } =
+                const { merkleInput: bobDepositAttestationInput, scramWitness: bobSCRAMWitness } =
                     buildSyntheticDeposit(
-                        bob.publicKey,
+                        bob.privateKey,
                         BOB_ADDR,
-                        BOB_SIG,
-                        999_999_999_999n
+                        'NoriZK-Bob',
+                        0n
                     );
 
                 await txSend({
@@ -769,51 +705,55 @@ describe('NoriTokenBridge', () => {
                                     1
                                 );
                                 await noriTokenBridge.noriMint(
-                                    bobInput,
-                                    bobVerifier
+                                    bobDepositAttestationInput,
+                                    bobSCRAMWitness
                                 );
                             },
                             sender: bob.publicKey,
                             signers: [bob.privateKey],
                         }),
-                    'Mint with totalLocked < 1e12 wei must fail'
+                    'Mint with totalLocked 0 BU must fail'
                 );
             }, 1_000_000);
 
-            test('should REJECT mint with wrong PKARM codeVerifier', async () => {
-                const wrongSig = 'de'.repeat(32) + 'ad'.repeat(32) + '1b';
-                const wrongVerifier = obtainCodeVerifierFromEthSignature(
-                    `0x${wrongSig}`
-                );
+            test('should REJECT mint with wrong SCRAM witness', async () => {
+                const wrongKey = PrivateKey.randomKeypair();
+                const ALICE_ADDR = 'aa'.repeat(20);
+                const { scramWitness: wrongSCRAMWitness } =
+                    buildSyntheticDeposit(
+                        wrongKey.privateKey,
+                        ALICE_ADDR,
+                        'NoriZK-Wrong',
+                        2n
+                    );
 
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
                                 await noriTokenBridge.noriMint(
-                                    aliceMerkleInput,
-                                    wrongVerifier
+                                    aliceDepositAttestationInput,
+                                    wrongSCRAMWitness
                                 );
                             },
                             sender: alice.publicKey,
                             signers: [alice.privateKey],
                         }),
-                    'Wrong PKARM codeVerifier must fail'
+                    'Wrong SCRAM witness must fail'
                 );
             }, 1_000_000);
 
             test('should REJECT mint without storage setup (storage.account.isNew must be false)', async () => {
                 const charlie = PrivateKey.randomKeypair();
-                const CHARLIE_SIG = '12'.repeat(32) + '34'.repeat(32) + '1c';
                 const CHARLIE_ADDR = 'cc'.repeat(20);
                 const {
-                    merkleInput: charlieInput,
-                    codeVerifier: charlieVerifier,
+                    merkleInput: charlieDepositAttestationInput,
+                    scramWitness: charlieSCRAMWitness,
                 } = buildSyntheticDeposit(
-                    charlie.publicKey,
+                    charlie.privateKey,
                     CHARLIE_ADDR,
-                    CHARLIE_SIG,
-                    2_000_000_000_000n
+                    'NoriZK-Charlie',
+                    2n
                 );
 
                 await assert.rejects(
@@ -825,8 +765,8 @@ describe('NoriTokenBridge', () => {
                                     1
                                 );
                                 await noriTokenBridge.noriMint(
-                                    charlieInput,
-                                    charlieVerifier
+                                    charlieDepositAttestationInput,
+                                    charlieSCRAMWitness
                                 );
                             },
                             sender: charlie.publicKey,
@@ -836,7 +776,7 @@ describe('NoriTokenBridge', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT cross-user PKARM attack (wrong sender cannot claim Alice deposit)', async () => {
+            test('should REJECT cross-user SCRAM attack (wrong sender cannot claim Alice deposit)', async () => {
                 const eve = PrivateKey.randomKeypair();
 
                 await txSend({
@@ -857,14 +797,14 @@ describe('NoriTokenBridge', () => {
                             body: async () => {
                                 AccountUpdate.fundNewAccount(eve.publicKey, 1);
                                 await noriTokenBridge.noriMint(
-                                    aliceMerkleInput,
-                                    aliceCodeVerifier
+                                    aliceDepositAttestationInput,
+                                    aliceSCRAMWitness
                                 );
                             },
                             sender: eve.publicKey,
                             signers: [eve.privateKey],
                         }),
-                    'Cross-user PKARM attack must fail'
+                    'Cross-user SCRAM attack must fail'
                 );
             }, 1_000_000);
 

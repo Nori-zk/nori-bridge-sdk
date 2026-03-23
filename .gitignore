@@ -8,3 +8,8 @@ build
 .env.nori-mina-token-bridge
 tsconfig.tsbuildinfo
 .vscode/
+
+.env.nori-eth-token-bridge*
+.env.nori-token-bridge*
+.env.nori-mina-token-bridge*
+tsconfig.tsbuildinfo

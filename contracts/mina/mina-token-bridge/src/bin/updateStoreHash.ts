@@ -10,7 +10,7 @@ import {
     Bytes32,
     Bytes32FieldPair,
     compileAndVerifyContracts,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/o1js-zk-utils-new';
 import { noriTokenBridgeVkHash } from '../integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from '../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../integrity/FungibleToken.VkHash.js';

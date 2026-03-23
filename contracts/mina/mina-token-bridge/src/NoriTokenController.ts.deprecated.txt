@@ -23,7 +23,7 @@ import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
 // EthProofType must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { EthProofType } from '@nori-zk/o1js-zk-utils';
+import { EthProofType } from '@nori-zk/o1js-zk-utils-new';
 import {
     contractDepositCredentialAndTotalLockedToFields,
     getContractDepositSlotRootFromContractDepositAndWitness,

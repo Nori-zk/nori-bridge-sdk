@@ -23,7 +23,7 @@ import {
     obtainCodeVerifierFromEthSignature,
 } from './pkarm.js';
 import { validateEnv } from './testUtils.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils';
+import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 // https://faucet.minaprotocol.com/
 

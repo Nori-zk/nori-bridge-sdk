@@ -9,7 +9,7 @@ import {
 } from 'o1js';
 import { type Subclass } from 'o1js/dist/node/lib/util/types.js';
 import { type Gate } from 'o1js/dist/node/bindings/crypto/bindings/kimchi-types.js';
-import { type CompilableZkProgram } from '@nori-zk/o1js-zk-utils';
+import { type CompilableZkProgram } from '@nori-zk/o1js-zk-utils-new';
 
 export type ProofClass = Subclass<typeof ProofBase>;
 

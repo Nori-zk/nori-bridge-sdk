@@ -12,8 +12,8 @@ import {
     EthVerifier,
     ethVerifierVkHash,
     type ZKCacheWithProgram,
-} from '@nori-zk/o1js-zk-utils';
-import { cacheBuilder } from '@nori-zk/o1js-zk-utils/node';
+} from '@nori-zk/o1js-zk-utils-new';
+import { cacheBuilder } from '@nori-zk/o1js-zk-utils-new/node';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Logger, LogPrinter } from 'esm-iso-logger';

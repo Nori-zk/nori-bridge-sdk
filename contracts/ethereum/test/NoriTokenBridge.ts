@@ -4,18 +4,18 @@ import { NoriTokenBridge__factory } from 'types/ethers-contracts/index.js';
 import hre from 'hardhat';
 const { ethers } = await hre.network.connect();
 
-const attestationHashBytes = new Uint8Array(32);
-getRandomValues(attestationHashBytes);
-const attestationHashBigInt = attestationHashBytes.reduce(
+const codeChallengeBytes = new Uint8Array(32);
+getRandomValues(codeChallengeBytes);
+const codeChallengeBigInt = codeChallengeBytes.reduce(
     (acc, byte) => (acc << 8n) + BigInt(byte),
     0n
 );
-const attestationHashHex = `0x${Array.from(attestationHashBytes)
+const codeChallengeHex = `0x${Array.from(codeChallengeBytes)
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')}`;
 
-console.log('attestationHashBigInt', attestationHashBigInt);
-console.log('attestationHashHex', attestationHashHex);
+console.log('codeChallengeBigInt', codeChallengeBigInt);
+console.log('codeChallengeHex', codeChallengeHex);
 
 const WEI_PER_BRIDGE_UNIT = 10n ** 12n;
 
@@ -26,7 +26,7 @@ describe('NoriTokenBridge', () => {
         const TokenBridge = new NoriTokenBridge__factory(owner);
 
         // Constructor now requires explicit bridgeOperator address
-        const tokenBridge = await TokenBridge.deploy(owner.address);
+        const tokenBridge = await TokenBridge.deploy(owner.address, dummyState.address, dummyAccount.address);
 
         // Configure with dummy aligned contract addresses so onlyConfigured passes
         await tokenBridge.setAlignedContracts(dummyState.address, dummyAccount.address);
@@ -46,7 +46,7 @@ describe('NoriTokenBridge', () => {
         it('Should allow deploying with a different bridgeOperator than deployer', async function () {
             const [deployer, operator, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
-            const tokenBridge = await TokenBridge.deploy(operator.address);
+            const tokenBridge = await TokenBridge.deploy(operator.address, dummyState.address, dummyAccount.address);
 
             expect(await tokenBridge.bridgeOperator()).equals(operator.address);
 
@@ -60,17 +60,17 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should revert if bridgeOperator is zero address', async function () {
-            const [deployer] = await ethers.getSigners();
+            const [deployer, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             await expect(
-                TokenBridge.deploy(ethers.ZeroAddress)
+                TokenBridge.deploy(ethers.ZeroAddress, dummyState.address, dummyAccount.address)
             ).to.be.revertedWithCustomError(TokenBridge, 'ZeroAddress');
         });
 
         it('Should deploy with zero balance (non-payable constructor)', async function () {
-            const [deployer] = await ethers.getSigners();
+            const [deployer,  dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
-            const tokenBridge = await TokenBridge.deploy(deployer.address);
+            const tokenBridge = await TokenBridge.deploy(deployer.address, dummyState.address, dummyAccount.address);
             const balance = await ethers.provider.getBalance(tokenBridge.target);
             expect(balance).to.equal(0n);
         });
@@ -244,11 +244,10 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(owner)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
             const locked = await tokenBridge.lockedTokens(
-                owner.address,
-                attestationHashBigInt
+                codeChallengeBigInt
             );
             expect(locked).to.equal(expectedBU);
         });
@@ -261,11 +260,10 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(owner)
-                .lockTokens(attestationHashHex, { value: sendValue });
+                .lockTokens(codeChallengeHex, { value: sendValue });
 
             const locked = await tokenBridge.lockedTokens(
-                owner.address,
-                attestationHashHex
+                codeChallengeHex
             );
             expect(locked).to.equal(expectedBU);
         });
@@ -276,14 +274,14 @@ describe('NoriTokenBridge', () => {
 
             const tx = await tokenBridge
                 .connect(owner)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
             // Events emit wei amounts (no timestamp in event)
             await expect(tx)
                 .to.emit(tokenBridge, 'TokensLocked')
                 .withArgs(
                     owner.address,
-                    attestationHashHex,
+                    codeChallengeHex,
                     sendValue, // netWei = msg.value at 0% fee
                     0n // feeWei = 0 at 0%
                 );
@@ -295,7 +293,7 @@ describe('NoriTokenBridge', () => {
             await expect(
                 tokenBridge
                     .connect(owner)
-                    .lockTokens(attestationHashBigInt, { value: 0n })
+                    .lockTokens(codeChallengeBigInt, { value: 0n })
             ).to.be.revertedWithCustomError(tokenBridge, 'BelowMinLockAmount');
         });
 
@@ -308,7 +306,7 @@ describe('NoriTokenBridge', () => {
             await expect(
                 tokenBridge
                     .connect(owner)
-                    .lockTokens(attestationHashBigInt, { value: dustAmount })
+                    .lockTokens(codeChallengeBigInt, { value: dustAmount })
             ).to.be.revertedWithCustomError(tokenBridge, 'BelowMinLockAmount');
         });
 
@@ -319,9 +317,9 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(owner)
-                .lockTokens(attestationHashBigInt, { value: minAmount });
+                .lockTokens(codeChallengeBigInt, { value: minAmount });
 
-            const locked = await tokenBridge.lockedTokens(owner.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked).to.equal(100n); // 100 bridge units
         });
 
@@ -334,14 +332,13 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(owner)
-                .lockTokens(attestationHashBigInt, { value: value1 });
+                .lockTokens(codeChallengeBigInt, { value: value1 });
             await tokenBridge
                 .connect(owner)
-                .lockTokens(attestationHashBigInt, { value: value2 });
+                .lockTokens(codeChallengeBigInt, { value: value2 });
 
             const total = await tokenBridge.lockedTokens(
-                owner.address,
-                attestationHashBigInt
+                codeChallengeBigInt
             );
             expect(total).to.equal(expectedBU);
         });
@@ -368,10 +365,10 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
             // lockedTokens should have net bridge units
-            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked).to.equal(netBU);
 
             // accumulatedFees should have fee in wei
@@ -391,7 +388,7 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
             const totalLocked = await tokenBridge.totalLockedBU();
             expect(totalLocked).to.equal(netBU);
@@ -411,14 +408,14 @@ describe('NoriTokenBridge', () => {
 
             const tx = await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
             // Events emit wei amounts (no timestamp in event)
             await expect(tx)
                 .to.emit(tokenBridge, 'TokensLocked')
                 .withArgs(
                     user1.address,
-                    attestationHashBigInt,
+                    codeChallengeBigInt,
                     netWei,
                     feeWei
                 );
@@ -434,7 +431,7 @@ describe('NoriTokenBridge', () => {
             await expect(
                 tokenBridge
                     .connect(user1)
-                    .lockTokens(attestationHashBigInt, { value: unalignedAmount })
+                    .lockTokens(codeChallengeBigInt, { value: unalignedAmount })
             ).to.be.revertedWithCustomError(tokenBridge, 'InvalidBridgeUnitMultiple');
         });
 
@@ -451,9 +448,9 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: minAmount });
+                .lockTokens(codeChallengeBigInt, { value: minAmount });
 
-            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked).to.equal(90n); // 90 bridge units (10 taken as MIN_FEE_BU)
 
             const fees = await tokenBridge.accumulatedFees();
@@ -477,9 +474,9 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
-            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked).to.equal(netBU);
 
             const fees = await tokenBridge.accumulatedFees();
@@ -497,8 +494,8 @@ describe('NoriTokenBridge', () => {
             const feeBU2 = (value2 / WEI_PER_BRIDGE_UNIT) * 1000n / 100000n;
             const totalFeeWei = (feeBU1 + feeBU2) * WEI_PER_BRIDGE_UNIT;
 
-            await tokenBridge.connect(user1).lockTokens(attestationHashBigInt, { value: value1 });
-            await tokenBridge.connect(user1).lockTokens(attestationHashBigInt, { value: value2 });
+            await tokenBridge.connect(user1).lockTokens(codeChallengeBigInt, { value: value1 });
+            await tokenBridge.connect(user1).lockTokens(codeChallengeBigInt, { value: value2 });
 
             const fees = await tokenBridge.accumulatedFees();
             expect(fees).to.equal(totalFeeWei);
@@ -517,7 +514,7 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
 
             const totalLocked = await tokenBridge.totalLockedBU();
             expect(totalLocked).to.equal(expectedBridgeUnits);
@@ -531,7 +528,7 @@ describe('NoriTokenBridge', () => {
             await expect(
                 tokenBridge
                     .connect(user1)
-                    .lockTokens(attestationHashBigInt, { value: invalidAmount })
+                    .lockTokens(codeChallengeBigInt, { value: invalidAmount })
             ).to.be.revertedWithCustomError(tokenBridge, 'InvalidBridgeUnitMultiple');
         });
 
@@ -541,16 +538,16 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue });
-            const linked = await tokenBridge.codeChallengeToEthAddress(
-                attestationHashBigInt
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
+            const linked = await tokenBridge.depositKeyToEthAddress(
+                codeChallengeBigInt
             );
             expect(linked).to.equal(user1.address);
 
             await expect(
                 tokenBridge
                     .connect(user2)
-                    .lockTokens(attestationHashBigInt, { value: sendValue })
+                    .lockTokens(codeChallengeBigInt, { value: sendValue })
             ).to.be.revertedWithCustomError(tokenBridge, 'MinaAccountLinkedToDifferentDepositor');
         });
 
@@ -562,14 +559,13 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue1 });
+                .lockTokens(codeChallengeBigInt, { value: sendValue1 });
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: sendValue2 });
+                .lockTokens(codeChallengeBigInt, { value: sendValue2 });
 
             const totalLocked = await tokenBridge.lockedTokens(
-                user1.address,
-                attestationHashBigInt
+                codeChallengeBigInt
             );
             expect(totalLocked).to.equal(expectedBU);
         });
@@ -583,7 +579,7 @@ describe('NoriTokenBridge', () => {
             await expect(
                 tokenBridge
                     .connect(user1)
-                    .lockTokens(attestationHashBigInt, { value: hugeValue })
+                    .lockTokens(codeChallengeBigInt, { value: hugeValue })
             ).to.be.revertedWithCustomError(tokenBridge, 'TotalLockedOverflow');
         });
     });
@@ -604,7 +600,7 @@ describe('NoriTokenBridge', () => {
             const feeBU = (sendValue / WEI_PER_BRIDGE_UNIT) * 1000n / 100000n; // 100000 BU
             const expectedFeeWei = feeBU * WEI_PER_BRIDGE_UNIT; // 0.1 ETH
 
-            await tokenBridge.connect(user1).lockTokens(attestationHashBigInt, { value: sendValue });
+            await tokenBridge.connect(user1).lockTokens(codeChallengeBigInt, { value: sendValue });
 
             expect(await tokenBridge.accumulatedFees()).to.equal(expectedFeeWei);
 
@@ -633,7 +629,7 @@ describe('NoriTokenBridge', () => {
             const feeBU = (sendValue / WEI_PER_BRIDGE_UNIT) * 500n / 100000n; // 10000 BU
             const expectedFeeWei = feeBU * WEI_PER_BRIDGE_UNIT;
 
-            await tokenBridge.connect(user1).lockTokens(attestationHashBigInt, { value: sendValue });
+            await tokenBridge.connect(user1).lockTokens(codeChallengeBigInt, { value: sendValue });
 
             await expect(tokenBridge.connect(treasury).withdrawFees())
                 .to.emit(tokenBridge, 'FeesWithdrawn')
@@ -645,7 +641,7 @@ describe('NoriTokenBridge', () => {
 
             await tokenBridge.connect(owner).setLockFeeRate(1000);
             await tokenBridge.connect(owner).setFeeRecipient(treasury.address);
-            await tokenBridge.connect(user1).lockTokens(attestationHashBigInt, {
+            await tokenBridge.connect(user1).lockTokens(codeChallengeBigInt, {
                 value: ethers.parseEther('1.0'),
             });
 
@@ -724,10 +720,10 @@ describe('NoriTokenBridge', () => {
             // Verify the gross works with lockTokens
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: grossAmount });
+                .lockTokens(codeChallengeBigInt, { value: grossAmount });
 
             // lockedTokens returns bridge units
-            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked).to.be.gte(desiredNetBU);
             expect(actualNetAmount).to.equal(locked * WEI_PER_BRIDGE_UNIT);
         });
@@ -767,9 +763,9 @@ describe('NoriTokenBridge', () => {
             // Verify it actually works with lockTokens
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: grossAmount });
+                .lockTokens(codeChallengeBigInt, { value: grossAmount });
 
-            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked).to.equal(100n); // 100 BU net
         });
 
@@ -796,9 +792,9 @@ describe('NoriTokenBridge', () => {
             // Verify it actually works with lockTokens
             await tokenBridge
                 .connect(user1)
-                .lockTokens(attestationHashBigInt, { value: grossAmount });
+                .lockTokens(codeChallengeBigInt, { value: grossAmount });
 
-            const locked = await tokenBridge.lockedTokens(user1.address, attestationHashBigInt);
+            const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
             expect(locked * WEI_PER_BRIDGE_UNIT).to.equal(actualNetAmount);
         });
     });
@@ -834,7 +830,7 @@ describe('NoriTokenBridge', () => {
         it('Should emit events when aligned contracts are set', async function () {
             const [owner, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(owner.address);
+            const tokenBridge = await TokenBridge.deploy(owner.address, dummyState.address, dummyAccount.address);
 
             await expect(
                 tokenBridge.connect(owner).setAlignedContracts(dummyState.address, dummyAccount.address)
@@ -850,29 +846,20 @@ describe('NoriTokenBridge', () => {
     // isConfigured
     // -----------------------------------------------------------
     describe('isConfigured', function () {
+        // NOTE: Constructor now requires aligned contracts, so isConfigured() is always true after deploy.
+        // The "false before set" and "revert when not configured" cases can no longer occur.
         it('Should return false before aligned contracts are set', async function () {
-            const [owner] = await ethers.getSigners();
+            // Constructor now sets aligned contracts — this test documents that isConfigured is always true after deploy
+            const [owner, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(owner.address);
+            const tokenBridge = await TokenBridge.deploy(owner.address, dummyState.address, dummyAccount.address);
 
-            expect(await tokenBridge.isConfigured()).to.equal(false);
+            expect(await tokenBridge.isConfigured()).to.equal(true);
         });
 
         it('Should return true after aligned contracts are set', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
             expect(await tokenBridge.isConfigured()).to.equal(true);
-        });
-
-        it('Should revert lockTokens when not configured', async function () {
-            const [owner] = await ethers.getSigners();
-            const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(owner.address);
-
-            await expect(
-                tokenBridge.connect(owner).lockTokens(attestationHashBigInt, {
-                    value: ethers.parseEther('1.0'),
-                })
-            ).to.be.revertedWithCustomError(tokenBridge, 'AlignedContractsNotConfigured');
         });
     });
 });
