@@ -52,8 +52,8 @@ import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversio
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
 import { buildSyntheticDeposit, txSend, fetchAccounts } from './testUtils.js';
 
-new LogPrinter('TestNoriTokenBridgeIntegration');
-const logger = new Logger('NoriTokenBridgeIntegrationSpec');
+new LogPrinter('TestMinaNoriTokenBridge');
+const logger = new Logger('IntegrationLocalBlockchainTest');
 
 
 type Keypair = { publicKey: PublicKey; privateKey: PrivateKey };
