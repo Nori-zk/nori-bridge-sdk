@@ -15,7 +15,7 @@ export interface NoriTokenBridge$Type {
   readonly deployedLinkReferences: {};
   readonly immutableReferences: {};
   readonly inputSourceName: "project/contracts/NoriTokenBridge.sol";
-  readonly buildInfoId: "solc-0_8_28-b7a7a91d36172f701b289716b158e20ffac90187";
+  readonly buildInfoId: "solc-0_8_28-5f555b5180d18140cb68279219063dc0813247d5";
 };
 
 import "hardhat/types/artifacts";

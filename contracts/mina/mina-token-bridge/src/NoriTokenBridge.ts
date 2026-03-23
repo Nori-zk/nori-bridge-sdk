@@ -17,7 +17,8 @@ import {
     type DeployArgs,
     UInt8,
     Bytes,
-    Struct
+    Struct,
+    Reducer
 } from 'o1js';
 // NodeProofLeft must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -74,15 +75,16 @@ export interface NoriTokenControllerDeployProps extends Exclude<
 }
 
 export class BurnEvent extends Struct({
-  from: PublicKey,
-  amount: UInt64,
-  receiverEth: Field
+    from: PublicKey,
+    amount: UInt64,
+    receiverEth: Field
 }) { }
+
+class DepositRootAction extends Field { }
 
 export class NoriTokenBridge
     extends TokenContract
-    implements FungibleTokenAdminBase
-{
+    implements FungibleTokenAdminBase {
     @state(PublicKey) adminPublicKey = State<PublicKey>();
     @state(PublicKey) tokenBaseAddress = State<PublicKey>();
     @state(Field) storageVKHash = State<Field>();
@@ -117,9 +119,11 @@ export class NoriTokenBridge
     @state(Field) depositRoot14 = State<Field>(); // 27
     @state(Field) depositRoot15 = State<Field>();
 
-  readonly events = {
-    Burn: BurnEvent
-  };
+    readonly events = {
+        Burn: BurnEvent
+    };
+    reducer = Reducer({ actionType: DepositRootAction });
+
     private windowOfSlots() {
         return [
             this.depositRoot0,
@@ -397,6 +401,58 @@ export class NoriTokenBridge
         this.latestHeliusStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
+    }
+
+    // TODO remove for produc
+    @method async adminSetDepositRoot(depositRoot: Field) {
+        await this.ensureAdminSignature();
+
+        let counter = this.counter.getAndRequireEquals();
+        const windowOfSlots = this.windowOfSlots();
+
+        for (let i = 0; i < this.counterMod; i++) {
+            const index = new Field(i);
+            const slot = windowOfSlots[i];
+            const slotValue = slot.getAndRequireEquals();
+            slot.set(
+                Provable.if(index.equals(counter), Field, depositRoot, slotValue)
+            );
+        }
+
+        counter = counter.add(1);
+        counter = Provable.if(
+            counter.greaterThanOrEqual(this.counterModField),
+            new Field(0),
+            counter
+        );
+        this.counter.set(counter);
+    }
+
+    // TODO remove for produc
+    @method async adminDispatchDepositRoot(depositRoot: Field) {
+        await this.ensureAdminSignature();
+        this.latestVerifiedContractDepositsRoot.set(depositRoot);
+        this.reducer.dispatch(depositRoot);
+
+        // let counter = this.counter.getAndRequireEquals();
+        // const windowOfSlots = this.windowOfSlots();
+
+        // for (let i = 0; i < this.counterMod; i++) {
+        //     const index = new Field(i);
+        //     const slot = windowOfSlots[i];
+        //     const slotValue = slot.getAndRequireEquals();
+        //     slot.set(
+        //         Provable.if(index.equals(counter), Field, depositRoot, slotValue)
+        //     );
+        // }
+
+        // counter = counter.add(1);
+        // counter = Provable.if(
+        //     counter.greaterThanOrEqual(this.counterModField),
+        //     new Field(0),
+        //     counter
+        // );
+        // this.counter.set(counter);
     }
 
     private async ensureAdminSignature() {
