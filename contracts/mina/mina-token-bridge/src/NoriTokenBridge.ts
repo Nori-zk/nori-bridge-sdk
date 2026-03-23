@@ -63,6 +63,47 @@ export type FungibleTokenAdminBase = SmartContract & {
     canResume(): Promise<Bool>;
     canChangeVerificationKey(vk: VerificationKey): Promise<Bool>;
 };
+// ---------------------------------------------------------------------------
+// Action hash-chain helpers (match Mina's internal Poseidon-based action hashing)
+// See: o1js/src/lib/mina/v1/events.ts — Actions.pushEvent / updateSequenceState
+// ---------------------------------------------------------------------------
+function poseidonInitialState(): [Field, Field, Field] {
+    return [Field(0), Field(0), Field(0)];
+}
+function poseidonSalt(prefix: string): [Field, Field, Field] {
+    // Encode prefix string as a single Field (same as o1js prefixToField)
+    const bytes = new TextEncoder().encode(prefix);
+    let acc = 0n;
+    for (let i = bytes.length - 1; i >= 0; i--) {
+        acc = acc * 256n + BigInt(bytes[i]);
+    }
+    return Poseidon.update(poseidonInitialState(), [Field(acc)]);
+}
+function hashWithPrefix(prefix: string, input: Field[]): Field {
+    return Poseidon.update(poseidonSalt(prefix), input)[0];
+}
+
+/** Hash of an empty inner action list: salt('MinaZkappActionsEmpty')[0] */
+const emptyActionsHash = poseidonSalt('MinaZkappActionsEmpty')[0];
+
+/**
+ * Compute the inner action-list hash for a single-action transaction.
+ * Matches: Actions.pushEvent(Actions.empty(), [actionField])
+ *   = hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, hashWithPrefix('MinaZkappEvent******', [action])])
+ */
+function singleActionInnerHash(action: Field): Field {
+    const eventHash = hashWithPrefix('MinaZkappEvent******', [action]);
+    return hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, eventHash]);
+}
+
+/**
+ * Advance the outer action-state by one transaction (which contained one action).
+ * Matches: Actions.updateSequenceState(state, innerHash)
+ *   = hashWithPrefix('MinaZkappSeqEvents**', [state, innerHash])
+ */
+function advanceActionState(state: Field, innerHash: Field): Field {
+    return hashWithPrefix('MinaZkappSeqEvents**', [state, innerHash]);
+}
 
 export interface NoriTokenControllerDeployProps extends Exclude<
     DeployArgs,
@@ -94,56 +135,21 @@ export class NoriTokenBridge
     @state(UInt64) latestHead = State<UInt64>();
     @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
-    @state(Field) latestVerifiedContractDepositsRoot = State<Field>(); // 2 + 2 + 7 = 11
+    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
 
-    private counterMod = 16;
-    private counterModField = new Field(this.counterMod);
+    /** Action-state hash marking the start of the valid deposit-root window. */
+    @state(Field) windowStart = State<Field>();
+    /** Number of deposit-root actions currently in the window (max MAX_WINDOW). */
+    @state(Field) windowSize = State<Field>();
+    /** Maximum number of deposit roots kept in the action window. */
+    private MAX_WINDOW = new Field(32);
     private MIN_BRIDGE_AMOUNT = new Field(100); //TODO check Minimum burn amount in bridge units
     //  (e.g., if 1 bridge unit = 1e12 wei, then this would represent 100 bridge units or 1e14 wei)
-    @state(Field) counter = State<Field>();
-
-    @state(Field) depositRoot0 = State<Field>();
-    @state(Field) depositRoot1 = State<Field>();
-    @state(Field) depositRoot2 = State<Field>();
-    @state(Field) depositRoot3 = State<Field>();
-    @state(Field) depositRoot4 = State<Field>();
-    @state(Field) depositRoot5 = State<Field>();
-    @state(Field) depositRoot6 = State<Field>();
-    @state(Field) depositRoot7 = State<Field>();
-    @state(Field) depositRoot8 = State<Field>();
-    @state(Field) depositRoot9 = State<Field>();
-    @state(Field) depositRoot10 = State<Field>();
-    @state(Field) depositRoot11 = State<Field>();
-    @state(Field) depositRoot12 = State<Field>();
-    @state(Field) depositRoot13 = State<Field>();
-    @state(Field) depositRoot14 = State<Field>(); // 27
-    @state(Field) depositRoot15 = State<Field>();
 
     readonly events = {
         Burn: BurnEvent
     };
     reducer = Reducer({ actionType: DepositRootAction });
-
-    private windowOfSlots() {
-        return [
-            this.depositRoot0,
-            this.depositRoot1,
-            this.depositRoot2,
-            this.depositRoot3,
-            this.depositRoot4,
-            this.depositRoot5,
-            this.depositRoot6,
-            this.depositRoot7,
-            this.depositRoot8,
-            this.depositRoot9,
-            this.depositRoot10,
-            this.depositRoot11,
-            this.depositRoot12,
-            this.depositRoot13,
-            this.depositRoot14,
-            this.depositRoot15,
-        ];
-    }
 
     async deploy(props: NoriTokenControllerDeployProps) {
         await super.deploy(props);
@@ -174,6 +180,10 @@ export class NoriTokenBridge
         this.latestHeliusStoreInputHashLowerBytes.set(
             props.newStoreHash.lowerBytesField
         );
+
+        // Action window starts empty
+        this.windowStart.set(Reducer.initialActionState);
+        this.windowSize.set(Field(0));
     }
 
     approveBase(_forest: AccountUpdateForest): Promise<void> {
@@ -232,7 +242,7 @@ export class NoriTokenBridge
         piDigest.assertEquals(proof.publicOutput.rightOut);
     }
 
-    @method async update(input: EthInput, proof: NodeProofLeft) {
+    @method async update(input: EthInput, proof: NodeProofLeft, oldestAction: Field) {
         // Verify transition proof.
         this.ethVerify(input, proof);
         const proofHead = input.outputSlot;
@@ -322,32 +332,8 @@ export class NoriTokenBridge
             verifiedContractDepositsRootField
         );
 
-        // Set verifiedContractDepositsRootField into window of slots
-        let counter = this.counter.getAndRequireEquals();
-        const windowOfSlots = this.windowOfSlots();
-
-        // Update the current ring buffer slot and set the old to their contemporary values.
-        for (let i = 0; i < this.counterMod; i++) {
-            const index = new Field(i);
-            const slot = windowOfSlots[i];
-            const slotValue = slot.getAndRequireEquals();
-            const newSlotValue = Provable.if(
-                index.equals(counter),
-                Field,
-                verifiedContractDepositsRootField,
-                slotValue
-            );
-            slot.set(newSlotValue);
-        }
-
-        // Increment the ring buffer index (counter) and reset it to zero if we reach the mod
-        counter = counter.add(1);
-        counter = Provable.if(
-            counter.greaterThanOrEqual(this.counterModField),
-            new Field(0),
-            counter
-        );
-        this.counter.set(counter);
+        // Dispatch + window eviction
+        this.dispatchAndEvict(verifiedContractDepositsRootField, oldestAction);
     }
 
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
@@ -404,55 +390,40 @@ export class NoriTokenBridge
     }
 
     // TODO remove for produc
-    @method async adminSetDepositRoot(depositRoot: Field) {
+    @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
         await this.ensureAdminSignature();
-
-        let counter = this.counter.getAndRequireEquals();
-        const windowOfSlots = this.windowOfSlots();
-
-        for (let i = 0; i < this.counterMod; i++) {
-            const index = new Field(i);
-            const slot = windowOfSlots[i];
-            const slotValue = slot.getAndRequireEquals();
-            slot.set(
-                Provable.if(index.equals(counter), Field, depositRoot, slotValue)
-            );
-        }
-
-        counter = counter.add(1);
-        counter = Provable.if(
-            counter.greaterThanOrEqual(this.counterModField),
-            new Field(0),
-            counter
-        );
-        this.counter.set(counter);
+        this.dispatchAndEvict(depositRoot, oldestAction);
     }
 
-    // TODO remove for produc
-    @method async adminDispatchDepositRoot(depositRoot: Field) {
-        await this.ensureAdminSignature();
-        this.latestVerifiedContractDepositsRoot.set(depositRoot);
+    /**
+     * Dispatch a new deposit root action and evict the oldest if the window is full.
+     *
+     * When the window has fewer than MAX_WINDOW actions, the new root is simply
+     * appended (oldestAction is ignored — can be Field(0)).
+     *
+     * When the window is full, the caller must provide the oldest action as a
+     * witness. The contract verifies the hash chain:
+     *   advanceActionState(windowStart, singleActionInnerHash(oldestAction))
+     * and advances windowStart by one step, keeping the window size constant.
+     */
+    private dispatchAndEvict(depositRoot: Field, oldestAction: Field) {
+        // Dispatch the new deposit root as an action
         this.reducer.dispatch(depositRoot);
 
-        // let counter = this.counter.getAndRequireEquals();
-        // const windowOfSlots = this.windowOfSlots();
+        let windowStart = this.windowStart.getAndRequireEquals();
+        let windowSize = this.windowSize.getAndRequireEquals();
 
-        // for (let i = 0; i < this.counterMod; i++) {
-        //     const index = new Field(i);
-        //     const slot = windowOfSlots[i];
-        //     const slotValue = slot.getAndRequireEquals();
-        //     slot.set(
-        //         Provable.if(index.equals(counter), Field, depositRoot, slotValue)
-        //     );
-        // }
+        const isFull = windowSize.greaterThanOrEqual(this.MAX_WINDOW);
 
-        // counter = counter.add(1);
-        // counter = Provable.if(
-        //     counter.greaterThanOrEqual(this.counterModField),
-        //     new Field(0),
-        //     counter
-        // );
-        // this.counter.set(counter);
+        // Compute the advanced windowStart by verifying the oldest action chains correctly.
+        // If isFull is false, this computation is ignored (oldestAction can be anything).
+        const innerHash = singleActionInnerHash(oldestAction);
+        const advancedStart = advanceActionState(windowStart, innerHash);
+
+        // Conditionally advance: if full, slide the window; otherwise keep start.
+        this.windowStart.set(Provable.if(isFull, advancedStart, windowStart));
+        // If full: evict 1 + add 1 = same size. If not full: size + 1.
+        this.windowSize.set(Provable.if(isFull, windowSize, windowSize.add(1)));
     }
 
     private async ensureAdminSignature() {
@@ -482,26 +453,20 @@ export class NoriTokenBridge
                 merkleTreeContractDepositAttestorInput
             );
 
-        // Read and constrain all deposit root slots from the rolling window.
-        const getAndRequiredContractDepositSlots = this.windowOfSlots().map(
-            (slotState) => slotState.getAndRequireEquals()
+        // Check membership in the action-based deposit-root window.
+        // Fetch actions from windowStart to current actionState, then reduce
+        // to check if any dispatched root matches the computed deposit slot root.
+        const windowStart = this.windowStart.getAndRequireEquals();
+        const actions = this.reducer.getActions({ fromActionState: windowStart });
+
+        const depositInWindow: Bool = this.reducer.reduce(
+            actions,
+            Bool,
+            (found: Bool, action: Field) => found.or(action.equals(contractDepositSlotRoot)),
+            Bool(false)
         );
 
-        // Check if the computed deposit slot root matches any root in the verified window.
-        // Once a match is found the accumulator stays true for all remaining iterations.
-        let depositInDepositWindowSlotSet = new Bool(false);
-        for (let i = 0; i < this.counterMod; i++) {
-            const currentSlotToCheck = getAndRequiredContractDepositSlots[i];
-            depositInDepositWindowSlotSet = Provable.if(
-                contractDepositSlotRoot.equals(currentSlotToCheck),
-                Bool,
-                new Bool(true),
-                depositInDepositWindowSlotSet
-            );
-        }
-
-        // Assert that at least one slot in the window matched — reject mint if the deposit root was never verified.
-        depositInDepositWindowSlotSet.assertTrue(
+        depositInWindow.assertTrue(
             'The provided contract deposit and witness are not in the stored window of verified contract deposits root, and thus cannot be used to mint.'
         );
 
