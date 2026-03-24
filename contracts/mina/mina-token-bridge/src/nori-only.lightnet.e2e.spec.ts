@@ -171,7 +171,7 @@ describe('e2e', () => {
 
             logger.log('Locking eth tokens');
             const lockTokensTimer = createTimer();
-            const depositAmount = 0.000001;
+            const depositAmount = 0.0001; // 100 BU (minimum lock amount)
             logger.log('Deposit amount', depositAmount);
             const depositBlockNumber = await lockTokens(
                 codeChallengeSCRAMField,
