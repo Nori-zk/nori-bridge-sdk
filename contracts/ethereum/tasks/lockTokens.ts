@@ -87,7 +87,7 @@ export const lockTokens = task('lockTokens', 'Lock tokens with code challenge an
 
             const receipt = await tx.wait();
             if (!receipt) throw new Error('No tx receipt was generated');
-            logger.log(`Block: ${receipt.blockNumber}`);
+            logger.log(`Transaction included in block number: ${receipt.blockNumber}`);
 
             const lockEvent = receipt.logs
                 .map((log: { topics: string[]; data: string }) => { try { return tokenBridge.interface.parseLog(log); } catch { return null; } })
