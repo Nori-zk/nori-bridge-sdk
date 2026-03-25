@@ -45,22 +45,14 @@ export function getStagingEnv() {
 export function validateEnv(): {
     ethPrivateKey: string;
     ethRpcUrl: string;
-    noriETHBridgeAddressHex: string;
-    noriTokenBridgeAddressBase58: string;
-    minaRpcUrl: string;
     minaSenderPrivateKeyBase58: string;
-    noriTokenBaseAddressBase58: string;
 } {
     const errors: string[] = [];
 
     const {
         ETH_PRIVATE_KEY,
         ETH_RPC_URL,
-        NORI_ETH_TOKEN_BRIDGE_ADDRESS,
-        NORI_MINA_TOKEN_BRIDGE_ADDRESS,
-        MINA_RPC_NETWORK_URL,
         MINA_SENDER_PRIVATE_KEY,
-        NORI_MINA_TOKEN_BASE_ADDRESS,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -71,39 +63,6 @@ export function validateEnv(): {
 
     if (!ETH_RPC_URL || !/^https?:\/\//.test(ETH_RPC_URL)) {
         errors.push('ETH_RPC_URL missing or invalid (expected http(s) URL)');
-    }
-
-    if (
-        !NORI_ETH_TOKEN_BRIDGE_ADDRESS ||
-        !/^0x[a-fA-F0-9]{40}$/.test(NORI_ETH_TOKEN_BRIDGE_ADDRESS)
-    ) {
-        errors.push(
-            'NORI_ETH_TOKEN_BRIDGE_ADDRESS missing or invalid (expected 0x-prefixed 40 hex chars)'
-        );
-    }
-
-    if (
-        !NORI_MINA_TOKEN_BRIDGE_ADDRESS ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_MINA_TOKEN_BRIDGE_ADDRESS)
-    ) {
-        errors.push(
-            'NORI_MINA_TOKEN_BRIDGE_ADDRESS missing or invalid (expected Base58 string)'
-        );
-    }
-
-    if (
-        !NORI_MINA_TOKEN_BASE_ADDRESS ||
-        !/^[1-9A-HJ-NP-Za-km-z]+$/.test(NORI_MINA_TOKEN_BASE_ADDRESS)
-    ) {
-        errors.push(
-            'NORI_MINA_TOKEN_BASE_ADDRESS missing or invalid (expected Base58 string)'
-        );
-    }
-
-    if (!MINA_RPC_NETWORK_URL || !/^https?:\/\//.test(MINA_RPC_NETWORK_URL)) {
-        errors.push(
-            'MINA_RPC_NETWORK_URL missing or invalid (expected http(s) URL)'
-        );
     }
 
     if (
@@ -123,10 +82,6 @@ export function validateEnv(): {
     return {
         ethPrivateKey: ETH_PRIVATE_KEY,
         ethRpcUrl: ETH_RPC_URL,
-        noriETHBridgeAddressHex: NORI_ETH_TOKEN_BRIDGE_ADDRESS,
-        noriTokenBridgeAddressBase58: NORI_MINA_TOKEN_BRIDGE_ADDRESS,
-        noriTokenBaseAddressBase58: NORI_MINA_TOKEN_BASE_ADDRESS,
-        minaRpcUrl: MINA_RPC_NETWORK_URL,
         minaSenderPrivateKeyBase58: MINA_SENDER_PRIVATE_KEY,
     };
 }

@@ -53,7 +53,7 @@ import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js'
 // SCRAMWitness must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SCRAMWitness, verifyCodeChallenge } from './scram.js';
-import { MAX_WINDOW, MIN_BRIDGE_BURN_AMOUNT } from './NoriTokenBridge.const.js';
+import { maxWindow, minBridgeBurnAmount } from './NoriTokenBridge.const.js';
 
 const logger = new Logger('NoriTokenController');
 
@@ -141,14 +141,10 @@ export class NoriTokenBridge
 
     /** Action-state hash marking the start of the valid deposit-root window. */
     @state(Field) windowStart = State<Field>();
-    /** Number of deposit-root actions currently in the window (max MAX_WINDOW). */
+    /** Number of deposit-root actions currently in the window (max maxWindow). */
     @state(Field) windowSize = State<Field>();
     /** The Ethereum contract address associated with this token bridge. */
     @state(Field) ethTokenBridgeAddress = State<Field>();
-    /** Maximum number of deposit roots kept in the action window. */
-    private MAX_WINDOW = MAX_WINDOW;
-    private MIN_BRIDGE_BURN_AMOUNT = MIN_BRIDGE_BURN_AMOUNT; //TODO check Minimum burn amount in bridge units
-    //  (e.g., if 1 bridge unit = 1e12 wei, then this would represent 100 bridge units or 1e14 wei)
 
     readonly events = {
         Burn: BurnEvent
@@ -411,7 +407,7 @@ export class NoriTokenBridge
     /**
      * Dispatch a new deposit root action and evict the oldest if the window is full.
      *
-     * When the window has fewer than MAX_WINDOW actions, the new root is simply
+     * When the window has fewer than maxWindow actions, the new root is simply
      * appended (oldestAction is ignored — can be Field(0)).
      *
      * When the window is full, the caller must provide the oldest action as a
@@ -426,7 +422,7 @@ export class NoriTokenBridge
         let windowStart = this.windowStart.getAndRequireEquals();
         let windowSize = this.windowSize.getAndRequireEquals();
 
-        const isFull = windowSize.greaterThanOrEqual(this.MAX_WINDOW);
+        const isFull = windowSize.greaterThanOrEqual(maxWindow);
 
         // Compute the advanced windowStart by verifying the oldest action chains correctly.
         // If isFull is false, this computation is ignored (oldestAction can be anything).
@@ -477,7 +473,7 @@ export class NoriTokenBridge
             Bool,
             (found: Bool, action: Field) => found.or(action.equals(contractDepositSlotRoot)),
             Bool(false),
-            { maxUpdatesWithActions: this.MAX_WINDOW }
+            { maxUpdatesWithActions: maxWindow }
         );
 
         depositInWindow.assertTrue(
@@ -549,7 +545,7 @@ export class NoriTokenBridge
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
 
         const controllerTokenId = this.deriveTokenId();
-        amountToBurn.assertGreaterThan(this.MIN_BRIDGE_BURN_AMOUNT, "Amount to burn must be greater than MIN_BRIDGE_AMOUNT");
+        amountToBurn.assertGreaterThan(minBridgeBurnAmount, "Amount to burn must be greater than MIN_BRIDGE_AMOUNT");
         // maintain Storage
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
         storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds

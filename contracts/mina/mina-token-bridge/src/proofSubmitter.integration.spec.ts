@@ -22,6 +22,8 @@ new LogPrinter('TestNoriTokenBridge');
 process.env.MINA_NETWORK = process.env.MINA_NETWORK || 'lightnet';
 process.env.MINA_RPC_NETWORK_URL =
     process.env.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
+process.env.MINA_ARCHIVE_RPC_URL =
+    process.env.MINA_ARCHIVE_RPC_URL || 'http://localhost:8282';
 
 const logger = new Logger('JestNoriTokenBridge');
 

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { type NetworkId, PrivateKey } from 'o1js';
+import { PrivateKey } from 'o1js';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
     getBridgeStateTopic$,
@@ -17,7 +17,7 @@ import {
 import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { validateEnv } from './testUtils.js';
+import { getStagingEnv, validateEnv } from './testUtils.js';
 import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 // https://faucet.minaprotocol.com/
@@ -25,7 +25,24 @@ import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2EDevnetSpec');
 
+const {
+    NORI_ETH_TOKEN_BRIDGE_ADDRESS: noriETHBridgeAddressHex,
+    NORI_MINA_TOKEN_BRIDGE_ADDRESS: noriTokenBridgeAddressBase58,
+    NORI_MINA_TOKEN_BASE_ADDRESS: noriTokenBaseAddressBase58,
+    MINA_RPC_NETWORK_URL: minaRpcUrl,
+    MINA_ARCHIVE_RPC_URL: minaArchiveRpcUrl,
+    MINA_RPC_NETWORK_ID: minaRpcNetworkId,
+    NORI_WSS_URL: noriWssUrl,
+    NORI_PCS_URL: noriPcsUrl,
+} = getStagingEnv();
+
 describe('e2e_testnet', () => {
+
+    const minaConfig = {
+        networkId: minaRpcNetworkId,
+        mina: minaRpcUrl,
+        archive: minaArchiveRpcUrl,
+    };
 
     test('e2e_complete_testnet', async () => {
         let depositProcessingStatusSubscription: Subscription;
@@ -34,11 +51,7 @@ describe('e2e_testnet', () => {
             const {
                 ethPrivateKey,
                 ethRpcUrl,
-                noriETHBridgeAddressHex,
-                noriTokenBridgeAddressBase58,
-                minaRpcUrl,
                 minaSenderPrivateKeyBase58,
-                noriTokenBaseAddressBase58,
             } = validateEnv();
 
             const minaSenderPrivateKey = PrivateKey.fromBase58(
@@ -46,12 +59,6 @@ describe('e2e_testnet', () => {
             );
             const minaSenderPublicKey = minaSenderPrivateKey.toPublicKey();
             const minaSenderPublicKeyBase58 = minaSenderPublicKey.toBase58();
-
-            // Define litenet mina config
-            const minaConfig = {
-                networkId: 'testnet' as NetworkId,
-                mina: minaRpcUrl,
-            };
 
             // GET ETH WALLET **************************************************
             logger.log('Getting ETH wallet.');
@@ -115,7 +122,7 @@ describe('e2e_testnet', () => {
             // Establish a connection to the bridge.
             logger.log('Establishing bridge connection and topics.');
             const { bridgeSocket$, bridgeSocketConnectionState$ } =
-                getReconnectingBridgeSocket$('wss://wss.mesa.nori.it.com'); // FIXME hardcoding
+                getReconnectingBridgeSocket$(noriWssUrl);
 
             // Subscribe to the sockets connection status.
             bridgeSocketConnectionState$.subscribe({
@@ -260,7 +267,7 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
                     depositBlockNumber,
-                    'https://pcs.mesa.nori.it.com' // FIXME hardcoding
+                    noriPcsUrl
                 );
             logger.log('Computed deposit witness.');
 

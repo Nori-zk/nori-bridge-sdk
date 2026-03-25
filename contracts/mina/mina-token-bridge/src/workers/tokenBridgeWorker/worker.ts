@@ -141,7 +141,7 @@ export class TokenBridgeWorker {
     async minaSetup(options: {
         networkId?: NetworkId;
         mina: string | string[];
-        archive?: string | string[];
+        archive: string | string[];
         lightnetAccountManager?: string;
         bypassTransactionLimits?: boolean;
         minaDefaultHeaders?: HeadersInit;

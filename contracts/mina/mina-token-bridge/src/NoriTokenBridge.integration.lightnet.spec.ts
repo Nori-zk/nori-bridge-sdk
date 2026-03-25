@@ -128,7 +128,7 @@ describe('NoriTokenBridge', () => {
             networkId: 'testnet' as NetworkId,
             mina: process.env.MINA_RPC_NETWORK_URL ?? 'http://localhost:8080/graphql',
             // accountManager: process.env.MINA_ACCOUNT_MANAGER_URL ?? 'http://localhost:8181',
-            archive: process.env.MINA_ARCHIVE_URL ?? 'http://localhost:8282',
+            archive: process.env.MINA_ARCHIVE_RPC_URL ?? 'http://localhost:8282',
         });
         Mina.setActiveInstance(Network);
 
@@ -634,7 +634,7 @@ describe('NoriTokenBridge', () => {
         let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
-        const ALICE_SCRAM_MSG = 'NoriZK';
+        const aliceScramMsg = 'NoriZK';
 
         let dave: Keypair;
         let allDispatchedRoots: Field[] = [];
@@ -647,7 +647,7 @@ describe('NoriTokenBridge', () => {
 
             const result = buildSyntheticDeposit(
                 alice.privateKey,
-                ALICE_SCRAM_MSG,
+                aliceScramMsg,
                 200n
             );
             aliceDepositAttestationInput = result.merkleInput;
@@ -703,7 +703,7 @@ describe('NoriTokenBridge', () => {
                 // Same SCRAM key+message → same codeChallenge, but different value → different root.
                 const { merkleInput: aliceDeposit2, scramWitness: aliceSCRAM2 } = buildSyntheticDeposit(
                     alice.privateKey,
-                    ALICE_SCRAM_MSG,
+                    aliceScramMsg,
                     500n
                 );
 

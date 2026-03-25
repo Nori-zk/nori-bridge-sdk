@@ -44,6 +44,7 @@ export class NoriTokenBridgeSubmitter {
     readonly noriStorageInterfaceVerificationKey: VerificationKey;
     readonly #testMode: boolean;
     protected readonly minaRPCNetworkUrl: string;
+    protected readonly minaArchiveRPCUrl: string;
     get #noriTokenBridgeVerificationKey() {
         return this.noriTokenBridgeVerificationKey;
     }
@@ -57,6 +58,7 @@ export class NoriTokenBridgeSubmitter {
         const network = process.env.MINA_NETWORK as string;
         const tokenBridgePrivateKeyBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY as string;
         const networkUrl = process.env.MINA_RPC_NETWORK_URL as string;
+        const archiveUrl = process.env.MINA_ARCHIVE_RPC_URL as string;
 
         if (!senderPrivateKeyBase58)
             errors.push('MINA_SENDER_PRIVATE_KEY is required');
@@ -72,6 +74,7 @@ export class NoriTokenBridgeSubmitter {
         }
 
         if (!networkUrl) errors.push('MINA_RPC_NETWORK_URL is required');
+        if (!archiveUrl) errors.push('MINA_ARCHIVE_RPC_URL is required');
 
         if (!tokenBridgePrivateKeyBase58)
             errors.push(
@@ -88,6 +91,7 @@ export class NoriTokenBridgeSubmitter {
         this.#txFee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
         this.#testMode = process.env.MINA_NETWORK === 'lightnet';
         this.minaRPCNetworkUrl = networkUrl;
+        this.minaArchiveRPCUrl = archiveUrl;
 
         logger.log('Loaded constants from: .env');
     }
@@ -100,6 +104,7 @@ export class NoriTokenBridgeSubmitter {
         const Network = Mina.Network({
             networkId,
             mina: this.minaRPCNetworkUrl,
+            archive: this.minaArchiveRPCUrl,
         });
         Mina.setActiveInstance(Network);
         logger.log('Finished Mina network setup.');

@@ -4,7 +4,7 @@
 
 import { fetchAccount, Field, Reducer } from 'o1js';
 import type { NoriTokenBridge } from './NoriTokenBridge.js';
-import { MAX_WINDOW } from './NoriTokenBridge.const.js';
+import { maxWindow } from './NoriTokenBridge.const.js';
 
 // ---------------------------------------------------------------------------
 // Deposit-root window helpers (reusable for client code)
@@ -50,6 +50,6 @@ export async function getOldestActionForEviction(
     bridge: NoriTokenBridge
 ): Promise<Field> {
     const windowRoots = await fetchWindowRoots(bridge);
-    if (windowRoots.length < MAX_WINDOW) return Field(0);
+    if (windowRoots.length < maxWindow) return Field(0);
     return windowRoots[0];
 }

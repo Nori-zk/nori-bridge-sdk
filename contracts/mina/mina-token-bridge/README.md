@@ -170,6 +170,7 @@ Reads the following env vars (throws if any are missing):
 - `MINA_SENDER_PRIVATE_KEY` — private key of the transaction sender
 - `MINA_NETWORK` — `mainnet` | `devnet` | `lightnet`
 - `MINA_RPC_NETWORK_URL` — Mina node GraphQL endpoint
+- `MINA_ARCHIVE_RPC_URL` — Mina archive node endpoint (required for fetching actions)
 - `MINA_TX_FEE` — transaction fee in MINA (default `0.1`)
 - `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY` — private key of the deployed NoriTokenBridge account
 - `NORI_MINA_TOKEN_BASE_PRIVATE_KEY` — private key of the deployed FungibleToken account
@@ -182,7 +183,7 @@ An optional `FileSystemCacheConfig` argument can be passed to use an on-disk o1j
 - **`compileContracts()`** — compiles `NoriStorageInterface`, `FungibleToken`, and `NoriTokenBridge` in dependency order, verifying each against the baked integrity hashes. Populates `noriStorageInterfaceVerificationKey`, `fungibleTokenVerificationKey`, and `noriTokenBridgeVerificationKey` on the instance.
 - **`createProof(arg: CreateProofArgument)`** — decodes a `sp1PlonkProof` (raw SP1/Plonk consensus proof) and `conversionOutputProof` (converted node proof) into `{ ethInput, rawProof }`. No ZK computation — `ethVerify` is inlined into `NoriTokenBridge.update`.
 - **`submit({ ethInput, rawProof })`** — fetches on-chain accounts, builds and proves the `NoriTokenBridge.update` transaction, signs with `MINA_SENDER_PRIVATE_KEY`, and sends it. Returns `{ txId, txHash }`.
-- **`deployContract(storeHash: Bytes32)`** — deploys `NoriTokenBridge` and `FungibleToken` in a single transaction. Throws if `MINA_NETWORK` is not `lightnet` — use `npm run deploy` for non-test deployments.
+- **`deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field)`** — lightnet only. Deploys `NoriTokenBridge` in a single transaction. `ethTokenBridgeAddress` is the Ethereum token bridge contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthTokenBridgeAddressFromSP1Proof`. Throws if `MINA_NETWORK` is not `lightnet` — see [How to deploy](#how-to-deploy) for non-test deployments.
 
 ## How to build
 
@@ -196,6 +197,7 @@ Create a `.env` file in `contracts/mina/mina-token-bridge/`:
 
 ```
 MINA_RPC_NETWORK_URL=
+MINA_ARCHIVE_RPC_URL=
 MINA_SENDER_PRIVATE_KEY=
 MINA_TX_FEE=
 MINA_NETWORK=
@@ -212,6 +214,7 @@ NORI_MINA_TOKEN_BRIDGE_ALLOW_VK_UPDATE=
 ```
 
 - **MINA_RPC_NETWORK_URL**: Mina network RPC endpoint URL.
+- **MINA_ARCHIVE_RPC_URL**: Mina archive node endpoint. Required for fetching on-chain actions (e.g. deposit-root window).
 - **MINA_SENDER_PRIVATE_KEY**: private key of the transaction sender.
 - **MINA_TX_FEE**: transaction fee (e.g. `0.1`). Defaults to `0.1` if not set.
 - **MINA_NETWORK**: target network (`mainnet`, `devnet`, `lightnet`).
@@ -313,6 +316,8 @@ NORI_MINA_TOKEN_BRIDGE_ALLOW_VK_UPDATE=false
 ```
 
 Copy these values into your `.env` file.
+
+After deploying, update `src/env.ts` with the deployed contract addresses, token IDs, and RPC URLs for the target network and environment. This file is the source of truth for consumers of the `env` export — clients, frontends, and tooling all resolve their configuration from it.
 
 ## How to update a store hash
 

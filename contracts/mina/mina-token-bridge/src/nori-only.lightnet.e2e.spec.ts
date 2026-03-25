@@ -25,13 +25,14 @@ import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2ELitenetSpec');
 
-const { NORI_ETH_TOKEN_BRIDGE_ADDRESS } = getStagingEnv();
+const { NORI_ETH_TOKEN_BRIDGE_ADDRESS: ethTokenBridgeAddress } = getStagingEnv();
 
 describe('e2e', () => {
     // Define litenet mina config
     const minaConfig = {
         networkId: 'devnet' as NetworkId,
         mina: 'http://localhost:8080/graphql',
+        archive: 'http://localhost:8282',
     };
 
     let tokenBaseAddressBase58: string;
@@ -61,7 +62,7 @@ describe('e2e', () => {
                 noriTokenBridgePrivateKey.toBase58(),
                 tokenBasePrivateKey.toBase58(),
                 "FIXMETHISISTHEWRONGSTOREHASH",
-                NORI_ETH_TOKEN_BRIDGE_ADDRESS.slice(2),
+                ethTokenBridgeAddress.slice(2),
                 noriStorageInterfaceVerificationKeySafe,
                 0.1 * 1e9,
                 {

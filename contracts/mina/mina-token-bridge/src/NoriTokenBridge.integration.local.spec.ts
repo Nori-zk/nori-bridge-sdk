@@ -53,7 +53,7 @@ import {
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
 import { buildSyntheticDeposit, txSend, fetchAccounts } from './testUtils.js';
-import { MAX_WINDOW } from './NoriTokenBridge.const.js';
+import { maxWindow } from './NoriTokenBridge.const.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLocalBlockchainTest');
@@ -98,8 +98,8 @@ let rawProof4: RawProof;
 // Window rotation config
 // ---------------------------------------------------------------------------
 
-/** Dispatch MAX_WINDOW + 5 roots to exercise 5 evictions. */
-const WINDOW_ROTATION_COUNT = MAX_WINDOW + 5;
+/** Dispatch maxWindow + 5 roots to exercise 5 evictions. */
+const windowRotationCount = maxWindow + 5;
 
 
 let dave: { publicKey: PublicKey; privateKey: PrivateKey };
@@ -146,7 +146,7 @@ async function fetchAllDispatchedRoots(bridge: NoriTokenBridge): Promise<Field[]
  */
 async function getOldestActionForEviction(bridge: NoriTokenBridge): Promise<Field> {
     const windowRoots = await fetchWindowRoots(bridge);
-    if (windowRoots.length < MAX_WINDOW) return Field(0);
+    if (windowRoots.length < maxWindow) return Field(0);
     return windowRoots[0];
 }
 
@@ -585,12 +585,12 @@ describe('NoriTokenBridge', () => {
         let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
-        const ALICE_SCRAM_MSG = 'NoriZK';
+        const aliceScramMsg = 'NoriZK';
 
         beforeAll(async () => {
             const result = buildSyntheticDeposit(
                 alice.privateKey,
-                ALICE_SCRAM_MSG,
+                aliceScramMsg,
                 200n
             );
             aliceDepositAttestationInput = result.merkleInput;
@@ -646,7 +646,7 @@ describe('NoriTokenBridge', () => {
                 // Same SCRAM key+message → same codeChallenge, but different value → different root.
                 const { merkleInput: aliceDeposit2, scramWitness: aliceSCRAM2 } = buildSyntheticDeposit(
                     alice.privateKey,
-                    ALICE_SCRAM_MSG,
+                    aliceScramMsg,
                     500n
                 );
 
@@ -690,7 +690,7 @@ describe('NoriTokenBridge', () => {
         });
 
         // =================================================================
-        // Window rotation — WINDOW_ROTATION_COUNT roots, eviction after MAX_WINDOW
+        // Window rotation — windowRotationCount roots, eviction after maxWindow
         // =================================================================
         describe('Window Rotation', () => {
             test('window rotation: setup dave', async () => {
@@ -706,10 +706,10 @@ describe('NoriTokenBridge', () => {
                 logger.log(`Dave created. ${roots.length} roots in active window.`);
             }, 1_000_000);
 
-            // Dispatch WINDOW_ROTATION_COUNT roots.
+            // Dispatch windowRotationCount roots.
             // Mint for Dave every 10th root and on the last root.
-            for (let i = 1; i <= WINDOW_ROTATION_COUNT; i++) {
-                const shouldMint = i % 10 === 5 || i === WINDOW_ROTATION_COUNT;
+            for (let i = 1; i <= windowRotationCount; i++) {
+                const shouldMint = i % 10 === 5 || i === windowRotationCount;
 
                 if (shouldMint) {
                     test(`window rotation root #${i}: dispatch + mint for Dave`, async () => {
@@ -759,11 +759,11 @@ describe('NoriTokenBridge', () => {
                 }
             }
 
-            test('window should be capped at MAX_WINDOW', async () => {
+            test('window should be capped at maxWindow', async () => {
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 const windowSize = (await noriTokenBridge.windowSize.fetch())!;
-                assert.equal(windowSize.toBigInt(), BigInt(MAX_WINDOW), `Window size should be capped at ${MAX_WINDOW}`);
+                assert.equal(windowSize.toBigInt(), BigInt(maxWindow), `Window size should be capped at ${maxWindow}`);
 
                 const windowRoots = await fetchWindowRoots(noriTokenBridge);
                 const allRoots = await fetchAllDispatchedRoots(noriTokenBridge);
