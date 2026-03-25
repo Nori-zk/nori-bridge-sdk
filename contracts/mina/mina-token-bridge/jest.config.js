@@ -1,5 +1,8 @@
 /** @type {import('@ts-jest/dist/types').InitialOptionsTsJest} */
 export default {
+    globals: {
+        JEST_MINA_STAGING_CHAIN_NAME: process.env.JEST_MINA_STAGING_CHAIN_NAME ?? 'mina',
+    },
     verbose: true,
     preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',

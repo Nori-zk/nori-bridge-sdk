@@ -1,4 +1,5 @@
 import {
+    Bytes20,
     Bytes32,
     Bytes32FieldPair,
     CacheType,
@@ -129,6 +130,7 @@ export class TokenBridgeDeployerWorker {
         noriTokenBridgePrivateKeyBase58: string,
         tokenBasePrivateKeyBase58: string,
         storeHashHex: string,
+        ethTokenBridgeAddressHex: string,
         storageInterfaceVerificationKeySafe: {
             data: string;
             hashStr: string;
@@ -149,6 +151,7 @@ export class TokenBridgeDeployerWorker {
         const adminPublicKey = PublicKey.fromBase58(adminPublicKeyBase58);
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
         const senderPublicKey = senderPrivateKey.toPublicKey();
+        const ethTokenBridgeAddress = Bytes20.fromHex(ethTokenBridgeAddressHex).toField();
 
         const noriTokenBridgePrivateKey = PrivateKey.fromBase58(
             noriTokenBridgePrivateKeyBase58
@@ -184,6 +187,7 @@ export class TokenBridgeDeployerWorker {
                     tokenBaseAddress,
                     storageVKHash: storageInterfaceVerificationKey.hash,
                     newStoreHash,
+                    ethTokenBridgeAddress
                 });
 
                 await tokenBase.deploy({

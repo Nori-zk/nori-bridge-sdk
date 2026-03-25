@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import {
     AccountUpdate,
+    type Field,
     Mina,
     PrivateKey,
     type NetworkId,
@@ -9,6 +10,7 @@ import {
 import { Logger } from 'esm-iso-logger';
 import { NoriTokenBridge } from './NoriTokenBridge.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
+import { getOldestActionForEviction } from './NoriTokenBridge.utils.js';
 import {
     EthInput,
     decodeConsensusMptProof,
@@ -141,7 +143,7 @@ export class NoriTokenBridgeSubmitter {
         });
     }
 
-    async deployContract(storeHash: Bytes32) {
+    async deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field) {
         if (this.#network !== 'lightnet') {
             throw new Error(
                 [
@@ -169,6 +171,7 @@ export class NoriTokenBridgeSubmitter {
                     storageVKHash:
                         this.noriStorageInterfaceVerificationKey.hash,
                     newStoreHash: initialStoreHash,
+                    ethTokenBridgeAddress,
                 });
             }
         );
@@ -217,6 +220,9 @@ export class NoriTokenBridgeSubmitter {
             });
             logger.log('Fetched accounts.');
 
+            const oldestAction = await getOldestActionForEviction(this.#zkApp);
+            logger.log('Fetched oldest account action for eviction.');
+
             logger.log('Creating update transaction.');
             const updateTx = await Mina.transaction(
                 {
@@ -225,7 +231,7 @@ export class NoriTokenBridgeSubmitter {
                     memo: `State for slot ${ethInput.outputSlot.toString()} set`,
                 },
                 async () => {
-                    await this.#zkApp.update(ethInput, rawProof);
+                    await this.#zkApp.update(ethInput, rawProof, oldestAction);
                 }
             );
 

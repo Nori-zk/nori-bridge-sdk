@@ -32,7 +32,7 @@ import {
 import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { EthInput, bytes32LEToFieldProvable } from '@nori-zk/o1js-zk-utils-new';
+import { EthInput, bytes32LEToFieldProvable, Bytes20 } from '@nori-zk/o1js-zk-utils-new';
 import {
     Bytes32,
     Bytes32FieldPair,
@@ -53,6 +53,7 @@ import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js'
 // SCRAMWitness must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SCRAMWitness, verifyCodeChallenge } from './scram.js';
+import { MAX_WINDOW, MIN_BRIDGE_BURN_AMOUNT } from './NoriTokenBridge.const.js';
 
 const logger = new Logger('NoriTokenController');
 
@@ -113,7 +114,7 @@ export interface NoriTokenControllerDeployProps extends Exclude<
     tokenBaseAddress: PublicKey;
     storageVKHash: Field;
     newStoreHash: Bytes32FieldPair;
-    contractAddress: Field;
+    ethTokenBridgeAddress: Field;
 }
 
 export class BurnEvent extends Struct({
@@ -143,10 +144,10 @@ export class NoriTokenBridge
     /** Number of deposit-root actions currently in the window (max MAX_WINDOW). */
     @state(Field) windowSize = State<Field>();
     /** The Ethereum contract address associated with this token bridge. */
-    @state(Field) contractAddress = State<Field>();
+    @state(Field) ethTokenBridgeAddress = State<Field>();
     /** Maximum number of deposit roots kept in the action window. */
-    private MAX_WINDOW = 40;
-    private MIN_BRIDGE_AMOUNT = new Field(100); //TODO check Minimum burn amount in bridge units
+    private MAX_WINDOW = MAX_WINDOW;
+    private MIN_BRIDGE_BURN_AMOUNT = MIN_BRIDGE_BURN_AMOUNT; //TODO check Minimum burn amount in bridge units
     //  (e.g., if 1 bridge unit = 1e12 wei, then this would represent 100 bridge units or 1e14 wei)
 
     readonly events = {
@@ -188,7 +189,7 @@ export class NoriTokenBridge
         this.windowStart.set(Reducer.initialActionState);
         this.windowSize.set(Field(0));
 
-        this.contractAddress.set(props.contractAddress);
+        this.ethTokenBridgeAddress.set(props.ethTokenBridgeAddress);
     }
 
     approveBase(_forest: AccountUpdateForest): Promise<void> {
@@ -252,13 +253,10 @@ export class NoriTokenBridge
 
     @method async update(input: EthInput, proof: NodeProofLeft, oldestAction: Field) {
         // Verify transition proof.
-        const contractAddressBytes = this.ethVerify(input, proof);
-        let contractAddress = new Field(0);
-        for (let i = 0; i < 20; i++) {
-            contractAddress = contractAddress.mul(256).add(contractAddressBytes[i].value);
-        }
-        const expectedContractAddress = this.contractAddress.getAndRequireEquals();
-        expectedContractAddress.assertEquals(contractAddress, "The contract address extracted from the proof must match the one set in the bridge head contract.");
+        const ethTokenBridgeAddressBytes = this.ethVerify(input, proof);
+        const ethTokenBridgeAddress = new Bytes20(ethTokenBridgeAddressBytes).toField();
+        const expectedEthTokenBridgeAddress = this.ethTokenBridgeAddress.getAndRequireEquals();
+        expectedEthTokenBridgeAddress.assertEquals(ethTokenBridgeAddress, "The contract address extracted from the proof must match the one set in the bridge head contract.");
 
         const proofHead = input.outputSlot;
         const executionStateRoot = input.executionStateRoot;
@@ -551,7 +549,7 @@ export class NoriTokenBridge
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
 
         const controllerTokenId = this.deriveTokenId();
-        amountToBurn.assertGreaterThan(this.MIN_BRIDGE_AMOUNT, "Amount to burn must be greater than MIN_BRIDGE_AMOUNT");
+        amountToBurn.assertGreaterThan(this.MIN_BRIDGE_BURN_AMOUNT, "Amount to burn must be greater than MIN_BRIDGE_AMOUNT");
         // maintain Storage
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
         storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds

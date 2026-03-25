@@ -10,7 +10,7 @@ import {
 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
-import { Bytes20, Bytes32, type CompilableZkProgram } from './types.js';
+import { Bytes20, Bytes32, type CompilableZkProgram, type CreateProofArgument } from './types.js';
 import { type Logger } from 'esm-iso-logger';
 
 // Bytes32 Field utils
@@ -242,6 +242,11 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     };
 
     return provables;
+}
+
+export function extractEthTokenBridgeAddressFromSP1Proof(example: CreateProofArgument): Field {
+    const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
+    return new Bytes20(decoded.contractAddress.bytes).toField();
 }
 
 // Compile and verify contracts utility

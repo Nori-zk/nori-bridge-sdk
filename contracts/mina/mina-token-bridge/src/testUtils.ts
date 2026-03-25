@@ -18,7 +18,29 @@ import {
     getMerkleZeros,
 } from '@nori-zk/o1js-zk-utils-new';
 
+import { env, type NetworkName } from './env.js';
+
 const logger = new Logger('NoriTokenBridgeTestUtils');
+
+const validNetworkNames: NetworkName[] = ['mina', 'zeko'];
+
+declare const JEST_MINA_STAGING_CHAIN_NAME: string;
+
+export function getStagingEnv() {
+    const chainName = JEST_MINA_STAGING_CHAIN_NAME;
+    if (!validNetworkNames.includes(chainName as NetworkName)) {
+        throw new Error(
+            `JEST_MINA_STAGING_CHAIN_NAME '${chainName}' is not a valid NetworkName. Expected one of: ${validNetworkNames.join(', ')}`
+        );
+    }
+    const staging = env[chainName as NetworkName]?.staging;
+    if (!staging) {
+        throw new Error(
+            `No staging env found for chain '${chainName}'`
+        );
+    }
+    return staging;
+}
 
 export function validateEnv(): {
     ethPrivateKey: string;

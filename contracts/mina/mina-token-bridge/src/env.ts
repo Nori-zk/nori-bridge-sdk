@@ -5,6 +5,7 @@ type EnvName = 'development' | 'staging' | 'production';
 type Env = {
     NORI_MINA_TOKEN_BRIDGE_ADDRESS: string;
     NORI_MINA_TOKEN_BASE_ADDRESS: string;
+    NORI_ETH_TOKEN_BRIDGE_ADDRESS: string;
     NORI_MINA_TOKEN_BASE_TOKEN_ID: string;
     NORI_MINA_TOKEN_BRIDGE_TOKEN_ID: string;
     MINA_ARCHIVE_RPC_URL: string;
@@ -15,7 +16,7 @@ type Env = {
     NORI_PCS_URL: string;
 };
 
-type NetworkName = 'mina' | 'zeko';
+export type NetworkName = 'mina' | 'zeko';
 
 export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
     {
@@ -25,6 +26,7 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
                     'B62qk5YCkfLCkjPuFQGgyQF4R8JqdHZTC1dnGD87b5sGABDenmm98GM',
                 NORI_MINA_TOKEN_BASE_ADDRESS:
                     'B62qqrGGc3hx6PxUaoyb5bcGuYUxWVkkEdXmAVzaQULdZ5V3mcmhsSZ',
+                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0x142B9d3fE3Caa2CE9DaA607A262Dc8561C694006',
                 NORI_MINA_TOKEN_BASE_TOKEN_ID:
                     '25752212657326802597915367750324599302227063476680490393442702566980675831190',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:

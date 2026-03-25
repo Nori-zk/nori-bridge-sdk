@@ -46,13 +46,14 @@ import {
     Bytes32,
     Bytes32FieldPair,
     bytes32LEToFieldProvable,
-    Bytes20,
+    extractEthTokenBridgeAddressFromSP1Proof,
 } from '@nori-zk/o1js-zk-utils-new';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
 import { buildSyntheticDeposit, txSend, fetchAccounts } from './testUtils.js';
+import { MAX_WINDOW } from './NoriTokenBridge.const.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLocalBlockchainTest');
@@ -80,6 +81,7 @@ void noriTokenBridgeVK;
 
 let allAccounts: PublicKey[];
 
+const examples = buildExampleProofSeriesCreateArguments();
 // Decoded proof inputs — populated once in beforeAll
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RawProof = NodeProofLeftRaw;
@@ -95,12 +97,10 @@ let rawProof4: RawProof;
 // ---------------------------------------------------------------------------
 // Window rotation config
 // ---------------------------------------------------------------------------
-/** Must match NoriTokenBridge.MAX_WINDOW */
-const MAX_WINDOW = 40;
+
 /** Dispatch MAX_WINDOW + 5 roots to exercise 5 evictions. */
 const WINDOW_ROTATION_COUNT = MAX_WINDOW + 5;
 
-const NORI_ETH_TOKEN_BRIDGE_ADDRESS = "0x142B9d3fE3Caa2CE9DaA607A262Dc8561C694006"
 
 let dave: { publicKey: PublicKey; privateKey: PrivateKey };
 let daveTotalLocked = 0n;
@@ -226,7 +226,6 @@ describe('NoriTokenBridge', () => {
 
         // Decode example proofs using common helpers
         logger.log('Decoding test example proofs...');
-        const examples = buildExampleProofSeriesCreateArguments();
 
         const decoded1 = decodeConsensusMptProof(examples[0].sp1PlonkProof);
         ethInput1 = new EthInput(decoded1);
@@ -260,7 +259,7 @@ describe('NoriTokenBridge', () => {
     describe('Deployment', () => {
         test('should deploy NoriTokenBridge and FungibleToken', async () => {
             const initialStoreHash = Bytes32FieldPair.fromBytes32(ethInput1.inputStoreHash);
-            const contractAddress = (Bytes20.fromHex(NORI_ETH_TOKEN_BRIDGE_ADDRESS.slice(2)) as Bytes20).toField();
+            const ethTokenBridgeAddress = extractEthTokenBridgeAddressFromSP1Proof(examples[0]);
             await txSend({
                 body: async () => {
                     AccountUpdate.fundNewAccount(deployer.publicKey, 3);
@@ -270,7 +269,7 @@ describe('NoriTokenBridge', () => {
                         tokenBaseAddress: tokenBaseKeypair.publicKey,
                         storageVKHash: storageInterfaceVK.hash,
                         newStoreHash: initialStoreHash,
-                        contractAddress,
+                        ethTokenBridgeAddress,
                     });
 
                     await tokenBase.deploy({

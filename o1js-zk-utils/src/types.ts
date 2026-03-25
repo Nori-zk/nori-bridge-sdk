@@ -59,6 +59,9 @@ export class Bytes20 extends Bytes(20) {
     static get zero() {
         return new this(new Array(20).map(() => new UInt8(0)));
     }
+    static fromHex(hex: string): Bytes20 {
+        return super.fromHex(hex) as Bytes20;
+    }
     toField(): Field {
         let result = new Field(0);
         for (let i = 0; i < 20; i++) {

@@ -7,6 +7,7 @@ import {
     PublicKey,
     AccountUpdate,
     Bool,
+    type Field,
     type NetworkId,
     UInt8,
 } from 'o1js';
@@ -18,6 +19,7 @@ import { NoriTokenBridge } from '../NoriTokenBridge.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { FungibleToken } from '../TokenBase.js';
 import {
+    Bytes20,
     Bytes32,
     Bytes32FieldPair,
     compileAndVerifyContracts,
@@ -36,7 +38,8 @@ const possibleNetwork = process.env.MINA_NETWORK;
 const possibleDeployerKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY;
 const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 const possibleStoreHashHex = process.argv[2];
-const possibleAdminPublicKeyBase58 = process.argv[3];
+const possibleEthTokenBridgeAddressHex = process.argv[3];
+const possibleAdminPublicKeyBase58 = process.argv[4];
 
 // Validate everything in one pass
 const issues: string[] = [];
@@ -56,6 +59,8 @@ if (process.env.NORI_MINA_TOKEN_BASE_PRIVATE_KEY)
     );
 if (!possibleStoreHashHex)
     issues.push('Missing required first argument: storeHashHex');
+if (!possibleEthTokenBridgeAddressHex)
+    issues.push('Missing required second argument: ethTokenBridgeAddressHex');
 
 let possibleDeployerKey: PrivateKey | undefined;
 if (possibleDeployerKeyBase58) {
@@ -70,12 +75,18 @@ if (possibleDeployerKeyBase58) {
 
 let possibleStoreHash: Bytes32 | undefined;
 if (possibleStoreHashHex) {
-    try {
-        possibleStoreHash = Bytes32.fromHex(possibleStoreHashHex);
-    } catch (e) {
+    if (possibleStoreHashHex.length !== 64) {
         issues.push(
-            `storeHashHex '${possibleStoreHashHex}' is not a valid 32-byte hex string: ${(e as Error).message}`
+            `storeHashHex '${possibleStoreHashHex}' must be exactly 64 hex characters (32 bytes), got ${possibleStoreHashHex.length}`
         );
+    } else {
+        try {
+            possibleStoreHash = Bytes32.fromHex(possibleStoreHashHex);
+        } catch (e) {
+            issues.push(
+                `storeHashHex '${possibleStoreHashHex}' is not a valid 32-byte hex string: ${(e as Error).message}`
+            );
+        }
     }
 }
 
@@ -89,6 +100,23 @@ if (possibleAdminPublicKeyBase58) {
         issues.push(
             `adminPublicKeyBase58 argument '${possibleAdminPublicKeyBase58}' is not a valid public key: ${(e as Error).message}`
         );
+    }
+}
+
+let possibleEthTokenBridgeAddress: Field | undefined;
+if (possibleEthTokenBridgeAddressHex) {
+    if (possibleEthTokenBridgeAddressHex.length !== 40) {
+        issues.push(
+            `ethTokenBridgeAddressHex '${possibleEthTokenBridgeAddressHex}' must be exactly 40 hex characters (20 bytes), got ${possibleEthTokenBridgeAddressHex.length}`
+        );
+    } else {
+        try {
+            possibleEthTokenBridgeAddress = Bytes20.fromHex(possibleEthTokenBridgeAddressHex).toField();
+        } catch (e) {
+            issues.push(
+                `ethTokenBridgeAddressHex '${possibleEthTokenBridgeAddressHex}' is not a valid 20-byte hex string: ${(e as Error).message}`
+            );
+        }
     }
 }
 
@@ -116,6 +144,9 @@ function isBytes32(val: Bytes32 | undefined): val is Bytes32 {
 function isPublicKey(val: PublicKey | undefined): val is PublicKey {
     return val !== undefined;
 }
+function isField(val: Field | undefined): val is Field {
+    return val !== undefined;
+}
 function isString(val: string | undefined): val is string {
     return val !== undefined;
 }
@@ -123,6 +154,7 @@ function isString(val: string | undefined): val is string {
 if (
     !isPrivateKey(possibleDeployerKey) ||
     !isBytes32(possibleStoreHash) ||
+    !isField(possibleEthTokenBridgeAddress) ||
     !isString(possibleNetworkUrl) ||
     !isString(possibleNetwork)
 ) {
@@ -132,6 +164,7 @@ if (
 
 const deployerKey = possibleDeployerKey;
 const storeHash = possibleStoreHash;
+const ethTokenBridgeAddress = possibleEthTokenBridgeAddress;
 const networkUrl = possibleNetworkUrl;
 const networkId: NetworkId =
     possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
@@ -158,6 +191,7 @@ if (isPublicKey(possibleAdminPublicKey)) {
 }
 
 logger.log(`storeHashHex provided: '${possibleStoreHashHex}'`);
+logger.log(`ethTokenBridgeAddressHex provided: '${possibleEthTokenBridgeAddressHex}'`);
 
 function writeSuccessDetailsToEnvFile(
     tokenBridgeAddressBase58: string,
@@ -235,6 +269,7 @@ async function deploy() {
                 tokenBaseAddress,
                 storageVKHash: NoriStorageInterfaceVerificationKey.hash,
                 newStoreHash: initialStoreHash,
+                ethTokenBridgeAddress,
             });
             logger.log('Deploying FungibleToken.');
             await tokenBase.deploy({

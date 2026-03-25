@@ -25,14 +25,17 @@ import {
 
 ```typescript
 import {
-    NoriTokenBridge,          // Mina zkApp contract
-    NoriStorageInterface,     // Per-user storage contract
-    FungibleToken,            // Token contract
-    signSecretWithEthWallet,  // ETH wallet signing utility
-    env,                      // Parsed environment configuration object
-    noriTokenBridgeVkHash,    // Baked verification key hash for NoriTokenBridge
+    NoriTokenBridge,            // Mina zkApp contract
+    NoriStorageInterface,       // Per-user storage contract
+    FungibleToken,              // Token contract
+    signSecretWithEthWallet,    // ETH wallet signing utility
+    env,                        // Parsed environment configuration object
+    noriTokenBridgeVkHash,      // Baked verification key hash for NoriTokenBridge
     noriStorageInterfaceVkHash, // Baked verification key hash for NoriStorageInterface
-    fungibleTokenVkHash,      // Baked verification key hash for FungibleToken
+    fungibleTokenVkHash,        // Baked verification key hash for FungibleToken
+    fetchWindowRoots,           // Fetch deposit-root actions in the contract's active window
+    fetchAllDispatchedRoots,    // Fetch all dispatched deposit-root actions from genesis
+    getOldestActionForEviction, // Get the oldest action to evict when the window is full
 } from '@nori-zk/mina-token-bridge-new/browser';
 ```
 
@@ -284,10 +287,11 @@ rm -rf ~/.cache/o1js/
 Run:
 
 ```bash
-npm run deploy <storeHashInHex> [adminPublicKeyBase58]
+npm run deploy <storeHashInHex> <ethTokenBridgeAddressHex> [adminPublicKeyBase58]
 ```
 
 - `<storeHashInHex>`: must match the `input_store_hash` of the first store you expect as a checkpoint, **omitting** the `0x` prefix.
+- `<ethTokenBridgeAddressHex>`: the Ethereum contract address of the token bridge, **omitting** the `0x` prefix.
 - `[adminPublicKeyBase58]`: optional. The public key of the account with admin permissions over the contract (`setVerificationKey`, `updateStoreHash`). If omitted, defaults to the public key derived from `MINA_SENDER_PRIVATE_KEY`.
 
 You can find sensible values by running the bridge head and inspecting the checkpoint you want to start from in the proof output message directory:

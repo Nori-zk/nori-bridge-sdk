@@ -9,6 +9,7 @@ import { PrivateKey } from 'o1js';
 import {
     CacheType,
     decodeConsensusMptProof,
+    extractEthTokenBridgeAddressFromSP1Proof,
     type FileSystemCacheConfig,
 } from '@nori-zk/o1js-zk-utils-new';
 import os from 'os';
@@ -101,7 +102,7 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
                 proofArgument.sp1PlonkProof
             );
 
-            await proofSubmitter.deployContract(decoded.inputStoreHash);
+            await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(proofArgument));
 
             // Build proof.
             const updateArgs = await proofSubmitter.createProof(proofArgument);
@@ -147,7 +148,7 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             const decoded = decodeConsensusMptProof(
                 seriesExamples[0].sp1PlonkProof
             );
-            await proofSubmitter.deployContract(decoded.inputStoreHash);
+            await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
 
             // Build and submit proofs
             let i = 1;
@@ -203,7 +204,7 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             const decoded = decodeConsensusMptProof(
                 seriesExamples[0].sp1PlonkProof
             );
-            await proofSubmitter.deployContract(decoded.inputStoreHash);
+            await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
 
             // Build and submit proofs
             logger.log(

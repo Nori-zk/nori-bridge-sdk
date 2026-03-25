@@ -45,6 +45,7 @@ import {
     Bytes32,
     Bytes32FieldPair,
     bytes32LEToFieldProvable,
+    extractEthTokenBridgeAddressFromSP1Proof,
 } from '@nori-zk/o1js-zk-utils-new';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
@@ -79,6 +80,7 @@ let tokenBaseVK: VerificationKey;
 
 let allAccounts: PublicKey[];
 
+const examples = buildExampleProofSeriesCreateArguments();
 // Decoded proof inputs — populated once in beforeAll
 type RawProof = NodeProofLeftRaw;
 let ethInput1: EthInput;
@@ -168,7 +170,6 @@ describe('NoriTokenBridge', () => {
 
         // Decode example proofs using common helpers
         logger.log('Decoding test example proofs...');
-        const examples = buildExampleProofSeriesCreateArguments();
 
         const decoded1 = decodeConsensusMptProof(examples[0].sp1PlonkProof);
         ethInput1 = new EthInput(decoded1);
@@ -218,6 +219,7 @@ describe('NoriTokenBridge', () => {
                         tokenBaseAddress: tokenBaseKeypair.publicKey,
                         storageVKHash: storageInterfaceVK.hash,
                         newStoreHash: initialStoreHash,
+                        ethTokenBridgeAddress: extractEthTokenBridgeAddressFromSP1Proof(examples[0]),
                     });
 
                     await tokenBase.deploy({

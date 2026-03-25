@@ -122,6 +122,7 @@ import {
     fieldToBigIntLE,
     decodeConsensusMptProof,
     compileAndVerifyContracts,
+    extractEthTokenBridgeAddressFromSP1Proof,
 } from '@nori-zk/o1js-zk-utils-new';
 ```
 

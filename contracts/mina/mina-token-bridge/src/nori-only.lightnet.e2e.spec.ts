@@ -3,6 +3,7 @@ import { Field, type NetworkId, PrivateKey } from 'o1js';
 import {
     getNewMinaLiteNetAccountSK,
     lockTokens,
+    getStagingEnv,
 } from './testUtils.js';
 import { getReconnectingBridgeSocket$ } from './rx/socket.js';
 import {
@@ -23,6 +24,8 @@ import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2ELitenetSpec');
+
+const { NORI_ETH_TOKEN_BRIDGE_ADDRESS } = getStagingEnv();
 
 describe('e2e', () => {
     // Define litenet mina config
@@ -58,6 +61,7 @@ describe('e2e', () => {
                 noriTokenBridgePrivateKey.toBase58(),
                 tokenBasePrivateKey.toBase58(),
                 "FIXMETHISISTHEWRONGSTOREHASH",
+                NORI_ETH_TOKEN_BRIDGE_ADDRESS.slice(2),
                 noriStorageInterfaceVerificationKeySafe,
                 0.1 * 1e9,
                 {
