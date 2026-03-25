@@ -10,7 +10,7 @@ import {
 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
-import { Bytes32, type CompilableZkProgram } from './types.js';
+import { Bytes20, Bytes32, type CompilableZkProgram } from './types.js';
 import { type Logger } from 'esm-iso-logger';
 
 // Bytes32 Field utils
@@ -167,9 +167,10 @@ const proofOffsets = {
     executionStateRoot: 80,
     verifiedContractStorageSlotsRoot: 112,
     nextSyncCommitteeHash: 144,
+    contractAddress: 176
 };
 
-const proofTotalLength = 176;
+const proofTotalLength = 196;
 
 export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
@@ -219,6 +220,11 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 
     const nextSyncCommitteeHashSlice = proofData.slice(
         proofOffsets.nextSyncCommitteeHash,
+        proofOffsets.contractAddress,
+    );
+
+    const contractAddressSlice = proofData.slice(
+        proofOffsets.contractAddress,
         proofTotalLength
     );
 
@@ -232,6 +238,7 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
             verifiedContractStorageSlotsRootSlice
         ),
         nextSyncCommitteeHash: Bytes32.from(nextSyncCommitteeHashSlice),
+        contractAddress: Bytes20.from(contractAddressSlice),
     };
 
     return provables;

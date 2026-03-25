@@ -17,7 +17,7 @@ import {
 import { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP1HeliosProgram.pi0.js';
 import { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
 import { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js';
-import { Bytes32 } from './types.js';
+import { Bytes20, Bytes32 } from './types.js';
 
 class EthInput extends Struct({
     inputSlot: UInt64,
@@ -27,6 +27,7 @@ class EthInput extends Struct({
     executionStateRoot: Bytes32.provable,
     verifiedContractDepositsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
+    contractAddress: Bytes20.provable,
 }) { }
 
 const EthVerifier = ZkProgram({
