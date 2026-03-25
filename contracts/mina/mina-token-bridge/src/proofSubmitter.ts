@@ -98,7 +98,7 @@ export class NoriTokenBridgeSubmitter {
 
     async networkSetUp() {
         logger.log(
-            `Setting up ${this.#network} network with RPC endpoint: '${this.minaRPCNetworkUrl}'.`
+            `Setting up ${this.#network} network with RPC endpoint: '${this.minaRPCNetworkUrl}' and archive endpoint: '${this.minaArchiveRPCUrl}'.`
         );
         const networkId = this.#network === 'mainnet' ? 'mainnet' : 'testnet';
         const Network = Mina.Network({

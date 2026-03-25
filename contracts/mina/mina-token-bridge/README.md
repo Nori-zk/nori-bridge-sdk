@@ -483,6 +483,10 @@ If you expect the project's verification keys to have changed, remove the o1js c
 rm -rf ~/.cache/o1js/
 ```
 
+## TODO
+
+- `NoriTokenBridgeSubmitter` constructor derives the contract address from `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY` via `PrivateKey.toPublicKey()`. It should use `NORI_MINA_TOKEN_BRIDGE_ADDRESS` directly — the submitter does not need the contract's private key to submit proofs. The private key should only be required in lightnet/test mode for `deployContract()`.
+
 ## License
 
 [Apache-2.0](LICENSE)
