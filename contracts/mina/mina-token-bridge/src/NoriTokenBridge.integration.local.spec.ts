@@ -25,6 +25,7 @@ import {
     Poseidon,
     PrivateKey,
     type PublicKey,
+    Reducer,
     UInt64,
     UInt8,
 } from 'o1js';
@@ -91,12 +92,77 @@ let ethInput4: EthInput;
 let rawProof4: RawProof;
 
 // ---------------------------------------------------------------------------
-// Window rotation state (shared across sequential tests)
+// Window rotation config
 // ---------------------------------------------------------------------------
-const allDispatchedRoots: Field[] = [];
+/** Must match NoriTokenBridge.MAX_WINDOW */
+const MAX_WINDOW = 40;
+/** Dispatch MAX_WINDOW + 5 roots to exercise 5 evictions. */
+const WINDOW_ROTATION_COUNT = MAX_WINDOW + 5;
+
 let dave: { publicKey: PublicKey; privateKey: PrivateKey };
 let daveTotalLocked = 0n;
 let daveMintCount = 0;
+
+// ---------------------------------------------------------------------------
+// Deposit-root window helpers (reusable for client code)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the deposit-root actions currently in the contract's active window.
+ * Reads `windowStart` from on-chain state and fetches actions from that
+ * action-state hash forward to the current tip.
+ * Returns a flat array of Field values in dispatch order.
+ */
+async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]> {
+    await fetchAccount({ publicKey: bridge.address });
+    const windowStart = bridge.windowStart.get();
+    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
+        fromActionState: windowStart,
+    });
+    return actionBatches.flat();
+}
+
+/**
+ * Fetch ALL dispatched deposit-root actions from genesis.
+ * Useful for debugging / full history, but prefer `fetchWindowRoots`
+ * for normal operation.
+ */
+async function fetchAllDispatchedRoots(bridge: NoriTokenBridge): Promise<Field[]> {
+    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
+        fromActionState: Reducer.initialActionState,
+    });
+    return actionBatches.flat();
+}
+
+/**
+ * Determine the oldest action that needs to be evicted when dispatching
+ * a new deposit root. Returns Field(0) if the window is not yet full.
+ *
+ * When the window IS full, the oldest root is the first element returned
+ * by `fetchWindowRoots` — i.e. the one sitting at `windowStart`.
+ */
+async function getOldestActionForEviction(bridge: NoriTokenBridge): Promise<Field> {
+    const windowRoots = await fetchWindowRoots(bridge);
+    if (windowRoots.length < MAX_WINDOW) return Field(0);
+    return windowRoots[0];
+}
+
+/**
+ * Dispatch a deposit root via adminSetDepositRoot, automatically
+ * fetching the oldest action from the chain when the window is full.
+ */
+async function dispatchRoot(root: Field) {
+    const oldest = await getOldestActionForEviction(noriTokenBridge);
+
+    await txSend({
+        body: async () => {
+            await noriTokenBridge.adminSetDepositRoot(root, oldest);
+        },
+        sender: admin.publicKey,
+        signers: [admin.privateKey],
+    });
+    await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+}
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -621,28 +687,10 @@ describe('NoriTokenBridge', () => {
         });
 
         // =================================================================
-        // Window rotation — 40 roots, eviction after 32
+        // Window rotation — WINDOW_ROTATION_COUNT roots, eviction after MAX_WINDOW
         // =================================================================
         describe('Window Rotation', () => {
-            test('window rotation: setup dave and seed prior roots', async () => {
-                // Reconstruct the 6 roots already dispatched by prior tests.
-                // 4 from update():
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput1.verifiedContractDepositsRoot.bytes));
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedContractDepositsRoot.bytes));
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedContractDepositsRoot.bytes));
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes));
-                // 1 from alice first deposit root seed:
-                const aliceResult1 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 200n);
-                allDispatchedRoots.push(
-                    getContractDepositSlotRootFromContractDepositAndWitness(aliceResult1.merkleInput)
-                );
-                // 1 from alice second deposit root seed:
-                const aliceResult2 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 500n);
-                allDispatchedRoots.push(
-                    getContractDepositSlotRootFromContractDepositAndWitness(aliceResult2.merkleInput)
-                );
-
-                // Create dave and set up storage
+            test('window rotation: setup dave', async () => {
                 await txSend({
                     body: async () => {
                         AccountUpdate.fundNewAccount(dave.publicKey, 1);
@@ -651,14 +699,14 @@ describe('NoriTokenBridge', () => {
                     sender: dave.publicKey,
                     signers: [dave.privateKey],
                 });
-                logger.log(`Dave created. ${allDispatchedRoots.length} prior roots tracked.`);
+                const roots = await fetchWindowRoots(noriTokenBridge);
+                logger.log(`Dave created. ${roots.length} roots in active window.`);
             }, 1_000_000);
 
-            // Dispatch 40 roots. Mint for Dave after roots #5, #15, #25, #35.
-            // Roots #1-26 fill the remaining window (6 already in).
-            // Root #27+ triggers eviction (window size = 32).
-            for (let i = 1; i <= 40; i++) {
-                const shouldMint = [5, 15, 25, 35, 40].includes(i);
+            // Dispatch WINDOW_ROTATION_COUNT roots.
+            // Mint for Dave every 10th root and on the last root.
+            for (let i = 1; i <= WINDOW_ROTATION_COUNT; i++) {
+                const shouldMint = i % 10 === 5 || i === WINDOW_ROTATION_COUNT;
 
                 if (shouldMint) {
                     test(`window rotation root #${i}: dispatch + mint for Dave`, async () => {
@@ -671,22 +719,8 @@ describe('NoriTokenBridge', () => {
                         );
                         const root = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
 
-                        // Dispatch this root into the window
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                            : Field(0);
-                        await txSend({
-                            body: async () => {
-                                await noriTokenBridge.adminSetDepositRoot(root, oldest);
-                            },
-                            sender: admin.publicKey,
-                            signers: [admin.privateKey],
-                        });
-                        allDispatchedRoots.push(root);
-                        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                        await dispatchRoot(root);
 
-                        // Fund token account on first mint only
                         const isFirstMint = daveMintCount === 0;
                         await txSend({
                             body: async () => {
@@ -715,30 +749,22 @@ describe('NoriTokenBridge', () => {
                 } else {
                     test(`window rotation root #${i}: dispatch deposit root`, async () => {
                         const dummyRoot = Field(1_000_000n + BigInt(i));
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                            : Field(0);
-                        await txSend({
-                            body: async () => {
-                                await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
-                            },
-                            sender: admin.publicKey,
-                            signers: [admin.privateKey],
-                        });
-                        allDispatchedRoots.push(dummyRoot);
-                        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-                        logger.log(`Window rotation root #${i} dispatched (total=${allDispatchedRoots.length}, windowSize=${Math.min(allDispatchedRoots.length, 32)})`);
+                        await dispatchRoot(dummyRoot);
+                        const windowRoots = await fetchWindowRoots(noriTokenBridge);
+                        logger.log(`Window rotation root #${i} dispatched (windowSize=${windowRoots.length})`);
                     }, 1_000_000);
                 }
             }
 
-            test('window should be capped at 32', async () => {
+            test('window should be capped at MAX_WINDOW', async () => {
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 const windowSize = (await noriTokenBridge.windowSize.fetch())!;
-                assert.equal(windowSize.toBigInt(), 32n, 'Window size should be capped at 32');
-                logger.log(`Window rotation complete. windowSize=${windowSize}.`);
+                assert.equal(windowSize.toBigInt(), BigInt(MAX_WINDOW), `Window size should be capped at ${MAX_WINDOW}`);
+
+                const windowRoots = await fetchWindowRoots(noriTokenBridge);
+                const allRoots = await fetchAllDispatchedRoots(noriTokenBridge);
+                logger.log(`Window rotation complete. windowSize=${windowSize}, windowRoots=${windowRoots.length}, totalDispatched=${allRoots.length}.`);
             }, 1_000_000);
         }); // End Window Rotation
 

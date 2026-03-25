@@ -142,7 +142,7 @@ export class NoriTokenBridge
     /** Number of deposit-root actions currently in the window (max MAX_WINDOW). */
     @state(Field) windowSize = State<Field>();
     /** Maximum number of deposit roots kept in the action window. */
-    private MAX_WINDOW = new Field(32);
+    private MAX_WINDOW = 40;
     private MIN_BRIDGE_AMOUNT = new Field(100); //TODO check Minimum burn amount in bridge units
     //  (e.g., if 1 bridge unit = 1e12 wei, then this would represent 100 bridge units or 1e14 wei)
 
@@ -463,7 +463,8 @@ export class NoriTokenBridge
             actions,
             Bool,
             (found: Bool, action: Field) => found.or(action.equals(contractDepositSlotRoot)),
-            Bool(false)
+            Bool(false),
+            { maxUpdatesWithActions: this.MAX_WINDOW }
         );
 
         depositInWindow.assertTrue(
