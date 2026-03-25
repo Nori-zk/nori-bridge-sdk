@@ -24,13 +24,11 @@ const logger = new Logger('NoriTokenBridgeTestUtils');
 
 const validNetworkNames: NetworkName[] = ['mina', 'zeko'];
 
-declare const JEST_MINA_STAGING_CHAIN_NAME: string;
-
 export function getStagingEnv() {
-    const chainName = JEST_MINA_STAGING_CHAIN_NAME;
+    const chainName = process.env.TEST_MINA_STAGING_CHAIN_NAME ?? 'mina';
     if (!validNetworkNames.includes(chainName as NetworkName)) {
         throw new Error(
-            `JEST_MINA_STAGING_CHAIN_NAME '${chainName}' is not a valid NetworkName. Expected one of: ${validNetworkNames.join(', ')}`
+            `TEST_MINA_STAGING_CHAIN_NAME '${chainName}' is not a valid NetworkName. Expected one of: ${validNetworkNames.join(', ')}`
         );
     }
     const staging = env[chainName as NetworkName]?.staging;

@@ -21,13 +21,10 @@ This setup exists only to:
 2. Configure your .env file:
    - ETH_PRIVATE_KEY=private key from which you wish to lock ETH to claim nETH
    - ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<apiKey>
-   - NORI_ETH_TOKEN_BRIDGE_ADDRESS=0x3EEACD9caa1aDdBA939FF041C43020b516A51dcF
-   - NORI_MINA_TOKEN_BRIDGE_ADDRESS=B62qnQmGKK48aUeM8DdDmA6kGNR1oD9cMg3DXs9RuyC4gvR2A3MKVJV
-   - NORI_MINA_TOKEN_BASE_ADDRESS=B62qmkVtMBbCnSEzC14Ym5ekJGMXGru6qV4pT6HvXH3FKNomjop5Syc
-   - MINA_RPC_NETWORK_URL=https://api.minascan.io/node/devnet/v1/graphql
-   - NORI_PCS_URL=https://pcs.mesa.nori.it.com
-   - NORI_WSS_URL=wss://wss.mesa.nori.it.com
    - MINA_SENDER_PRIVATE_KEY=private key of the Mina address for which you wish to claim nETH
+   - TEST_MINA_STAGING_CHAIN_NAME=mina (selects staging config from `env.ts` in `mina-token-bridge`, defaults to `mina`)
+
+   Contract addresses, RPC URLs, and service endpoints are resolved automatically from the staging config in `mina-token-bridge/src/env.ts` via `getStagingEnv()`. The browser test builder bakes these into the bundle at build time.
 
 ## Testing:
 

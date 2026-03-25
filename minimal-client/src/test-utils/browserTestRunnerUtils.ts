@@ -9,17 +9,21 @@ import http from 'http';
 import httpProxy from 'http-proxy';
 // Load environment variables from .env file
 import 'dotenv/config';
+import { getStagingEnv } from '@nori-zk/mina-token-bridge-new/node';
 //import { Logger } from 'esm-iso-logger';
 
 const logger = console;
 //const logger = new Logger('BrowserTestRunnerUtils');
 
-// Extract envs
-const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
-const proofConversionServiceUrl = process.env.NORI_PCS_URL || 'https://pcs.nori.it.com';
+// Resolve staging infrastructure config
+const stagingEnv = getStagingEnv();
+const minaRpcNetworkUrl = stagingEnv.MINA_RPC_NETWORK_URL;
+const minaArchiveRpcUrl = stagingEnv.MINA_ARCHIVE_RPC_URL;
+const proofConversionServiceUrl = stagingEnv.NORI_PCS_URL;
 
 // Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
 const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
+const minaArchiveRpcBaseUrl = new URL(minaArchiveRpcUrl).origin;
 
 
 export const __filename = fileURLToPath(import.meta.url);
@@ -32,8 +36,10 @@ export const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
 // Build hash
 const HASH = Math.random().toString(36).slice(2, 10);
 
-// Environment
-const env = config().parsed || {};
+// Environment — merge staging infrastructure config with .env secrets
+const dotEnv = config().parsed || {};
+const env: Record<string, string> = { ...dotEnv };
+for (const [k, v] of Object.entries(stagingEnv)) env[k] = String(v);
 env.BUILD_HASH = HASH;
 const envObject = JSON.stringify(env);
 const define: Record<string, string> = {};
@@ -106,18 +112,24 @@ export async function startServer(port = 4003) {
         secure: true,
     });
 
-    // Proxy for pcs.nori.it.com
+    // Proxy for pcs
     app.use('/converted-consensus-mpt-proofs', (req, res) => {
         proxy.web(req, res, {
-            target: `${proofConversionServiceUrl}/converted-consensus-mpt-proofs`, //'https://pcs.nori.it.com/converted-consensus-mpt-proofs',
+            target: `${proofConversionServiceUrl}/converted-consensus-mpt-proofs`,
         });
     });
 
-    // Catch-all proxy for Mina devnet
+    // Proxy for archive node
+    app.use('/archive', (req, res) => {
+        proxy.web(req, res, {
+            target: minaArchiveRpcBaseUrl,
+        });
+    });
+
+    // Catch-all proxy for Mina RPC
     app.use((req, res) => {
         proxy.web(req, res, {
-            // 'https://api.minascan.io/node/devnet/v1/graphql',
-            target: minaRpcBaseUrl, // Use base URL to avoid path doubling (e.g., /graphql/graphql)
+            target: minaRpcBaseUrl,
         });
     });
 
@@ -139,9 +151,9 @@ export async function startServer(port = 4003) {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
             logger.log(`Server running at: ${url}.`);
-            logger.log(`Mina RPC URL: ${minaRpcNetworkUrl}`);
-            logger.log(`Mina RPC base (proxy target): ${minaRpcBaseUrl}`);
-            logger.log(`PCS URL: ${proofConversionServiceUrl}`);
+            logger.log(`Mina RPC (proxy target): ${minaRpcBaseUrl}`);
+            logger.log(`Mina Archive (proxy target): ${minaArchiveRpcBaseUrl}`);
+            logger.log(`PCS (proxy target): ${proofConversionServiceUrl}`);
             resolve({ server, url });
         });
     });

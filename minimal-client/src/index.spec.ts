@@ -1,5 +1,5 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { type NetworkId, PrivateKey } from 'o1js';
+import { PrivateKey } from 'o1js';
 import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge-new/rx/socket';
 import {
     getBridgeStateTopic$,
@@ -24,11 +24,9 @@ function validateEnv(): {
     ethRpcUrl: string;
     noriETHBridgeAddressHex: string;
     noriMinaTokenBridgeAddressBase58: string;
-    minaRpcUrl: string;
-    proofConversionServiceUrl: string;
-    minaSenderPrivateKeyBase58: string;
     noriTokenBaseAddressBase58: string;
     noriWssUrl: string;
+    minaSenderPrivateKeyBase58: string;
 } {
     const errors: string[] = [];
 
@@ -37,11 +35,9 @@ function validateEnv(): {
         ETH_RPC_URL,
         NORI_ETH_TOKEN_BRIDGE_ADDRESS,
         NORI_MINA_TOKEN_BRIDGE_ADDRESS,
-        MINA_RPC_NETWORK_URL,
-        MINA_SENDER_PRIVATE_KEY,
         NORI_MINA_TOKEN_BASE_ADDRESS,
-        NORI_PCS_URL,
         NORI_WSS_URL,
+        MINA_SENDER_PRIVATE_KEY,
     } = process.env;
 
     if (!ETH_PRIVATE_KEY || !/^[a-fA-F0-9]{64}$/.test(ETH_PRIVATE_KEY)) {
@@ -81,18 +77,6 @@ function validateEnv(): {
         );
     }
 
-    if (!MINA_RPC_NETWORK_URL || !/^https?:\/\//.test(MINA_RPC_NETWORK_URL)) {
-        errors.push(
-            'MINA_RPC_NETWORK_URL missing or invalid (expected http(s) URL)'
-        );
-    }
-
-    if (!NORI_PCS_URL || !/^https?:\/\//.test(NORI_PCS_URL)) {
-        errors.push(
-            'NORI_PCS_URL missing or invalid (expected http(s) URL)'
-        );
-    }
-
     if (!NORI_WSS_URL || !/^wss?:\/\//.test(NORI_WSS_URL)) {
         errors.push(
             'NORI_WSS_URL missing or invalid (expected ws(s) URL)'
@@ -119,10 +103,8 @@ function validateEnv(): {
         noriETHBridgeAddressHex: NORI_ETH_TOKEN_BRIDGE_ADDRESS,
         noriMinaTokenBridgeAddressBase58: NORI_MINA_TOKEN_BRIDGE_ADDRESS,
         noriTokenBaseAddressBase58: NORI_MINA_TOKEN_BASE_ADDRESS,
-        minaRpcUrl: 'http://localhost:4003/graphql', // Note this must be the proxy! MINA_RPC_NETWORK_URL= hardcoding this to be the proxy
-        proofConversionServiceUrl: 'http://localhost:4003', // Note this must also be the proxy!
-        minaSenderPrivateKeyBase58: MINA_SENDER_PRIVATE_KEY,
         noriWssUrl: NORI_WSS_URL,
+        minaSenderPrivateKeyBase58: MINA_SENDER_PRIVATE_KEY,
     };
 }
 
@@ -135,17 +117,14 @@ describe('e2e_testnet', () => {
     test('e2e_complete_testnet', async () => {
         let depositProcessingStatusSubscription: Subscription;
         try {
-            // Get ENV VARS
             const {
                 ethPrivateKey,
                 ethRpcUrl,
                 noriETHBridgeAddressHex,
                 noriMinaTokenBridgeAddressBase58,
-                minaRpcUrl,
-                minaSenderPrivateKeyBase58,
                 noriTokenBaseAddressBase58,
-                proofConversionServiceUrl,
                 noriWssUrl,
+                minaSenderPrivateKeyBase58,
             } = validateEnv();
 
             const minaSenderPrivateKey = PrivateKey.fromBase58(
@@ -154,10 +133,11 @@ describe('e2e_testnet', () => {
             const minaSenderPublicKey = minaSenderPrivateKey.toPublicKey();
             const minaSenderPublicKeyBase58 = minaSenderPublicKey.toBase58();
 
-            // Define litenet mina config
+            // Browser talks to the local proxy which forwards to the real endpoints
             const minaConfig = {
-                networkId: 'devnet' as NetworkId,
-                mina: minaRpcUrl,
+                networkId: 'devnet' as const,
+                mina: 'http://localhost:4003/graphql',
+                archive: 'http://localhost:4003/archive',
             };
 
             // GET ETH WALLET **************************************************
@@ -369,7 +349,7 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
                     depositBlockNumber,
-                    proofConversionServiceUrl
+                    'http://localhost:4003'
                 );
             logger.log(`Deposit witness computed in ${depositWitnessTimer()}`);
             logger.log(
