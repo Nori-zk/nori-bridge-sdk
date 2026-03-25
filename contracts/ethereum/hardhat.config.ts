@@ -8,30 +8,41 @@ import hardhatMocha from '@nomicfoundation/hardhat-mocha';
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import './logger.js';
+import { Logger } from 'esm-iso-logger';
+
+const logger = new Logger('HardhatConfig');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import "./tasks/lockTokens";
 import "./tasks/getTotalDeposited";
+import "./tasks/deploy";
 
 import { lockTokens } from './tasks/lockTokens.js';
 import { getTotalDeposited } from './tasks/getTotalDeposited.js';
+import { deploy } from './tasks/deploy.js';
 
-function assertEnvVar(name: string): string {
-  const val = process.env[name];
-  if (!val || val.trim() === '') {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return val;
+const possibleNetworkName = process.env.ETH_NETWORK;
+const possibleRpcUrl = process.env.ETH_RPC_URL;
+const possiblePrivateKey = process.env.ETH_PRIVATE_KEY;
+
+const issues: string[] = [];
+
+if (!possibleNetworkName) issues.push('Missing required env: ETH_NETWORK');
+if (possibleNetworkName && possibleNetworkName !== 'hardhat') {
+  if (!possibleRpcUrl) issues.push('Missing required env: ETH_RPC_URL');
+  if (!possiblePrivateKey) issues.push('Missing required env: ETH_PRIVATE_KEY');
 }
 
-const networkName = process.env.ETH_NETWORK;
-if (!networkName) {
-  throw new Error('Environment variable ETH_NETWORK is required.');
+if (issues.length) {
+  logger.error('HardhatConfig encountered errors:');
+  issues.forEach((issue, idx) => logger.warn(`  ${idx + 1}: ${issue}`));
+  logger.fatal('Due to issues with environment variables hardhat cannot continue.');
+  process.exit(1);
 }
 
-// import { NetworkUserConfig } from 'hardhat/dist/src/types/config.js';
-//const x: NetworkUserConfig;
+const networkName = possibleNetworkName;
 
 interface NetworkConfig {
   url: string;
@@ -42,22 +53,19 @@ interface NetworkConfig {
 const networks: Record<string, NetworkConfig> = {};
 
 if (networkName !== 'hardhat') {
-  const rpcUrl = assertEnvVar('ETH_RPC_URL');
-  const privateKey = assertEnvVar('ETH_PRIVATE_KEY');
-
   networks[networkName] = {
-    url: rpcUrl,
-    accounts: [privateKey],
+    url: possibleRpcUrl as string,
+    accounts: [possiblePrivateKey as string],
     type: 'http',
   };
 }
 
-console.log(`Running on network "${networkName}"`);
+logger.log(`Running on network "${networkName}"`);
 if (networkName === 'hardhat') {
-  console.log(`Using built-in Hardhat network for local testing.`);
+  logger.log('Using built-in Hardhat network for local testing.');
 } else {
-  console.log(`Using RPC URL: ${networks[networkName].url}`);
-  console.log(`One private key loaded for deployment.`);
+  logger.log(`Using RPC URL: ${networks[networkName].url}`);
+  logger.log('One private key loaded for deployment.');
 }
 
 /**
@@ -87,7 +95,7 @@ const config: HardhatUserConfig = {
 
 
   networks,
-  tasks: [lockTokens, getTotalDeposited], plugins: [
+  tasks: [lockTokens, getTotalDeposited, deploy], plugins: [
     hardhatMocha,
     hardhatTypechain,
     hardhatEthers,
