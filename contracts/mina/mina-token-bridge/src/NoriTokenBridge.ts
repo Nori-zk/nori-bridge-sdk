@@ -113,6 +113,7 @@ export interface NoriTokenControllerDeployProps extends Exclude<
     tokenBaseAddress: PublicKey;
     storageVKHash: Field;
     newStoreHash: Bytes32FieldPair;
+    contractAddress: Field;
 }
 
 export class BurnEvent extends Struct({
@@ -141,6 +142,8 @@ export class NoriTokenBridge
     @state(Field) windowStart = State<Field>();
     /** Number of deposit-root actions currently in the window (max MAX_WINDOW). */
     @state(Field) windowSize = State<Field>();
+    /** The Ethereum contract address associated with this token bridge. */
+    @state(Field) contractAddress = State<Field>();
     /** Maximum number of deposit roots kept in the action window. */
     private MAX_WINDOW = 40;
     private MIN_BRIDGE_AMOUNT = new Field(100); //TODO check Minimum burn amount in bridge units
@@ -184,6 +187,8 @@ export class NoriTokenBridge
         // Action window starts empty
         this.windowStart.set(Reducer.initialActionState);
         this.windowSize.set(Field(0));
+
+        this.contractAddress.set(props.contractAddress);
     }
 
     approveBase(_forest: AccountUpdateForest): Promise<void> {
@@ -223,6 +228,8 @@ export class NoriTokenBridge
         bytes = bytes.concat(input.executionStateRoot.bytes);
         bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
         bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
+        bytes = bytes.concat(input.contractAddress.bytes);
+
 
         // Check that zkprograminput is same as passed to the SP1 program
         const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
@@ -240,11 +247,19 @@ export class NoriTokenBridge
         );
 
         piDigest.assertEquals(proof.publicOutput.rightOut);
+        return input.contractAddress.bytes;
     }
 
     @method async update(input: EthInput, proof: NodeProofLeft, oldestAction: Field) {
         // Verify transition proof.
-        this.ethVerify(input, proof);
+        const contractAddressBytes = this.ethVerify(input, proof);
+        let contractAddress = new Field(0);
+        for (let i = 0; i < 20; i++) {
+            contractAddress = contractAddress.mul(256).add(contractAddressBytes[i].value);
+        }
+        const expectedContractAddress = this.contractAddress.getAndRequireEquals();
+        expectedContractAddress.assertEquals(contractAddress, "The contract address extracted from the proof must match the one set in the bridge head contract.");
+
         const proofHead = input.outputSlot;
         const executionStateRoot = input.executionStateRoot;
         const currentSlot = this.latestHead.getAndRequireEquals();

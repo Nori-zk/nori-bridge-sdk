@@ -46,6 +46,7 @@ import {
     Bytes32,
     Bytes32FieldPair,
     bytes32LEToFieldProvable,
+    Bytes20,
 } from '@nori-zk/o1js-zk-utils-new';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
@@ -98,6 +99,8 @@ let rawProof4: RawProof;
 const MAX_WINDOW = 40;
 /** Dispatch MAX_WINDOW + 5 roots to exercise 5 evictions. */
 const WINDOW_ROTATION_COUNT = MAX_WINDOW + 5;
+
+const NORI_ETH_TOKEN_BRIDGE_ADDRESS = "0x142B9d3fE3Caa2CE9DaA607A262Dc8561C694006"
 
 let dave: { publicKey: PublicKey; privateKey: PrivateKey };
 let daveTotalLocked = 0n;
@@ -257,7 +260,7 @@ describe('NoriTokenBridge', () => {
     describe('Deployment', () => {
         test('should deploy NoriTokenBridge and FungibleToken', async () => {
             const initialStoreHash = Bytes32FieldPair.fromBytes32(ethInput1.inputStoreHash);
-
+            const contractAddress = (Bytes20.fromHex(NORI_ETH_TOKEN_BRIDGE_ADDRESS.slice(2)) as Bytes20).toField();
             await txSend({
                 body: async () => {
                     AccountUpdate.fundNewAccount(deployer.publicKey, 3);
@@ -267,6 +270,7 @@ describe('NoriTokenBridge', () => {
                         tokenBaseAddress: tokenBaseKeypair.publicKey,
                         storageVKHash: storageInterfaceVK.hash,
                         newStoreHash: initialStoreHash,
+                        contractAddress,
                     });
 
                     await tokenBase.deploy({

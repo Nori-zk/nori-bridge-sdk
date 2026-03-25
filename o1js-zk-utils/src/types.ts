@@ -59,6 +59,13 @@ export class Bytes20 extends Bytes(20) {
     static get zero() {
         return new this(new Array(20).map(() => new UInt8(0)));
     }
+    toField(): Field {
+        let result = new Field(0);
+        for (let i = 0; i < 20; i++) {
+            result = result.mul(256).add(this.bytes[i].value);
+        }
+        return result;
+    }
 }
 
 export function bytes32FieldPairToBytes32(

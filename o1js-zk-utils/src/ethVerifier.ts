@@ -72,6 +72,7 @@ const EthVerifier = ZkProgram({
                 bytes = bytes.concat(input.executionStateRoot.bytes);
                 bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
                 bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
+                bytes = bytes.concat(input.contractAddress.bytes);
 
                 // Check that zkprograminput is same as passed to the SP1 program
                 const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
