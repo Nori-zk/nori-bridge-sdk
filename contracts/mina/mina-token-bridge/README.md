@@ -445,6 +445,36 @@ Then run:
 npm run update-vk -- <path/to/NoriTokenBridge.VkData.json> <path/to/NoriTokenBridge.VkHash.json>
 ```
 
+## How to update the verification key (non-provable)
+
+Unlike the provable `update-vk` methods above, this approach updates the verification key directly via an `AccountUpdate` without generating a proof. Because it is non-provable, it does **not** need to be run from the currently deployed contract version — it can be run from any checkout where the integrity files (`src/integrity/NoriTokenBridge.VkData.json` and `src/integrity/NoriTokenBridge.VkHash.json`) contain the target verification key.
+
+Ensure `bake-vk-hashes` has been run cleanly on the target version so that the integrity files are up to date.
+
+From `contracts/mina/mina-token-bridge/`, ensure your `.env` contains:
+
+```
+MINA_RPC_NETWORK_URL=<url>
+MINA_NETWORK=<mainnet|devnet|lightnet>
+MINA_SENDER_PRIVATE_KEY=<contract-admin-private-key>
+NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<deployed-bridge-private-key>
+MINA_TX_FEE=0.1
+```
+
+Clear the o1js cache:
+
+```bash
+rm -rf ~/.cache/o1js/
+```
+
+Then run:
+
+```bash
+npm run update-vk-non-provable
+```
+
+The script reads the VK data and hash directly from the baked integrity files, creates an `AccountUpdate` with the new verification key, and submits it without proving.
+
 ## How to run tests
 
 Obtain a `MINA_SENDER_PRIVATE_KEY` environment variable:
