@@ -223,7 +223,7 @@ export function extractCodeChallengeAndTotalLocked(
 
     Provable.asProver(() => {
         logger.log('deposit value bytes');
-        logger.log(deposit.value.bytes.map((byte) => byte.toBigInt()));
+        logger.log(deposit.value.bytes.map((byte) => byte.toBigInt().toString()));
         logger.log('codeChallenge');
         logger.log(codeChallenge.toBigInt());
     });
