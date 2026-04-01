@@ -172,8 +172,8 @@ Reads the following env vars (throws if any are missing):
 - `MINA_RPC_NETWORK_URL` — Mina node GraphQL endpoint
 - `MINA_ARCHIVE_RPC_URL` — Mina archive node endpoint (required for fetching actions)
 - `MINA_TX_FEE` — transaction fee in MINA (default `0.1`)
-- `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY` — private key of the deployed NoriTokenBridge account
-- `NORI_MINA_TOKEN_BASE_PRIVATE_KEY` — private key of the deployed FungibleToken account
+- `NORI_MINA_TOKEN_BRIDGE_ADDRESS` — deployed NoriTokenBridge address (required in production/devnet)
+- `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY` — private key of the deployed NoriTokenBridge account (required in lightnet mode only, for `deployContract`)
 
 An optional `FileSystemCacheConfig` argument can be passed to use an on-disk o1js compilation cache.
 
@@ -353,7 +353,7 @@ From `contracts/mina/mina-token-bridge/`, ensure your `.env` contains:
 MINA_RPC_NETWORK_URL=<url>
 MINA_NETWORK=<mainnet|devnet|lightnet>
 MINA_SENDER_PRIVATE_KEY=<your-private-key>
-NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<deployed-bridge-private-key>
+NORI_MINA_TOKEN_BRIDGE_ADDRESS=<deployed-bridge-address>
 MINA_TX_FEE=0.1
 ```
 
@@ -512,10 +512,6 @@ If you expect the project's verification keys to have changed, remove the o1js c
 ```bash
 rm -rf ~/.cache/o1js/
 ```
-
-## TODO
-
-- `NoriTokenBridgeSubmitter` constructor derives the contract address from `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY` via `PrivateKey.toPublicKey()`. It should use `NORI_MINA_TOKEN_BRIDGE_ADDRESS` directly — the submitter does not need the contract's private key to submit proofs. The private key should only be required in lightnet/test mode for `deployContract()`.
 
 ## License
 
