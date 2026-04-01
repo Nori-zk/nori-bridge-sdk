@@ -18,10 +18,20 @@ const __dirname = path.dirname(__filename);
 import "./tasks/lockTokens";
 import "./tasks/getTotalDeposited";
 import "./tasks/deploy";
+import "./tasks/getFeeInfo";
+import "./tasks/setFeeRate";
+import "./tasks/setFeeRecipient";
+import "./tasks/withdrawFees";
+import "./tasks/setBridgeOperator";
 
 import { lockTokens } from './tasks/lockTokens.js';
 import { getTotalDeposited } from './tasks/getTotalDeposited.js';
 import { deploy } from './tasks/deploy.js';
+import { getFeeInfo } from './tasks/getFeeInfo.js';
+import { setFeeRate } from './tasks/setFeeRate.js';
+import { setFeeRecipient } from './tasks/setFeeRecipient.js';
+import { withdrawFees } from './tasks/withdrawFees.js';
+import { setBridgeOperator } from './tasks/setBridgeOperator.js';
 
 const possibleNetworkName = process.env.ETH_NETWORK;
 const possibleRpcUrl = process.env.ETH_RPC_URL;
@@ -95,7 +105,7 @@ const config: HardhatUserConfig = {
 
 
   networks,
-  tasks: [lockTokens, getTotalDeposited, deploy], plugins: [
+  tasks: [lockTokens, getTotalDeposited, deploy, getFeeInfo, setFeeRate, setFeeRecipient, withdrawFees, setBridgeOperator], plugins: [
     hardhatMocha,
     hardhatTypechain,
     hardhatEthers,

@@ -183,7 +183,22 @@ Requires:
 
 e.g. `npm run get-deposited 0x1edc891c0ea28b6157e8460304e20a534f3b29a9dbb2d499a58fa2d1de6b3c4a`
 
-## Withdraw
+## Fee info
+
+Query the current fee configuration: lock/unlock rates, fee recipient, accumulated fees, and bridge operator.
+
+Requires:
+- `ETH_RPC_URL`
+- `ETH_NETWORK`
+- `NORI_ETH_TOKEN_BRIDGE_ADDRESS`
+
+```bash
+npm run get-fee-info
+```
+
+## Set fee rate
+
+Set the lock or unlock fee rate. The rate is expressed in units of 0.001%, so 500 = 0.5%, max 10000 = 10%. Must be called by the bridge operator.
 
 Requires:
 - `ETH_PRIVATE_KEY`
@@ -191,7 +206,52 @@ Requires:
 - `ETH_NETWORK`
 - `NORI_ETH_TOKEN_BRIDGE_ADDRESS`
 
-`npm run withdraw`
+```bash
+npm run set-fee-rate lock 500
+npm run set-fee-rate unlock 500
+```
+
+## Set fee recipient
+
+Set the treasury address that receives accumulated fees via `withdrawFees()`. Must be called by the bridge operator.
+
+Requires:
+- `ETH_PRIVATE_KEY`
+- `ETH_RPC_URL`
+- `ETH_NETWORK`
+- `NORI_ETH_TOKEN_BRIDGE_ADDRESS`
+
+```bash
+npm run set-fee-recipient 0x...
+```
+
+## Withdraw fees
+
+Withdraw accumulated protocol fees to the fee recipient. Must be called by the fee recipient address.
+
+Requires:
+- `ETH_PRIVATE_KEY`
+- `ETH_RPC_URL`
+- `ETH_NETWORK`
+- `NORI_ETH_TOKEN_BRIDGE_ADDRESS`
+
+```bash
+npm run withdraw-fees
+```
+
+## Set bridge operator
+
+Rotate the bridge operator to a new address. Must be called by the current bridge operator.
+
+Requires:
+- `ETH_PRIVATE_KEY`
+- `ETH_RPC_URL`
+- `ETH_NETWORK`
+- `NORI_ETH_TOKEN_BRIDGE_ADDRESS`
+
+```bash
+npm run set-bridge-operator 0x...
+```
 
 ## Package details
 
