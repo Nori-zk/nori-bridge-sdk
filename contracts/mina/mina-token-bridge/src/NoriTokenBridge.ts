@@ -120,6 +120,7 @@ export interface NoriTokenControllerDeployProps extends Exclude<
 export class BurnEvent extends Struct({
     from: PublicKey,
     amount: UInt64,
+    burnedSoFar: UInt64,
     receiverEth: Field
 }) { }
 
@@ -550,14 +551,19 @@ export class NoriTokenBridge
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
         storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
 
-        // record amount to be burned
-        await storage.increaseBurnedAmount(amountToBurn, receiver);
+        // record amount to be burned and capture the new cumulative burnedSoFar
+        const newBurnedSoFar = await storage.addBurnGetCumulative(amountToBurn, receiver);
 
         // burn it
         let token = new FungibleToken(tokenAddress);
         await token.burn(userAddress, UInt64.fromFields(amountToBurn.toFields()));
 
-        this.emitEvent("Burn", new BurnEvent({ from: userAddress, amount: UInt64.fromFields(amountToBurn.toFields()), receiverEth: receiver }));
+        this.emitEvent("Burn", new BurnEvent({
+            from: userAddress,
+            amount: UInt64.fromFields(amountToBurn.toFields()),
+            burnedSoFar: UInt64.fromFields(newBurnedSoFar.toFields()),
+            receiverEth: receiver,
+        }));
 
     }
     @method.returns(Bool)

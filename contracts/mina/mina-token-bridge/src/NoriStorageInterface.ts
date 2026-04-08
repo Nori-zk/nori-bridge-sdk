@@ -57,22 +57,24 @@ export class NoriStorageInterface extends SmartContract {
   }
 
   /**
-   * maintain `burnedSoFar` by adding amount to burn
-   * 
+   * Adds `amountToBurn` to the cumulative `burnedSoFar` and records the receiver.
+   *
    * NOTE: Since all operations on `Token Holder Account` require token owner's approval, we migrate `operations validity check`(like signature check, etc.) into token owner's methods invoked by user.
-   * 
-   * @param amountToBurn 
-   * @returns 
+   *
+   * @param amountToBurn the amount being burned in this call
+   * @param receiver the Ethereum receiver address (Field-encoded)
+   * @returns the new cumulative `burnedSoFar` after adding `amountToBurn`
    */
   @method.returns(Field)
-  async increaseBurnedAmount(amountToBurn: Field, receiver: Field) {
+  async addBurnGetCumulative(amountToBurn: Field, receiver: Field) {
     let burnedSoFar = this.burnedSoFar.getAndRequireEquals();
 
-    // Set burnedSoFar to the new burn amount plus the original amountToBurn.
-    this.burnedSoFar.set(burnedSoFar.add(amountToBurn));
+    // Compute the new cumulative burnedSoFar and persist it.
+    const newBurnedSoFar = burnedSoFar.add(amountToBurn);
+    this.burnedSoFar.set(newBurnedSoFar);
 
     this.receiver.set(receiver);
 
-    return amountToBurn;
+    return newBurnedSoFar;
   }
 }
