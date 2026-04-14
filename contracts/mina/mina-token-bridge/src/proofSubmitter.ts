@@ -236,6 +236,23 @@ export class NoriTokenBridgeSubmitter {
         logger.log('proofConversionPO2 set successfully.');
     }
 
+    // Set both pi0 and po2 in a single transaction.
+    async setIntegrityParams(pi0: FrC, po2: Field) {
+        logger.log('Creating setIntegrityParams transaction (pi0 + po2).');
+        const senderPublicKey = this.#senderPrivateKey.toPublicKey();
+
+        const txn = await Mina.transaction(
+            { sender: senderPublicKey, fee: this.#txFee },
+            async () => {
+                await this.#zkApp.setNoriHeliosProgramPi0(pi0);
+                await this.#zkApp.setProofConversionPO2(po2);
+            }
+        );
+        await txn.prove();
+        await txn.sign([this.#senderPrivateKey]).send().wait();
+        logger.log('Integrity params (pi0 + po2) set successfully.');
+    }
+
     async createProof(
         proofArguments: CreateProofArgument
     ): Promise<NoriTokenBridgeUpdateArgs> {

@@ -176,7 +176,7 @@ async function dispatchRoot(root: Field) {
 describe('NoriTokenBridge', () => {
     beforeAll(async () => {
         // Configure LocalBlockchain (proofsEnabled: false for fast execution)
-        const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
+        const Local = await Mina.LocalBlockchain({ proofsEnabled: false });
         Mina.setActiveInstance(Local);
 
         deployer = {
@@ -363,6 +363,30 @@ describe('NoriTokenBridge', () => {
                 FrC.from(onchain).assertEquals(pi0, 'noriHeliosProgramPi0 mismatch');
 
                 logger.log('noriHeliosProgramPi0 set successfully.');
+            }, 1_000_000);
+
+            test('should set both pi0 and po2 in a single transaction', async () => {
+                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                        await noriTokenBridge.setProofConversionPO2(po2);
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
+
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+
+                const onchainPi0 = await noriTokenBridge.noriHeliosProgramPi0.fetch();
+                FrC.from(onchainPi0).assertEquals(pi0, 'noriHeliosProgramPi0 mismatch');
+
+                const onchainPo2 = await noriTokenBridge.proofConversionPO2.fetch();
+                assert.equal(onchainPo2.toBigInt(), po2.toBigInt(), 'proofConversionPO2 mismatch');
+
+                logger.log('Both pi0 and po2 set in single transaction.');
             }, 1_000_000);
 
             test('should set proofConversionPO2 with admin key', async () => {

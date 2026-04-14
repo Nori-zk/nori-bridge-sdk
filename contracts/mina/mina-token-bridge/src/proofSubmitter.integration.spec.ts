@@ -110,8 +110,10 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(proofArgument));
 
             // Set on-chain integrity params required by update()
-            await proofSubmitter.setNoriHeliosProgramPi0(FrC.from(bridgeHeadNoriSP1HeliosProgramPi0));
-            await proofSubmitter.setProofConversionPO2(Field.from(proofConversionSP1ToPlonkPO2));
+            await proofSubmitter.setIntegrityParams(
+                FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
+                Field.from(proofConversionSP1ToPlonkPO2),
+            );
 
             // Build proof.
             const updateArgs = await proofSubmitter.createProof(proofArgument);
@@ -160,8 +162,10 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
 
             // Set on-chain integrity params required by update()
-            await proofSubmitter.setNoriHeliosProgramPi0(FrC.from(bridgeHeadNoriSP1HeliosProgramPi0));
-            await proofSubmitter.setProofConversionPO2(Field.from(proofConversionSP1ToPlonkPO2));
+            await proofSubmitter.setIntegrityParams(
+                FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
+                Field.from(proofConversionSP1ToPlonkPO2),
+            );
 
             // Build and submit proofs
             let i = 1;
@@ -220,8 +224,10 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
 
             // Set on-chain integrity params required by update()
-            await proofSubmitter.setNoriHeliosProgramPi0(FrC.from(bridgeHeadNoriSP1HeliosProgramPi0));
-            await proofSubmitter.setProofConversionPO2(Field.from(proofConversionSP1ToPlonkPO2));
+            await proofSubmitter.setIntegrityParams(
+                FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
+                Field.from(proofConversionSP1ToPlonkPO2),
+            );
 
             // Build and submit proofs
             logger.log(
