@@ -44,7 +44,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     error InvalidZkappAccount();
     error InvalidUnlockAmount();
     error EthTransferFailed();
-    error BurnCounterDecreased();
+    error BurnCounterNotIncreased();
     error IncorrectZkappVerificationKey();
     error IncorrectTokenHolderAccount();
     error FeeRateTooHigh();
@@ -91,12 +91,12 @@ contract NoriTokenBridge is ReentrancyGuard {
     event TokensLocked(
         address indexed user,
         uint256 indexed codeChallenge,
-        uint256 amount, 
+        uint256 amount,
         uint256 fee
     );
     event TokensUnlocked(
         uint256 indexed pubKeyTokenIdHash,
-        uint256 amount, 
+        uint256 amount,
         uint256 fee,
         address receiver
     );
@@ -292,8 +292,8 @@ contract NoriTokenBridge is ReentrancyGuard {
         uint256 unlockedTokensSoFar = unlockedTokens[pubKeyTokenIdHash];
         uint256 burntTokensSoFar = uint256(account.zkapp.appState[2]);
         // check if burnedSoFar at Mina account is greater than the existing burnSoFar
-        if (burntTokensSoFar < unlockedTokensSoFar)
-            revert BurnCounterDecreased();
+        if (burntTokensSoFar <= unlockedTokensSoFar)
+            revert BurnCounterNotIncreased();
 
         // gas optimization: bypass built-in underflow check since we just verified this condition
         uint256 tokensToUnlock;
@@ -413,7 +413,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         emit FeesWithdrawn(feeRecipient, fees);
     }
     receive() external payable {
-        revert("Use lockTokens to lock Ether");
+        revert('Use lockTokens to lock Ether');
     }
     // -------------------------------
     // View Helper: compute gross lock amount for a desired net

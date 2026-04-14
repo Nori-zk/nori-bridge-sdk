@@ -1,3 +1,5 @@
+/// <reference types="@nomicfoundation/hardhat-ethers" />
+/// <reference types="@nomicfoundation/hardhat-ethers-chai-matchers" />
 import { expect } from 'chai';
 import { getRandomValues } from 'crypto';
 import { NoriTokenBridge__factory } from 'types/ethers-contracts/index.js';
@@ -68,7 +70,7 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should deploy with zero balance (non-payable constructor)', async function () {
-            const [deployer,  dummyState, dummyAccount] = await ethers.getSigners();
+            const [deployer, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             const tokenBridge = await TokenBridge.deploy(deployer.address, dummyState.address, dummyAccount.address);
             const balance = await ethers.provider.getBalance(tokenBridge.target);
@@ -422,7 +424,7 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should revert if msg.value is not bridge-unit-aligned', async function () {
-            const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
 
             // msg.value must be bridge-unit-aligned (checked BEFORE fee deduction)
             const minLockAmount = await tokenBridge.MIN_LOCK_AMOUNT_WEI();

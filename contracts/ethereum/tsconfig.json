@@ -17,6 +17,7 @@
     "strictFunctionTypes": true,
     "strictNullChecks": false,
     "typeRoots": ["../../node_modules/@types"],
+    "types": ["mocha"],
     "rootDir": ".",
     "baseUrl": ".", // affects where output files end up
     "target": "es2021", // goal: ship *the most modern syntax* that is supported by *all* browsers that support our Wasm
