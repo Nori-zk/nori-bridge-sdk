@@ -187,6 +187,7 @@ An optional `FileSystemCacheConfig` argument can be passed to use an on-disk o1j
 - **`deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field)`** — lightnet only. Deploys `NoriTokenBridge` in a single transaction. `ethTokenBridgeAddress` is the Ethereum token bridge contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthTokenBridgeAddressFromSP1Proof`. Throws if `MINA_NETWORK` is not `lightnet` — see [How to deploy](#how-to-deploy) for non-test deployments.
 - **`setNoriHeliosProgramPi0(pi0: FrC)`** — sets the on-chain `noriHeliosProgramPi0` state. Admin-gated. Must be called after deploy and before `submit()`.
 - **`setProofConversionPO2(po2: Field)`** — sets the on-chain `proofConversionPO2` state. Admin-gated. Must be called after deploy and before `submit()`.
+- **`setIntegrityParams(pi0: FrC, po2: Field)`** — sets both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Admin-gated. Preferred over calling the individual setters separately.
 
 ## How to build
 
@@ -391,6 +392,16 @@ npm run set-po2 -- <po2DecimalString>
 ```
 
 - `<po2DecimalString>`: the po2 value as a decimal string. This infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion.
+
+## How to set both integrity params in a single transaction
+
+Sets both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Preferred when both values need updating (e.g. after a bridge-head or proof-conversion upgrade). Same `.env` requirements as the individual setters above.
+
+Run:
+
+```bash
+npm run set-integrity-params -- <pi0DecimalString> <po2DecimalString>
+```
 
 ## How to submit a new converter proof
 
