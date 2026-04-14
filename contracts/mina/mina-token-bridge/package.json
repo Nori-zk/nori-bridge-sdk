@@ -70,6 +70,8 @@
         "contractsCompile": "tsc && node --experimental-vm-modules build/contractCompile.js",
         "deploy": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
         "update-store-hash": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateStoreHash.js",
+        "set-pi0": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/setNoriHeliosProgramPi0.js",
+        "set-po2": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/setProofConversionPO2.js",
         "update-vk": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateVk.js",
         "update-vk-non-provable": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateVkNonProvable.js",
         "migrate-vk-to-tag": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/migrateVkToTag.js",

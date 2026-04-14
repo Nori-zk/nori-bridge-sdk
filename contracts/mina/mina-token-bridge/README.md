@@ -15,6 +15,7 @@ import {
     wait,                     // Polls the Mina RPC until a transaction is included or max retries reached
     signSecretWithEthWallet,  // Signs a secret with an Ethereum wallet for use in minting
     env,                      // Parsed environment configuration object
+    getStagingEnv,            // Resolves staging env config for the chain set by TEST_MINA_STAGING_CHAIN_NAME
     noriTokenBridgeVkHash,    // Baked verification key hash for NoriTokenBridge (integrity check)
     noriStorageInterfaceVkHash, // Baked verification key hash for NoriStorageInterface
     fungibleTokenVkHash,      // Baked verification key hash for FungibleToken
@@ -184,6 +185,8 @@ An optional `FileSystemCacheConfig` argument can be passed to use an on-disk o1j
 - **`createProof(arg: CreateProofArgument)`** — decodes a `sp1PlonkProof` (raw SP1/Plonk consensus proof) and `conversionOutputProof` (converted node proof) into `{ ethInput, rawProof }`. No ZK computation — `ethVerify` is inlined into `NoriTokenBridge.update`.
 - **`submit({ ethInput, rawProof })`** — fetches on-chain accounts, builds and proves the `NoriTokenBridge.update` transaction, signs with `MINA_SENDER_PRIVATE_KEY`, and sends it. Returns `{ txId, txHash }`.
 - **`deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field)`** — lightnet only. Deploys `NoriTokenBridge` in a single transaction. `ethTokenBridgeAddress` is the Ethereum token bridge contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthTokenBridgeAddressFromSP1Proof`. Throws if `MINA_NETWORK` is not `lightnet` — see [How to deploy](#how-to-deploy) for non-test deployments.
+- **`setNoriHeliosProgramPi0(pi0: FrC)`** — sets the on-chain `noriHeliosProgramPi0` state. Admin-gated. Must be called after deploy and before `submit()`.
+- **`setProofConversionPO2(po2: Field)`** — sets the on-chain `proofConversionPO2` state. Admin-gated. Must be called after deploy and before `submit()`.
 
 ## How to build
 
@@ -344,6 +347,50 @@ The `<storeHashInHex>` must match the `input_store_hash` of the store you expect
 
 You can find sensible values by running the bridge head and inspecting the checkpoint in:
 `sp1-helios-proof-messages/<file-with-slot-height>.json`
+
+## How to set noriHeliosProgramPi0
+
+Sets the on-chain `noriHeliosProgramPi0` state — the Nori SP1 Helios program identifier (public input 0 from the SP1 consensus MPT transition proof). This is an admin-gated provable method.
+
+From `contracts/mina/mina-token-bridge/`, ensure your `.env` contains:
+
+```
+MINA_RPC_NETWORK_URL=<url>
+MINA_NETWORK=<mainnet|devnet|lightnet>
+MINA_SENDER_PRIVATE_KEY=<contract-admin-private-key>
+NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<deployed-bridge-private-key>
+MINA_TX_FEE=0.1
+```
+
+Run:
+
+```bash
+npm run set-pi0 -- <pi0DecimalString>
+```
+
+- `<pi0DecimalString>`: the pi0 value as a decimal string. The canonical value is published as [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) in [bridge-head](https://github.com/Nori-zk/nori-bridge-head) and mirrored into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json). Update this value when bridge-head releases a new version.
+
+## How to set proofConversionPO2
+
+Sets the on-chain `proofConversionPO2` state — public output 2 from the converted consensus MPT transition proof. This is an admin-gated provable method.
+
+From `contracts/mina/mina-token-bridge/`, ensure your `.env` contains:
+
+```
+MINA_RPC_NETWORK_URL=<url>
+MINA_NETWORK=<mainnet|devnet|lightnet>
+MINA_SENDER_PRIVATE_KEY=<contract-admin-private-key>
+NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<deployed-bridge-private-key>
+MINA_TX_FEE=0.1
+```
+
+Run:
+
+```bash
+npm run set-po2 -- <po2DecimalString>
+```
+
+- `<po2DecimalString>`: the po2 value as a decimal string. This infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion.
 
 ## How to submit a new converter proof
 

@@ -24,7 +24,7 @@ import {
     compileAndOptionallyVerifyContracts,
 } from '@nori-zk/o1js-zk-utils-new';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
-import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
+import type { NodeProofLeft as NodeProofLeftRaw, FrC } from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from './integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from './integrity/NoriStorageInterface.VkHash.js';
 
@@ -202,6 +202,38 @@ export class NoriTokenBridgeSubmitter {
             .send()
             .wait();
         logger.log('NoriTokenBridge deployed successfully.');
+    }
+
+    // Set the on-chain noriHeliosProgramPi0 state (admin-gated).
+    async setNoriHeliosProgramPi0(pi0: FrC) {
+        logger.log('Creating setNoriHeliosProgramPi0 transaction.');
+        const senderPublicKey = this.#senderPrivateKey.toPublicKey();
+
+        const txn = await Mina.transaction(
+            { sender: senderPublicKey, fee: this.#txFee },
+            async () => {
+                await this.#zkApp.setNoriHeliosProgramPi0(pi0);
+            }
+        );
+        await txn.prove();
+        await txn.sign([this.#senderPrivateKey]).send().wait();
+        logger.log('noriHeliosProgramPi0 set successfully.');
+    }
+
+    // Set the on-chain proofConversionPO2 state (admin-gated).
+    async setProofConversionPO2(po2: Field) {
+        logger.log('Creating setProofConversionPO2 transaction.');
+        const senderPublicKey = this.#senderPrivateKey.toPublicKey();
+
+        const txn = await Mina.transaction(
+            { sender: senderPublicKey, fee: this.#txFee },
+            async () => {
+                await this.#zkApp.setProofConversionPO2(po2);
+            }
+        );
+        await txn.prove();
+        await txn.sign([this.#senderPrivateKey]).send().wait();
+        logger.log('proofConversionPO2 set successfully.');
     }
 
     async createProof(

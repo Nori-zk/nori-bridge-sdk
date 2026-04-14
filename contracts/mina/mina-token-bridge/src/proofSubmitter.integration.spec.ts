@@ -5,13 +5,16 @@ import {
 } from './constructExampleProofs.js';
 import { NoriTokenBridgeSubmitter } from './proofSubmitter.js';
 import { wait } from './txWait.js';
-import { PrivateKey } from 'o1js';
+import { Field, PrivateKey } from 'o1js';
 import {
     CacheType,
     decodeConsensusMptProof,
     extractEthTokenBridgeAddressFromSP1Proof,
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
     type FileSystemCacheConfig,
 } from '@nori-zk/o1js-zk-utils-new';
+import { FrC } from '@nori-zk/proof-conversion/min';
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
@@ -106,6 +109,10 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
 
             await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(proofArgument));
 
+            // Set on-chain integrity params required by update()
+            await proofSubmitter.setNoriHeliosProgramPi0(FrC.from(bridgeHeadNoriSP1HeliosProgramPi0));
+            await proofSubmitter.setProofConversionPO2(Field.from(proofConversionSP1ToPlonkPO2));
+
             // Build proof.
             const updateArgs = await proofSubmitter.createProof(proofArgument);
 
@@ -151,6 +158,10 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
                 seriesExamples[0].sp1PlonkProof
             );
             await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
+
+            // Set on-chain integrity params required by update()
+            await proofSubmitter.setNoriHeliosProgramPi0(FrC.from(bridgeHeadNoriSP1HeliosProgramPi0));
+            await proofSubmitter.setProofConversionPO2(Field.from(proofConversionSP1ToPlonkPO2));
 
             // Build and submit proofs
             let i = 1;
@@ -207,6 +218,10 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
                 seriesExamples[0].sp1PlonkProof
             );
             await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
+
+            // Set on-chain integrity params required by update()
+            await proofSubmitter.setNoriHeliosProgramPi0(FrC.from(bridgeHeadNoriSP1HeliosProgramPi0));
+            await proofSubmitter.setProofConversionPO2(Field.from(proofConversionSP1ToPlonkPO2));
 
             // Build and submit proofs
             logger.log(
