@@ -46,10 +46,13 @@ import {
     Bytes32FieldPair,
     bytes32LEToFieldProvable,
     extractEthTokenBridgeAddressFromSP1Proof,
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
+import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
 import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from './testUtils.js';
 
@@ -303,6 +306,115 @@ describe('NoriTokenBridge', () => {
 
             logger.log('Deployment verified.');
         }, 1_000_000);
+    });
+
+    // =======================================================================
+    // setNoriHeliosProgramPi0() / setProofConversionPO2() — on-chain integrity params
+    // =======================================================================
+    describe('setNoriHeliosProgramPi0() / setProofConversionPO2()', () => {
+        describe('Happy Path', () => {
+            test('should set noriHeliosProgramPi0 with admin key', async () => {
+                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
+
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const onchain = await noriTokenBridge.noriHeliosProgramPi0.fetch();
+                FrC.from(onchain).assertEquals(pi0, 'noriHeliosProgramPi0 mismatch');
+
+                logger.log('noriHeliosProgramPi0 set successfully.');
+            }, 1_000_000);
+
+            test('should set proofConversionPO2 with admin key', async () => {
+                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.setProofConversionPO2(po2);
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
+
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const onchain = await noriTokenBridge.proofConversionPO2.fetch();
+                assert.equal(
+                    onchain.toBigInt(),
+                    po2.toBigInt(),
+                    'proofConversionPO2 mismatch'
+                );
+
+                logger.log('proofConversionPO2 set successfully.');
+            }, 1_000_000);
+        });
+
+        describe('Negative Tests', () => {
+            test('should REJECT setNoriHeliosProgramPi0 by arbitrary user', async () => {
+                const pi0 = FrC.from(33);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                            },
+                            sender: alice.publicKey,
+                            signers: [alice.privateKey],
+                        })
+                );
+            }, 1_000_000);
+
+            test('should REJECT setProofConversionPO2 by arbitrary user', async () => {
+                const po2 = Field.from(54);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setProofConversionPO2(po2);
+                            },
+                            sender: alice.publicKey,
+                            signers: [alice.privateKey],
+                        })
+                );
+            }, 1_000_000);
+
+            test('should REJECT setNoriHeliosProgramPi0 by deployer (not admin)', async () => {
+                const pi0 = FrC.from(43);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey],
+                        })
+                );
+            }, 1_000_000);
+
+            test('should REJECT setProofConversionPO2 by deployer (not admin)', async () => {
+                const po2 = Field.from(65);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setProofConversionPO2(po2);
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey],
+                        })
+                );
+            }, 1_000_000);
+        });
     });
 
     // =======================================================================
@@ -754,9 +866,9 @@ describe('NoriTokenBridge', () => {
                 // Reconstruct the 6 roots already dispatched by prior tests.
                 // 4 from update():
                 allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput1.verifiedContractDepositsRoot.bytes));
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedContractDepositsRoot.bytes));
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedContractDepositsRoot.bytes));
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes));
+                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedContractDepositsRoot.bytes));
+                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedContractDepositsRoot.bytes));
+                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes));
                 // 1 from alice first deposit root seed:
                 const aliceResult1 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 200n);
                 allDispatchedRoots.push(

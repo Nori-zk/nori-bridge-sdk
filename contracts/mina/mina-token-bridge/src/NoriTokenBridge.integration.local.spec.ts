@@ -47,7 +47,10 @@ import {
     Bytes32FieldPair,
     bytes32LEToFieldProvable,
     extractEthTokenBridgeAddressFromSP1Proof,
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
+import { FrC } from '@nori-zk/proof-conversion/min';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
@@ -173,7 +176,7 @@ async function dispatchRoot(root: Field) {
 describe('NoriTokenBridge', () => {
     beforeAll(async () => {
         // Configure LocalBlockchain (proofsEnabled: false for fast execution)
-        const Local = await Mina.LocalBlockchain({ proofsEnabled: false });
+        const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
         Mina.setActiveInstance(Local);
 
         deployer = {
@@ -340,12 +343,123 @@ describe('NoriTokenBridge', () => {
     });
 
     // =======================================================================
+    // setNoriHeliosProgramPi0() / setProofConversionPO2() — on-chain integrity params
+    // =======================================================================
+    describe('setNoriHeliosProgramPi0() / setProofConversionPO2()', () => {
+        describe('Happy Path', () => {
+            test('should set noriHeliosProgramPi0 with admin key', async () => {
+                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
+
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const onchain = await noriTokenBridge.noriHeliosProgramPi0.fetch();
+                FrC.from(onchain).assertEquals(pi0, 'noriHeliosProgramPi0 mismatch');
+
+                logger.log('noriHeliosProgramPi0 set successfully.');
+            }, 1_000_000);
+
+            test('should set proofConversionPO2 with admin key', async () => {
+                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.setProofConversionPO2(po2);
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
+
+                await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+                const onchain = await noriTokenBridge.proofConversionPO2.fetch();
+                assert.equal(
+                    onchain.toBigInt(),
+                    po2.toBigInt(),
+                    'proofConversionPO2 mismatch'
+                );
+
+                logger.log('proofConversionPO2 set successfully.');
+            }, 1_000_000);
+        });
+
+        describe('Negative Tests', () => {
+            test('should REJECT setNoriHeliosProgramPi0 by arbitrary user', async () => {
+                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                            },
+                            sender: alice.publicKey,
+                            signers: [alice.privateKey],
+                        })
+                );
+            }, 1_000_000);
+
+            test('should REJECT setProofConversionPO2 by arbitrary user', async () => {
+                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setProofConversionPO2(po2);
+                            },
+                            sender: alice.publicKey,
+                            signers: [alice.privateKey],
+                        })
+                );
+            }, 1_000_000);
+
+            test('should REJECT setNoriHeliosProgramPi0 by deployer (not admin)', async () => {
+                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey],
+                        })
+                );
+            }, 1_000_000);
+
+            test('should REJECT setProofConversionPO2 by deployer (not admin)', async () => {
+                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+
+                await assert.rejects(
+                    () =>
+                        txSend({
+                            body: async () => {
+                                await noriTokenBridge.setProofConversionPO2(po2);
+                            },
+                            sender: deployer.publicKey,
+                            signers: [deployer.privateKey],
+                        })
+                );
+            }, 1_000_000);
+        });
+    });
+
+    // =======================================================================
     // update() — Ethereum state verification
     // =======================================================================
     describe('update()', () => {
         describe('Happy Path', () => {
             test('should accept the first SP1 proof and advance latestHead (block 1)', async () => {
                 const headBefore = await noriTokenBridge.latestHead.fetch();
+                const poBefore = await noriTokenBridge.proofConversionPO2.fetch();
+                logger.log(`Before block 1: latestHead=${headBefore}, proofConversionPO2=${poBefore}`);
 
                 await txSend({
                     body: async () => {
@@ -601,6 +715,7 @@ describe('NoriTokenBridge', () => {
             // via the admin-gated adminSetDepositRoot method, so the
             // deposit-root assertion in noriMint() passes.
             const aliceRoot = getContractDepositSlotRootFromContractDepositAndWitness(aliceDepositAttestationInput);
+            logger.log(`Seeding Alice's deposit root into contract window: ${aliceRoot}`);
             await txSend({
                 body: async () => {
                     await noriTokenBridge.adminSetDepositRoot(aliceRoot, Field(0));
@@ -608,6 +723,7 @@ describe('NoriTokenBridge', () => {
                 sender: admin.publicKey,
                 signers: [admin.privateKey],
             });
+            logger.log('Alice deposit root dispatched to contract.');
             await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
             logger.log('Deposit root seeded into contract window for Alice.');
         }, 1_000_000);

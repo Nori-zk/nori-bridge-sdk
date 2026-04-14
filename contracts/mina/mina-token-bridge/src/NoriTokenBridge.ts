@@ -36,8 +36,6 @@ import { EthInput, bytes32LEToFieldProvable, Bytes20 } from '@nori-zk/o1js-zk-ut
 import {
     Bytes32,
     Bytes32FieldPair,
-    bridgeHeadNoriSP1HeliosProgramPi0,
-    proofConversionSP1ToPlonkPO2,
     proofConversionSP1ToPlonkVkData,
 } from '@nori-zk/o1js-zk-utils-new';
 import { Logger } from 'esm-iso-logger';
@@ -139,6 +137,21 @@ export class NoriTokenBridge
     @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
     @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
+    /**
+     * Public input 0 from the SP1 consensus MPT transition proof (sp1Proof.proof.Plonk.public_inputs[0]), 
+     * the Nori SP1 Helios program identifier (bridgeHeadNoriSP1HeliosProgramPi0), 
+     * stored in src/integrity/nori-sp1-helios-program.pi0.json — 
+     * a copy of nori-elf/nori-sp1-helios-program.pi0.json from bridge-head. 
+     * Changes frequently as the Helios light client evolves 
+     */
+    @state(FrC) noriHeliosProgramPi0 = State<FrC>();
+    /**
+     * Public output 2 from the converted consensus MPT transition proof 
+     * (proofConversionOutput.proofData.publicOutput[2]). 
+     * Infrequently changes, for instance when SP1 undergoes a major version upgrade 
+     * (e.g. v5 -> v6) that affects the cryptography of proof conversion.
+     */
+    @state(Field) proofConversionPO2 = State<Field>();
 
     /** Action-state hash marking the start of the valid deposit-root window. */
     @state(Field) windowStart = State<Field>();
@@ -199,10 +212,10 @@ export class NoriTokenBridge
         // This is an sp1Proof.proof.Plonk.public_inputs[0]
         // This can now be extracted from bridge head repo at location
         // nori-elf/nori-sp1-helios-program.pi0.json and should be copied to this repository
-        const ethPlonkVK = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+        const ethPlonkVK = this.noriHeliosProgramPi0.getAndRequireEquals();
 
         // p0 = proofConversionOutput.proofData.publicOutput[2] // hash of publicOutput of sp1
-        const ethNodeVk = Field.from(proofConversionSP1ToPlonkPO2);
+        const ethNodeVk = this.proofConversionPO2.getAndRequireEquals();
 
         // Verification of proof conversion
         // vk = proofConversionOutput.vkData
@@ -390,6 +403,17 @@ export class NoriTokenBridge
         await this.ensureAdminSignature();
         this.account.verificationKey.set(vk);
     }
+
+    @method async setNoriHeliosProgramPi0(newPi0: FrC) {
+        await this.ensureAdminSignature();
+        this.noriHeliosProgramPi0.set(newPi0);
+    }
+
+    @method async setProofConversionPO2(newPO2: Field) {
+        await this.ensureAdminSignature();
+        this.proofConversionPO2.set(newPO2);
+    }
+
     // TODO remove for produc
     @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
         await this.ensureAdminSignature();
