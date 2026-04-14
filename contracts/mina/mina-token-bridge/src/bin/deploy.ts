@@ -305,6 +305,14 @@ async function deploy() {
         tokenBaseTokenId,
         tokenBridgeTokenId
     );
+
+    logger.warn(
+        [
+            'Post-deploy action required: set on-chain integrity params (pi0 + po2) before submitting proofs.',
+            'Run: npm run set-integrity-params -- <pi0DecimalString> <po2DecimalString>',
+            'See README for details.',
+        ].join('\n')
+    );
 }
 
 deploy().catch((err) => {

@@ -8,6 +8,7 @@ import {
     type VerificationKeySafe,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils-new';
+import type { FrC } from '@nori-zk/proof-conversion/min';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import {
     AccountUpdate,
@@ -303,5 +304,37 @@ export class TokenBridgeDeployerWorker {
             noriTokenBridgeTokenId,
             txHash: result.hash,
         };
+    }
+
+    // Set on-chain integrity params (pi0 + po2) required by NoriTokenBridge.update().
+    // Must be called after deployContracts and before any proof submission.
+    async setIntegrityParams(
+        senderPrivateKeyBase58: string,
+        noriTokenBridgeAddressBase58: string,
+        pi0: FrC,
+        po2: Field,
+        txFee: number
+    ): Promise<string> {
+        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
+        const senderPublicKey = senderPrivateKey.toPublicKey();
+        const noriTokenBridgeAddress = PublicKey.fromBase58(noriTokenBridgeAddressBase58);
+
+        const noriTokenBridge = new NoriTokenBridge(noriTokenBridgeAddress);
+
+        logger.log('Creating setIntegrityParams transaction (pi0 + po2)...');
+        const txn = await Mina.transaction(
+            { sender: senderPublicKey, fee: txFee },
+            async () => {
+                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                await noriTokenBridge.setProofConversionPO2(po2);
+            }
+        );
+
+        await txn.prove();
+        const tx = await txn.sign([senderPrivateKey]).send();
+        const result = await tx.wait();
+
+        logger.log('Integrity params (pi0 + po2) set successfully.');
+        return result.hash;
     }
 }

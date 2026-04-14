@@ -138,17 +138,20 @@ export class NoriTokenBridge
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
     @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
     /**
-     * Public input 0 from the SP1 consensus MPT transition proof (sp1Proof.proof.Plonk.public_inputs[0]), 
-     * the Nori SP1 Helios program identifier (bridgeHeadNoriSP1HeliosProgramPi0), 
-     * stored in src/integrity/nori-sp1-helios-program.pi0.json — 
-     * a copy of nori-elf/nori-sp1-helios-program.pi0.json from bridge-head. 
-     * Changes frequently as the Helios light client evolves 
+     * Public input 0 from the SP1 consensus MPT transition proof (sp1Proof.proof.Plonk.public_inputs[0]),
+     * the Nori SP1 Helios program identifier (bridgeHeadNoriSP1HeliosProgramPi0).
+     * Canonical value committed in o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json —
+     * a copy of nori-elf/nori-sp1-helios-program.pi0.json from bridge-head.
+     * Set on-chain via setNoriHeliosProgramPi0 after deployment (not baked into the circuit).
+     * Changes frequently as the Helios light client evolves.
      */
     @state(FrC) noriHeliosProgramPi0 = State<FrC>();
     /**
-     * Public output 2 from the converted consensus MPT transition proof 
-     * (proofConversionOutput.proofData.publicOutput[2]). 
-     * Infrequently changes, for instance when SP1 undergoes a major version upgrade 
+     * Public output 2 from the converted consensus MPT transition proof
+     * (proofConversionOutput.proofData.publicOutput[2]).
+     * Canonical value committed in o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json.
+     * Set on-chain via setProofConversionPO2 after deployment (not baked into the circuit).
+     * Infrequently changes, for instance when SP1 undergoes a major version upgrade
      * (e.g. v5 -> v6) that affects the cryptography of proof conversion.
      */
     @state(Field) proofConversionPO2 = State<Field>();
@@ -207,14 +210,10 @@ export class NoriTokenBridge
     }
 
     private ethVerify(input: EthInput, proof: NodeProofLeft) {
-        // JK to swap in CI after contract gets updated and redeployed
-
-        // This is an sp1Proof.proof.Plonk.public_inputs[0]
-        // This can now be extracted from bridge head repo at location
-        // nori-elf/nori-sp1-helios-program.pi0.json and should be copied to this repository
+        // sp1Proof.proof.Plonk.public_inputs[0] — read from on-chain state (set via setNoriHeliosProgramPi0)
         const ethPlonkVK = this.noriHeliosProgramPi0.getAndRequireEquals();
 
-        // p0 = proofConversionOutput.proofData.publicOutput[2] // hash of publicOutput of sp1
+        // proofConversionOutput.proofData.publicOutput[2] — read from on-chain state (set via setProofConversionPO2)
         const ethNodeVk = this.proofConversionPO2.getAndRequireEquals();
 
         // Verification of proof conversion

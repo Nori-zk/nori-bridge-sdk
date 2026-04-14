@@ -8,17 +8,17 @@ A Mina zkApp that verifies Ethereum consensus MPT transition proofs and settles 
 
 ```typescript
 import {
-    NoriTokenBridge,          // Mina zkApp contract: verifies ETH state and manages mint lifecycle
-    NoriStorageInterface,     // Per-user storage contract initialised during minting setup
-    FungibleToken,            // Mina fungible token contract (TokenBase)
+    NoriTokenBridge, // Mina zkApp contract: verifies ETH state and manages mint lifecycle
+    NoriStorageInterface, // Per-user storage contract initialised during minting setup
+    FungibleToken, // Mina fungible token contract (TokenBase)
     NoriTokenBridgeSubmitter, // Tool for building and submitting transition proofs to NoriTokenBridge
-    wait,                     // Polls the Mina RPC until a transaction is included or max retries reached
-    signSecretWithEthWallet,  // Signs a secret with an Ethereum wallet for use in minting
-    env,                      // Parsed environment configuration object
-    getStagingEnv,            // Resolves staging env config for the chain set by TEST_MINA_STAGING_CHAIN_NAME
-    noriTokenBridgeVkHash,    // Baked verification key hash for NoriTokenBridge (integrity check)
+    wait, // Polls the Mina RPC until a transaction is included or max retries reached
+    signSecretWithEthWallet, // Signs a secret with an Ethereum wallet for use in minting
+    env, // Parsed environment configuration object
+    getStagingEnv, // Resolves staging env config for the chain set by TEST_MINA_STAGING_CHAIN_NAME
+    noriTokenBridgeVkHash, // Baked verification key hash for NoriTokenBridge (integrity check)
     noriStorageInterfaceVkHash, // Baked verification key hash for NoriStorageInterface
-    fungibleTokenVkHash,      // Baked verification key hash for FungibleToken
+    fungibleTokenVkHash, // Baked verification key hash for FungibleToken
 } from '@nori-zk/mina-token-bridge-new/node';
 ```
 
@@ -26,16 +26,16 @@ import {
 
 ```typescript
 import {
-    NoriTokenBridge,            // Mina zkApp contract
-    NoriStorageInterface,       // Per-user storage contract
-    FungibleToken,              // Token contract
-    signSecretWithEthWallet,    // ETH wallet signing utility
-    env,                        // Parsed environment configuration object
-    noriTokenBridgeVkHash,      // Baked verification key hash for NoriTokenBridge
+    NoriTokenBridge, // Mina zkApp contract
+    NoriStorageInterface, // Per-user storage contract
+    FungibleToken, // Token contract
+    signSecretWithEthWallet, // ETH wallet signing utility
+    env, // Parsed environment configuration object
+    noriTokenBridgeVkHash, // Baked verification key hash for NoriTokenBridge
     noriStorageInterfaceVkHash, // Baked verification key hash for NoriStorageInterface
-    fungibleTokenVkHash,        // Baked verification key hash for FungibleToken
-    fetchWindowRoots,           // Fetch deposit-root actions in the contract's active window
-    fetchAllDispatchedRoots,    // Fetch all dispatched deposit-root actions from genesis
+    fungibleTokenVkHash, // Baked verification key hash for FungibleToken
+    fetchWindowRoots, // Fetch deposit-root actions in the contract's active window
+    fetchAllDispatchedRoots, // Fetch all dispatched deposit-root actions from genesis
     getOldestActionForEviction, // Get the oldest action to evict when the window is full
 } from '@nori-zk/mina-token-bridge-new/browser';
 ```
@@ -48,22 +48,22 @@ import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge-new/rx/
 // getBridgeSocket$: basic WebSocket without auto-reconnect
 
 import {
-    getBridgeStateTopic$,    // Observable: current bridge processing state
-    getBridgeTimingsTopic$,  // Observable: bridge transition timing configuration
-    getEthStateTopic$,       // Observable: current Ethereum finality state
+    getBridgeStateTopic$, // Observable: current bridge processing state
+    getBridgeTimingsTopic$, // Observable: bridge transition timing configuration
+    getEthStateTopic$, // Observable: current Ethereum finality state
 } from '@nori-zk/mina-token-bridge-new/rx/topics';
 
 import {
     BridgeDepositProcessingStatus, // Enum of deposit states: WaitingForEthFinality, ReadyToMint, etc.
-    getDepositProcessingStatus$,   // Observable: full deposit status stream with time estimates
-    canMint,                       // Promise: resolves when deposit is ReadyToMint, throws if missed
-    readyToComputeMintProof,       // Promise: resolves when proof computation can begin
+    getDepositProcessingStatus$, // Observable: full deposit status stream with time estimates
+    canMint, // Promise: resolves when deposit is ReadyToMint, throws if missed
+    readyToComputeMintProof, // Promise: resolves when proof computation can begin
     bridgeStatusesKnownEnoughToLockUnsafe, // Promise: resolves as soon as all bridge streams emit once
-    bridgeStatusesKnownEnoughToLockSafe,   // Promise: resolves only when last_finalized_job is known
-    getCanMint$,                   // Observable: trinary mint status (ReadyToMint | MissedMintingOpportunity | 'Waiting')
-    getCanComputeEthProof$,        // Observable: trinary compute status (CanCompute | MissedMintingOpportunity | 'Waiting')
-    CanMintStatus,                 // Type
-    CanComputEthProof,             // Type
+    bridgeStatusesKnownEnoughToLockSafe, // Promise: resolves only when last_finalized_job is known
+    getCanMint$, // Observable: trinary mint status (ReadyToMint | MissedMintingOpportunity | 'Waiting')
+    getCanComputeEthProof$, // Observable: trinary compute status (CanCompute | MissedMintingOpportunity | 'Waiting')
+    CanMintStatus, // Type
+    CanComputEthProof, // Type
 } from '@nori-zk/mina-token-bridge-new/rx/deposit';
 ```
 
@@ -160,7 +160,10 @@ const submitter = new NoriTokenBridgeSubmitter(); // reads env vars from process
 await submitter.networkSetUp();
 await submitter.compileContracts();
 
-const args = await submitter.createProof({ sp1PlonkProof, conversionOutputProof });
+const args = await submitter.createProof({
+    sp1PlonkProof,
+    conversionOutputProof,
+});
 const { txId, txHash } = await submitter.submit(args);
 ```
 
@@ -238,15 +241,18 @@ TEST_MINA_STAGING_CHAIN_NAME=mina
 
 ## How to bake integrity hashes
 
-When `NoriTokenBridge`, `NoriStorageInterface`, or `FungibleToken` are modified, or when any public inputs/outputs change due to updates in dependent zk programs (e.g. from `proof-conversion` or `bridge-head`), recompile and update the integrity data.
+When `NoriTokenBridge`, `NoriStorageInterface`, or `FungibleToken` are modified, recompile and update the integrity data. This is also recommended after any dependency update or o1js version bump — `bake-vk-hashes` compiles into an ephemeral cache directory (not the user's `~/.cache/o1js/`), so it produces clean integrity files unaffected by stale cache state.
 
 `NoriTokenBridge.update` verifies the Ethereum state transition. The circuit depends on:
 
-- Public input 0 from the SP1 consensus MPT transition proof (`sp1Proof.proof.Plonk.public_inputs[0]`), the Nori SP1 Helios program identifier (`bridgeHeadNoriSP1HeliosProgramPi0`), stored in [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json) — a copy of [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from [bridge-head](https://github.com/Nori-zk/nori-bridge-head). Changes frequently as the Helios light client evolves — when bridge-head releases a new version, copy [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from the appropriate release tag into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json) before re-running `bake-vk-hashes`.
-- Public output 2 from the converted consensus MPT transition proof (`proofConversionOutput.proofData.publicOutput[2]`). Infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion.
-- The verification key data from the `sp1Plonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion). Unlikely to change.
+- The verification key data from the `sp1Plonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion) (`proofConversionSP1ToPlonkVkData`), which is a hardcoded constant in the circuit. Unlikely to change, but when it does, re-running `bake-vk-hashes` is required because the circuit itself changes.
 
-Changes to any of these — through a `proof-conversion` or `bridge-head` update — require re-running `bake-vk-hashes` before running `deploy`, `update-store-hash`, or `prove-and-submit`.
+The following values are **not** baked into the circuit — they are stored as on-chain state and set via admin-gated methods after deployment:
+
+- `noriHeliosProgramPi0` — the Nori SP1 Helios program identifier (`bridgeHeadNoriSP1HeliosProgramPi0`). Changes frequently as the Helios light client evolves. When bridge-head releases a new version, copy [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from the appropriate release tag into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json) and then run `npm run set-pi0` (or `npm run set-integrity-params`) to update the on-chain value. No VK change or redeployment is needed.
+- `proofConversionPO2` — public output 2 from the converted consensus MPT transition proof. Infrequently changes (e.g. SP1 major version upgrade). Update via `npm run set-po2` (or `npm run set-integrity-params`). No VK change or redeployment is needed.
+
+Changes to `proofConversionSP1ToPlonkVkData` or to the contract source code require re-running `bake-vk-hashes` before running `deploy`, `update-store-hash`, or `prove-and-submit`. Changes to pi0 or po2 only require running `set-integrity-params` — they do not affect the verification key.
 
 For `migrate-vk-to-tag` and `update-vk` the relationship with `bake-vk-hashes` is more nuanced: `migrate-vk-to-tag` is a VK migration workflow that runs `bake-vk-hashes` on the target commitish rather than the current checkout as part of its process — see [How to update the verification key](#how-to-update-the-verification-key).
 
@@ -302,7 +308,7 @@ npm run deploy <storeHashInHex> <ethTokenBridgeAddressHex> [adminPublicKeyBase58
 
 - `<storeHashInHex>`: must match the `input_store_hash` of the first store you expect as a checkpoint, **omitting** the `0x` prefix.
 - `<ethTokenBridgeAddressHex>`: the Ethereum contract address of the token bridge, **omitting** the `0x` prefix.
-- `[adminPublicKeyBase58]`: optional. The public key of the account with admin permissions over the contract (`setVerificationKey`, `updateStoreHash`). If omitted, defaults to the public key derived from `MINA_SENDER_PRIVATE_KEY`.
+- `[adminPublicKeyBase58]`: optional. The public key of the account with admin permissions over the contract (admin-gated methods: `setVerificationKey`, `updateStoreHash`, `setNoriHeliosProgramPi0`, `setProofConversionPO2`). If omitted, defaults to the public key derived from `MINA_SENDER_PRIVATE_KEY`.
 
 You can find sensible values by running the bridge head and inspecting the checkpoint you want to start from in the proof output message directory:
 `sp1-helios-proof-messages/<file-with-slot-height>.json`
@@ -323,6 +329,14 @@ NORI_MINA_TOKEN_BRIDGE_ALLOW_VK_UPDATE=false
 ```
 
 Copy these values into your `.env` file.
+
+**Post-deploy: set integrity params.** After deployment, `noriHeliosProgramPi0` and `proofConversionPO2` are zero on-chain. These must be set before any `NoriTokenBridge.update()` (proof submission) can succeed. Run:
+
+```bash
+npm run set-integrity-params -- <pi0DecimalString> <po2DecimalString>
+```
+
+See [How to set both integrity params in a single transaction](#how-to-set-both-integrity-params-in-a-single-transaction) for details on the values.
 
 After deploying, update `src/env.ts` with the deployed contract addresses, token IDs, and RPC URLs for the target network and environment. This file is the source of truth for consumers of the `env` export — clients, frontends, and tooling all resolve their configuration from it.
 
