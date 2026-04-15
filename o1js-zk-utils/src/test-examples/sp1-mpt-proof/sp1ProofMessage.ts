@@ -1,5 +1,5 @@
 import type { NoriSP1ProofInput } from '@nori-zk/pts-types';
-import sp1ConsensusMPTPlonkProofRaw from './9578560-v5.0.0.json' with { type: 'json' };
+import sp1ConsensusMPTPlonkProofRaw from './10042720-v6.0.0.json' with { type: 'json' };
 const sp1ConsensusMPTPlonkProof = sp1ConsensusMPTPlonkProofRaw as WorkerOutputBridgeHeadMessage;
 
 type VerifiedContractStorageSlot = {
