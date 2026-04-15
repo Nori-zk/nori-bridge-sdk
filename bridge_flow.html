@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nori Bridge — ETH → nETH Flow</title>
+<style>
+  :root {
+    --eth: #3b82f6;
+    --eth-bg: #dbeafe;
+    --bridge: #8b5cf6;
+    --bridge-bg: #ede9fe;
+    --mina: #22c55e;
+    --mina-bg: #dcfce7;
+    --service: #ec4899;
+    --service-bg: #fce7f3;
+    --state: #eab308;
+    --state-bg: #fef9c3;
+    --grey: #6b7280;
+    --bg: #f8fafc;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: #1e293b; padding: 32px 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--grey); font-size: 0.875rem; margin-bottom: 32px; }
+
+  /* ── Phase container ── */
+  .phase { margin-bottom: 28px; border-radius: 12px; border: 2px solid; overflow: hidden; }
+  .phase-header { padding: 10px 16px; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .phase-header .tag { background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+  .phase-body { background: var(--card); padding: 16px; }
+
+  .phase.eth { border-color: var(--eth); }
+  .phase.eth .phase-header { background: var(--eth); }
+  .phase.bridge { border-color: var(--bridge); }
+  .phase.bridge .phase-header { background: var(--bridge); }
+  .phase.mina { border-color: var(--mina); }
+  .phase.mina .phase-header { background: var(--mina); }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step-row { display: flex; align-items: stretch; gap: 0; }
+  .step-num { width: 36px; min-width: 36px; display: flex; flex-direction: column; align-items: center; padding-top: 14px; }
+  .step-num .num { width: 26px; height: 26px; border-radius: 50%; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+  .step-num .connector { flex: 1; width: 2px; margin-top: 4px; }
+  .step-row:last-child .connector { display: none; }
+
+  .phase.eth .num { background: var(--eth); }
+  .phase.eth .connector { background: var(--eth-bg); }
+  .phase.bridge .num { background: var(--bridge); }
+  .phase.bridge .connector { background: var(--bridge-bg); }
+  .phase.mina .num { background: var(--mina); }
+  .phase.mina .connector { background: var(--mina-bg); }
+
+  .step-content { flex: 1; padding: 8px 0 16px 8px; }
+  .step-title { font-weight: 700; font-size: 0.875rem; margin-bottom: 2px; }
+  .step-detail { font-size: 0.8rem; color: #475569; line-height: 1.5; }
+  .step-detail code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.75rem; }
+
+  /* ── Arrow between phases ── */
+  .phase-arrow { text-align: center; padding: 6px 0; color: var(--grey); font-size: 1.2rem; }
+
+  /* ── Side panels (services & state) ── */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+  @media (max-width: 700px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel { border-radius: 12px; border: 2px solid; overflow: hidden; }
+  .panel-header { padding: 8px 14px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; }
+  .panel-body { background: var(--card); padding: 12px 14px; font-size: 0.8rem; line-height: 1.6; }
+  .panel-body dt { font-weight: 700; margin-top: 6px; }
+  .panel-body dd { margin-left: 12px; color: #475569; }
+
+  .panel.service { border-color: var(--service); }
+  .panel.service .panel-header { background: var(--service); }
+  .panel.state { border-color: var(--state); }
+  .panel.state .panel-header { background: var(--state); }
+
+  /* ── Legend ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 28px; padding: 12px 16px; background: var(--card); border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.75rem; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  /* ── Security table ── */
+  .security { margin-top: 28px; }
+  .security h2 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .security table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .security th, .security td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+  .security th { background: #f1f5f9; font-weight: 600; }
+
+  .note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #92400e; margin-top: 12px; }
+  .note strong { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>Nori Bridge — ETH → nETH Flow</h1>
+<p class="subtitle">End-to-end deposit &amp; minting flow across Ethereum, the Nori bridge service, and Mina</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 1 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="phase eth">
+  <div class="phase-header">Phase 1 — Client Preparation <span class="tag">Client</span></div>
+  <div class="phase-body">
+    <div class="steps">
+      <div class="step-row">
+        <div class="step-num"><span class="num">1</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">SCRAM Sign</div>
+          <div class="step-detail">
+            Client signs a fixed message (e.g. <code>"NoriZK25"</code>) with their <strong>Mina private key</strong>.<br>
+            Produces a deterministic <code>signatureSCRAM</code> — reproducible from the same key + message on any machine.
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">2</span></div>
+        <div class="step-content">
+          <div class="step-title">Create Code Challenge</div>
+          <div class="step-detail">
+            <code>codeChallenge = Poseidon.hash(signatureSCRAM.toFields())</code><br>
+            This Field value is committed on Ethereum (deposit key) and verified on Mina (SCRAM proof) — binding the deposit to the Mina key holder.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-arrow">▼</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 2 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="phase eth">
+  <div class="phase-header">Phase 2 — Ethereum Deposit <span class="tag">Client → ETH</span></div>
+  <div class="phase-body">
+    <div class="steps">
+      <div class="step-row">
+        <div class="step-num"><span class="num">3</span></div>
+        <div class="step-content">
+          <div class="step-title">lockTokens(codeChallenge, { value })</div>
+          <div class="step-detail">
+            Calls the <strong>ETH Token Bridge</strong> contract. Min deposit: <code>0.0001 ETH</code> (100 bridge units).<br>
+            The <code>codeChallenge</code> is stored as the deposit key in <code>lockedTokens</code> and <code>depositKeyToEthAddress</code> maps.<br>
+            Transaction receipt provides <code>depositBlockNumber</code> — used to track processing status.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-arrow">▼</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 3 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="phase bridge">
+  <div class="phase-header">Phase 3 — Bridge Processing <span class="tag">Autonomous</span></div>
+  <div class="phase-body">
+    <div class="steps">
+      <div class="step-row">
+        <div class="step-num"><span class="num">4</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">Wait for ETH Finality</div>
+          <div class="step-detail">Bridge monitors the Ethereum beacon chain until the deposit block reaches finality. Client tracks via WebSocket <code>state.eth</code> topic.</div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">5</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">SP1 Helios Proof Generation</div>
+          <div class="step-detail">
+            Bridge generates an <strong>SP1 proof</strong> covering:<br>
+            • Ethereum consensus (beacon chain light client sync via Helios)<br>
+            • MPT storage proof of deposits on the ETH bridge contract<br>
+            Public values include: <code>inputStoreHash</code>, <code>outputStoreHash</code>, <code>executionStateRoot</code>, <code>verifiedContractDepositsRoot</code>, <code>contractAddress</code>, <code>nextSyncCommitteeHash</code>
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">6</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">Proof Conversion (SP1 PLONK → o1js)</div>
+          <div class="step-detail">
+            SP1 PLONK proof is converted into an o1js-verifiable format (<code>NodeProofLeft</code>).<br>
+            Output's <code>subtreeVkDigest</code> is verified against on-chain <code>po2</code>. Public inputs digest verified against on-chain <code>pi0</code>.
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">7</span></div>
+        <div class="step-content">
+          <div class="step-title">Submit <code>update()</code> to Mina</div>
+          <div class="step-detail">
+            Bridge service calls <code>NoriTokenBridge.update(ethInput, convertedProof, oldestAction)</code>:<br>
+            • Verifies converted proof against on-chain <code>pi0</code> and <code>po2</code><br>
+            • Validates store hash chain continuity (<code>inputStoreHash</code> must match on-chain state)<br>
+            • Validates ETH bridge contract address matches on-chain <code>ethTokenBridgeAddress</code><br>
+            • Advances <code>latestHead</code> and updates <code>verifiedStateRoot</code>, store hash fields<br>
+            • Extracts <code>verifiedContractDepositsRoot</code> and <strong>dispatches it as a reducer action</strong><br>
+            • <code>dispatchAndEvict()</code> manages a rolling window of max 32 deposit roots
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      <strong>Client monitors progress</strong> via WebSocket topics: <code>state.eth</code> (ETH finality), <code>state.bridge</code> (bridge job stage + block range), <code>timings.notices.transition</code> (stage timing). The <code>getDepositProcessingStatus$</code> RxJS observable classifies the deposit as: WaitingForEthFinality → WaitingForPreviousJobCompletion → WaitingForCurrentJobCompletion → ReadyToMint (or MissedMintingOpportunity).
+    </div>
+  </div>
+</div>
+
+<div class="phase-arrow">▼</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PHASE 4 -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="phase mina">
+  <div class="phase-header">Phase 4 — Client Minting <span class="tag">Client → Mina</span></div>
+  <div class="phase-body">
+    <div class="steps">
+      <div class="step-row">
+        <div class="step-num"><span class="num">8</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">computeDepositAttestationWitness()</div>
+          <div class="step-detail">
+            Once <code>readyToComputeMintProof()</code> resolves, client fetches deposit data from <strong>PCS</strong>:<br>
+            <code>GET {pcsUrl}/converted-consensus-mpt-proofs/{depositBlockNumber}</code><br>
+            Retrieves all <code>contract_storage_slots</code> — the full set of deposits at that block.<br>
+            • Finds own deposit by matching <code>codeChallenge</code><br>
+            • Builds a Poseidon Merkle tree (depth 16) from all deposit slot leaves<br>
+            • Returns <code>MerkleTreeContractDepositAttestorInputJson</code>: Merkle path + deposit index + deposit values
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">9</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">setUpStorage() — one-time per user</div>
+          <div class="step-detail">
+            Creates a <code>NoriStorageInterface</code> child account under <code>NoriTokenBridge</code>'s token ID.<br>
+            Sets <code>userKeyHash = Poseidon.hash(userPublicKey.toFields())</code> and <code>mintedSoFar = 0</code>.<br>
+            Verification key must match on-chain <code>storageVKHash</code>. Skipped if user already has storage.
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">10</span><div class="connector"></div></div>
+        <div class="step-content">
+          <div class="step-title">noriMint(depositAttestationInput, scramWitness)</div>
+          <div class="step-detail">
+            After <code>canMint()</code> resolves (bridge submitted proof to Mina, deposit root in action window):<br>
+            <strong>On-chain verification (ZK circuit):</strong><br>
+            ① Recompute <code>contractDepositSlotRoot</code> from Merkle witness (path + index + leaf)<br>
+            ② <strong>Reducer check:</strong> <code>reducer.getActions({fromActionState: windowStart})</code> → <code>reducer.reduce()</code> to verify root exists in the rolling action window<br>
+            ③ Extract <code>totalLocked</code> and <code>codeChallenge</code> from the deposit attestation<br>
+            ④ Verify SCRAM: <code>verifyCodeChallenge(codeChallenge, signature, sender, message)</code> — proves knowledge of the commitment pre-image + key ownership<br>
+            ⑤ Verify storage: <code>userKeyHash == Poseidon.hash(sender)</code>, account is not new<br>
+            ⑥ Calculate <code>amountToMint = totalLocked - mintedSoFar</code> (via <code>NoriStorageInterface.increaseMintedAmount</code>)<br>
+            ⑦ Update <code>mintedSoFar</code> in storage
+          </div>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num"><span class="num">11</span></div>
+        <div class="step-content">
+          <div class="step-title">FungibleToken.mint()</div>
+          <div class="step-detail">
+            <code>NoriTokenBridge</code> calls <code>FungibleToken.mint(userAddress, amountToMint)</code>.<br>
+            Gated by <code>mintLock</code> flag — <code>noriMint()</code> sets it to <code>false</code>, then <code>canMint()</code> callback resets to <code>true</code>. Only <code>noriMint()</code> can trigger minting; direct calls are blocked.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PANELS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="panels">
+
+  <div class="panel service">
+    <div class="panel-header">External Services</div>
+    <div class="panel-body">
+      <dl>
+        <dt>Bridge WebSocket Service</dt>
+        <dd>
+          Real-time bridge state monitoring.<br>
+          Topics: <code>state.eth</code>, <code>state.bridge</code>, <code>timings.notices.transition</code><br>
+          Used by: Phase 3 monitoring, deposit status classification
+        </dd>
+        <dt>Proof Conversion Service (PCS)</dt>
+        <dd>
+          HTTP API serving converted proofs and ETH contract storage slots.<br>
+          <code>GET /converted-consensus-mpt-proofs/{blockNumber}</code><br>
+          Used by: Step 8 — provides all deposit slots for Merkle tree construction
+        </dd>
+        <dt>Ethereum RPC</dt>
+        <dd>ETH node for lockTokens transactions and block monitoring</dd>
+        <dt>Mina RPC + Archive</dt>
+        <dd>Mina node for submitting proofs, fetching accounts, and reading actions</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="panel state">
+    <div class="panel-header">NoriTokenBridge On-Chain State</div>
+    <div class="panel-body">
+      <dl>
+        <dt>Identity &amp; Config</dt>
+        <dd><code>adminPublicKey</code>, <code>tokenBaseAddress</code>, <code>storageVKHash</code>, <code>ethTokenBridgeAddress</code>, <code>mintLock</code></dd>
+
+        <dt>Ethereum Head Tracking</dt>
+        <dd><code>latestHead</code> (beacon slot), <code>verifiedStateRoot</code>, <code>latestHeliusStoreInputHash</code> (high + low), <code>latestVerifiedContractDepositsRoot</code></dd>
+
+        <dt>Integrity Parameters</dt>
+        <dd>
+          <code>noriHeliosProgramPi0</code> — SP1 program identifier (pi0)<br>
+          <code>proofConversionPO2</code> — proof conversion VK digest (po2)<br>
+          Set by admin post-deploy; changeable without recompile
+        </dd>
+
+        <dt>Action Window (Reducer)</dt>
+        <dd>
+          <code>windowStart</code> — action-state hash at window start<br>
+          <code>windowSize</code> — current count (max 32)<br>
+          Stores deposit roots as dispatched actions; <code>noriMint()</code> verifies root membership via <code>reducer.reduce()</code>
+        </dd>
+      </dl>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECURITY -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="security">
+  <h2>Security Model</h2>
+  <table>
+    <thead><tr><th>Mechanism</th><th>Protection</th></tr></thead>
+    <tbody>
+      <tr><td>SCRAM</td><td>Only the Mina key holder who deposited can mint — signature commitment scheme verified inside ZK circuit</td></tr>
+      <tr><td>Store hash chain</td><td>Sequential proof validation — each proof's <code>inputStoreHash</code> must match on-chain output, preventing gaps/replays</td></tr>
+      <tr><td>Action window</td><td>Deposit roots expire after 32 new submissions — bounded state growth, time-limited minting</td></tr>
+      <tr><td>mintLock</td><td>Prevents direct <code>FungibleToken.mint()</code> bypass — only <code>noriMint()</code> can toggle it</td></tr>
+      <tr><td>storageVKHash</td><td>Ensures only the correct <code>NoriStorageInterface</code> program runs in the token account</td></tr>
+      <tr><td>ensureAdminSignature</td><td>Admin-gated setters (pi0, po2, updateStoreHash, adminSetDepositRoot, VK upgrade)</td></tr>
+      <tr><td>Permissions</td><td><code>setPermissions: impossible()</code>, <code>editState: proof()</code>, <code>send: proof()</code>, <code>access: proof()</code></td></tr>
+      <tr><td>ETH address validation</td><td><code>update()</code> verifies extracted contract address matches on-chain <code>ethTokenBridgeAddress</code></td></tr>
+      <tr><td>Non-zero sync committee</td><td><code>update()</code> asserts <code>nextSyncCommitteeHash ≠ 0</code> to prevent bricking the bridge head</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- LEGEND -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--eth)"></div> Client + Ethereum</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--bridge)"></div> Bridge Service (autonomous)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--mina)"></div> Client + Mina</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--service)"></div> External Services</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--state)"></div> On-Chain State</div>
+</div>
+
+</body>
+</html>
