@@ -160,7 +160,10 @@ describe('NoriTokenBridge', () => {
       tokenBase       ${tokenBaseKeypair.publicKey.toBase58()}
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
-
+        const analysis = await NoriTokenBridge.analyzeMethods();
+        for (const [name, data] of Object.entries(analysis)) {
+            console.log(`${name}: ${data.rows} rows`);
+        }
         // Compile in dependency order.
         logger.log('Compiling NoriStorageInterface...');
         storageInterfaceVK = (await NoriStorageInterface.compile())

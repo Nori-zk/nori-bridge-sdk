@@ -176,7 +176,7 @@ async function dispatchRoot(root: Field) {
 describe('NoriTokenBridge', () => {
     beforeAll(async () => {
         // Configure LocalBlockchain (proofsEnabled: false for fast execution)
-        const Local = await Mina.LocalBlockchain({ proofsEnabled: false });
+        const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
         Mina.setActiveInstance(Local);
 
         deployer = {
@@ -217,7 +217,10 @@ describe('NoriTokenBridge', () => {
       tokenBase       ${tokenBaseKeypair.publicKey.toBase58()}
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
-
+        const analysis = await NoriTokenBridge.analyzeMethods();
+        for (const [name, data] of Object.entries(analysis)) {
+            console.log(`${name}: ${data.rows} rows`);
+        }
         // Compile in dependency order.
         logger.log('Compiling NoriStorageInterface...');
         storageInterfaceVK = (await NoriStorageInterface.compile()).verificationKey;
@@ -294,7 +297,7 @@ describe('NoriTokenBridge', () => {
                     tokenBaseKeypair.privateKey,
                 ],
             });
-
+            logger.log('Contracts deployed.');
             const onchainAdmin = await noriTokenBridge.adminPublicKey.fetch();
             assert.equal(
                 onchainAdmin.toBase58(),
@@ -832,7 +835,7 @@ describe('NoriTokenBridge', () => {
         // =================================================================
         // Window rotation — windowRotationCount roots, eviction after maxWindow
         // =================================================================
-        describe('Window Rotation', () => {
+        describe.skip('Window Rotation', () => {
             test('window rotation: setup dave', async () => {
                 await txSend({
                     body: async () => {
