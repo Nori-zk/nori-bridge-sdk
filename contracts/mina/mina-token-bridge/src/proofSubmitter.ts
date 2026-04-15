@@ -1,16 +1,19 @@
 import 'dotenv/config';
 import {
     AccountUpdate,
+    Bool,
     type Field,
     Mina,
     PrivateKey,
     PublicKey,
     type NetworkId,
+    UInt8,
     fetchAccount,
 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import { NoriTokenBridge } from './NoriTokenBridge.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
+import { FungibleToken } from './TokenBase.js';
 import { getOldestActionForEviction } from './NoriTokenBridge.utils.js';
 import {
     EthInput,
@@ -27,6 +30,7 @@ import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import type { NodeProofLeft as NodeProofLeftRaw, FrC } from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from './integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from './integrity/NoriStorageInterface.VkHash.js';
+import { fungibleTokenVkHash } from './integrity/FungibleToken.VkHash.js';
 
 const logger = new Logger('NoriTokenBridgeSubmitter');
 
@@ -131,6 +135,7 @@ export class NoriTokenBridgeSubmitter {
 
         const {
             NoriStorageInterfaceVerificationKey,
+            FungibleTokenVerificationKey,
             NoriTokenBridgeVerificationKey,
         } = await compileAndOptionallyVerifyContracts(
             logger,
@@ -139,6 +144,11 @@ export class NoriTokenBridgeSubmitter {
                     name: 'NoriStorageInterface',
                     program: NoriStorageInterface,
                     integrityHash: noriStorageInterfaceVkHash,
+                },
+                {
+                    name: 'FungibleToken',
+                    program: FungibleToken,
+                    integrityHash: fungibleTokenVkHash,
                 },
                 {
                     name: 'NoriTokenBridge',
@@ -160,6 +170,7 @@ export class NoriTokenBridgeSubmitter {
             configurable: false,
             enumerable: true,
         });
+        void FungibleTokenVerificationKey;
     }
 
     async deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field) {
@@ -175,33 +186,46 @@ export class NoriTokenBridgeSubmitter {
 
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();
         const initialStoreHash = Bytes32FieldPair.fromBytes32(storeHash);
+        const tokenBasePrivateKey = PrivateKey.random();
+        const tokenBaseAddress = tokenBasePrivateKey.toPublicKey();
+        const tokenBase = new FungibleToken(tokenBaseAddress);
 
         const deployTx = await Mina.transaction(
             { sender: senderPublicKey, fee: this.#txFee },
             async () => {
-                AccountUpdate.fundNewAccount(senderPublicKey);
+                AccountUpdate.fundNewAccount(senderPublicKey, 3);
                 logger.log(
                     `Deploying NoriTokenBridge with verification key hash: '${this.#noriTokenBridgeVerificationKey.hash}'`
                 );
                 await this.#zkApp.deploy({
                     verificationKey: this.#noriTokenBridgeVerificationKey,
                     adminPublicKey: senderPublicKey,
-                    tokenBaseAddress: PrivateKey.random().toPublicKey(),
+                    tokenBaseAddress,
                     storageVKHash:
                         this.noriStorageInterfaceVerificationKey.hash,
                     newStoreHash: initialStoreHash,
                     ethTokenBridgeAddress,
                 });
+                await tokenBase.deploy({
+                    symbol: 'nETH',
+                    src: 'https://github.com/2nori/nori-bridge-sdk',
+                    allowUpdates: true,
+                });
+                await tokenBase.initialize(
+                    this.#possibleTokenBridgePrivateKey!.toPublicKey(),
+                    UInt8.from(6),
+                    Bool(false),
+                );
             }
         );
         logger.log('Deploy transaction created successfully. Proving...');
         await deployTx.prove();
         logger.log('Transaction proved. Signing and sending the transaction...');
         await deployTx
-            .sign([this.#senderPrivateKey, this.#possibleTokenBridgePrivateKey!])
+            .sign([this.#senderPrivateKey, this.#possibleTokenBridgePrivateKey!, tokenBasePrivateKey])
             .send()
             .wait();
-        logger.log('NoriTokenBridge deployed successfully.');
+        logger.log('NoriTokenBridge and FungibleToken deployed successfully.');
     }
 
     // Set the on-chain noriHeliosProgramPi0 state (admin-gated).
