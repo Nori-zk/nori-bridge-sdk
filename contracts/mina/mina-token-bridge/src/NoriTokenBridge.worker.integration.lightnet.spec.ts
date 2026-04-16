@@ -186,14 +186,15 @@ describe('NoriTokenBridge (Worker-driven)', () => {
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
 
-        // Compile via deployer worker — populates the global o1js compile cache,
-        // so the bridge worker's MOCK_* methods can prove without a separate compile.
+        // Compile 
         const compiled = await deployerWorker.compile();
         storageInterfaceVerificationKeySafe =
             compiled.noriStorageInterfaceVerificationKeySafe;
         storageInterfaceVKHashField = new Field(
             BigInt(storageInterfaceVerificationKeySafe.hashStr)
         );
+        await bridgeWorker.compileAll()
+        await aliceBridgeWorker.compileAll()
 
         // Bind deployer's bridge worker (used for MOCK_update sign+send paths).
         await bridgeWorker.WALLET_setMinaPrivateKey(

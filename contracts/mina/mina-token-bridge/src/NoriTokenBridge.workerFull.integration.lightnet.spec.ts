@@ -215,8 +215,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
 
-        // Compile via deployer worker — populates the global o1js compile cache,
-        // so per-user bridge workers can prove without recompiling.
+        // Compile 
         const compiled = await deployerWorker.compile();
         storageInterfaceVerificationKeySafe =
             compiled.noriStorageInterfaceVerificationKeySafe;
@@ -230,8 +229,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
         // Alice's worker is the one used most often — set it up here.
         aliceBridgeWorker = await makeBridgeWorker(alice.privateKey);
+        await aliceBridgeWorker.compileAll();
         // Deployer's worker drives update() (relayer-style sender).
         deployerBridgeWorker = await makeBridgeWorker(deployer.privateKey);
+        await deployerBridgeWorker.compileAll();
 
         // Decode example proofs (EthInput only — NodeProofLeft is reconstructed
         // inside MOCK_update from examples[i].conversionOutputProof.proofData).
