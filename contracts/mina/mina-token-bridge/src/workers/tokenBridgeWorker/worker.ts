@@ -2,8 +2,15 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     CacheType,
     compileAndOptionallyVerifyContracts,
+    decodeConsensusMptProof,
+    EthInput,
+    NodeProofLeft,
     type NetworkCacheConfig,
 } from '@nori-zk/o1js-zk-utils-new';
+import type {
+    ProofDataOutput,
+    SP1ProofWithPublicValuesPlonkNoTee,
+} from '@nori-zk/proof-conversion/min';
 import {
     AccountUpdate,
     CircuitString,
@@ -374,6 +381,99 @@ export class TokenBridgeWorker {
         const result = await tx.wait();
         logger.log('result', result);
         logger.log('Storage setup completed successfully');
+        return { txHash: result.hash };
+    }
+
+    // Update ******************************************************************************
+
+    async update(
+        noriTokenBridgeAddressBase58: string,
+        sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
+        proofData: ProofDataOutput,
+        oldestActionStr: string,
+        txFee: number
+    ) {
+        if (!this.#minaPrivateKey)
+            throw new Error(
+                '#minaPrivateKey is undefined please call setMinaPrivateKey first'
+            );
+        const senderPublicKey = this.#minaPrivateKey.toPublicKey();
+        const noriTokenBridgeAddress = PublicKey.fromBase58(
+            noriTokenBridgeAddressBase58
+        );
+
+        const decoded = decodeConsensusMptProof(sp1PlonkProof);
+        const ethInput = new EthInput(decoded);
+        const rawProof = await NodeProofLeft.fromJSON(proofData);
+        const oldestAction = new Field(BigInt(oldestActionStr));
+
+        logger.log(
+            `Submitting update from sender: ${senderPublicKey.toBase58()}`
+        );
+
+        await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
+
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+
+        const updateTx = await Mina.transaction(
+            { sender: senderPublicKey, fee: txFee },
+            async () => {
+                await noriTokenBridgeInst.update(
+                    ethInput,
+                    rawProof,
+                    oldestAction
+                );
+            }
+        );
+
+        const provedTx = await updateTx.prove();
+        return provedTx.toJSON();
+    }
+
+    // This will be removed when we have a working version of WALLET_signAndSend
+    async MOCK_update(
+        noriTokenBridgeAddressBase58: string,
+        sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
+        proofData: ProofDataOutput,
+        oldestActionStr: string,
+        txFee: number
+    ) {
+        if (!this.#minaPrivateKey)
+            throw new Error(
+                '#minaPrivateKey is undefined please call setMinaPrivateKey first'
+            );
+        const senderPublicKey = this.#minaPrivateKey.toPublicKey();
+        const noriTokenBridgeAddress = PublicKey.fromBase58(
+            noriTokenBridgeAddressBase58
+        );
+
+        const decoded = decodeConsensusMptProof(sp1PlonkProof);
+        const ethInput = new EthInput(decoded);
+        const rawProof = await NodeProofLeft.fromJSON(proofData);
+        const oldestAction = new Field(BigInt(oldestActionStr));
+
+        logger.log(
+            `Submitting update from sender: ${senderPublicKey.toBase58()}`
+        );
+
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+
+        const updateTx = await Mina.transaction(
+            { sender: senderPublicKey, fee: txFee },
+            async () => {
+                await noriTokenBridgeInst.update(
+                    ethInput,
+                    rawProof,
+                    oldestAction
+                );
+            }
+        );
+
+        const provedTx = await updateTx.prove();
+        const tx = await provedTx.sign([this.#minaPrivateKey]).send();
+        const result = await tx.wait();
+        logger.log('Update completed successfully');
+
         return { txHash: result.hash };
     }
 
