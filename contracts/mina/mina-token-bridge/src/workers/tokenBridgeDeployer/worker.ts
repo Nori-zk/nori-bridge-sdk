@@ -136,6 +136,8 @@ export class TokenBridgeDeployerWorker {
             data: string;
             hashStr: string;
         },
+        pi0: string,
+        po2: string,
         txFee: number,
         options: {
             symbol?: string;
@@ -188,7 +190,9 @@ export class TokenBridgeDeployerWorker {
                     tokenBaseAddress,
                     storageVKHash: storageInterfaceVerificationKey.hash,
                     newStoreHash,
-                    ethTokenBridgeAddress
+                    ethTokenBridgeAddress,
+                    noriHeliosProgramPi0: FrC.from(pi0),
+                    proofConversionPO2: Field.from(po2),
                 });
 
                 await tokenBase.deploy({

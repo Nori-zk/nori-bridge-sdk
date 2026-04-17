@@ -42,7 +42,6 @@ import {
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
-import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
 import {
     getNewMinaLiteNetAccountKeyPair,
@@ -203,7 +202,10 @@ describe('NoriTokenBridge (Worker-driven)', () => {
       tokenBase       ${tokenBaseKeypair.publicKey.toBase58()}
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
-
+        const analysis = await NoriTokenBridge.analyzeMethods();
+        for (const [name, data] of Object.entries(analysis)) {
+            console.log(`${name}: ${data.rows} rows`);
+        }
         // Compile
         const compiled = await deployerWorker.compile();
         storageInterfaceVerificationKeySafe =
@@ -211,7 +213,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         storageInterfaceVKHashField = new Field(
             BigInt(storageInterfaceVerificationKeySafe.hashStr)
         );
-        logger.fatal('beforeeee workers...');
         // Deployer's bridge worker drives MOCK_update (relayer-style sender).
 
         // Alice's bridge worker drives MOCK_setupStorage / MOCK_mint.
@@ -251,6 +252,8 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 inputStoreHashHex,
                 ethTokenBridgeAddressHex,
                 storageInterfaceVerificationKeySafe,
+                bridgeHeadNoriSP1HeliosProgramPi0,
+                proofConversionSP1ToPlonkPO2,
                 fee,
                 {
                     symbol: 'nETH',
@@ -308,57 +311,13 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 6n,
                 'token decimals mismatch'
             );
-
+            deployerWorker.signalTerminate()
             logger.log('Worker-driven deployment verified.');
         }, 1_000_000);
     });
 
     // =======================================================================
-    // 2. setIntegrityParams (pi0 + po2) via TokenBridgeDeployerWorker
-    // =======================================================================
-    describe('setIntegrityParams() via worker', () => {
-        test('should set pi0 + po2 in a single transaction', async () => {
-            const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
-            const po2 = proofConversionSP1ToPlonkPO2;
-
-            await deployerWorker.setIntegrityParams(
-                admin.privateKey.toBase58(),
-                noriTokenBridgeKeypair.publicKey.toBase58(),
-                pi0,
-                po2,
-                fee
-            );
-
-            await fetchAccount({
-                publicKey: noriTokenBridgeKeypair.publicKey,
-            });
-
-            const onchainPi0 =
-                await noriTokenBridge.noriHeliosProgramPi0.fetch();
-            FrC.from(onchainPi0).assertEquals(
-                pi0,
-                'noriHeliosProgramPi0 mismatch'
-            );
-
-            const onchainPo2 = await noriTokenBridge.proofConversionPO2.fetch();
-            assert.equal(
-                onchainPo2.toString(),
-                po2,
-                'proofConversionPO2 mismatch'
-            );
-
-            deployerWorker.signalTerminate()
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 5000);
-            })
-            logger.log('Integrity params set via worker.');
-        }, 1_000_000);
-    });
-
-    // =======================================================================
-    // 3. update() — 4 consecutive blocks via TokenBridgeWorker.MOCK_update
+    // 2. update() — 4 consecutive blocks via TokenBridgeWorker.MOCK_update
     // =======================================================================
     describe('update() via worker', () => {
         beforeAll(async () => {
@@ -463,7 +422,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     });
 
     // =======================================================================
-    // 4. setUpStorage for Alice via TokenBridgeWorker.MOCK_setupStorage
+    // 3. setUpStorage for Alice via TokenBridgeWorker.MOCK_setupStorage
     // =======================================================================
     describe('setUpStorage() via worker', () => {
         beforeAll(async () => {
@@ -512,7 +471,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     });
 
     // =======================================================================
-    // 5. noriMint for Alice via TokenBridgeWorker.MOCK_mint
+    // 4. noriMint for Alice via TokenBridgeWorker.MOCK_mint
     //    (deposit-root seed step uses a direct admin call — no worker method)
     // =======================================================================
     describe('noriMint() via worker', () => {

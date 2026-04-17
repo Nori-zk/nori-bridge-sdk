@@ -20,7 +20,11 @@ import {
 } from './rx/deposit.js';
 import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
 import { getTokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/node/parent.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils-new';
+import {
+    createTimer,
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
+} from '@nori-zk/o1js-zk-utils-new';
 
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2ELitenetSpec');
@@ -64,6 +68,8 @@ describe('e2e', () => {
                 "FIXMETHISISTHEWRONGSTOREHASH",
                 ethTokenBridgeAddress.slice(2),
                 noriStorageInterfaceVerificationKeySafe,
+                bridgeHeadNoriSP1HeliosProgramPi0,
+                proofConversionSP1ToPlonkPO2,
                 0.1 * 1e9,
                 {
                     symbol: 'nETH',

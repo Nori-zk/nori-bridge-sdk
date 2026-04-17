@@ -273,6 +273,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 inputStoreHashHex,
                 ethTokenBridgeAddressHex,
                 storageInterfaceVerificationKeySafe,
+                bridgeHeadNoriSP1HeliosProgramPi0,
+                proofConversionSP1ToPlonkPO2,
                 fee,
                 {
                     symbol: 'nETH',

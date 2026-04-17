@@ -107,10 +107,9 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
                 proofArgument.sp1PlonkProof
             );
 
-            await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(proofArgument));
-
-            // Set on-chain integrity params required by update()
-            await proofSubmitter.setIntegrityParams(
+            await proofSubmitter.deployContract(
+                decoded.inputStoreHash,
+                extractEthTokenBridgeAddressFromSP1Proof(proofArgument),
                 FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                 Field.from(proofConversionSP1ToPlonkPO2),
             );
@@ -159,10 +158,9 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             const decoded = decodeConsensusMptProof(
                 seriesExamples[0].sp1PlonkProof
             );
-            await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
-
-            // Set on-chain integrity params required by update()
-            await proofSubmitter.setIntegrityParams(
+            await proofSubmitter.deployContract(
+                decoded.inputStoreHash,
+                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]),
                 FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                 Field.from(proofConversionSP1ToPlonkPO2),
             );
@@ -221,10 +219,9 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             const decoded = decodeConsensusMptProof(
                 seriesExamples[0].sp1PlonkProof
             );
-            await proofSubmitter.deployContract(decoded.inputStoreHash, extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]));
-
-            // Set on-chain integrity params required by update()
-            await proofSubmitter.setIntegrityParams(
+            await proofSubmitter.deployContract(
+                decoded.inputStoreHash,
+                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]),
                 FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                 Field.from(proofConversionSP1ToPlonkPO2),
             );

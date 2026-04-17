@@ -191,6 +191,8 @@ describe('NoriTokenBridge Happy Path', () => {
                     storageVKHash: storageInterfaceVK.hash,
                     newStoreHash: initialStoreHash,
                     ethTokenBridgeAddress: extractEthTokenBridgeAddressFromSP1Proof(examples[0]),
+                    noriHeliosProgramPi0: FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
+                    proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
                 });
 
                 await tokenBase.deploy({

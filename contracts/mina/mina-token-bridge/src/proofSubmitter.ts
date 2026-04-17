@@ -173,7 +173,12 @@ export class NoriTokenBridgeSubmitter {
         void FungibleTokenVerificationKey;
     }
 
-    async deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field) {
+    async deployContract(
+        storeHash: Bytes32,
+        ethTokenBridgeAddress: Field,
+        noriHeliosProgramPi0: FrC,
+        proofConversionPO2: Field
+    ) {
         if (this.#network !== 'lightnet') {
             throw new Error(
                 [
@@ -205,6 +210,8 @@ export class NoriTokenBridgeSubmitter {
                         this.noriStorageInterfaceVerificationKey.hash,
                     newStoreHash: initialStoreHash,
                     ethTokenBridgeAddress,
+                    noriHeliosProgramPi0,
+                    proofConversionPO2,
                 });
                 await tokenBase.deploy({
                     symbol: 'nETH',

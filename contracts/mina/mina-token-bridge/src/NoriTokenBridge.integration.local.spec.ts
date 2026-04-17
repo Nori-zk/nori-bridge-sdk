@@ -276,6 +276,8 @@ describe('NoriTokenBridge', () => {
                         storageVKHash: storageInterfaceVK.hash,
                         newStoreHash: initialStoreHash,
                         ethTokenBridgeAddress,
+                        noriHeliosProgramPi0: FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
+                        proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
                     });
 
                     await tokenBase.deploy({

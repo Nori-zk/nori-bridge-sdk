@@ -7,7 +7,7 @@ import {
     PublicKey,
     AccountUpdate,
     Bool,
-    type Field,
+    Field,
     type NetworkId,
     UInt8,
 } from 'o1js';
@@ -22,8 +22,11 @@ import {
     Bytes20,
     Bytes32,
     Bytes32FieldPair,
+    bridgeHeadNoriSP1HeliosProgramPi0,
     compileAndVerifyContracts,
+    proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
+import { FrC } from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from '../integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from '../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../integrity/FungibleToken.VkHash.js';
@@ -270,6 +273,10 @@ async function deploy() {
                 storageVKHash: NoriStorageInterfaceVerificationKey.hash,
                 newStoreHash: initialStoreHash,
                 ethTokenBridgeAddress,
+                noriHeliosProgramPi0: FrC.from(
+                    bridgeHeadNoriSP1HeliosProgramPi0
+                ),
+                proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
             });
             logger.log('Deploying FungibleToken.');
             await tokenBase.deploy({

@@ -113,6 +113,8 @@ export interface NoriTokenControllerDeployProps extends Exclude<
     storageVKHash: Field;
     newStoreHash: Bytes32FieldPair;
     ethTokenBridgeAddress: Field;
+    noriHeliosProgramPi0: FrC;
+    proofConversionPO2: Field;
 }
 
 export class BurnEvent extends Struct({
@@ -203,6 +205,9 @@ export class NoriTokenBridge
         this.windowSize.set(Field(0));
 
         this.ethTokenBridgeAddress.set(props.ethTokenBridgeAddress);
+
+        this.noriHeliosProgramPi0.set(props.noriHeliosProgramPi0);
+        this.proofConversionPO2.set(props.proofConversionPO2);
     }
 
     approveBase(_forest: AccountUpdateForest): Promise<void> {
