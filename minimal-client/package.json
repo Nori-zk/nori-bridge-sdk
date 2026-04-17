@@ -1,6 +1,6 @@
 {
     "name": "nori-client-minimal",
-    "version": "2.0.0",
+    "version": "2.0.2",
     "main": "index.js",
     "type": "module",
     "private": "true",
@@ -27,7 +27,7 @@
     },
     "dependencies": {
         "@nori-zk/ethereum-token-bridge": "*",
-        "@nori-zk/proof-conversion": "0.8.17",
+        "@nori-zk/proof-conversion": "0.8.19",
         "@nori-zk/pts-types": "5.0.0",
         "@nori-zk/workers": "*",
         "esm-iso-logger": "1.0.2",
