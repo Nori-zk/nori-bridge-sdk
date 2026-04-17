@@ -213,14 +213,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         );
         logger.fatal('beforeeee workers...');
         // Deployer's bridge worker drives MOCK_update (relayer-style sender).
-        const makeBridgeWorkerPromise = await makeBridgeWorker(deployer.privateKey);
-        logger.fatal('between workers...');
-        const aliceBridgeWorkerPromise = await makeBridgeWorker(alice.privateKey);
-        logger.fatal('Before awaiting bridge workers...');
-        bridgeWorker = await makeBridgeWorkerPromise;
-        console.log('abvcasc ');
-        aliceBridgeWorker = await aliceBridgeWorkerPromise;
-        console.log('Bridge workers ready');
+
         // Alice's bridge worker drives MOCK_setupStorage / MOCK_mint.
         // aliceBridgeWorker = makeBridgeWorker(alice.privateKey);
 
@@ -355,6 +348,11 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             );
 
             deployerWorker.signalTerminate()
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(null);
+                }, 5000);
+            })
             logger.log('Integrity params set via worker.');
         }, 1_000_000);
     });
@@ -363,6 +361,21 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // 3. update() — 4 consecutive blocks via TokenBridgeWorker.MOCK_update
     // =======================================================================
     describe('update() via worker', () => {
+        beforeAll(async () => {
+            logger.fatal('beforeeeed bridge worker...');
+            bridgeWorker = await makeBridgeWorker(deployer.privateKey);
+            logger.fatal('after bridge worker...');
+        });
+
+        afterAll(async () => {
+            bridgeWorker.signalTerminate();
+            //await 5 sec
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(null);
+                }, 5000);
+            });
+        });
         test('block 1', async () => {
             await bridgeWorker.MOCK_update(
                 noriTokenBridgeKeypair.publicKey.toBase58(),
@@ -453,6 +466,20 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // 4. setUpStorage for Alice via TokenBridgeWorker.MOCK_setupStorage
     // =======================================================================
     describe('setUpStorage() via worker', () => {
+        beforeAll(async () => {
+            logger.fatal('Before aliceBridgeWorker...');
+            aliceBridgeWorker = await makeBridgeWorker(alice.privateKey);
+            logger.fatal('After aliceBridgeWorker...');
+        });
+        afterAll(async () => {
+            aliceBridgeWorker.signalTerminate();
+            //await 5 sec
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(null);
+                }, 5000);
+            })
+        });
         test('should initialise storage for Alice', async () => {
             await aliceBridgeWorker.MOCK_setupStorage(
                 alice.publicKey.toBase58(),
