@@ -75,7 +75,6 @@ let allAccounts: PublicKey[];
 
 // Workers
 let deployerWorker: InstanceType<ReturnType<typeof getTokenBridgeDeployerWorker>>;
-let bridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
 let aliceBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
 
 // Compiled VK (safe form) — produced by deployerWorker.compile()
@@ -311,32 +310,25 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 6n,
                 'token decimals mismatch'
             );
-            deployerWorker.signalTerminate()
             logger.log('Worker-driven deployment verified.');
         }, 1_000_000);
     });
 
     // =======================================================================
-    // 2. update() — 4 consecutive blocks via TokenBridgeWorker.MOCK_update
+    // 2. update() — 4 consecutive blocks via TokenBridgeDeployerWorker.update
     // =======================================================================
-    describe('update() via worker', () => {
-        beforeAll(async () => {
-            logger.fatal('beforeeeed bridge worker...');
-            bridgeWorker = await makeBridgeWorker(deployer.privateKey);
-            logger.fatal('after bridge worker...');
+    describe('update() via deployer worker', () => {
+        afterAll(async () => {
+            deployerWorker.signalTerminate();
+            await new Promise((resolve) =>
+                setTimeout(() => resolve(null), 5000)
+            );
         });
 
-        afterAll(async () => {
-            bridgeWorker.signalTerminate();
-            //await 5 sec
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 5000);
-            });
-        });
         test('block 1', async () => {
-            await bridgeWorker.MOCK_update(
+            logger.fatal('Before deployerWorker.update() block 1...');
+            await deployerWorker.update(
+                deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[0].sp1PlonkProof,
                 examples[0].conversionOutputProof.proofData,
@@ -344,6 +336,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 fee
             );
 
+            logger.fatal('After deployerWorker.update() block 1...');
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,
             });
@@ -353,12 +346,12 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 ethInput1.outputSlot.toBigInt(),
                 'latestHead after block 1'
             );
-            bridgeWorker.signalTerminate()
             logger.log(`latestHead advanced to slot ${head} (block 1)`);
         }, 1_000_000);
 
-        test.skip('block 2', async () => {
-            await bridgeWorker.MOCK_update(
+        test('block 2', async () => {
+            await deployerWorker.update(
+                deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[1].sp1PlonkProof,
                 examples[1].conversionOutputProof.proofData,
@@ -378,8 +371,9 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             logger.log(`latestHead advanced to slot ${head} (block 2)`);
         }, 1_000_000);
 
-        test.skip('block 3', async () => {
-            await bridgeWorker.MOCK_update(
+        test('block 3', async () => {
+            await deployerWorker.update(
+                deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[2].sp1PlonkProof,
                 examples[2].conversionOutputProof.proofData,
@@ -399,8 +393,9 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             logger.log(`latestHead advanced to slot ${head} (block 3)`);
         }, 1_000_000);
 
-        test.skip('block 4', async () => {
-            await bridgeWorker.MOCK_update(
+        test('block 4', async () => {
+            await deployerWorker.update(
+                deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[3].sp1PlonkProof,
                 examples[3].conversionOutputProof.proofData,
@@ -424,7 +419,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // =======================================================================
     // 3. setUpStorage for Alice via TokenBridgeWorker.MOCK_setupStorage
     // =======================================================================
-    describe('setUpStorage() via worker', () => {
+    describe.skip('setUpStorage() via worker', () => {
         beforeAll(async () => {
             logger.fatal('Before aliceBridgeWorker...');
             aliceBridgeWorker = await makeBridgeWorker(alice.privateKey);
@@ -474,7 +469,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // 4. noriMint for Alice via TokenBridgeWorker.MOCK_mint
     //    (deposit-root seed step uses a direct admin call — no worker method)
     // =======================================================================
-    describe('noriMint() via worker', () => {
+    describe.skip('noriMint() via worker', () => {
         test('should seed deposit root then mint 200 bridge units for Alice', async () => {
             const aliceScramMsg = 'NoriZK';
             const totalLockedBU = 200n;

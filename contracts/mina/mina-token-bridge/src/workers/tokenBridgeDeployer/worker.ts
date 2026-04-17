@@ -4,10 +4,17 @@ import {
     Bytes32FieldPair,
     CacheType,
     compileAndOptionallyVerifyContracts,
+    decodeConsensusMptProof,
+    EthInput,
+    NodeProofLeft,
     type FileSystemCacheConfig,
     type VerificationKeySafe,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils-new';
+import type {
+    ProofDataOutput,
+    SP1ProofWithPublicValuesPlonkNoTee,
+} from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import {
@@ -308,6 +315,52 @@ export class TokenBridgeDeployerWorker {
             noriTokenBridgeTokenId,
             txHash: result.hash,
         };
+    }
+
+    // Submit a NoriTokenBridge.update() transaction using the provided SP1 plonk
+    // proof and node-proof-left proof data. Returns the transaction hash.
+    async update(
+        senderPrivateKeyBase58: string,
+        noriTokenBridgeAddressBase58: string,
+        sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
+        proofData: ProofDataOutput,
+        oldestActionStr: string,
+        txFee: number
+    ): Promise<string> {
+        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
+        const senderPublicKey = senderPrivateKey.toPublicKey();
+        const noriTokenBridgeAddress = PublicKey.fromBase58(
+            noriTokenBridgeAddressBase58
+        );
+
+        const decoded = decodeConsensusMptProof(sp1PlonkProof);
+        const ethInput = new EthInput(decoded);
+        const rawProof = await NodeProofLeft.fromJSON(proofData);
+        const oldestAction = new Field(BigInt(oldestActionStr));
+
+        logger.log(
+            `Submitting update from sender: ${senderPublicKey.toBase58()}`
+        );
+
+        const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+
+        const updateTx = await Mina.transaction(
+            { sender: senderPublicKey, fee: txFee },
+            async () => {
+                await noriTokenBridgeInst.update(
+                    ethInput,
+                    rawProof,
+                    oldestAction
+                );
+            }
+        );
+
+        await updateTx.prove();
+        const tx = await updateTx.sign([senderPrivateKey]).send();
+        const result = await tx.wait();
+        logger.log('Update completed successfully.');
+
+        return result.hash;
     }
 
     // Set on-chain integrity params (pi0 + po2) required by NoriTokenBridge.update().
