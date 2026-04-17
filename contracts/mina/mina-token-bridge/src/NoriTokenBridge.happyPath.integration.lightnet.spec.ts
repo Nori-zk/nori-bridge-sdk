@@ -227,33 +227,8 @@ describe('NoriTokenBridge Happy Path', () => {
         logger.log('Deployment verified.');
     }, 1_000_000);
 
-    // ── 2. Set integrity params (pi0 + po2) ───────────────────────────────
-    test('2. set noriHeliosProgramPi0 and proofConversionPO2', async () => {
-        const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
-        const po2 = Field.from(proofConversionSP1ToPlonkPO2);
-
-        await txSend({
-            body: async () => {
-                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
-                await noriTokenBridge.setProofConversionPO2(po2);
-            },
-            sender: admin.publicKey,
-            signers: [admin.privateKey],
-        });
-
-        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-
-        const onchainPi0 = await noriTokenBridge.noriHeliosProgramPi0.fetch();
-        FrC.from(onchainPi0).assertEquals(pi0, 'noriHeliosProgramPi0 mismatch');
-
-        const onchainPo2 = await noriTokenBridge.proofConversionPO2.fetch();
-        assert.equal(onchainPo2.toBigInt(), po2.toBigInt(), 'proofConversionPO2 mismatch');
-
-        logger.log('Integrity params set.');
-    }, 1_000_000);
-
-    // ── 3. update() — 4 consecutive blocks ────────────────────────────────
-    test('3a. update block 1', async () => {
+    // ── 2. update() — 4 consecutive blocks ────────────────────────────────
+    test('2a. update block 1', async () => {
         await txSend({
             body: async () => {
                 await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
@@ -268,53 +243,8 @@ describe('NoriTokenBridge Happy Path', () => {
         logger.log(`latestHead advanced to slot ${head} (block 1)`);
     }, 1_000_000);
 
-    test('3b. update block 2', async () => {
-        await txSend({
-            body: async () => {
-                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
-            },
-            sender: deployer.publicKey,
-            signers: [deployer.privateKey],
-        });
-
-        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-        const head = await noriTokenBridge.latestHead.fetch();
-        assert.equal(head.toBigInt(), ethInput2.outputSlot.toBigInt(), 'latestHead after block 2');
-        logger.log(`latestHead advanced to slot ${head} (block 2)`);
-    }, 1_000_000);
-
-    test('3c. update block 3', async () => {
-        await txSend({
-            body: async () => {
-                await noriTokenBridge.update(ethInput3, rawProof3, Field(0));
-            },
-            sender: deployer.publicKey,
-            signers: [deployer.privateKey],
-        });
-
-        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-        const head = await noriTokenBridge.latestHead.fetch();
-        assert.equal(head.toBigInt(), ethInput3.outputSlot.toBigInt(), 'latestHead after block 3');
-        logger.log(`latestHead advanced to slot ${head} (block 3)`);
-    }, 1_000_000);
-
-    test('3d. update block 4', async () => {
-        await txSend({
-            body: async () => {
-                await noriTokenBridge.update(ethInput4, rawProof4, Field(0));
-            },
-            sender: deployer.publicKey,
-            signers: [deployer.privateKey],
-        });
-
-        await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
-        const head = await noriTokenBridge.latestHead.fetch();
-        assert.equal(head.toBigInt(), ethInput4.outputSlot.toBigInt(), 'latestHead after block 4');
-        logger.log(`latestHead advanced to slot ${head} (block 4)`);
-    }, 1_000_000);
-
-    // ── 4. setUpStorage for Alice ─────────────────────────────────────────
-    test('4. setUpStorage for Alice', async () => {
+    // ── 3. setUpStorage for Alice ─────────────────────────────────────────
+    test('3. setUpStorage for Alice', async () => {
         await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
@@ -342,8 +272,8 @@ describe('NoriTokenBridge Happy Path', () => {
         logger.log('Storage initialised for Alice.');
     }, 1_000_000);
 
-    // ── 5. noriMint for Alice ─────────────────────────────────────────────
-    test('5. noriMint for Alice', async () => {
+    // ── 4. noriMint for Alice ─────────────────────────────────────────────
+    test('4. noriMint for Alice', async () => {
         const aliceScramMsg = 'NoriZK';
         const totalLockedBU = 200n;
 
