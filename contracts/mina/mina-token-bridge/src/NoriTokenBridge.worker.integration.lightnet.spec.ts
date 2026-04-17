@@ -208,10 +208,13 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         await fetchAccounts(allAccounts);
     });
 
-    // afterAll(async () => {
-    //     tester.signalTerminate();
-    //     await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
-    // });
+    afterEach(async () => {
+        tester.signalTerminate();
+        await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+        const spawned = await spawnTester();
+        tester = spawned.instance;
+        logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
+    });
 
     // =======================================================================
     // 1. Deployment via tester
@@ -299,13 +302,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // 2. update() — 4 consecutive blocks via tester
     // =======================================================================
     describe('update() via tester worker', () => {
-        afterEach(async () => {
-            tester.signalTerminate();
-            await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
-            const spawned = await spawnTester();
-            tester = spawned.instance;
-            logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
-        });
+
         test('block 1', async () => {
             await tester.update(
                 deployer.privateKey.toBase58(),
@@ -428,11 +425,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             );
 
             logger.log('Storage initialised for Alice via tester worker.');
-            tester.signalTerminate();
-            await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
-            const spawned = await spawnTester();
-            tester = spawned.instance;
-            logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
         }, 1_000_000);
     });
 

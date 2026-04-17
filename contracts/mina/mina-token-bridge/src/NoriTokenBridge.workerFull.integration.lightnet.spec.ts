@@ -3,20 +3,21 @@
  *
  * Mirrors the full integration spec NoriTokenBridge.integration.lightnet.spec.ts —
  * happy path, negative tests, and the 40-root window rotation block —
- * but drives every contract interaction through TokenBridgeDeployerWorker /
- * TokenBridgeWorker where a worker method exists. Methods not exposed by
- * any worker (adminSetDepositRoot, single-setter for pi0/po2,
- * direct mintedSoFar manipulation, direct FungibleToken.mint) fall back
- * to direct contract calls.
+ * but drives every contract interaction through a single TokenBridgeTester
+ * instance. Deployment + every subsequent op go through the same worker.
  *
- * Each user that needs MOCK_setupStorage / MOCK_mint gets its own
- * TokenBridgeWorker instance, because WALLET_setMinaPrivateKey is one-shot.
+ * Only two tests fall back to a direct txSend because they *intentionally*
+ * bypass the normal contract entrypoints:
+ *   - direct mintedSoFar appState manipulation
+ *   - direct FungibleToken.mint() (bypassing NoriTokenBridge)
+ *
+ * One tester instance handles every user — senderPrivateKey is passed per
+ * call, so there's no per-user worker setup.
  */
 
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     AccountUpdate,
-    Bool,
     fetchAccount,
     Field,
     Mina,
@@ -26,7 +27,6 @@ import {
     type PublicKey,
     UInt64,
 } from 'o1js';
-import { type VerificationKey } from 'o1js';
 import assert from 'node:assert';
 import { FungibleToken } from './TokenBase.js';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
@@ -54,8 +54,7 @@ import {
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
 } from './testUtils.js';
-import { getTokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/node/parent.js';
-import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
+import { getTokenBridgeTester } from './workers/tokenBridgeTester/node/parent.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeWorkerFull');
 const logger = new Logger('WorkerFullIntegrationLightnetTest');
@@ -64,6 +63,12 @@ const fee = Number(process.env.MINA_TX_FEE ?? 0.1) * 1e9;
 
 type Keypair = { publicKey: PublicKey; privateKey: PrivateKey };
 type SafeVK = { hashStr: string; data: string };
+type TesterInstance = InstanceType<ReturnType<typeof getTokenBridgeTester>>;
+type CompileOutput = {
+    noriStorageInterfaceVerificationKeySafe: SafeVK;
+    fungibleTokenVerificationKeySafe: SafeVK;
+    noriTokenBridgeVerificationKeySafe: SafeVK;
+};
 
 // ---------------------------------------------------------------------------
 // Shared test state (populated in beforeAll)
@@ -80,21 +85,15 @@ let noriTokenBridge: NoriTokenBridge;
 
 let allAccounts: PublicKey[];
 
-// Workers
-let deployerWorker: InstanceType<ReturnType<typeof getTokenBridgeDeployerWorker>>;
-let aliceBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
-let deployerBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
+// Single worker drives every contract interaction.
+let tester: TesterInstance;
 
-// Compiled VKs (safe form) — produced by deployerWorker.compile()
+// Compiled VKs (safe form) — produced by tester.compile()
 let storageInterfaceVerificationKeySafe: SafeVK;
 let tokenBaseVerificationKeySafe: SafeVK;
 let storageInterfaceVKHashField: Field;
 
-// Reconstructed VKs (for direct contract calls that need a VerificationKey)
-let storageInterfaceVK: VerificationKey;
-let tokenBaseVK: VerificationKey;
-
-// Network options — captured so per-user workers can reuse the same setup.
+// Network options — captured so the tester can be spawned again after termination.
 let networkOptions: {
     networkId: NetworkId;
     mina: string;
@@ -110,6 +109,20 @@ let ethInput4: EthInput;
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// Spawn a fresh tester worker: wire Mina network + compile circuits.
+// Call this whenever you need a new instance (e.g. after signalTerminate()).
+async function spawnTester(): Promise<{
+    instance: TesterInstance;
+    compiled: CompileOutput;
+}> {
+    const TesterWorker = getTokenBridgeTester();
+    const instance = new TesterWorker();
+    await instance.minaSetup(networkOptions);
+    const compiled = await instance.compile();
+    return { instance, compiled };
+}
+
 async function txSend({
     body,
     sender,
@@ -132,30 +145,8 @@ async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
 
-// Build a fresh TokenBridgeWorker bound to the given Mina key.
-// WALLET_setMinaPrivateKey is one-shot per worker instance, so any user
-// that needs MOCK_setupStorage / MOCK_mint requires its own worker.
-async function makeBridgeWorker(
-    pk: PrivateKey
-): Promise<InstanceType<ReturnType<typeof getTokenBridgeWorker>>> {
-    const BridgeWorker = getTokenBridgeWorker();
-    const w = new BridgeWorker();
-    await w.minaSetup(networkOptions);
-    await w.compileAll();
-    await w.WALLET_setMinaPrivateKey(pk.toBase58());
-    return w;
-}
-
-// Reconstruct an o1js VerificationKey from the safe (serialisable) form.
-function vkFromSafe(safe: SafeVK): VerificationKey {
-    return {
-        data: safe.data,
-        hash: new Field(BigInt(safe.hashStr)),
-    } as unknown as VerificationKey;
-}
-
 // Convert an in-memory MerkleTreeContractDepositAttestorInput into the JSON
-// form expected by TokenBridgeWorker.MOCK_mint().
+// form expected by tester.mint().
 function merkleInputToJson(
     input: MerkleTreeContractDepositAttestorInput
 ): MerkleTreeContractDepositAttestorInputJson {
@@ -191,10 +182,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         const Network = Mina.Network(networkOptions);
         Mina.setActiveInstance(Network);
 
-        const DeployerWorker = getTokenBridgeDeployerWorker();
-        deployerWorker = new DeployerWorker();
-        await deployerWorker.minaSetup(networkOptions);
-
         deployer = keyPairBase58ToKeyPair(
             await getNewMinaLiteNetAccountKeyPair()
         );
@@ -223,25 +210,18 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
 
-        // Compile 
-        const compiled = await deployerWorker.compile();
+        const spawned = await spawnTester();
+        tester = spawned.instance;
         storageInterfaceVerificationKeySafe =
-            compiled.noriStorageInterfaceVerificationKeySafe;
+            spawned.compiled.noriStorageInterfaceVerificationKeySafe;
         tokenBaseVerificationKeySafe =
-            compiled.fungibleTokenVerificationKeySafe;
+            spawned.compiled.fungibleTokenVerificationKeySafe;
         storageInterfaceVKHashField = new Field(
             BigInt(storageInterfaceVerificationKeySafe.hashStr)
         );
-        storageInterfaceVK = vkFromSafe(storageInterfaceVerificationKeySafe);
-        tokenBaseVK = vkFromSafe(tokenBaseVerificationKeySafe);
-
-        // Alice's worker is the one used most often — set it up here.
-        aliceBridgeWorker = await makeBridgeWorker(alice.privateKey);
-        // Deployer's worker drives update() (relayer-style sender).
-        deployerBridgeWorker = await makeBridgeWorker(deployer.privateKey);
 
         // Decode example proofs (EthInput only — NodeProofLeft is reconstructed
-        // inside MOCK_update from examples[i].conversionOutputProof.proofData).
+        // inside tester.update from examples[i].conversionOutputProof.proofData).
         logger.log('Decoding test example EthInputs...');
         ethInput1 = new EthInput(decodeConsensusMptProof(examples[0].sp1PlonkProof));
         ethInput2 = new EthInput(decodeConsensusMptProof(examples[1].sp1PlonkProof));
@@ -254,8 +234,13 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         await fetchAccounts(allAccounts);
     });
 
+    afterAll(async () => {
+        tester.signalTerminate();
+        await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+    });
+
     // =======================================================================
-    // Deployment — via TokenBridgeDeployerWorker
+    // Deployment — via tester
     // =======================================================================
     describe('Deployment', () => {
         test('should deploy NoriTokenBridge and FungibleToken via worker', async () => {
@@ -265,7 +250,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 decoded.contractAddress.bytes
             ).toHex();
 
-            await deployerWorker.deployContracts(
+            await tester.deployContracts(
                 deployer.privateKey.toBase58(),
                 admin.publicKey.toBase58(),
                 noriTokenBridgeKeypair.privateKey.toBase58(),
@@ -356,21 +341,19 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
     // =======================================================================
     // setNoriHeliosProgramPi0() / setProofConversionPO2()
-    // Worker exposes only the combined setIntegrityParams — single-setter
-    // happy/negative cases use direct calls.
+    // Worker exposes single-setter AND combined setIntegrityParams.
     // =======================================================================
     describe('setNoriHeliosProgramPi0() / setProofConversionPO2()', () => {
         describe('Happy Path', () => {
-            test('should set noriHeliosProgramPi0 with admin key (direct)', async () => {
-                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
+            test('should set noriHeliosProgramPi0 with admin key (worker)', async () => {
+                const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
 
-                await txSend({
-                    body: async () => {
-                        await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
-                    },
-                    sender: admin.publicKey,
-                    signers: [admin.privateKey],
-                });
+                await tester.setNoriHeliosProgramPi0(
+                    admin.privateKey.toBase58(),
+                    noriTokenBridgeKeypair.publicKey.toBase58(),
+                    pi0,
+                    fee
+                );
 
                 await fetchAccount({
                     publicKey: noriTokenBridgeKeypair.publicKey,
@@ -378,7 +361,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const onchain =
                     await noriTokenBridge.noriHeliosProgramPi0.fetch();
                 FrC.from(onchain).assertEquals(
-                    pi0,
+                    FrC.from(pi0),
                     'noriHeliosProgramPi0 mismatch'
                 );
 
@@ -389,7 +372,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
                 const po2 = proofConversionSP1ToPlonkPO2;
 
-                await deployerWorker.setIntegrityParams(
+                await tester.setIntegrityParams(
                     admin.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     pi0,
@@ -404,7 +387,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const onchainPi0 =
                     await noriTokenBridge.noriHeliosProgramPi0.fetch();
                 FrC.from(onchainPi0).assertEquals(
-                    pi0,
+                    FrC.from(pi0),
                     'noriHeliosProgramPi0 mismatch'
                 );
 
@@ -419,16 +402,15 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 logger.log('Both pi0 and po2 set via worker.');
             }, 1_000_000);
 
-            test('should set proofConversionPO2 with admin key (direct)', async () => {
-                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+            test('should set proofConversionPO2 with admin key (worker)', async () => {
+                const po2 = proofConversionSP1ToPlonkPO2;
 
-                await txSend({
-                    body: async () => {
-                        await noriTokenBridge.setProofConversionPO2(po2);
-                    },
-                    sender: admin.publicKey,
-                    signers: [admin.privateKey],
-                });
+                await tester.setProofConversionPO2(
+                    admin.privateKey.toBase58(),
+                    noriTokenBridgeKeypair.publicKey.toBase58(),
+                    po2,
+                    fee
+                );
 
                 await fetchAccount({
                     publicKey: noriTokenBridgeKeypair.publicKey,
@@ -436,8 +418,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const onchain =
                     await noriTokenBridge.proofConversionPO2.fetch();
                 assert.equal(
-                    onchain.toBigInt(),
-                    po2.toBigInt(),
+                    onchain.toString(),
+                    po2,
                     'proofConversionPO2 mismatch'
                 );
 
@@ -452,7 +434,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
                 await assert.rejects(
                     () =>
-                        deployerWorker.setIntegrityParams(
+                        tester.setIntegrityParams(
                             alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             pi0,
@@ -469,7 +451,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
                 await assert.rejects(
                     () =>
-                        deployerWorker.setIntegrityParams(
+                        tester.setIntegrityParams(
                             deployer.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             pi0,
@@ -480,65 +462,53 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setNoriHeliosProgramPi0 by arbitrary user (direct)', async () => {
-                const pi0 = FrC.from(33);
-
-                await assert.rejects(() =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
-                        },
-                        sender: alice.publicKey,
-                        signers: [alice.privateKey],
-                    })
+            test('should REJECT setNoriHeliosProgramPi0 by arbitrary user (worker)', async () => {
+                await assert.rejects(
+                    () =>
+                        tester.setNoriHeliosProgramPi0(
+                            alice.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            FrC.from(33).toBigInt().toString(),
+                            fee
+                        )
                 );
             }, 1_000_000);
 
-            test('should REJECT setProofConversionPO2 by arbitrary user (direct)', async () => {
-                const po2 = Field.from(54);
-
-                await assert.rejects(() =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.setProofConversionPO2(po2);
-                        },
-                        sender: alice.publicKey,
-                        signers: [alice.privateKey],
-                    })
+            test('should REJECT setProofConversionPO2 by arbitrary user (worker)', async () => {
+                await assert.rejects(
+                    () =>
+                        tester.setProofConversionPO2(
+                            alice.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            '54',
+                            fee
+                        )
                 );
             }, 1_000_000);
 
-            test('should REJECT setNoriHeliosProgramPi0 by deployer (not admin) (direct)', async () => {
-                const pi0 = FrC.from(43);
-
-                await assert.rejects(() =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
-                        },
-                        sender: deployer.publicKey,
-                        signers: [deployer.privateKey],
-                    })
+            test('should REJECT setNoriHeliosProgramPi0 by deployer (not admin) (worker)', async () => {
+                await assert.rejects(
+                    () =>
+                        tester.setNoriHeliosProgramPi0(
+                            deployer.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            FrC.from(43).toBigInt().toString(),
+                            fee
+                        )
                 );
             }, 1_000_000);
 
-            test('should REJECT setProofConversionPO2 by deployer (not admin) (direct)', async () => {
-                const po2 = Field.from(65);
-
-                await assert.rejects(() =>
-                    txSend({
-                        body: async () => {
-                            await noriTokenBridge.setProofConversionPO2(po2);
-                        },
-                        sender: deployer.publicKey,
-                        signers: [deployer.privateKey],
-                    })
+            test('should REJECT setProofConversionPO2 by deployer (not admin) (worker)', async () => {
+                await assert.rejects(
+                    () =>
+                        tester.setProofConversionPO2(
+                            deployer.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            '65',
+                            fee
+                        )
                 );
             }, 1_000_000);
-        });
-
-        afterAll(() => {
-            deployerWorker.signalTerminate();
         });
     });
 
@@ -550,7 +520,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             test('should accept the first SP1 proof and advance latestHead (block 1) (worker)', async () => {
                 const headBefore = await noriTokenBridge.latestHead.fetch();
 
-                await deployerBridgeWorker.MOCK_update(
+                await tester.update(
+                    deployer.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[0].sp1PlonkProof,
                     examples[0].conversionOutputProof.proofData,
@@ -595,7 +566,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             }, 1_000_000);
 
             test('should accept block 2 (consecutive from block 1) (worker)', async () => {
-                await deployerBridgeWorker.MOCK_update(
+                await tester.update(
+                    deployer.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[1].sp1PlonkProof,
                     examples[1].conversionOutputProof.proofData,
@@ -616,7 +588,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             }, 1_000_000);
 
             test('should accept block 3 (consecutive from block 2) (worker)', async () => {
-                await deployerBridgeWorker.MOCK_update(
+                await tester.update(
+                    deployer.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[2].sp1PlonkProof,
                     examples[2].conversionOutputProof.proofData,
@@ -637,7 +610,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             }, 1_000_000);
 
             test('should accept block 4 (consecutive from block 3) (worker)', async () => {
-                await deployerBridgeWorker.MOCK_update(
+                await tester.update(
+                    deployer.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[3].sp1PlonkProof,
                     examples[3].conversionOutputProof.proofData,
@@ -695,7 +669,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             test('should REJECT replay of old proof (slot not greater than current) (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        deployerBridgeWorker.MOCK_update(
+                        tester.update(
+                            deployer.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             examples[0].sp1PlonkProof,
                             examples[0].conversionOutputProof.proofData,
@@ -709,7 +684,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             test('should REJECT out-of-order proof (store hash chain broken) (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        deployerBridgeWorker.MOCK_update(
+                        tester.update(
+                            deployer.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             examples[1].sp1PlonkProof,
                             examples[1].conversionOutputProof.proofData,
@@ -720,10 +696,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
         });
-
-        afterAll(() => {
-            deployerBridgeWorker.signalTerminate();
-        });
     });
 
     // =======================================================================
@@ -732,11 +704,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     describe('setUpStorage()', () => {
         describe('Happy Path', () => {
             test('should initialise storage for Alice (worker)', async () => {
-                await aliceBridgeWorker.MOCK_setupStorage(
-                    alice.publicKey.toBase58(),
+                await tester.setUpStorage(
+                    alice.privateKey.toBase58(),
+                    alice.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
-                    fee,
-                    storageInterfaceVerificationKeySafe
+                    storageInterfaceVerificationKeySafe,
+                    fee
                 );
 
                 const storage = new NoriStorageInterface(
@@ -764,34 +737,28 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             test('should REJECT duplicate storage setup for Alice (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        aliceBridgeWorker.MOCK_setupStorage(
-                            alice.publicKey.toBase58(),
+                        tester.setUpStorage(
+                            alice.privateKey.toBase58(),
+                            alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
-                            fee,
-                            storageInterfaceVerificationKeySafe
+                            storageInterfaceVerificationKeySafe,
+                            fee
                         ),
                     'Duplicate setUpStorage must fail'
                 );
             }, 1_000_000);
 
-            test('should REJECT storage setup with wrong VK (hash mismatch) (direct)', async () => {
+            test('should REJECT storage setup with wrong VK (hash mismatch) (worker)', async () => {
                 const bob = PrivateKey.randomKeypair();
                 await assert.rejects(
                     () =>
-                        txSend({
-                            body: async () => {
-                                AccountUpdate.fundNewAccount(
-                                    deployer.publicKey,
-                                    1
-                                );
-                                await noriTokenBridge.setUpStorage(
-                                    bob.publicKey,
-                                    tokenBaseVK
-                                );
-                            },
-                            sender: deployer.publicKey,
-                            signers: [deployer.privateKey, bob.privateKey],
-                        }),
+                        tester.setUpStorage(
+                            deployer.privateKey.toBase58(),
+                            bob.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            tokenBaseVerificationKeySafe,
+                            fee
+                        ),
                     'Wrong VK in setUpStorage must fail'
                 );
             }, 1_000_000);
@@ -839,7 +806,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         const aliceScramMsg = 'NoriZK';
 
         let dave: Keypair;
-        let daveBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
         const allDispatchedRoots: Field[] = [];
         let daveTotalLocked = 0n;
         let daveMintCount = 0;
@@ -849,7 +815,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 await getNewMinaLiteNetAccountKeyPair()
             );
             allAccounts.push(dave.publicKey);
-            daveBridgeWorker = await makeBridgeWorker(dave.privateKey);
 
             const result = buildSyntheticDeposit(
                 alice.privateKey,
@@ -861,21 +826,18 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             logger.log(`Alice synthetic deposit built.`);
 
             // Seed Alice's deposit root into the contract's rolling window via
-            // the admin-gated adminSetDepositRoot method (no worker method).
+            // the admin-gated adminSetDepositRoot method (through the tester worker).
             const aliceRoot =
                 getContractDepositSlotRootFromContractDepositAndWitness(
                     aliceDepositAttestationInput
                 );
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.adminSetDepositRoot(
-                        aliceRoot,
-                        Field(0)
-                    );
-                },
-                sender: admin.publicKey,
-                signers: [admin.privateKey],
-            });
+            await tester.adminSetDepositRoot(
+                admin.privateKey.toBase58(),
+                noriTokenBridgeKeypair.publicKey.toBase58(),
+                aliceRoot.toBigInt().toString(),
+                '0',
+                fee
+            );
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,
             });
@@ -890,14 +852,14 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const signatureSCRAMBase58 =
                     aliceSCRAMWitness.signature.toBase58();
 
-                await aliceBridgeWorker.MOCK_mint(
-                    alice.publicKey.toBase58(),
+                await tester.mint(
+                    alice.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     merkleInputJson,
                     aliceScramMsg,
                     signatureSCRAMBase58,
-                    fee,
-                    /* fundNewAccount */ true
+                    /* fundNewAccount */ true,
+                    fee
                 );
 
                 await fetchAccount({
@@ -929,7 +891,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             }, 1_000_000);
 
             test('should mint 3 additional bridge units for Alice on second deposit (totalLocked=5) (worker)', async () => {
-                // Build a new synthetic deposit with a higher cumulative totalLocked.
                 const {
                     merkleInput: aliceDeposit2,
                     scramWitness: aliceSCRAM2,
@@ -939,34 +900,30 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     500n
                 );
 
-                // Seed the new deposit root into the window (direct admin call).
                 const aliceRoot2 =
                     getContractDepositSlotRootFromContractDepositAndWitness(
                         aliceDeposit2
                     );
-                await txSend({
-                    body: async () => {
-                        await noriTokenBridge.adminSetDepositRoot(
-                            aliceRoot2,
-                            Field(0)
-                        );
-                    },
-                    sender: admin.publicKey,
-                    signers: [admin.privateKey],
-                });
+                await tester.adminSetDepositRoot(
+                    admin.privateKey.toBase58(),
+                    noriTokenBridgeKeypair.publicKey.toBase58(),
+                    aliceRoot2.toBigInt().toString(),
+                    '0',
+                    fee
+                );
                 await fetchAccount({
                     publicKey: noriTokenBridgeKeypair.publicKey,
                 });
 
                 // Mint via worker — contract computes amountToMint = 500 - 200 = 300.
-                await aliceBridgeWorker.MOCK_mint(
-                    alice.publicKey.toBase58(),
+                await tester.mint(
+                    alice.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     merkleInputToJson(aliceDeposit2),
                     aliceScramMsg,
                     aliceSCRAM2.signature.toBase58(),
-                    fee,
-                    /* fundNewAccount */ false
+                    /* fundNewAccount */ false,
+                    fee
                 );
 
                 await fetchAccount({
@@ -1003,10 +960,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         // =================================================================
         describe('Window Rotation', () => {
             test('window rotation: setup dave (worker) and seed prior roots', async () => {
-                // Reconstruct the roots already dispatched by prior tests:
-                // 1 from update() block 1 (only block 1's root is in the window
-                // when adminSetDepositRoot is called; subsequent update() calls
-                // also dispatch but the original spec only tracked block 1).
+                // Reconstruct the roots already dispatched by prior tests.
                 allDispatchedRoots.push(
                     bytes32LEToFieldProvable(
                         ethInput1.verifiedContractDepositsRoot.bytes
@@ -1035,12 +989,13 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     )
                 );
 
-                // Create dave's storage account via dave's worker.
-                await daveBridgeWorker.MOCK_setupStorage(
-                    dave.publicKey.toBase58(),
+                // Create dave's storage account via the tester worker.
+                await tester.setUpStorage(
+                    dave.privateKey.toBase58(),
+                    dave.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
-                    fee,
-                    storageInterfaceVerificationKeySafe
+                    storageInterfaceVerificationKeySafe,
+                    fee
                 );
                 logger.log(
                     `Dave created. ${allDispatchedRoots.length} prior roots tracked.`
@@ -1066,23 +1021,20 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                                 merkleInput
                             );
 
-                        // Dispatch this root into the window (direct admin call).
+                        // Dispatch this root into the window via the tester worker.
                         const windowIsFull = allDispatchedRoots.length >= 32;
                         const oldest = windowIsFull
                             ? allDispatchedRoots[
-                            allDispatchedRoots.length - 32
-                            ]
+                                  allDispatchedRoots.length - 32
+                              ]
                             : Field(0);
-                        await txSend({
-                            body: async () => {
-                                await noriTokenBridge.adminSetDepositRoot(
-                                    root,
-                                    oldest
-                                );
-                            },
-                            sender: admin.publicKey,
-                            signers: [admin.privateKey],
-                        });
+                        await tester.adminSetDepositRoot(
+                            admin.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            root.toBigInt().toString(),
+                            oldest.toBigInt().toString(),
+                            fee
+                        );
                         allDispatchedRoots.push(root);
                         await fetchAccount({
                             publicKey: noriTokenBridgeKeypair.publicKey,
@@ -1090,14 +1042,14 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
                         // Fund token account on first mint only.
                         const isFirstMint = daveMintCount === 0;
-                        await daveBridgeWorker.MOCK_mint(
-                            dave.publicKey.toBase58(),
+                        await tester.mint(
+                            dave.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             merkleInputToJson(merkleInput),
                             'NoriZK',
                             scramWitness.signature.toBase58(),
-                            fee,
-                            /* fundNewAccount */ isFirstMint
+                            /* fundNewAccount */ isFirstMint,
+                            fee
                         );
 
                         await fetchAccount({
@@ -1131,24 +1083,21 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                         );
                     }, 1_000_000);
                 } else {
-                    test(`window rotation root #${i}: dispatch deposit root (direct)`, async () => {
+                    test(`window rotation root #${i}: dispatch deposit root (worker)`, async () => {
                         const dummyRoot = Field(1_000_000n + BigInt(i));
                         const windowIsFull = allDispatchedRoots.length >= 32;
                         const oldest = windowIsFull
                             ? allDispatchedRoots[
-                            allDispatchedRoots.length - 32
-                            ]
+                                  allDispatchedRoots.length - 32
+                              ]
                             : Field(0);
-                        await txSend({
-                            body: async () => {
-                                await noriTokenBridge.adminSetDepositRoot(
-                                    dummyRoot,
-                                    oldest
-                                );
-                            },
-                            sender: admin.publicKey,
-                            signers: [admin.privateKey],
-                        });
+                        await tester.adminSetDepositRoot(
+                            admin.privateKey.toBase58(),
+                            noriTokenBridgeKeypair.publicKey.toBase58(),
+                            dummyRoot.toBigInt().toString(),
+                            oldest.toBigInt().toString(),
+                            fee
+                        );
                         allDispatchedRoots.push(dummyRoot);
                         await fetchAccount({
                             publicKey: noriTokenBridgeKeypair.publicKey,
@@ -1181,14 +1130,14 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             test('should REJECT double-mint with the same deposit (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        aliceBridgeWorker.MOCK_mint(
-                            alice.publicKey.toBase58(),
+                        tester.mint(
+                            alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             merkleInputToJson(aliceDepositAttestationInput),
                             aliceScramMsg,
                             aliceSCRAMWitness.signature.toBase58(),
-                            fee,
-                            /* fundNewAccount */ false
+                            /* fundNewAccount */ false,
+                            fee
                         ),
                     'Double-mint with same deposit must fail'
                 );
@@ -1201,37 +1150,28 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     scramWitness: bobSCRAMWitness,
                 } = buildSyntheticDeposit(bob.privateKey, 'NoriZK', 0n);
 
-                // Set up bob's storage via direct call (deployer funds + bob signs)
-                // because the worker's MOCK_setupStorage uses the user as sender.
-                await txSend({
-                    body: async () => {
-                        AccountUpdate.fundNewAccount(deployer.publicKey, 1);
-                        await noriTokenBridge.setUpStorage(
-                            bob.publicKey,
-                            storageInterfaceVK
-                        );
-                    },
-                    sender: deployer.publicKey,
-                    signers: [deployer.privateKey, bob.privateKey],
-                });
-
-                const bobBridgeWorker = await makeBridgeWorker(bob.privateKey);
+                // Set up bob's storage via the tester worker (deployer funds, bob signs).
+                await tester.setUpStorage(
+                    deployer.privateKey.toBase58(),
+                    bob.privateKey.toBase58(),
+                    noriTokenBridgeKeypair.publicKey.toBase58(),
+                    storageInterfaceVerificationKeySafe,
+                    fee
+                );
 
                 await assert.rejects(
                     () =>
-                        bobBridgeWorker.MOCK_mint(
-                            bob.publicKey.toBase58(),
+                        tester.mint(
+                            bob.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             merkleInputToJson(bobDepositAttestationInput),
                             'NoriZK',
                             bobSCRAMWitness.signature.toBase58(),
-                            fee,
-                            /* fundNewAccount */ true
+                            /* fundNewAccount */ true,
+                            fee
                         ),
                     'Mint with totalLocked < 1 bridge unit must fail'
                 );
-
-                bobBridgeWorker.signalTerminate();
             }, 1_000_000);
 
             test('should REJECT mint with wrong SCRAM witness (worker)', async () => {
@@ -1241,14 +1181,14 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
                 await assert.rejects(
                     () =>
-                        aliceBridgeWorker.MOCK_mint(
-                            alice.publicKey.toBase58(),
+                        tester.mint(
+                            alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             merkleInputToJson(aliceDepositAttestationInput),
                             'NoriZK-Wrong',
                             wrongSCRAMWitness.signature.toBase58(),
-                            fee,
-                            /* fundNewAccount */ false
+                            /* fundNewAccount */ false,
+                            fee
                         ),
                     'Wrong SCRAM witness must fail'
                 );
@@ -1268,60 +1208,46 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     2n
                 );
 
-                const charlieBridgeWorker = await makeBridgeWorker(
-                    charlie.privateKey
-                );
-
                 await assert.rejects(
                     () =>
-                        charlieBridgeWorker.MOCK_mint(
-                            charlie.publicKey.toBase58(),
+                        tester.mint(
+                            charlie.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             merkleInputToJson(charlieDepositAttestationInput),
                             'NoriZK-Charlie',
                             charlieSCRAMWitness.signature.toBase58(),
-                            fee,
-                            /* fundNewAccount */ true
+                            /* fundNewAccount */ true,
+                            fee
                         ),
                     'Minting without storage setup must fail'
                 );
-
-                charlieBridgeWorker.signalTerminate();
             }, 1_000_000);
 
             test('should REJECT cross-user SCRAM attack (worker, eve cannot claim alice deposit)', async () => {
                 const eve = PrivateKey.randomKeypair();
 
-                // Set up eve's storage via direct call.
-                await txSend({
-                    body: async () => {
-                        AccountUpdate.fundNewAccount(deployer.publicKey, 1);
-                        await noriTokenBridge.setUpStorage(
-                            eve.publicKey,
-                            storageInterfaceVK
-                        );
-                    },
-                    sender: deployer.publicKey,
-                    signers: [deployer.privateKey, eve.privateKey],
-                });
-
-                const eveBridgeWorker = await makeBridgeWorker(eve.privateKey);
+                // Set up eve's storage via the tester worker (deployer funds, eve signs).
+                await tester.setUpStorage(
+                    deployer.privateKey.toBase58(),
+                    eve.privateKey.toBase58(),
+                    noriTokenBridgeKeypair.publicKey.toBase58(),
+                    storageInterfaceVerificationKeySafe,
+                    fee
+                );
 
                 await assert.rejects(
                     () =>
-                        eveBridgeWorker.MOCK_mint(
-                            eve.publicKey.toBase58(),
+                        tester.mint(
+                            eve.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             merkleInputToJson(aliceDepositAttestationInput),
                             aliceScramMsg,
                             aliceSCRAMWitness.signature.toBase58(),
-                            fee,
-                            /* fundNewAccount */ true
+                            /* fundNewAccount */ true,
+                            fee
                         ),
                     'Cross-user SCRAM attack must fail'
                 );
-
-                eveBridgeWorker.signalTerminate();
             }, 1_000_000);
 
             test('should REJECT direct FungibleToken.mint() call (bypassing NoriTokenBridge) (direct)', async () => {
@@ -1345,13 +1271,5 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
         });
-
-        afterAll(() => {
-            aliceBridgeWorker.signalTerminate();
-            daveBridgeWorker.signalTerminate();
-        });
     });
 });
-
-// keep `Bool` import referenced (some tooling otherwise drops the import).
-void Bool;

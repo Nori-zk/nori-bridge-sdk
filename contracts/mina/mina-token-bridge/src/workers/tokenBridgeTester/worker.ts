@@ -3,12 +3,10 @@ import {
     Bytes20,
     Bytes32,
     Bytes32FieldPair,
-    CacheType,
     compileAndOptionallyVerifyContracts,
     decodeConsensusMptProof,
     EthInput,
     NodeProofLeft,
-    type FileSystemCacheConfig,
     type VerificationKeySafe,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils-new';
@@ -17,7 +15,6 @@ import type {
     SP1ProofWithPublicValuesPlonkNoTee,
 } from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import {
     AccountUpdate,
     Bool,
@@ -42,9 +39,6 @@ import { SCRAMWitness } from '../../scram.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 import { noriTokenBridgeVkHash } from '../../integrity/NoriTokenBridge.VkHash.js';
-import { resolve } from 'path';
-import { mkdirSync, rmSync } from 'fs';
-import os from 'os';
 
 new LogPrinter('TokenBridgeTester');
 const logger = new Logger('TokenBridgeTester');
@@ -59,25 +53,7 @@ export interface DeploymentResult {
     txHash: string;
 }
 
-function getRandomCacheDir(prefix = 'mina-token-bridge-cache') {
-    const randomSuffix = `${Date.now()}-${Math.floor(
-        Math.random() * 1_000_000
-    )}`;
-    const cacheDir = resolve(os.tmpdir(), `${prefix}-${randomSuffix}`);
-    mkdirSync(cacheDir, { recursive: true });
-    const cacheConfig: FileSystemCacheConfig = {
-        type: CacheType.FileSystem,
-        dir: cacheDir,
-    };
-    return cacheConfig;
-}
-
-function removeCacheDir(cacheConfig: FileSystemCacheConfig) {
-    rmSync(cacheConfig.dir, { recursive: true, force: true });
-}
-
 export class TokenBridgeTester {
-    #cacheConfig: FileSystemCacheConfig | undefined;
 
     async minaSetup(options: {
         networkId?: NetworkId;
@@ -94,10 +70,6 @@ export class TokenBridgeTester {
 
     async compile() {
         logger.log('Compiling all contracts...');
-
-        const randomFileSystemCacheConfig = getRandomCacheDir();
-        this.#cacheConfig = randomFileSystemCacheConfig;
-        const fileSystemCache = await cacheFactory(randomFileSystemCacheConfig);
 
         const contracts = [
             {
@@ -119,8 +91,7 @@ export class TokenBridgeTester {
 
         const compiledVks = await compileAndOptionallyVerifyContracts(
             logger,
-            contracts,
-            fileSystemCache
+            contracts
         );
 
         logger.log('All contracts compiled successfully.');
@@ -254,7 +225,6 @@ export class TokenBridgeTester {
         logger.log(`Token Base Token ID: ${tokenBaseTokenId}`);
         logger.log(`NoriTokenBridge Token ID: ${noriTokenBridgeTokenId}`);
 
-        if (this.#cacheConfig) removeCacheDir(this.#cacheConfig);
 
         return {
             noriTokenBridgeAddress: noriTokenBridge.address.toBase58(),
@@ -335,7 +305,6 @@ export class TokenBridgeTester {
             .deriveTokenId()
             .toString();
 
-        if (this.#cacheConfig) removeCacheDir(this.#cacheConfig);
 
         return {
             noriTokenBridgeAddress: noriTokenBridge.address.toBase58(),
