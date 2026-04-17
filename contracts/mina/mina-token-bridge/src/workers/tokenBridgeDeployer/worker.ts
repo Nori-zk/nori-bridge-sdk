@@ -8,7 +8,7 @@ import {
     type VerificationKeySafe,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils-new';
-import type { FrC } from '@nori-zk/proof-conversion/min';
+import { FrC } from '@nori-zk/proof-conversion/min';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
 import {
     AccountUpdate,
@@ -311,8 +311,8 @@ export class TokenBridgeDeployerWorker {
     async setIntegrityParams(
         senderPrivateKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
-        pi0: FrC,
-        po2: Field,
+        pi0: string,
+        po2: string,
         txFee: number
     ): Promise<string> {
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
@@ -320,13 +320,12 @@ export class TokenBridgeDeployerWorker {
         const noriTokenBridgeAddress = PublicKey.fromBase58(noriTokenBridgeAddressBase58);
 
         const noriTokenBridge = new NoriTokenBridge(noriTokenBridgeAddress);
-
         logger.log('Creating setIntegrityParams transaction (pi0 + po2)...');
         const txn = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
-                await noriTokenBridge.setProofConversionPO2(po2);
+                await noriTokenBridge.setNoriHeliosProgramPi0(FrC.from(pi0));
+                await noriTokenBridge.setProofConversionPO2(Field.from(po2));
             }
         );
 

@@ -54,8 +54,8 @@ import {
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
 } from './testUtils.js';
-import { TokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/worker.js';
-import { TokenBridgeWorker } from './workers/tokenBridgeWorker/worker.js';
+import { getTokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/node/parent.js';
+import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeWorkerFull');
 const logger = new Logger('WorkerFullIntegrationLightnetTest');
@@ -81,9 +81,9 @@ let noriTokenBridge: NoriTokenBridge;
 let allAccounts: PublicKey[];
 
 // Workers
-let deployerWorker: TokenBridgeDeployerWorker;
-let aliceBridgeWorker: TokenBridgeWorker;
-let deployerBridgeWorker: TokenBridgeWorker;
+let deployerWorker: InstanceType<ReturnType<typeof getTokenBridgeDeployerWorker>>;
+let aliceBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
+let deployerBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
 
 // Compiled VKs (safe form) — produced by deployerWorker.compile()
 let storageInterfaceVerificationKeySafe: SafeVK;
@@ -135,9 +135,13 @@ async function fetchAccounts(addrs: PublicKey[]) {
 // Build a fresh TokenBridgeWorker bound to the given Mina key.
 // WALLET_setMinaPrivateKey is one-shot per worker instance, so any user
 // that needs MOCK_setupStorage / MOCK_mint requires its own worker.
-async function makeBridgeWorker(pk: PrivateKey): Promise<TokenBridgeWorker> {
-    const w = new TokenBridgeWorker();
+async function makeBridgeWorker(
+    pk: PrivateKey
+): Promise<InstanceType<ReturnType<typeof getTokenBridgeWorker>>> {
+    const BridgeWorker = getTokenBridgeWorker();
+    const w = new BridgeWorker();
     await w.minaSetup(networkOptions);
+    await w.compileAll();
     await w.WALLET_setMinaPrivateKey(pk.toBase58());
     return w;
 }
@@ -184,7 +188,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 'http://localhost:8282',
         };
 
-        deployerWorker = new TokenBridgeDeployerWorker();
+        const Network = Mina.Network(networkOptions);
+        Mina.setActiveInstance(Network);
+
+        const DeployerWorker = getTokenBridgeDeployerWorker();
+        deployerWorker = new DeployerWorker();
         await deployerWorker.minaSetup(networkOptions);
 
         deployer = keyPairBase58ToKeyPair(
@@ -229,10 +237,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
         // Alice's worker is the one used most often — set it up here.
         aliceBridgeWorker = await makeBridgeWorker(alice.privateKey);
-        await aliceBridgeWorker.compileAll();
         // Deployer's worker drives update() (relayer-style sender).
         deployerBridgeWorker = await makeBridgeWorker(deployer.privateKey);
-        await deployerBridgeWorker.compileAll();
 
         // Decode example proofs (EthInput only — NodeProofLeft is reconstructed
         // inside MOCK_update from examples[i].conversionOutputProof.proofData).
@@ -378,8 +384,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             }, 1_000_000);
 
             test('should set both pi0 and po2 in a single transaction (worker)', async () => {
-                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
-                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+                const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
+                const po2 = proofConversionSP1ToPlonkPO2;
 
                 await deployerWorker.setIntegrityParams(
                     admin.privateKey.toBase58(),
@@ -403,8 +409,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const onchainPo2 =
                     await noriTokenBridge.proofConversionPO2.fetch();
                 assert.equal(
-                    onchainPo2.toBigInt(),
-                    po2.toBigInt(),
+                    onchainPo2.toString(),
+                    po2,
                     'proofConversionPO2 mismatch'
                 );
 
@@ -439,8 +445,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
         describe('Negative Tests', () => {
             test('should REJECT setIntegrityParams by arbitrary user (worker, alice)', async () => {
-                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
-                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+                const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
+                const po2 = proofConversionSP1ToPlonkPO2;
 
                 await assert.rejects(
                     () =>
@@ -456,8 +462,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             }, 1_000_000);
 
             test('should REJECT setIntegrityParams by deployer (not admin) (worker)', async () => {
-                const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
-                const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+                const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
+                const po2 = proofConversionSP1ToPlonkPO2;
 
                 await assert.rejects(
                     () =>
@@ -527,6 +533,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     })
                 );
             }, 1_000_000);
+        });
+
+        afterAll(() => {
+            deployerWorker.signalTerminate();
         });
     });
 
@@ -708,6 +718,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
         });
+
+        afterAll(() => {
+            deployerBridgeWorker.signalTerminate();
+        });
     });
 
     // =======================================================================
@@ -823,7 +837,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         const aliceScramMsg = 'NoriZK';
 
         let dave: Keypair;
-        let daveBridgeWorker: TokenBridgeWorker;
+        let daveBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
         const allDispatchedRoots: Field[] = [];
         let daveTotalLocked = 0n;
         let daveMintCount = 0;
@@ -1214,6 +1228,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                         ),
                     'Mint with totalLocked < 1 bridge unit must fail'
                 );
+
+                bobBridgeWorker.signalTerminate();
             }, 1_000_000);
 
             test('should REJECT mint with wrong SCRAM witness (worker)', async () => {
@@ -1267,6 +1283,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                         ),
                     'Minting without storage setup must fail'
                 );
+
+                charlieBridgeWorker.signalTerminate();
             }, 1_000_000);
 
             test('should REJECT cross-user SCRAM attack (worker, eve cannot claim alice deposit)', async () => {
@@ -1300,6 +1318,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                         ),
                     'Cross-user SCRAM attack must fail'
                 );
+
+                eveBridgeWorker.signalTerminate();
             }, 1_000_000);
 
             test('should REJECT direct FungibleToken.mint() call (bypassing NoriTokenBridge) (direct)', async () => {
@@ -1322,6 +1342,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     'Direct FungibleToken.mint() must fail (canMint guards via mintLock)'
                 );
             }, 1_000_000);
+        });
+
+        afterAll(() => {
+            aliceBridgeWorker.signalTerminate();
+            daveBridgeWorker.signalTerminate();
         });
     });
 });

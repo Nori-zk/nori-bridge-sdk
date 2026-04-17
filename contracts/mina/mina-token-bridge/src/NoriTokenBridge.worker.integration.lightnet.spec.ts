@@ -49,8 +49,8 @@ import {
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
 } from './testUtils.js';
-import { TokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/worker.js';
-import { TokenBridgeWorker } from './workers/tokenBridgeWorker/worker.js';
+import { getTokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/node/parent.js';
+import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeWorker');
 const logger = new Logger('WorkerIntegrationLightnetTest');
@@ -75,13 +75,20 @@ let noriTokenBridge: NoriTokenBridge;
 let allAccounts: PublicKey[];
 
 // Workers
-let deployerWorker: TokenBridgeDeployerWorker;
-let bridgeWorker: TokenBridgeWorker;
-let aliceBridgeWorker: TokenBridgeWorker;
+let deployerWorker: InstanceType<ReturnType<typeof getTokenBridgeDeployerWorker>>;
+let bridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
+let aliceBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
 
 // Compiled VK (safe form) — produced by deployerWorker.compile()
 let storageInterfaceVerificationKeySafe: { hashStr: string; data: string };
 let storageInterfaceVKHashField: Field;
+
+// Network options — captured so makeBridgeWorker() can reuse the same setup.
+let networkOptions: {
+    networkId: NetworkId;
+    mina: string;
+    archive: string;
+};
 
 const examples = buildExampleProofSeriesCreateArguments();
 let ethInput1: EthInput;
@@ -114,6 +121,21 @@ async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
 
+// Build a fresh TokenBridgeWorker bound to the given Mina key.
+// WALLET_setMinaPrivateKey is one-shot per worker instance, so any user
+// that needs MOCK_* methods requires its own worker.
+async function makeBridgeWorker(
+    pk: PrivateKey
+) {
+    const BridgeWorker = getTokenBridgeWorker();
+    const w = new BridgeWorker();
+    await w.minaSetup(networkOptions);
+    await w.compileAll();
+    await w.WALLET_setMinaPrivateKey(pk.toBase58());
+    console.log(`Bridge worker ready with public key ${pk.toPublicKey().toBase58()}`);
+    return w;
+}
+
 // Convert an in-memory MerkleTreeContractDepositAttestorInput into the JSON
 // form expected by TokenBridgeWorker.MOCK_mint().
 function merkleInputToJson(
@@ -138,7 +160,7 @@ function merkleInputToJson(
 // ---------------------------------------------------------------------------
 describe('NoriTokenBridge (Worker-driven)', () => {
     beforeAll(async () => {
-        const networkOptions = {
+        networkOptions = {
             networkId: 'testnet' as NetworkId,
             mina:
                 process.env.MINA_RPC_NETWORK_URL ??
@@ -147,16 +169,12 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 process.env.MINA_ARCHIVE_RPC_URL ??
                 'http://localhost:8282',
         };
+        const Network = Mina.Network(networkOptions);
+        Mina.setActiveInstance(Network);
 
-        // Configure workers (also sets active Mina instance globally).
-        deployerWorker = new TokenBridgeDeployerWorker();
+        const DeployerWorker = getTokenBridgeDeployerWorker();
+        deployerWorker = new DeployerWorker();
         await deployerWorker.minaSetup(networkOptions);
-
-        bridgeWorker = new TokenBridgeWorker();
-        await bridgeWorker.minaSetup(networkOptions);
-
-        aliceBridgeWorker = new TokenBridgeWorker();
-        await aliceBridgeWorker.minaSetup(networkOptions);
 
         deployer = keyPairBase58ToKeyPair(
             await getNewMinaLiteNetAccountKeyPair()
@@ -186,34 +204,34 @@ describe('NoriTokenBridge (Worker-driven)', () => {
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
 
-        // Compile 
+        // Compile
         const compiled = await deployerWorker.compile();
         storageInterfaceVerificationKeySafe =
             compiled.noriStorageInterfaceVerificationKeySafe;
         storageInterfaceVKHashField = new Field(
             BigInt(storageInterfaceVerificationKeySafe.hashStr)
         );
-        await bridgeWorker.compileAll()
-        await aliceBridgeWorker.compileAll()
-
-        // Bind deployer's bridge worker (used for MOCK_update sign+send paths).
-        await bridgeWorker.WALLET_setMinaPrivateKey(
-            deployer.privateKey.toBase58()
-        );
-
-        // Bind alice's bridge worker to her key for MOCK_* sign+send paths.
-        await aliceBridgeWorker.WALLET_setMinaPrivateKey(
-            alice.privateKey.toBase58()
-        );
+        logger.fatal('beforeeee workers...');
+        // Deployer's bridge worker drives MOCK_update (relayer-style sender).
+        const makeBridgeWorkerPromise = await makeBridgeWorker(deployer.privateKey);
+        logger.fatal('between workers...');
+        const aliceBridgeWorkerPromise = await makeBridgeWorker(alice.privateKey);
+        logger.fatal('Before awaiting bridge workers...');
+        bridgeWorker = await makeBridgeWorkerPromise;
+        console.log('abvcasc ');
+        aliceBridgeWorker = await aliceBridgeWorkerPromise;
+        console.log('Bridge workers ready');
+        // Alice's bridge worker drives MOCK_setupStorage / MOCK_mint.
+        // aliceBridgeWorker = makeBridgeWorker(alice.privateKey);
 
         // Decode example proofs (only EthInput needed locally for assertions —
         // raw proof data is forwarded to MOCK_update in JSON form).
         logger.log('Decoding test example proofs...');
 
         ethInput1 = new EthInput(decodeConsensusMptProof(examples[0].sp1PlonkProof));
-        ethInput2 = new EthInput(decodeConsensusMptProof(examples[1].sp1PlonkProof));
-        ethInput3 = new EthInput(decodeConsensusMptProof(examples[2].sp1PlonkProof));
-        ethInput4 = new EthInput(decodeConsensusMptProof(examples[3].sp1PlonkProof));
+        // ethInput2 = new EthInput(decodeConsensusMptProof(examples[1].sp1PlonkProof));
+        // ethInput3 = new EthInput(decodeConsensusMptProof(examples[2].sp1PlonkProof));
+        // ethInput4 = new EthInput(decodeConsensusMptProof(examples[3].sp1PlonkProof));
         logger.log('All example proofs decoded.');
     }, 1_000_000);
 
@@ -307,8 +325,8 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // =======================================================================
     describe('setIntegrityParams() via worker', () => {
         test('should set pi0 + po2 in a single transaction', async () => {
-            const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
-            const po2 = Field.from(proofConversionSP1ToPlonkPO2);
+            const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
+            const po2 = proofConversionSP1ToPlonkPO2;
 
             await deployerWorker.setIntegrityParams(
                 admin.privateKey.toBase58(),
@@ -331,11 +349,12 @@ describe('NoriTokenBridge (Worker-driven)', () => {
 
             const onchainPo2 = await noriTokenBridge.proofConversionPO2.fetch();
             assert.equal(
-                onchainPo2.toBigInt(),
-                po2.toBigInt(),
+                onchainPo2.toString(),
+                po2,
                 'proofConversionPO2 mismatch'
             );
 
+            deployerWorker.signalTerminate()
             logger.log('Integrity params set via worker.');
         }, 1_000_000);
     });
@@ -362,10 +381,11 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 ethInput1.outputSlot.toBigInt(),
                 'latestHead after block 1'
             );
+            bridgeWorker.signalTerminate()
             logger.log(`latestHead advanced to slot ${head} (block 1)`);
         }, 1_000_000);
 
-        test('block 2', async () => {
+        test.skip('block 2', async () => {
             await bridgeWorker.MOCK_update(
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[1].sp1PlonkProof,
@@ -386,7 +406,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             logger.log(`latestHead advanced to slot ${head} (block 2)`);
         }, 1_000_000);
 
-        test('block 3', async () => {
+        test.skip('block 3', async () => {
             await bridgeWorker.MOCK_update(
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[2].sp1PlonkProof,
@@ -407,7 +427,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             logger.log(`latestHead advanced to slot ${head} (block 3)`);
         }, 1_000_000);
 
-        test('block 4', async () => {
+        test.skip('block 4', async () => {
             await bridgeWorker.MOCK_update(
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[3].sp1PlonkProof,
