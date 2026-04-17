@@ -2,18 +2,16 @@
  * NoriTokenBridge Worker-driven E2E Test Suite (Lightnet)
  *
  * Mirrors the happy-path flow from NoriTokenBridge.integration.lightnet.spec.ts
- * but drives all available contract interactions through TokenBridgeDeployerWorker
- * and TokenBridgeWorker. Methods not exposed by the workers
- * (adminSetDepositRoot) fall back to direct contract calls.
+ * but drives every contract interaction through a single TokenBridgeTester
+ * instance — deployment + every subsequent op go through the same worker.
  *
  * Requires: Lightnet running at http://localhost:8080/graphql (accountManager at :8181)
  *
  * Test sequence (order-dependent, shared state):
- *   1. Deploy contracts                         (TokenBridgeDeployerWorker.deployContracts)
- *   2. setIntegrityParams (pi0 + po2)           (TokenBridgeDeployerWorker.setIntegrityParams)
- *   3. update() — 4 consecutive blocks          (TokenBridgeWorker.MOCK_update)
- *   4. setUpStorage for Alice                   (TokenBridgeWorker.MOCK_setupStorage)
- *   5. adminSetDepositRoot + noriMint for Alice (direct call + TokenBridgeWorker.MOCK_mint)
+ *   1. Deploy contracts                         (tester.deployContracts)
+ *   2. update() — 4 consecutive blocks          (tester.update)
+ *   3. setUpStorage for Alice                   (tester.setUpStorage)
+ *   4. adminSetDepositRoot + noriMint for Alice (tester.adminSetDepositRoot + .mint)
  */
 
 import { Logger, LogPrinter } from 'esm-iso-logger';
@@ -48,8 +46,7 @@ import {
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
 } from './testUtils.js';
-import { getTokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/node/parent.js';
-import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
+import { getTokenBridgeTester } from './workers/tokenBridgeTester/node/parent.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeWorker');
 const logger = new Logger('WorkerIntegrationLightnetTest');
@@ -57,6 +54,13 @@ const logger = new Logger('WorkerIntegrationLightnetTest');
 const fee = Number(process.env.MINA_TX_FEE ?? 0.1) * 1e9;
 
 type Keypair = { publicKey: PublicKey; privateKey: PrivateKey };
+type SafeVK = { hashStr: string; data: string };
+type TesterInstance = InstanceType<ReturnType<typeof getTokenBridgeTester>>;
+type CompileOutput = {
+    noriStorageInterfaceVerificationKeySafe: SafeVK;
+    fungibleTokenVerificationKeySafe: SafeVK;
+    noriTokenBridgeVerificationKeySafe: SafeVK;
+};
 
 // ---------------------------------------------------------------------------
 // Shared test state (populated in beforeAll)
@@ -73,15 +77,14 @@ let noriTokenBridge: NoriTokenBridge;
 
 let allAccounts: PublicKey[];
 
-// Workers
-let deployerWorker: InstanceType<ReturnType<typeof getTokenBridgeDeployerWorker>>;
-let aliceBridgeWorker: InstanceType<ReturnType<typeof getTokenBridgeWorker>>;
+// Single worker drives every contract interaction.
+let tester: TesterInstance;
 
-// Compiled VK (safe form) — produced by deployerWorker.compile()
-let storageInterfaceVerificationKeySafe: { hashStr: string; data: string };
+// Compiled VK (safe form) — produced by tester.compile()
+let storageInterfaceVerificationKeySafe: SafeVK;
 let storageInterfaceVKHashField: Field;
 
-// Network options — captured so makeBridgeWorker() can reuse the same setup.
+// Network options — captured so the tester can be spawned again after termination.
 let networkOptions: {
     networkId: NetworkId;
     mina: string;
@@ -97,45 +100,26 @@ let ethInput4: EthInput;
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-async function txSend({
-    body,
-    sender,
-    signers,
-    fee: txFee = fee,
-}: {
-    body: () => Promise<void>;
-    sender: PublicKey;
-    signers: PrivateKey[];
-    fee?: number;
-}) {
-    const tx = await Mina.transaction({ sender, fee: txFee }, body);
-    await tx.prove();
-    tx.sign(signers);
-    const pendingTx = await tx.send();
-    return pendingTx.wait();
+
+// Spawn a fresh tester worker: wire Mina network + compile circuits.
+// Call this whenever you need a new instance (e.g. after signalTerminate()).
+async function spawnTester(): Promise<{
+    instance: TesterInstance;
+    compiled: CompileOutput;
+}> {
+    const TesterWorker = getTokenBridgeTester();
+    const instance = new TesterWorker();
+    await instance.minaSetup(networkOptions);
+    const compiled = await instance.compile();
+    return { instance, compiled };
 }
 
 async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
 
-// Build a fresh TokenBridgeWorker bound to the given Mina key.
-// WALLET_setMinaPrivateKey is one-shot per worker instance, so any user
-// that needs MOCK_* methods requires its own worker.
-async function makeBridgeWorker(
-    pk: PrivateKey
-) {
-    const BridgeWorker = getTokenBridgeWorker();
-    const w = new BridgeWorker();
-    await w.minaSetup(networkOptions);
-    await w.compileAll();
-    await w.WALLET_setMinaPrivateKey(pk.toBase58());
-    console.log(`Bridge worker ready with public key ${pk.toPublicKey().toBase58()}`);
-    return w;
-}
-
 // Convert an in-memory MerkleTreeContractDepositAttestorInput into the JSON
-// form expected by TokenBridgeWorker.MOCK_mint().
+// form expected by tester.mint().
 function merkleInputToJson(
     input: MerkleTreeContractDepositAttestorInput
 ): MerkleTreeContractDepositAttestorInputJson {
@@ -170,10 +154,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         const Network = Mina.Network(networkOptions);
         Mina.setActiveInstance(Network);
 
-        const DeployerWorker = getTokenBridgeDeployerWorker();
-        deployerWorker = new DeployerWorker();
-        await deployerWorker.minaSetup(networkOptions);
-
         deployer = keyPairBase58ToKeyPair(
             await getNewMinaLiteNetAccountKeyPair()
         );
@@ -205,26 +185,22 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         for (const [name, data] of Object.entries(analysis)) {
             console.log(`${name}: ${data.rows} rows`);
         }
-        // Compile
-        const compiled = await deployerWorker.compile();
+
+        const spawned = await spawnTester();
+        tester = spawned.instance;
         storageInterfaceVerificationKeySafe =
-            compiled.noriStorageInterfaceVerificationKeySafe;
+            spawned.compiled.noriStorageInterfaceVerificationKeySafe;
         storageInterfaceVKHashField = new Field(
             BigInt(storageInterfaceVerificationKeySafe.hashStr)
         );
-        // Deployer's bridge worker drives MOCK_update (relayer-style sender).
-
-        // Alice's bridge worker drives MOCK_setupStorage / MOCK_mint.
-        // aliceBridgeWorker = makeBridgeWorker(alice.privateKey);
 
         // Decode example proofs (only EthInput needed locally for assertions —
-        // raw proof data is forwarded to MOCK_update in JSON form).
+        // raw proof data is forwarded to tester.update in JSON form).
         logger.log('Decoding test example proofs...');
-
         ethInput1 = new EthInput(decodeConsensusMptProof(examples[0].sp1PlonkProof));
-        // ethInput2 = new EthInput(decodeConsensusMptProof(examples[1].sp1PlonkProof));
-        // ethInput3 = new EthInput(decodeConsensusMptProof(examples[2].sp1PlonkProof));
-        // ethInput4 = new EthInput(decodeConsensusMptProof(examples[3].sp1PlonkProof));
+        ethInput2 = new EthInput(decodeConsensusMptProof(examples[1].sp1PlonkProof));
+        ethInput3 = new EthInput(decodeConsensusMptProof(examples[2].sp1PlonkProof));
+        ethInput4 = new EthInput(decodeConsensusMptProof(examples[3].sp1PlonkProof));
         logger.log('All example proofs decoded.');
     }, 1_000_000);
 
@@ -232,8 +208,13 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         await fetchAccounts(allAccounts);
     });
 
+    // afterAll(async () => {
+    //     tester.signalTerminate();
+    //     await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+    // });
+
     // =======================================================================
-    // 1. Deployment via TokenBridgeDeployerWorker
+    // 1. Deployment via tester
     // =======================================================================
     describe('Deployment', () => {
         test('should deploy NoriTokenBridge and FungibleToken via worker', async () => {
@@ -243,7 +224,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 decoded.contractAddress.bytes
             ).toHex();
 
-            await deployerWorker.deployContracts(
+            await tester.deployContracts(
                 deployer.privateKey.toBase58(),
                 admin.publicKey.toBase58(),
                 noriTokenBridgeKeypair.privateKey.toBase58(),
@@ -315,19 +296,18 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     });
 
     // =======================================================================
-    // 2. update() — 4 consecutive blocks via TokenBridgeDeployerWorker.update
+    // 2. update() — 4 consecutive blocks via tester
     // =======================================================================
-    describe('update() via deployer worker', () => {
-        afterAll(async () => {
-            deployerWorker.signalTerminate();
-            await new Promise((resolve) =>
-                setTimeout(() => resolve(null), 5000)
-            );
+    describe('update() via tester worker', () => {
+        afterEach(async () => {
+            tester.signalTerminate();
+            await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+            const spawned = await spawnTester();
+            tester = spawned.instance;
+            logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
         });
-
         test('block 1', async () => {
-            logger.fatal('Before deployerWorker.update() block 1...');
-            await deployerWorker.update(
+            await tester.update(
                 deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[0].sp1PlonkProof,
@@ -336,7 +316,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 fee
             );
 
-            logger.fatal('After deployerWorker.update() block 1...');
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,
             });
@@ -350,7 +329,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         }, 1_000_000);
 
         test('block 2', async () => {
-            await deployerWorker.update(
+            await tester.update(
                 deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[1].sp1PlonkProof,
@@ -372,7 +351,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         }, 1_000_000);
 
         test('block 3', async () => {
-            await deployerWorker.update(
+            await tester.update(
                 deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[2].sp1PlonkProof,
@@ -394,7 +373,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         }, 1_000_000);
 
         test('block 4', async () => {
-            await deployerWorker.update(
+            await tester.update(
                 deployer.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[3].sp1PlonkProof,
@@ -417,29 +396,16 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     });
 
     // =======================================================================
-    // 3. setUpStorage for Alice via TokenBridgeWorker.MOCK_setupStorage
+    // 3. setUpStorage for Alice via tester
     // =======================================================================
-    describe.skip('setUpStorage() via worker', () => {
-        beforeAll(async () => {
-            logger.fatal('Before aliceBridgeWorker...');
-            aliceBridgeWorker = await makeBridgeWorker(alice.privateKey);
-            logger.fatal('After aliceBridgeWorker...');
-        });
-        afterAll(async () => {
-            aliceBridgeWorker.signalTerminate();
-            //await 5 sec
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 5000);
-            })
-        });
+    describe('setUpStorage() via tester worker', () => {
         test('should initialise storage for Alice', async () => {
-            await aliceBridgeWorker.MOCK_setupStorage(
-                alice.publicKey.toBase58(),
+            await tester.setUpStorage(
+                alice.privateKey.toBase58(),
+                alice.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
-                fee,
-                storageInterfaceVerificationKeySafe
+                storageInterfaceVerificationKeySafe,
+                fee
             );
 
             const storage = new NoriStorageInterface(
@@ -461,15 +427,20 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 'mintedSoFar must start at 0'
             );
 
-            logger.log('Storage initialised for Alice via worker.');
+            logger.log('Storage initialised for Alice via tester worker.');
+            tester.signalTerminate();
+            await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+            const spawned = await spawnTester();
+            tester = spawned.instance;
+            logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
         }, 1_000_000);
     });
 
     // =======================================================================
-    // 4. noriMint for Alice via TokenBridgeWorker.MOCK_mint
-    //    (deposit-root seed step uses a direct admin call — no worker method)
+    // 4. noriMint for Alice via tester
+    //    (deposit-root seed step also goes through the tester worker)
     // =======================================================================
-    describe.skip('noriMint() via worker', () => {
+    describe('noriMint() via tester worker', () => {
         test('should seed deposit root then mint 200 bridge units for Alice', async () => {
             const aliceScramMsg = 'NoriZK';
             const totalLockedBU = 200n;
@@ -480,39 +451,33 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 totalLockedBU
             );
 
-            // Seed Alice's deposit root into the contract's rolling window via
-            // the admin-gated adminSetDepositRoot method (no worker method).
             const depositRoot =
                 getContractDepositSlotRootFromContractDepositAndWitness(
                     merkleInput
                 );
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.adminSetDepositRoot(
-                        depositRoot,
-                        Field(0)
-                    );
-                },
-                sender: admin.publicKey,
-                signers: [admin.privateKey],
-            });
+            await tester.adminSetDepositRoot(
+                admin.privateKey.toBase58(),
+                noriTokenBridgeKeypair.publicKey.toBase58(),
+                depositRoot.toBigInt().toString(),
+                '0',
+                fee
+            );
+
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,
             });
 
-            // Mint via the worker. MOCK_mint expects the merkle witness and the
-            // SCRAM signature in serialised form (JSON / base58).
             const merkleInputJson = merkleInputToJson(merkleInput);
             const signatureSCRAMBase58 = scramWitness.signature.toBase58();
 
-            await aliceBridgeWorker.MOCK_mint(
-                alice.publicKey.toBase58(),
+            await tester.mint(
+                alice.privateKey.toBase58(),
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 merkleInputJson,
                 aliceScramMsg,
                 signatureSCRAMBase58,
-                fee,
-                /* fundNewAccount */ true
+                /* fundNewAccount */ true,
+                fee
             );
 
             await fetchAccount({
@@ -538,7 +503,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 `mintedSoFar should record ${totalLockedBU} bridge units`
             );
 
-            logger.log(`Alice minted ${balance} bridge units via worker.`);
+            logger.log(`Alice minted ${balance} bridge units via tester worker.`);
         }, 1_000_000);
     });
 });
