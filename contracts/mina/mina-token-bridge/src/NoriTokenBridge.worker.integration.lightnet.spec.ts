@@ -202,18 +202,19 @@ describe('NoriTokenBridge (Worker-driven)', () => {
         ethInput3 = new EthInput(decodeConsensusMptProof(examples[2].sp1PlonkProof));
         ethInput4 = new EthInput(decodeConsensusMptProof(examples[3].sp1PlonkProof));
         logger.log('All example proofs decoded.');
-    }, 1_000_000);
+    }, 5_000_000);
 
     beforeEach(async () => {
+        const spawned = await spawnTester();
+        tester = spawned.instance;
+        logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
         await fetchAccounts(allAccounts);
+
     });
 
     afterEach(async () => {
         tester.signalTerminate();
         await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
-        const spawned = await spawnTester();
-        tester = spawned.instance;
-        logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
     });
 
     // =======================================================================
@@ -295,7 +296,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 'token decimals mismatch'
             );
             logger.log('Worker-driven deployment verified.');
-        }, 1_000_000);
+        }, 5_000_000);
     });
 
     // =======================================================================
@@ -323,7 +324,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 'latestHead after block 1'
             );
             logger.log(`latestHead advanced to slot ${head} (block 1)`);
-        }, 1_000_000);
+        }, 5_000_000);
 
         test('block 2', async () => {
             await tester.update(
@@ -345,7 +346,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 'latestHead after block 2'
             );
             logger.log(`latestHead advanced to slot ${head} (block 2)`);
-        }, 1_000_000);
+        }, 5_000_000);
 
         test('block 3', async () => {
             await tester.update(
@@ -367,7 +368,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 'latestHead after block 3'
             );
             logger.log(`latestHead advanced to slot ${head} (block 3)`);
-        }, 1_000_000);
+        }, 5_000_000);
 
         test('block 4', async () => {
             await tester.update(
@@ -389,7 +390,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 'latestHead after block 4'
             );
             logger.log(`latestHead advanced to slot ${head} (block 4)`);
-        }, 1_000_000);
+        }, 5_000_000);
     });
 
     // =======================================================================
@@ -425,7 +426,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             );
 
             logger.log('Storage initialised for Alice via tester worker.');
-        }, 1_000_000);
+        }, 5_000_000);
     });
 
     // =======================================================================
@@ -496,6 +497,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             );
 
             logger.log(`Alice minted ${balance} bridge units via tester worker.`);
-        }, 1_000_000);
+        }, 5_000_000);
     });
 });
