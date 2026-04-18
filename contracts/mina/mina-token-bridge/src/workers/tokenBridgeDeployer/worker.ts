@@ -66,6 +66,9 @@ function removeCacheDir(cacheConfig: FileSystemCacheConfig) {
     rmSync(cacheConfig.dir, { recursive: true, force: true });
 }
 
+/**
+ * @deprecated Deprecated in favour of TokenBridgeTester
+ */
 export class TokenBridgeDeployerWorker {
     #cacheConfig: FileSystemCacheConfig | undefined;
 

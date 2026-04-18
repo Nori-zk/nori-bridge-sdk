@@ -236,6 +236,9 @@ export class NoriTokenBridgeSubmitter {
     }
 
     // Set the on-chain noriHeliosProgramPi0 state (admin-gated).
+    /**
+     * @deprecated Deprecated not a submitter behaviour
+     */
     async setNoriHeliosProgramPi0(pi0: FrC) {
         logger.log('Creating setNoriHeliosProgramPi0 transaction.');
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();
@@ -252,6 +255,9 @@ export class NoriTokenBridgeSubmitter {
     }
 
     // Set the on-chain proofConversionPO2 state (admin-gated).
+    /**
+     * @deprecated Deprecated not a submitter behaviour
+     */
     async setProofConversionPO2(po2: Field) {
         logger.log('Creating setProofConversionPO2 transaction.');
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();
@@ -268,6 +274,9 @@ export class NoriTokenBridgeSubmitter {
     }
 
     // Set both pi0 and po2 in a single transaction.
+    /**
+     * @deprecated Deprecated not a submitter behaviour
+     */
     async setIntegrityParams(pi0: FrC, po2: Field) {
         logger.log('Creating setIntegrityParams transaction (pi0 + po2).');
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();
