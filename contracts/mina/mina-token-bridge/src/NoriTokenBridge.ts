@@ -38,7 +38,6 @@ import {
     Bytes32FieldPair,
     proofConversionSP1ToPlonkVkData,
 } from '@nori-zk/o1js-zk-utils-new';
-import { Logger } from 'esm-iso-logger';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
 import {
@@ -52,8 +51,6 @@ import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js'
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SCRAMWitness, verifyCodeChallenge } from './scram.js';
 import { maxWindow, minBridgeBurnAmount } from './NoriTokenBridge.const.js';
-
-const logger = new Logger('NoriTokenController');
 
 export type FungibleTokenAdminBase = SmartContract & {
     canMint(accountUpdate: AccountUpdate): Promise<Bool>;
@@ -126,18 +123,45 @@ export class BurnEvent extends Struct({
 
 class DepositRootAction extends Field { }
 
+/**
+ * NoriTokenBridge — Mina anchor for the Nori ETH ↔ Mina token bridge.
+ *
+ * Verifies SP1 consensus MPT transition proofs (`update`), maintains a rolling
+ * window of verified Ethereum deposit roots, and mints the corresponding
+ * FungibleToken balance when a user presents a matching deposit plus SCRAM
+ * witness (`noriMint`). Also supports burning for the Mina → ETH direction
+ * (`alignedLock`).
+ *
+ * Acts as the admin contract for the FungibleToken — `canMint` gates minting
+ * via a single-use `mintLock` flag that `noriMint` flips immediately before
+ * calling `token.mint`. Direct calls to `FungibleToken.mint` therefore fail.
+ */
 export class NoriTokenBridge
     extends TokenContract
     implements FungibleTokenAdminBase {
+    /** Admin key authorised to set integrity params, update VKs, rotate the store hash, and inject deposit roots. */
     @state(PublicKey) adminPublicKey = State<PublicKey>();
+    /** Address of the FungibleToken this bridge mints into / burns from. */
     @state(PublicKey) tokenBaseAddress = State<PublicKey>();
+    /** Required VK hash for every per-user NoriStorageInterface account (enforced in setUpStorage). */
     @state(Field) storageVKHash = State<Field>();
+    /**
+     * Single-use mint gate. `noriMint` clears this (false) just before calling
+     * `token.mint`; `canMint` then requires it false and re-locks it (true).
+     * Any `FungibleToken.mint` call not originating from `noriMint` fails
+     * because the lock remains true.
+     */
     @state(Bool) mintLock = State<Bool>();
 
-    @state(Field) verifiedStateRoot = State<Field>(); // todo make PackedString
+    /** Poseidon hash of the most recently verified Ethereum execution state root (Field(1) before the first update). */
+    @state(Field) verifiedStateRoot = State<Field>();
+    /** Latest Ethereum slot verified by this bridge (strictly increasing). */
     @state(UInt64) latestHead = State<UInt64>();
+    /** Chain-linkage hash (high byte) — the next proof's `inputStoreHash` must match this + lower bytes. */
     @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
+    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliusStoreInputHashHighByte`. */
     @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
+    /** Deposits root from the most recent successful `update` (exposed for off-chain consumers). */
     @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
     /**
      * Public input 0 from the SP1 consensus MPT transition proof (sp1Proof.proof.Plonk.public_inputs[0]),
@@ -182,10 +206,13 @@ export class NoriTokenBridge
             setPermissions: Permissions.impossible(),
             editState: Permissions.proof(),
             send: Permissions.proof(),
-            access: Permissions.proof() //!! NOW MUST BAN TOKEN OWNER's SIGNATURE APPROVAL UTILL `Precondition on Account Permissions` feature is feasible in o1js lib.
+            // Must stay proof-only until o1js supports `Precondition on Account
+            // Permissions` — otherwise a token-owner signature could approve
+            // arbitrary account updates against this contract.
+            access: Permissions.proof()
         });
         const isInitialized = this.account.provedState.getAndRequireEquals();
-        isInitialized.assertFalse('EthProcessor has already been initialized!');
+        isInitialized.assertFalse('NoriTokenBridge has already been initialized!');
 
         // Set initial state (TODO set these to real values!)
         this.latestHead.set(UInt64.from(0));
@@ -226,7 +253,6 @@ export class NoriTokenBridge
         // this is also from nodeVK
         const vk = VerificationKey.fromJSON(proofConversionSP1ToPlonkVkData);
 
-        // [zkProgram / circuit][eth processor /  contract ie on-chain state]
 
         proof.verify(vk);
 
@@ -247,7 +273,7 @@ export class NoriTokenBridge
 
 
         // Check that zkprograminput is same as passed to the SP1 program
-        const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
+        const pi0 = ethPlonkVK;
         const pi1 = parsePlonkPublicInputsProvable(Bytes.from(bytes));
 
         const piDigest = Poseidon.hashPacked(Provable.Array(FrC.provable, 2), [
@@ -265,6 +291,17 @@ export class NoriTokenBridge
         return input.contractAddress.bytes;
     }
 
+    /**
+     * Verify an SP1 consensus MPT transition proof and advance the bridge
+     * head. On success:
+     *   - `latestHead` is set to `input.outputSlot` (must strictly increase)
+     *   - `verifiedStateRoot` is set to Poseidon(`input.executionStateRoot`)
+     *   - `latestHeliusStoreInputHash{HighByte,LowerBytes}` advance to the
+     *     new store hash (prior values must match the proof's `inputStoreHash`)
+     *   - `input.verifiedContractDepositsRoot` is dispatched into the rolling
+     *     window; when the window is full, `oldestAction` is consumed as the
+     *     eviction witness. Pass `Field(0)` when the window is not yet full.
+     */
     @method async update(input: EthInput, proof: NodeProofLeft, oldestAction: Field) {
         // Verify transition proof.
         const ethTokenBridgeAddressBytes = this.ethVerify(input, proof);
@@ -326,7 +363,7 @@ export class NoriTokenBridge
             );
         });
 
-        // Verification of slot progress. Moved to the bottom to allow us to test hash mismatches do indeed yield validation errors.
+        // Verification of slot progress.
         proofHead.assertGreaterThan(
             currentSlot,
             'Proof head must be greater than current head.'
@@ -362,77 +399,6 @@ export class NoriTokenBridge
         // Dispatch + window eviction
         this.dispatchAndEvict(verifiedContractDepositsRootField, oldestAction);
     }
-
-    @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
-        let tokenAccUpdate = AccountUpdate.createSigned(
-            user,
-            this.deriveTokenId()
-        );
-        // TODO: what if someone sent token to this address before?
-        tokenAccUpdate.account.isNew.requireEquals(Bool(true));
-
-        // could use the idea of vkMap from latest standard
-        const storageVKHash = this.storageVKHash.getAndRequireEquals();
-        storageVKHash.assertEquals(vk.hash);
-        tokenAccUpdate.body.update.verificationKey = {
-            isSome: Bool(true),
-            value: vk,
-        };
-        tokenAccUpdate.body.update.permissions = {
-            isSome: Bool(true),
-            value: {
-                ...Permissions.default(),
-                editState: Permissions.proof(),
-                // VK upgradability here?
-                setVerificationKey:
-                    Permissions.VerificationKey.impossibleDuringCurrentVersion(),
-                setPermissions: Permissions.proof(), //imposible?
-            },
-        };
-
-        AccountUpdate.setValue(
-            tokenAccUpdate.update.appState[0], //NoriStorageInterface.userKeyHash
-            Poseidon.hash(user.toFields())
-        );
-        AccountUpdate.setValue(
-            tokenAccUpdate.update.appState[1], //NoriStorageInterface.mintedSoFar
-            Field(0)
-        );
-    }
-    /** 
-     * Update the verification key.
-     */
-    @method
-    async updateVerificationKey(vk: VerificationKey) {
-        await this.ensureAdminSignature();
-        this.account.verificationKey.set(vk);
-    }
-
-    @method async setNoriHeliosProgramPi0(newPi0: FrC) {
-        await this.ensureAdminSignature();
-        this.noriHeliosProgramPi0.set(newPi0);
-    }
-
-    @method async setProofConversionPO2(newPO2: Field) {
-        await this.ensureAdminSignature();
-        this.proofConversionPO2.set(newPO2);
-    }
-
-    // TODO remove for produc
-    @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
-        await this.ensureAdminSignature();
-        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
-        this.latestHeliusStoreInputHashLowerBytes.set(
-            newStoreHash.lowerBytesField
-        );
-    }
-
-    // TODO remove for produc
-    @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
-        await this.ensureAdminSignature();
-        this.dispatchAndEvict(depositRoot, oldestAction);
-    }
-
     /**
      * Dispatch a new deposit root action and evict the oldest if the window is full.
      *
@@ -464,19 +430,41 @@ export class NoriTokenBridge
         this.windowSize.set(Provable.if(isFull, windowSize, windowSize.add(1)));
     }
 
-    private async ensureAdminSignature() {
-        const admin = await Provable.witnessAsync(PublicKey, async () => {
-            let pk = await this.adminPublicKey.fetch();
-            assert(pk !== undefined, 'could not fetch admin public key');
-            return pk;
-        });
-        this.adminPublicKey.requireEquals(admin);
-        return AccountUpdate.createSigned(admin);
-    }
+    @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
+        let tokenAccUpdate = AccountUpdate.createSigned(
+            user,
+            this.deriveTokenId()
+        );
+        tokenAccUpdate.account.isNew.requireEquals(Bool(true));
 
+        const storageVKHash = this.storageVKHash.getAndRequireEquals();
+        storageVKHash.assertEquals(vk.hash);
+        tokenAccUpdate.body.update.verificationKey = {
+            isSome: Bool(true),
+            value: vk,
+        };
+        tokenAccUpdate.body.update.permissions = {
+            isSome: Bool(true),
+            value: {
+                ...Permissions.default(),
+                editState: Permissions.proof(),
+                // VK upgradability here?
+                setVerificationKey:
+                    Permissions.VerificationKey.impossibleDuringCurrentVersion(),
+                setPermissions: Permissions.proof(), //imposible?
+            },
+        };
+
+        AccountUpdate.setValue(
+            tokenAccUpdate.update.appState[0], //NoriStorageInterface.userKeyHash
+            Poseidon.hash(user.toFields())
+        );
+        AccountUpdate.setValue(
+            tokenAccUpdate.update.appState[1], //NoriStorageInterface.mintedSoFar
+            Field(0)
+        );
+    }
     @method public async noriMint(
-        //ethConsensusProof: MockConsenusProof,
-        // ethVerifierProof: EthProofType,
         merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
         SCRAMWitness: SCRAMWitness
     ) {
@@ -526,21 +514,14 @@ export class NoriTokenBridge
         const controllerTokenId = this.deriveTokenId();
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
 
-        storage.account.isNew.requireEquals(Bool(false)); // that somehow allows to getState without index out of bounds
-        storage.userKeyHash //kinda unneeded but good to have the extra check that the storage we are reading from is indeed for the user that is trying to mint
+        // Require the storage account already exists (setUpStorage was called).
+        // Without this precondition, reading appState below can fail out of range.
+        storage.account.isNew.requireEquals(Bool(false));
+        // Defence-in-depth: confirm this storage was set up for the minting user.
+        // setUpStorage already binds user -> userKeyHash.
+        storage.userKeyHash
             .getAndRequireEquals()
             .assertEquals(Poseidon.hash(userAddress.toFields()));
-
-        // LHS e1 ->  s1 -> 1 RHS s1 + mpt + da .... 1 mint
-
-        // LHS e1 -> s2 -> 1(2) RHS s2 + mpr + da .... want to mint 2.... total locked 1 claim (1).... cannot claim 2 because in this run we only deposited 1
-
-        // Ensure totalLockedWei is at least one bridge unit
-        // totalLockedBridgeUnits.assertGreaterThanOrEqual(
-        //     new Field(1),
-        //     'Cannot mint: total locked wei is less than one bridge unit (atleast 1e12 wei is needed)'
-        // );
-
 
         // Derive amount to mint based of the total locked so far.
         const amountToMint = await storage.increaseMintedAmount(
@@ -548,23 +529,16 @@ export class NoriTokenBridge
         );
         Provable.log(amountToMint, 'amount to mint');
 
-        // Here we have only one destination there is only m1.....
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
-        Provable.asProver(() => {
-            logger.log(
-                'UInt64.Unsafe.fromField(amountToMint)',
-                UInt64.Unsafe.fromField(amountToMint).toBigInt()
-            );
-        });
-
+        Provable.log(UInt64.fromFields(amountToMint.toFields()),
+            'UInt64.fromFields(amountToMint.toFields())');
         // Mint!
-        await token.mint(userAddress, UInt64.Unsafe.fromField(amountToMint));
+        await token.mint(userAddress, UInt64.fromFields(amountToMint.toFields()));
     }
     /**
-     * 
-     * @param user 
-     * @param amountToMint 
+     * @param amountToBurn  the amount the user wants to burn on Mina. Must be greater than minBridgeBurnAmount.
+     * @param receiver - the Ethereum address (as a Field) that will receive the bridged tokens on the other side. Must be provided by the user when burning.
      */
     @method public async alignedLock(
         amountToBurn: Field,
@@ -577,7 +551,8 @@ export class NoriTokenBridge
         amountToBurn.assertGreaterThan(minBridgeBurnAmount, "Amount to burn must be greater than MIN_BRIDGE_AMOUNT");
         // maintain Storage
         let storage = new NoriStorageInterface(userAddress, controllerTokenId);
-        storage.account.isNew.requireEquals(Bool(false)); // TODO ?? that somehow allows to getState without index out of bounds
+        // Require the storage account already exists (same reasoning as noriMint).
+        storage.account.isNew.requireEquals(Bool(false));
 
         // record amount to be burned and capture the new cumulative burnedSoFar
         const newBurnedSoFar = await storage.addBurnGetCumulative(amountToBurn, receiver);
@@ -594,6 +569,58 @@ export class NoriTokenBridge
         }));
 
     }
+
+    private async ensureAdminSignature() {
+        const admin = await Provable.witnessAsync(PublicKey, async () => {
+            let pk = await this.adminPublicKey.fetch();
+            assert(pk !== undefined, 'could not fetch admin public key');
+            return pk;
+        });
+        this.adminPublicKey.requireEquals(admin);
+        return AccountUpdate.createSigned(admin);
+    }
+    /** 
+     * Update the verification key.
+     */
+    @method
+    async updateVerificationKey(vk: VerificationKey) {
+        await this.ensureAdminSignature();
+        this.account.verificationKey.set(vk);
+    }
+
+    @method async setNoriHeliosProgramPi0(newPi0: FrC) {
+        await this.ensureAdminSignature();
+        this.noriHeliosProgramPi0.set(newPi0);
+    }
+
+    @method async setProofConversionPO2(newPO2: Field) {
+        await this.ensureAdminSignature();
+        this.proofConversionPO2.set(newPO2);
+    }
+
+    @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
+        await this.ensureAdminSignature();
+        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
+        this.latestHeliusStoreInputHashLowerBytes.set(
+            newStoreHash.lowerBytesField
+        );
+    }
+
+    /**
+     * Admin-only helper that dispatches a deposit root directly into the window,
+     * bypassing update(). Exists for testing, to be deleted.
+     */
+    @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
+        await this.ensureAdminSignature();
+        this.dispatchAndEvict(depositRoot, oldestAction);
+    }
+
+    /**
+     * FungibleToken admin hook. Pass-through gate: noriMint clears mintLock
+     * immediately before calling token.mint; this method consumes that
+     * clearance and re-locks. Direct calls to FungibleToken.mint therefore
+     * fail because mintLock remains true outside of an active noriMint.
+     */
     @method.returns(Bool)
     public async canMint(_accountUpdate: AccountUpdate) {
         this.mintLock.requireEquals(Bool(false));
