@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { fetchAccount } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { FrC } from '@nori-zk/proof-conversion/min';
-import { bridgeHeadNoriSP1HeliosProgramPi0 } from '@nori-zk/o1js-zk-utils-new';
+import { bridgeHeadNoriSP1HeliosProgramPi0 } from '@nori-zk/o1js-zk-utils';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
 const logger = new Logger('UpdateNoriHeliosProgramPi0');

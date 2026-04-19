@@ -53,8 +53,8 @@
         "node": ">=18.14.0"
     },
     "dependencies": {
-        "@nori-zk/mina-token-bridge-new": "*",
-        "@nori-zk/o1js-zk-utils-new": "*",
+        "@nori-zk/mina-token-bridge": "*",
+        "@nori-zk/o1js-zk-utils": "*",
         "esm-iso-logger": "1.0.2"
     }
 }

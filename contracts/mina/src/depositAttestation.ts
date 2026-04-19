@@ -5,7 +5,7 @@ import {
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
     getMerkleZeros,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 import { DynamicArray } from 'mina-attestations';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
@@ -23,7 +23,7 @@ const logger = new Logger('DepositAttestation');
 export class ContractDeposit extends Struct({
     codeChallenge: Bytes32.provable,
     value: Bytes32.provable,
-}) {}
+}) { }
 
 const treeDepth = 16;
 
@@ -33,7 +33,7 @@ export class MerkleTreeContractDepositAttestorInput extends Struct({
     path: MerklePath,
     index: UInt64,
     value: ContractDeposit,
-}) {}
+}) { }
 
 export type MerkleTreeContractDepositAttestorInputJson = {
     depositIndex: number;

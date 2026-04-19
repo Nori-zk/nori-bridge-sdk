@@ -6,7 +6,7 @@ import { FrC } from '@nori-zk/proof-conversion/min';
 import {
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
 const logger = new Logger('UpdateIntegrityParams');

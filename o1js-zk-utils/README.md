@@ -19,7 +19,7 @@ Whenever any of these change, you must run:
 This updates the integrity files (used to ensure zk compilation is correct and not affected by stale o1js cache). Commit any changes to the `integrity` folder.
 
 ```typescript
-import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-utils-new';
+import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-utils';
 ```
 
 ## Merkle Leaf Attestor Generator / Utils
@@ -27,6 +27,7 @@ import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-utils-new';
 A generator that produces zk-programs for proving a leaf’s inclusion (via a witness, generatable from all leaves) in a dynamically sized Merkle tree, with a constraint on the tree’s maximum height.
 
 **Utilties**
+
 ```typescript
 import {
     buildMerkleTree,
@@ -35,15 +36,15 @@ import {
     getMerklePathFromTree,
     computeMerkleRootFromPath,
     merkleLeafAttestorGenerator,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 ```
 
 **Example Usage**
 
 ```typescript
 import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
-import { Bytes32 } from '@nori-zk/o1js-zk-utils-new';
-import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils-new';
+import { Bytes32 } from '@nori-zk/o1js-zk-utils';
+import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils';
 
 export class YourLeafType extends Struct({
     value: Bytes32.provable,
@@ -56,7 +57,7 @@ export function leafHashFunction(contractDeposit: YourLeafType) {
     for (let i = 0; i < 32; i++) {
         leafBytes.push(valueBytes[i]);
     }
-  
+
     let firstField = new Field(0);
     for (let i = 31; i >= 0; i--) {
         firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
@@ -90,14 +91,16 @@ export {
 A zk-program to prove that a user's deposit is included within a consensus MPT transition proof window.
 
 **Leaf format:**
+
 ```typescript
 export class ContractDeposit extends Struct({
-  codeChallenge: Bytes32.provable, // SCRAM code challenge (Poseidon hash of Mina signature)
-  value: Bytes32.provable,         // Total locked amount (cumulative)
+    codeChallenge: Bytes32.provable, // SCRAM code challenge (Poseidon hash of Mina signature)
+    value: Bytes32.provable, // Total locked amount (cumulative)
 }) {}
 ```
 
 **Imports**
+
 ```typescript
 import {
     ContractDepositAttestorInput,
@@ -105,7 +108,7 @@ import {
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 ```
 
 For example usage see the [test](./src/contractDepositAttestor.spec.ts).
@@ -123,7 +126,7 @@ import {
     decodeConsensusMptProof,
     compileAndVerifyContracts,
     extractEthTokenBridgeAddressFromSP1Proof,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 ```
 
 ## Types
@@ -131,5 +134,10 @@ import {
 Types for various proof and encoding formats.
 
 ```typescript
-import { PlonkProof, ConvertedProof, EthVerifierComputeOutput, Bytes32 } from '@nori-zk/o1js-zk-utils-new';
+import {
+    PlonkProof,
+    ConvertedProof,
+    EthVerifierComputeOutput,
+    Bytes32,
+} from '@nori-zk/o1js-zk-utils';
 ```

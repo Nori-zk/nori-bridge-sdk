@@ -6,7 +6,7 @@ import type { Logger } from 'esm-iso-logger';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
-import { compileAndVerifyContracts } from '@nori-zk/o1js-zk-utils-new';
+import { compileAndVerifyContracts } from '@nori-zk/o1js-zk-utils';
 import { noriTokenBridgeVkHash } from '../../integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';

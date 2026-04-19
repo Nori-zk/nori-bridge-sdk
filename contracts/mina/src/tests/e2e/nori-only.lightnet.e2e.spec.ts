@@ -24,7 +24,7 @@ import {
     createTimer,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2ELitenetSpec');

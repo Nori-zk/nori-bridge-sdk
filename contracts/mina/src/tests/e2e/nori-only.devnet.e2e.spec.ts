@@ -18,7 +18,7 @@ import { getTokenBridgeWorker } from '../../workers/tokenBridgeWorker/node/paren
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
 import { getStagingEnv, validateEnv } from '../testUtils.js';
-import { createTimer } from '@nori-zk/o1js-zk-utils-new';
+import { createTimer } from '@nori-zk/o1js-zk-utils';
 
 // https://faucet.minaprotocol.com/
 

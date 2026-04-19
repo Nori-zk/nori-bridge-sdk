@@ -1,4 +1,4 @@
-import { TokenBridgeWorker } from '@nori-zk/mina-token-bridge-new/workers/defs';
+import { TokenBridgeWorker } from '@nori-zk/mina-token-bridge/workers/defs';
 import { WorkerChild } from '@nori-zk/workers/browser/child';
 import { createWorker } from '@nori-zk/workers';
 import { Logger } from 'esm-iso-logger';

@@ -16,7 +16,7 @@ import {
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
     getMerkleZeros,
-} from '@nori-zk/o1js-zk-utils-new';
+} from '@nori-zk/o1js-zk-utils';
 
 import { env, type NetworkName } from '../env.js';
 
