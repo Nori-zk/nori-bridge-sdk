@@ -1,36 +1,66 @@
 // Load environment variables from .env file
 import 'dotenv/config';
-import { Field } from 'o1js';
+import { Field, fetchAccount } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { FrC } from '@nori-zk/proof-conversion/min';
+import {
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
+} from '@nori-zk/o1js-zk-utils-new';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './adminBinUtils.js';
 
 const logger = new Logger('SetIntegrityParams');
 
 new LogPrinter('NoriTokenBridge');
 
-const possiblePi0Value = process.argv[2];
-const possiblePO2Value = process.argv[3];
+// The target pi0 + po2 values are baked into the repo via o1js-zk-utils.
+// This script only pushes those repo-pinned values on-chain.
+const targetPi0Decimal = bridgeHeadNoriSP1HeliosProgramPi0;
+const targetPO2Decimal = proofConversionSP1ToPlonkPO2;
+const newPi0 = FrC.from(targetPi0Decimal);
+const newPO2 = Field.from(targetPO2Decimal);
 
-const config = parseAdminBinEnv(logger, 'SetIntegrityParams', (issues) => {
-    if (!possiblePi0Value)
-        issues.push('Missing required first argument: pi0 value (decimal string)');
-    if (!possiblePO2Value)
-        issues.push('Missing required second argument: po2 value (decimal string)');
-});
+const config = parseAdminBinEnv(logger, 'SetIntegrityParams');
 
-const newPi0 = FrC.from(possiblePi0Value);
-const newPO2 = Field.from(possiblePO2Value);
-logger.log(`New pi0 value: '${possiblePi0Value}'`);
-logger.log(`New po2 value: '${possiblePO2Value}'`);
+logger.log(`Target pi0 value (from repo): '${targetPi0Decimal}'`);
+logger.log(`Target po2 value (from repo): '${targetPO2Decimal}'`);
 
 async function setIntegrityParams() {
     const tokenBridge = await setupNetworkAndCompile(logger, config);
 
-    logger.log('Creating setIntegrityParams transaction (pi0 + po2)...');
+    // Read current on-chain state so we can log the diff and skip a no-op tx.
+    await fetchAccount({ publicKey: tokenBridge.address });
+    const onchainPi0 = await tokenBridge.noriHeliosProgramPi0.fetch();
+    const onchainPO2 = await tokenBridge.proofConversionPO2.fetch();
+
+    // Wrap FrC through FrC.from to get a typed handle with toBigInt for logging/compare.
+    const onchainPi0Decimal = onchainPi0
+        ? FrC.from(onchainPi0).toBigInt().toString()
+        : 'unset';
+    const onchainPO2Decimal = onchainPO2 ? onchainPO2.toBigInt().toString() : 'unset';
+
+    logger.log(`Current on-chain pi0 value: '${onchainPi0Decimal}'`);
+    logger.log(`Current on-chain po2 value: '${onchainPO2Decimal}'`);
+
+    const pi0Matches = onchainPi0Decimal === targetPi0Decimal;
+    const po2Matches = onchainPO2Decimal === targetPO2Decimal;
+
+    if (pi0Matches && po2Matches) {
+        logger.log('On-chain pi0 and po2 already match the target values — nothing to do.');
+        return;
+    }
+    if (pi0Matches) {
+        logger.log('On-chain pi0 already matches the target value; only po2 will be updated.');
+    }
+    if (po2Matches) {
+        logger.log('On-chain po2 already matches the target value; only pi0 will be updated.');
+    }
+
+    logger.log('Creating setIntegrityParams transaction (pi0 + po2)...');        // Both setters are re-issued even if one side already matches: the no-op case
+    // was handled above, and splitting into two txs would double fees + wait time.
+    logger.log(`Setting noriHeliosProgramPi0 to: '${targetPi0Decimal}'`);
+    logger.log(`Setting proofConversionPO2 to: '${targetPO2Decimal}'`);
     await submitAdminTx(logger, config, async () => {
-        logger.log(`Setting noriHeliosProgramPi0 to: '${possiblePi0Value}'`);
-        logger.log(`Setting proofConversionPO2 to: '${possiblePO2Value}'`);
         await tokenBridge.setNoriHeliosProgramPi0(newPi0);
         await tokenBridge.setProofConversionPO2(newPO2);
     });
