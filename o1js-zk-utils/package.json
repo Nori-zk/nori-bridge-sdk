@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/o1js-zk-utils",
-    "version": "0.0.21",
+    "version": "0.1.23",
     "description": "o1js-zk-utils supporting Nori Bridge",
     "author": "Nori",
     "license": "Apache-2.0",
@@ -59,7 +59,7 @@
         "npm-workspaces-publish-tool": "0.0.17"
     },
     "peerDependencies": {
-        "o1js": "2.12.0"
+        "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
     },
     "engines": {
         "node": ">=22.0.0"

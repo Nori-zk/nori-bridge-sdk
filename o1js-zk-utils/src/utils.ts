@@ -1,11 +1,103 @@
-import { type Cache, type Field, type SmartContract, UInt64, UInt8, type VerificationKey } from 'o1js';
+import {
+    Bool,
+    type Cache,
+    Field,
+    Provable,
+    type SmartContract,
+    UInt64,
+    UInt8,
+    type VerificationKey,
+} from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
-import {
-    Bytes32,
-    type CompilableZkProgram,
-} from './types.js';
+import { Bytes20, Bytes32, type CompilableZkProgram, type CreateProofArgument } from './types.js';
 import { type Logger } from 'esm-iso-logger';
+
+// Bytes32 Field utils
+
+export function isLessThanFieldPrimeLE(bytes: UInt8[]): Bool {
+    // Mina field prime p in LE as Fields
+    const P_LE: Field[] = [
+        1n,
+        0n,
+        0n,
+        0n,
+        237n,
+        48n,
+        45n,
+        153n,
+        27n,
+        249n,
+        76n,
+        9n,
+        252n,
+        152n,
+        70n,
+        34n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        0n,
+        64n,
+    ].map((b) => new Field(b));
+    // Scan from bytes[31] (MSB) down to bytes[0] (LSB).
+    // `strictlyLess` starts false and can only ever flip true — never reset.
+    // `different` latches true the moment any byte differs from p's byte.
+    // Once `different` is true, `different.not()` is false, so no future byte
+    // can update `strictlyLess` — it is frozen at whatever it was set to.
+    // Therefore: `strictlyLess` becomes true if at the first differing byte
+    // position (from MSB), the input byte was less than p's byte.
+    // If all bytes match (input == p), `different` never latches and
+    // `strictlyLess` stays false — correctly rejecting p itself.
+    let strictlyLess = Bool(false);
+    let different = Bool(false);
+    for (let i = 31; i >= 0; i--) {
+        const pField = P_LE[i] as Field;
+        const byteField = (bytes[i] as UInt8).value;
+        const lt = byteField.lessThan(pField);
+        const eq = byteField.equals(pField);
+        strictlyLess = Provable.if(
+            different.not().and(lt),
+            Bool,
+            Bool(true),
+            strictlyLess
+        );
+        different = different.or(eq.not());
+    }
+    return strictlyLess;
+}
+
+export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
+    // What if the Bytes32 represents a value greater than P - 1? We should do some
+    // assertion that it isnt FIXME
+    // See 'Field order wrapping bytes 32 validation'
+    /*isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
+        'Given a uint8ArrayLength32 which exceeded p - 1'
+    );*/
+    // FIXME removing this for now.... I think it may be redundant as the FixedBytes are constructed
+    // By the first zkprogram and it is always within the range of p - 1 by definition.
+
+    // CHECKME
+    // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+    // And here we re-interpret the BE as LE!
+    // But it does pass the test! And otherwise fails.
+    let field = new Field(0);
+    for (let i = 31; i >= 0; i--) {
+        field = field.mul(256).add(uint8ArrayLength32[i].value);
+    }
+    return field;
+}
 
 export function uint8ArrayToBigIntBE(bytes: Uint8Array): bigint {
     return bytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
@@ -75,9 +167,10 @@ const proofOffsets = {
     executionStateRoot: 80,
     verifiedContractStorageSlotsRoot: 112,
     nextSyncCommitteeHash: 144,
+    contractAddress: 176
 };
 
-const proofTotalLength = 176;
+const proofTotalLength = 196;
 
 export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
@@ -127,6 +220,11 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 
     const nextSyncCommitteeHashSlice = proofData.slice(
         proofOffsets.nextSyncCommitteeHash,
+        proofOffsets.contractAddress,
+    );
+
+    const contractAddressSlice = proofData.slice(
+        proofOffsets.contractAddress,
         proofTotalLength
     );
 
@@ -140,9 +238,15 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
             verifiedContractStorageSlotsRootSlice
         ),
         nextSyncCommitteeHash: Bytes32.from(nextSyncCommitteeHashSlice),
+        contractAddress: Bytes20.from(contractAddressSlice),
     };
 
     return provables;
+}
+
+export function extractEthTokenBridgeAddressFromSP1Proof(example: CreateProofArgument): Field {
+    const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
+    return new Bytes20(decoded.contractAddress.bytes).toField();
 }
 
 // Compile and verify contracts utility
@@ -209,16 +313,23 @@ export async function compileAndVerifyContracts(
 }
 
 export type VerificationKeySafe = {
-  hashStr: string;
-  data: string;
+    hashStr: string;
+    data: string;
 };
 
 export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
-  const { data, hash } = vk;
-  return {
-    hashStr: hash.toBigInt().toString(),
-    data,
-  };
+    const { data, hash } = vk;
+    return {
+        hashStr: hash.toBigInt().toString(),
+        data,
+    };
+}
+
+export function vkSafeToVk(vkSafe: VerificationKeySafe): VerificationKey {
+    return {
+        data: vkSafe.data,
+        hash: new Field(BigInt(vkSafe.hashStr)),
+    };
 }
 
 /**
@@ -255,78 +366,82 @@ export function vkToVkSafe(vk: VerificationKey): VerificationKeySafe {
  * ```
  */
 export async function compileAndOptionallyVerifyContracts<
-  T extends readonly {
-    name: string;
-    program: typeof SmartContract | CompilableZkProgram;
-    integrityHash?: string;
-  }[]
+    T extends readonly {
+        name: string;
+        program: typeof SmartContract | CompilableZkProgram;
+        integrityHash?: string;
+    }[],
 >(
-  logger: { log: (msg: string) => void },
-  contracts: T,
-  cache?: Cache,
-  //cacheConfig?: CacheConfig
-): Promise<
-  { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey }
-> {
-  type ReturnMap = { [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey };
+    logger: { log: (msg: string) => void },
+    contracts: T,
+    cache?: Cache
+    //cacheConfig?: CacheConfig
+): Promise<{
+    [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey;
+}> {
+    type ReturnMap = {
+        [K in T[number]['name'] as `${K}VerificationKey`]: VerificationKey;
+    };
 
-  //const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
+    //const cache = !cacheConfig ? undefined: await cacheFactory(cacheConfig);
 
-  const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
-  const mismatches: string[] = [];
+    const entries: Array<[keyof ReturnMap, VerificationKey]> = [];
+    const mismatches: string[] = [];
 
-  for (const c of contracts) {
-    const { name, program, integrityHash } = c;
+    for (const c of contracts) {
+        const { name, program, integrityHash } = c;
 
-    logger.log(`Compiling ${name} contract/program.`);
-    const timer = createTimer();
-    const compiled = await (cache ? program.compile({cache}) : program.compile());
-    logger.log(`${name} compiled in ${timer()}`);
+        logger.log(`Compiling ${name} contract/program.`);
+        const timer = createTimer();
+        const compiled = await (cache
+            ? program.compile({ cache })
+            : program.compile());
+        logger.log(`${name} compiled in ${timer()}`);
 
-    const vk = compiled.verificationKey;
-    const hashStr = vk.hash.toBigInt().toString();
+        const vk = compiled.verificationKey;
+        const hashStr = vk.hash.toBigInt().toString();
 
-    logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
+        logger.log(`${name} contract/program vk hash compiled: '${hashStr}'`);
 
-    // Validate only if integrityHash is provided
-    if (integrityHash && hashStr !== integrityHash) {
-      mismatches.push(
-        `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
-      );
+        // Validate only if integrityHash is provided
+        if (integrityHash && hashStr !== integrityHash) {
+            mismatches.push(
+                `${name}: Computed hash '${hashStr}' doesn't match expected hash '${integrityHash}'`
+            );
+        }
+
+        const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
+        entries.push([mappedKey, vk]);
     }
 
-    const mappedKey = `${name}VerificationKey` as keyof ReturnMap;
-    entries.push([mappedKey, vk]);
-  }
+    if (mismatches.length > 0) {
+        const errorMessage = [
+            'Verification key hash mismatch detected:',
+            ...mismatches,
+            '',
+            `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
+        ].join('\n');
 
-  if (mismatches.length > 0) {
-    const errorMessage = [
-      'Verification key hash mismatch detected:',
-      ...mismatches,
-      '',
-      `Refusing to start. Try clearing your o1js cache directory, typically found at '~/.cache/o1js'. Or do you need to run 'npm run bake-vk-hashes' and commit the changes?`,
-    ].join('\n');
+        throw new Error(errorMessage);
+    }
 
-    throw new Error(errorMessage);
-  }
+    logger.log('All contracts compiled successfully.');
 
-  logger.log('All contracts compiled successfully.');
-
-  return Object.fromEntries(entries) as ReturnMap;
+    return Object.fromEntries(entries) as ReturnMap;
 }
 
 export type ZKCache = {
     name: string;
     integrityHash?: string;
-}
+};
 
 export type ZKCacheWithProgram = ZKCache & {
     program: typeof SmartContract | CompilableZkProgram;
-}
+};
 
 export type ZKCacheLayout = ZKCache & {
     files: string[];
-}
+};
 
 // Timing utilities to replace console.time/timeEnd
 export function createTimer() {

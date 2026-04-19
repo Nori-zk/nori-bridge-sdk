@@ -17,7 +17,7 @@ import {
 import { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP1HeliosProgram.pi0.js';
 import { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
 import { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js';
-import { Bytes32 } from './types.js';
+import { Bytes20, Bytes32 } from './types.js';
 
 class EthInput extends Struct({
     inputSlot: UInt64,
@@ -27,7 +27,8 @@ class EthInput extends Struct({
     executionStateRoot: Bytes32.provable,
     verifiedContractDepositsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
-}) {}
+    contractAddress: Bytes20.provable,
+}) { }
 
 const EthVerifier = ZkProgram({
     name: 'EthVerifier',
@@ -51,7 +52,7 @@ const EthVerifier = ZkProgram({
                 // vk = proofConversionOutput.vkData
                 // this is also from nodeVK
                 const vk = VerificationKey.fromJSON(
-                    proofConversionSP1ToPlonkVkData as unknown as string
+                    proofConversionSP1ToPlonkVkData
                 );
 
                 // [zkProgram / circuit][eth processor /  contract ie on-chain state]
@@ -71,6 +72,7 @@ const EthVerifier = ZkProgram({
                 bytes = bytes.concat(input.executionStateRoot.bytes);
                 bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
                 bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
+                bytes = bytes.concat(input.contractAddress.bytes);
 
                 // Check that zkprograminput is same as passed to the SP1 program
                 const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
@@ -99,6 +101,6 @@ const EthVerifier = ZkProgram({
 
 const EthProof = ZkProgram.Proof(EthVerifier);
 
-export class EthProofType extends EthProof {}
+export class EthProofType extends EthProof { }
 
 export { EthVerifier, EthProof, EthInput };

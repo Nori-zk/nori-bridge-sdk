@@ -9,29 +9,37 @@ import http from 'http';
 import httpProxy from 'http-proxy';
 // Load environment variables from .env file
 import 'dotenv/config';
-import { Logger } from 'esm-iso-logger';
+import { getStagingEnv } from '@nori-zk/mina-token-bridge/node';
+//import { Logger } from 'esm-iso-logger';
 
-const logger = new Logger('BrowserTestRunnerUtils');
+const logger = console;
+//const logger = new Logger('BrowserTestRunnerUtils');
 
-// Extract envs
-const minaRpcNetworkUrl = process.env.MINA_RPC_NETWORK_URL || 'https://api.minascan.io/node/devnet/v1/graphql';
-const proofConversionServiceUrl = process.env.PROOF_CONVERSION_SERVICE_URL || 'https://pcs.nori.it.com';
+// Resolve staging infrastructure config
+const stagingEnv = getStagingEnv();
+const minaRpcNetworkUrl = stagingEnv.MINA_RPC_NETWORK_URL;
+const minaArchiveRpcUrl = stagingEnv.MINA_ARCHIVE_RPC_URL;
+const proofConversionServiceUrl = stagingEnv.NORI_PCS_URL;
 
 // Extract base URL for proxy (strip path to avoid doubling paths like /graphql/graphql)
 const minaRpcBaseUrl = new URL(minaRpcNetworkUrl).origin;
+const minaArchiveRpcBaseUrl = new URL(minaArchiveRpcUrl).origin;
+
 
 export const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
 
 // Root and public folder
-export const ROOT_DIR = path.resolve(__dirname, '..', '..', '..');
+export const ROOT_DIR = path.resolve(__dirname, '..', '..');
 export const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
 
 // Build hash
 const HASH = Math.random().toString(36).slice(2, 10);
 
-// Environment
-const env = config().parsed || {};
+// Environment — merge staging infrastructure config with .env secrets
+const dotEnv = config().parsed || {};
+const env: Record<string, string> = { ...dotEnv };
+for (const [k, v] of Object.entries(stagingEnv)) env[k] = String(v);
 env.BUILD_HASH = HASH;
 const envObject = JSON.stringify(env);
 const define: Record<string, string> = {};
@@ -47,6 +55,25 @@ if(typeof globalThis.process==='undefined'){
 
 /** Find a browser executable, preferring Brave */
 export function findBrowser(): string {
+    const isMac = process.platform === 'darwin';
+
+    if (isMac) {
+        const macPaths = [
+            '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+            '/Applications/Brave Browser Nightly.app/Contents/MacOS/Brave Browser Nightly',
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        ];
+        for (const p of macPaths) {
+            try {
+                execSync(`test -x "${p}"`, { encoding: 'utf8' });
+                return p;
+            } catch {
+                // not found, try next
+            }
+        }
+    }
+
     try {
         return execSync(
             'which google-chrome || which google-chrome-stable || which chrome || which chromium || which brave-browser-nightly || which brave-browser || which brave',
@@ -61,8 +88,15 @@ export function findBrowser(): string {
 export async function startServer(port = 4003) {
     const app = express();
 
-    // COOP/COEP + no caching
+    // CORS + COOP/COEP + no caching
     app.use((req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        if (req.method === 'OPTIONS') {
+            res.status(204).end();
+            return;
+        }
         res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
         res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
         res.setHeader(
@@ -85,19 +119,31 @@ export async function startServer(port = 4003) {
         secure: true,
     });
 
-    // Proxy for pcs.nori.it.com
+    // Proxy for pcs
     app.use('/converted-consensus-mpt-proofs', (req, res) => {
         proxy.web(req, res, {
-            target: `${proofConversionServiceUrl}/converted-consensus-mpt-proofs`, //'https://pcs.nori.it.com/converted-consensus-mpt-proofs',
+            target: `${proofConversionServiceUrl}/converted-consensus-mpt-proofs`,
         });
     });
 
-    // Catch-all proxy for Mina devnet
+    // Proxy for archive node
+    app.use('/archive', (req, res) => {
+        proxy.web(req, res, {
+            target: minaArchiveRpcBaseUrl,
+        });
+    });
+
+    // Catch-all proxy for Mina RPC
     app.use((req, res) => {
         proxy.web(req, res, {
-            // 'https://api.minascan.io/node/devnet/v1/graphql',
-            target: minaRpcBaseUrl, // Use base URL to avoid path doubling (e.g., /graphql/graphql)
+            target: minaRpcBaseUrl,
         });
+    });
+
+    proxy.on('error', (err, req, res) => {
+        void req;
+        void res;
+        logger.error('Proxy error:', err.message);
     });
 
     // Create HTTP server for WebSocket upgrade support
@@ -111,9 +157,10 @@ export async function startServer(port = 4003) {
     return new Promise<{ server: http.Server; url: string }>((resolve) => {
         server.listen(port, () => {
             const url = `http://localhost:${port}/index.html`;
-            logger.log(
-                `Server running at: ${url}.`
-            );
+            logger.log(`Server running at: ${url}.`);
+            logger.log(`Mina RPC (proxy target): ${minaRpcBaseUrl}`);
+            logger.log(`Mina Archive (proxy target): ${minaArchiveRpcBaseUrl}`);
+            logger.log(`PCS (proxy target): ${proofConversionServiceUrl}`);
             resolve({ server, url });
         });
     });
@@ -121,13 +168,13 @@ export async function startServer(port = 4003) {
 
 /* Bundle workers */
 async function buildWorkers() {
-    // Build zkApp worker
-    const zkAppWorkerFileName = `zkAppWorker.${HASH}.js`;
-    const zkAppWorkerFilePath = path.resolve(ROOT_DIR, 'public', zkAppWorkerFileName);
+    // Build token bridge worker
+    const tokenBridgeWorkerFileName = `tokenBridgeWorker.${HASH}.js`;
+    const tokenBridgeWorkerFilePath = path.resolve(ROOT_DIR, 'public', tokenBridgeWorkerFileName);
     await esbuild.build({
-        entryPoints: ['src/zkAppWorker.ts'],
+        entryPoints: ['src/tokenBridgeWorker.ts'],
         bundle: true,
-        outfile: zkAppWorkerFilePath,
+        outfile: tokenBridgeWorkerFilePath,
         format: 'esm',
         define,
         banner: { js: banner },

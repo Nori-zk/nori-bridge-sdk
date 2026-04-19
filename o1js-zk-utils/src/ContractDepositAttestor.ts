@@ -1,43 +1,38 @@
 import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
-import { Bytes20, Bytes32 } from './types.js';
+import { Bytes32 } from './types.js';
 import { merkleLeafAttestorGenerator } from './merkle-attestor/merkleLeafAttestor.js';
 
 export class ContractDeposit extends Struct({
-    address: Bytes20.provable,
-    attestationHash: Bytes32.provable,
+    codeChallenge: Bytes32.provable,
     value: Bytes32.provable,
 }) {}
 
 export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
-    const addressBytes = contractDeposit.address.bytes; // UInt8[]
-    const attestationHashBytes = contractDeposit.attestationHash.bytes; // UInt8[]
+    const codeChallengeBytes = contractDeposit.codeChallenge.bytes; // UInt8[]
     const valueBytes = contractDeposit.value.bytes; // UInt8[]
 
-    // We want 20 bytes from addrBytes (+ 1 byte from attBytes and 1 byte from valueBytes), remaining 31 bytes from attBytes, remaining 31 bytes from valueBytes
+    // 64 bytes total (32 + 32), max 31 bytes per field -> 3 fields
 
-    // firstFieldBytes: 20 bytes from addressBytes + 1 byte from attBytes and 1 byte from valueBytes
+    // firstFieldBytes: 1 byte from codeChallenge + 1 byte from value + 30 zeros
     const firstFieldBytes: UInt8[] = [];
 
-    for (let i = 0; i < 20; i++) {
-        firstFieldBytes.push(addressBytes[i]);
-    }
-    firstFieldBytes.push(attestationHashBytes[0]);
+    firstFieldBytes.push(codeChallengeBytes[0]);
     firstFieldBytes.push(valueBytes[0]);
 
-    for (let i = 22; i < 32; i++) {
+    for (let i = 2; i < 32; i++) {
         firstFieldBytes.push(UInt8.zero); // static pad to 32
     }
 
-    // secondFieldBytes: remaining 31 bytes from attBytes (1 to 31)
+    // secondFieldBytes: remaining 31 bytes from codeChallenge (1 to 31)
     const secondFieldBytes: UInt8[] = [];
     for (let i = 1; i < 32; i++) {
-        secondFieldBytes.push(attestationHashBytes[i]);
+        secondFieldBytes.push(codeChallengeBytes[i]);
     }
 
     // already 31 elements; add 1 zero to reach 32
     secondFieldBytes.push(UInt8.zero);
 
-    // secondFieldBytes: remaining 31 bytes from valueBytes (1 to 31)
+    // thirdFieldBytes: remaining 31 bytes from value (1 to 31)
     const thirdFieldBytes: UInt8[] = [];
     for (let i = 1; i < 32; i++) {
         thirdFieldBytes.push(valueBytes[i]);

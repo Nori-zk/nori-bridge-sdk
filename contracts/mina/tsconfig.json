@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "build",
+    "typeRoots": ["../../node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "xstate": ["../../node_modules/xstate"],
+      "o1js": ["../../node_modules/o1js"],
+      "*": ["*", "src/*", "../../node_modules/*"]
+    }
+  },
+  "exclude": ["../../node_modules", "node_modules", "build"],
+  "include": ["src/**/*.ts"]
+}

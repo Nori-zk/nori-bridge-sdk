@@ -1,6 +1,6 @@
 import { UInt64 } from 'o1js';
 import { merkleLeafAttestorGenerator } from './merkleLeafAttestor.js';
-import { Bytes20, Bytes32 } from '../types.js';
+import { Bytes32 } from '../types.js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { wordToBytes } from '@nori-zk/proof-conversion';
 import {
@@ -10,8 +10,7 @@ import {
 } from './merkleTree.js';
 import {
     buildLeavesNonProvable,
-    dummyAddress,
-    dummyAttestation,
+    dummyCodeChallenge,
     dummyValue,
     nonProvableStorageSlotLeafHash,
     provableLeafContentsHash,
@@ -36,8 +35,7 @@ const {
 describe('Merkle Attestor Test', () => {
     test('compute_non_provable_storage_slot_leaf_hash', () => {
         const slot = {
-            slot_key_address: '0xc7e910807dd2e3f49b34efe7133cfb684520da69',
-            slot_nested_key_attestation_hash:
+            slot_key_code_challenge:
                 '0x2f000000000000000000000000000000000000000000000000038d7ec293e52f',
             value: '0xe8d4a51000',
         };
@@ -45,15 +43,14 @@ describe('Merkle Attestor Test', () => {
         console.log(slot);
 
         // FIXME probably all need to be padded
-        const addr = Bytes20.fromHex(slot.slot_key_address.slice(2));
-        const attestation = Bytes32.fromHex(
-            slot.slot_nested_key_attestation_hash.slice(2).padStart(64, '0')
+        const codeChallenge = Bytes32.fromHex(
+            slot.slot_key_code_challenge.slice(2).padStart(64, '0')
         );
         const valuePad = slot.value.slice(2).padStart(64, '0');
         console.log('padded value', valuePad);
         const value = Bytes32.fromHex(valuePad);
 
-        const hash = nonProvableStorageSlotLeafHash(addr, attestation, value);
+        const hash = nonProvableStorageSlotLeafHash(codeChallenge, value);
 
         console.log(`Hash result big int: ${hash.toBigInt()}`);
         console.log(
@@ -68,7 +65,7 @@ describe('Merkle Attestor Test', () => {
         );
 
         const hash2 = provableLeafContentsHash(
-            new ProvableLeafObject({ address: addr, attestation, value })
+            new ProvableLeafObject({ codeChallenge, value })
         );
 
         console.log('Provable hash result', hash2.toBigInt().toString());
@@ -106,11 +103,10 @@ describe('Merkle Attestor Test', () => {
         for (let nLeaves = 0; nLeaves <= maxLeaves; nLeaves++) {
             console.log(`→ Testing with ${nLeaves} leaves`);
 
-            const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
+            const pairs: Array<[Bytes32, Bytes32]> = [];
             for (let i = 0; i < nLeaves; i++) {
-                triples.push([
-                    dummyAddress(i),
-                    dummyAttestation(i),
+                pairs.push([
+                    dummyCodeChallenge(i),
                     dummyValue(i),
                 ]);
             }
@@ -119,9 +115,8 @@ describe('Merkle Attestor Test', () => {
             for (let i = 0; i < nLeaves; i++) {
                 leafObjects.push(
                     new ProvableLeafObject({
-                        address: triples[i][0],
-                        attestation: triples[i][1],
-                        value: triples[i][2],
+                        codeChallenge: pairs[i][0],
+                        value: pairs[i][1],
                     })
                 );
             }
@@ -134,7 +129,7 @@ describe('Merkle Attestor Test', () => {
                 )}`
             );
 
-            const rustLeaves = buildLeavesNonProvable(triples);
+            const rustLeaves = buildLeavesNonProvable(pairs);
 
             const { depth, paddedSize } =
                 computeMerkleTreeDepthAndSize(nLeaves);
@@ -161,7 +156,6 @@ describe('Merkle Attestor Test', () => {
                 const slotToFind = leafObjects[index];
 
                 const input = new MerkleTreeLeafAttestorInput({
-                    rootHash: rootViaFold,
                     path: pathFold,
                     index: UInt64.from(index),
                     value: slotToFind,
@@ -196,17 +190,16 @@ describe('Merkle Attestor Test', () => {
             `Building ${nLeaves} provable leaves (this may use significant memory)...`
         );
 
-        const triples = new Array(nLeaves);
+        const pairs = new Array(nLeaves);
         for (let i = 0; i < nLeaves; i++) {
-            triples[i] = [dummyAddress(i), dummyAttestation(i), dummyValue(i)];
+            pairs[i] = [dummyCodeChallenge(i), dummyValue(i)];
         }
 
         const leafObjects = new Array(nLeaves);
         for (let i = 0; i < nLeaves; i++) {
             leafObjects[i] = new ProvableLeafObject({
-                address: triples[i][0],
-                attestation: triples[i][1],
-                value: triples[i][2],
+                codeChallenge: pairs[i][0],
+                value: pairs[i][1],
             });
         }
 
@@ -216,7 +209,7 @@ describe('Merkle Attestor Test', () => {
 
         console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
 
-        const rustLeaves = buildLeavesNonProvable(triples);
+        const rustLeaves = buildLeavesNonProvable(pairs);
         const rootViaFold = foldMerkleLeft(
             rustLeaves,
             paddedSize,
@@ -240,7 +233,6 @@ describe('Merkle Attestor Test', () => {
             const slotToFind = leafObjects[index];
 
             const input = new MerkleTreeLeafAttestorInput({
-                rootHash: rootViaFold,
                 path: pathFold,
                 index: UInt64.from(index),
                 value: slotToFind,
