@@ -239,12 +239,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
     afterEach(async () => {
         tester.signalTerminate();
-        await new Promise((resolve) => setTimeout(() => resolve(null), 1000));
-    });
-
-    afterAll(async () => {
-        tester.signalTerminate();
-        await new Promise((resolve) => setTimeout(() => resolve(null), 1000));
+        await new Promise((resolve) => setTimeout(() => resolve(null), 2000));
     });
 
     // =======================================================================
@@ -819,6 +814,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         let daveMintCount = 0;
 
         beforeAll(async () => {
+            const spawned = await spawnTester();
+            tester = spawned.instance;
+            logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
+            await fetchAccounts(allAccounts);
+
             dave = keyPairBase58ToKeyPair(
                 await getNewMinaLiteNetAccountKeyPair()
             );
