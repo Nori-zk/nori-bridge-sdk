@@ -330,13 +330,7 @@ NORI_MINA_TOKEN_BRIDGE_ALLOW_VK_UPDATE=false
 
 Copy these values into your `.env` file.
 
-**Post-deploy: set integrity params.** After deployment, `noriHeliosProgramPi0` and `proofConversionPO2` are zero on-chain. These must be set before any `NoriTokenBridge.update()` (proof submission) can succeed. Run:
-
-```bash
-npm run set-integrity-params -- <pi0DecimalString> <po2DecimalString>
-```
-
-See [How to set both integrity params in a single transaction](#how-to-set-both-integrity-params-in-a-single-transaction) for details on the values.
+`noriHeliosProgramPi0` and `proofConversionPO2` are set in the deploy transaction itself (sourced from the repo-pinned JSON in `o1js-zk-utils`), so no follow-up call is required after a successful deploy. Use [`set-pi0` / `set-po2` / `set-integrity-params`](#how-to-set-both-integrity-params-in-a-single-transaction) only when rotating these values against an already-deployed contract.
 
 After deploying, update `src/env.ts` with the deployed contract addresses, token IDs, and RPC URLs for the target network and environment. This file is the source of truth for consumers of the `env` export — clients, frontends, and tooling all resolve their configuration from it.
 
@@ -377,13 +371,13 @@ NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<deployed-bridge-private-key>
 MINA_TX_FEE=0.1
 ```
 
+The pi0 value pushed on-chain is read from the repo — the canonical value is published as [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) in [bridge-head](https://github.com/Nori-zk/nori-bridge-head) and mirrored into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json). Update that JSON before running the script when bridge-head releases a new version. The script fetches the current on-chain value first and skips the transaction if it already matches.
+
 Run:
 
 ```bash
-npm run set-pi0 -- <pi0DecimalString>
+npm run set-pi0
 ```
-
-- `<pi0DecimalString>`: the pi0 value as a decimal string. The canonical value is published as [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) in [bridge-head](https://github.com/Nori-zk/nori-bridge-head) and mirrored into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json). Update this value when bridge-head releases a new version.
 
 ## How to set proofConversionPO2
 
@@ -399,22 +393,22 @@ NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<deployed-bridge-private-key>
 MINA_TX_FEE=0.1
 ```
 
+The po2 value pushed on-chain is read from [`o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json`](../../../o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json). Update that JSON before running the script. This infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion. The script fetches the current on-chain value first and skips the transaction if it already matches.
+
 Run:
 
 ```bash
-npm run set-po2 -- <po2DecimalString>
+npm run set-po2
 ```
-
-- `<po2DecimalString>`: the po2 value as a decimal string. This infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion.
 
 ## How to set both integrity params in a single transaction
 
-Sets both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Preferred when both values need updating (e.g. after a bridge-head or proof-conversion upgrade). Same `.env` requirements as the individual setters above.
+Sets both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Preferred when both values need updating (e.g. after a bridge-head or proof-conversion upgrade). Same `.env` requirements as the individual setters above; both values are read from the repo-pinned integrity JSONs in `o1js-zk-utils`. The script fetches both current on-chain values first and skips the transaction if both already match.
 
 Run:
 
 ```bash
-npm run set-integrity-params -- <pi0DecimalString> <po2DecimalString>
+npm run set-integrity-params
 ```
 
 ## How to submit a new converter proof
