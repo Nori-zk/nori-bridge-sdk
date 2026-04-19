@@ -30,14 +30,14 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { VerificationKey } from 'o1js';
 import assert from 'node:assert';
-import { FungibleToken } from './TokenBase.js';
-import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { NoriTokenBridge } from './NoriTokenBridge.js';
+import { FungibleToken } from '../../TokenBase.js';
+import { NoriStorageInterface } from '../../NoriStorageInterface.js';
+import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
     type MerkleTreeContractDepositAttestorInput,
     getContractDepositSlotRootFromContractDepositAndWitness,
-} from './depositAttestation.js';
-import type { SCRAMWitness } from './scram.js';
+} from '../../depositAttestation.js';
+import type { SCRAMWitness } from '../../scram.js';
 import {
     EthInput,
     NodeProofLeft,
@@ -53,8 +53,8 @@ import {
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
-import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
-import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from './testUtils.js';
+import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from '../testUtils.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLightnetTest');

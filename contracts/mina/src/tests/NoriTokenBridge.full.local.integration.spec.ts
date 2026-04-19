@@ -33,12 +33,12 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { VerificationKey } from 'o1js';
 import assert from 'node:assert';
-import { FungibleToken } from './TokenBase.js';
-import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { NoriTokenBridge } from './NoriTokenBridge.js';
-import type { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
-import { getContractDepositSlotRootFromContractDepositAndWitness } from './depositAttestation.js';
-import type { SCRAMWitness } from './scram.js';
+import { FungibleToken } from '../TokenBase.js';
+import { NoriStorageInterface } from '../NoriStorageInterface.js';
+import { NoriTokenBridge } from '../NoriTokenBridge.js';
+import type { MerkleTreeContractDepositAttestorInput } from '../depositAttestation.js';
+import { getContractDepositSlotRootFromContractDepositAndWitness } from '../depositAttestation.js';
+import type { SCRAMWitness } from '../scram.js';
 import {
     EthInput,
     NodeProofLeft,
@@ -54,9 +54,9 @@ import { FrC } from '@nori-zk/proof-conversion/min';
 // NodeProofLeft from o1js-zk-utils is patched to Subclass<typeof DynamicProof> for fromJSON().
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
-import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
+import { buildExampleProofSeriesCreateArguments } from '../constructExampleProofs.js';
 import { buildSyntheticDeposit, txSend, fetchAccounts } from './testUtils.js';
-import { maxWindow } from './NoriTokenBridge.const.js';
+import { maxWindow } from '../NoriTokenBridge.const.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLocalBlockchainTest');

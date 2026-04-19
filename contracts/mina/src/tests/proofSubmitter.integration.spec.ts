@@ -2,9 +2,9 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     buildExampleProofCreateArgument,
     buildExampleProofSeriesCreateArguments,
-} from './constructExampleProofs.js';
-import { NoriTokenBridgeSubmitter } from './proofSubmitter.js';
-import { wait } from './txWait.js';
+} from '../constructExampleProofs.js';
+import { NoriTokenBridgeSubmitter } from '../proofSubmitter.js';
+import { wait } from '../txWait.js';
 import { PrivateKey } from 'o1js';
 import {
     CacheType,

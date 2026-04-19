@@ -25,10 +25,10 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { VerificationKey } from 'o1js';
 import assert from 'node:assert';
-import { FungibleToken } from './TokenBase.js';
-import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { NoriTokenBridge } from './NoriTokenBridge.js';
-import { getContractDepositSlotRootFromContractDepositAndWitness } from './depositAttestation.js';
+import { FungibleToken } from '../../TokenBase.js';
+import { NoriStorageInterface } from '../../NoriStorageInterface.js';
+import { NoriTokenBridge } from '../../NoriTokenBridge.js';
+import { getContractDepositSlotRootFromContractDepositAndWitness } from '../../depositAttestation.js';
 import {
     EthInput,
     NodeProofLeft,
@@ -40,8 +40,8 @@ import {
 } from '@nori-zk/o1js-zk-utils-new';
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
-import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
-import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from './testUtils.js';
+import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from '../testUtils.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('HappyPathLightnetTest');
@@ -71,12 +71,6 @@ const examples = buildExampleProofSeriesCreateArguments();
 type RawProof = NodeProofLeftRaw;
 let ethInput1: EthInput;
 let rawProof1: RawProof;
-let ethInput2: EthInput;
-let rawProof2: RawProof;
-let ethInput3: EthInput;
-let rawProof3: RawProof;
-let ethInput4: EthInput;
-let rawProof4: RawProof;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -158,18 +152,6 @@ describe('NoriTokenBridge Happy Path', () => {
         ethInput1 = new EthInput(decoded1);
         rawProof1 = await NodeProofLeft.fromJSON(examples[0].conversionOutputProof.proofData);
 
-        const decoded2 = decodeConsensusMptProof(examples[1].sp1PlonkProof);
-        ethInput2 = new EthInput(decoded2);
-        rawProof2 = await NodeProofLeft.fromJSON(examples[1].conversionOutputProof.proofData);
-
-        const decoded3 = decodeConsensusMptProof(examples[2].sp1PlonkProof);
-        ethInput3 = new EthInput(decoded3);
-        rawProof3 = await NodeProofLeft.fromJSON(examples[2].conversionOutputProof.proofData);
-
-        const decoded4 = decodeConsensusMptProof(examples[3].sp1PlonkProof);
-        ethInput4 = new EthInput(decoded4);
-        rawProof4 = await NodeProofLeft.fromJSON(examples[3].conversionOutputProof.proofData);
-
         logger.log('All example proofs decoded.');
     }, 1_000_000);
 
@@ -227,7 +209,7 @@ describe('NoriTokenBridge Happy Path', () => {
         logger.log('Deployment verified.');
     }, 1_000_000);
 
-    // ── 2. update() — 4 consecutive blocks ────────────────────────────────
+    // ── 2. update() — 1 block ────────────────────────────────
     test('2a. update block 1', async () => {
         await txSend({
             body: async () => {

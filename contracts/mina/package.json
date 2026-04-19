@@ -64,7 +64,6 @@
         "lint:fix": "npx eslint src/* --fix",
         "nori": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --runInBand --forceExit -t 'NoriCore'",
         "noriOnly": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --runInBand --forceExit --testNamePattern='NoriCore'",
-        "contractsCompile": "tsc && node --experimental-vm-modules build/contractCompile.js",
         "deploy": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/deploy.js",
         "update-store-hash": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/updateStoreHash.js",
         "set-pi0": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/setNoriHeliosProgramPi0.js",

@@ -1,7 +1,7 @@
 /**
  * NoriTokenBridge Worker-driven Full E2E Test Suite (Lightnet)
  *
- * Mirrors the full integration spec NoriTokenBridge.integration.lightnet.spec.ts —
+ * Mirrors the full integration spec single-thread/NoriTokenBridge.full.lightnet.integration.spec.ts —
  * happy path, negative tests, and the 40-root window rotation block —
  * but drives every contract interaction through a single TokenBridgeTester
  * instance. Deployment + every subsequent op go through the same worker.
@@ -28,15 +28,15 @@ import {
     UInt64,
 } from 'o1js';
 import assert from 'node:assert';
-import { FungibleToken } from './TokenBase.js';
-import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { NoriTokenBridge } from './NoriTokenBridge.js';
+import { FungibleToken } from '../TokenBase.js';
+import { NoriStorageInterface } from '../NoriStorageInterface.js';
+import { NoriTokenBridge } from '../NoriTokenBridge.js';
 import {
     type MerkleTreeContractDepositAttestorInput,
     type MerkleTreeContractDepositAttestorInputJson,
     getContractDepositSlotRootFromContractDepositAndWitness,
-} from './depositAttestation.js';
-import type { SCRAMWitness } from './scram.js';
+} from '../depositAttestation.js';
+import type { SCRAMWitness } from '../scram.js';
 import {
     EthInput,
     decodeConsensusMptProof,
@@ -48,13 +48,13 @@ import {
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
 import { FrC } from '@nori-zk/proof-conversion/min';
-import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
+import { buildExampleProofSeriesCreateArguments } from '../constructExampleProofs.js';
 import {
     getNewMinaLiteNetAccountKeyPair,
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
 } from './testUtils.js';
-import { getTokenBridgeTester } from './workers/tokenBridgeTester/node/parent.js';
+import { getTokenBridgeTester } from '../workers/tokenBridgeTester/node/parent.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeWorkerFull');
 const logger = new Logger('WorkerFullIntegrationLightnetTest');
@@ -1025,8 +1025,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                         const windowIsFull = allDispatchedRoots.length >= 32;
                         const oldest = windowIsFull
                             ? allDispatchedRoots[
-                                  allDispatchedRoots.length - 32
-                              ]
+                            allDispatchedRoots.length - 32
+                            ]
                             : Field(0);
                         await tester.adminSetDepositRoot(
                             admin.privateKey.toBase58(),
@@ -1088,8 +1088,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                         const windowIsFull = allDispatchedRoots.length >= 32;
                         const oldest = windowIsFull
                             ? allDispatchedRoots[
-                                  allDispatchedRoots.length - 32
-                              ]
+                            allDispatchedRoots.length - 32
+                            ]
                             : Field(0);
                         await tester.adminSetDepositRoot(
                             admin.privateKey.toBase58(),

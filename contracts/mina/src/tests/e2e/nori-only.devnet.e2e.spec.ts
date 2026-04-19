@@ -1,23 +1,23 @@
 import 'dotenv/config';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { PrivateKey } from 'o1js';
-import { getReconnectingBridgeSocket$ } from './rx/socket.js';
+import { getReconnectingBridgeSocket$ } from '../../rx/socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
-} from './rx/topics.js';
+} from '../../rx/topics.js';
 import { type Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
     getDepositProcessingStatus$,
     readyToComputeMintProof,
-} from './rx/deposit.js';
-import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
+} from '../../rx/deposit.js';
+import { getTokenBridgeWorker } from '../../workers/tokenBridgeWorker/node/parent.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson } from '@nori-zk/ethereum-token-bridge';
-import { getStagingEnv, validateEnv } from './testUtils.js';
+import { getStagingEnv, validateEnv } from '../testUtils.js';
 import { createTimer } from '@nori-zk/o1js-zk-utils-new';
 
 // https://faucet.minaprotocol.com/

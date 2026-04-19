@@ -6,6 +6,6 @@ export { NoriStorageInterface } from './NoriStorageInterface.js';
 export { FungibleToken } from './TokenBase.js';
 export { signSecretWithEthWallet } from './ethSignature.js';
 export { env } from './env.js';
-export { getStagingEnv } from './testUtils.js';
+export { getStagingEnv } from './tests/testUtils.js';
 export { NoriTokenBridgeSubmitter } from './proofSubmitter.js';
 export { wait } from './txWait.js';

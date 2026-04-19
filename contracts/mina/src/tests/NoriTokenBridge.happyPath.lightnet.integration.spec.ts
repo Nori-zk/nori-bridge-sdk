@@ -1,7 +1,7 @@
 /**
  * NoriTokenBridge Worker-driven E2E Test Suite (Lightnet)
  *
- * Mirrors the happy-path flow from NoriTokenBridge.integration.lightnet.spec.ts
+ * Mirrors the happy-path flow from single-thread/NoriTokenBridge.happyPath.lightnet.integration.spec.ts
  * but drives every contract interaction through a single TokenBridgeTester
  * instance — deployment + every subsequent op go through the same worker.
  *
@@ -25,14 +25,14 @@ import {
     type PublicKey,
 } from 'o1js';
 import assert from 'node:assert';
-import { FungibleToken } from './TokenBase.js';
-import { NoriStorageInterface } from './NoriStorageInterface.js';
-import { NoriTokenBridge } from './NoriTokenBridge.js';
+import { FungibleToken } from '../TokenBase.js';
+import { NoriStorageInterface } from '../NoriStorageInterface.js';
+import { NoriTokenBridge } from '../NoriTokenBridge.js';
 import {
     type MerkleTreeContractDepositAttestorInput,
     type MerkleTreeContractDepositAttestorInputJson,
     getContractDepositSlotRootFromContractDepositAndWitness,
-} from './depositAttestation.js';
+} from '../depositAttestation.js';
 import {
     EthInput,
     decodeConsensusMptProof,
@@ -40,13 +40,13 @@ import {
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
-import { buildExampleProofSeriesCreateArguments } from './constructExampleProofs.js';
+import { buildExampleProofSeriesCreateArguments } from '../constructExampleProofs.js';
 import {
     getNewMinaLiteNetAccountKeyPair,
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
 } from './testUtils.js';
-import { getTokenBridgeTester } from './workers/tokenBridgeTester/node/parent.js';
+import { getTokenBridgeTester } from '../workers/tokenBridgeTester/node/parent.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeWorker');
 const logger = new Logger('WorkerIntegrationLightnetTest');

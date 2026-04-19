@@ -6,11 +6,11 @@ import {
     ContractDeposit,
     MerkleTreeContractDepositAttestorInput,
     MerklePath,
-} from './depositAttestation.js';
+} from '../depositAttestation.js';
 import {
     createCodeChallenge,
     SCRAMWitness,
-} from './scram.js';
+} from '../scram.js';
 import {
     Bytes32,
     computeMerkleTreeDepthAndSize,
@@ -18,7 +18,7 @@ import {
     getMerkleZeros,
 } from '@nori-zk/o1js-zk-utils-new';
 
-import { env, type NetworkName } from './env.js';
+import { env, type NetworkName } from '../env.js';
 
 const logger = new Logger('NoriTokenBridgeTestUtils');
 
@@ -95,7 +95,7 @@ export async function getNewMinaLiteNetAccountSK(): Promise<string> {
     return data.sk;
 }
 
-export async function getNewMinaLiteNetAccountKeyPair(): Promise<{sk: string, pk: string}> {
+export async function getNewMinaLiteNetAccountKeyPair(): Promise<{ sk: string, pk: string }> {
     const rpcUrl = process?.env?.MINA_RPC_NETWORK_URL || 'http://localhost:8080/graphql';
     const url = new URL(rpcUrl);
     const host = url.hostname;
@@ -103,8 +103,8 @@ export async function getNewMinaLiteNetAccountKeyPair(): Promise<{sk: string, pk
     const response = await fetch(`http://${host}:8181/acquire-account`);
     const data = await response.json();
     logger.log(`Received new keyPair from acquire account.`);
-    const {sk, pk} = data;
-    return {sk, pk};
+    const { sk, pk } = data;
+    return { sk, pk };
 }
 
 export function keyPairBase58ToKeyPair({ sk, pk }: { sk: string; pk: string }): { privateKey: PrivateKey; publicKey: PublicKey } {

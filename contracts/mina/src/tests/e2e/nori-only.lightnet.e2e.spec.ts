@@ -4,22 +4,22 @@ import {
     getNewMinaLiteNetAccountSK,
     lockTokens,
     getStagingEnv,
-} from './testUtils.js';
-import { getReconnectingBridgeSocket$ } from './rx/socket.js';
+} from '../testUtils.js';
+import { getReconnectingBridgeSocket$ } from '../../rx/socket.js';
 import {
     getBridgeStateTopic$,
     getBridgeTimingsTopic$,
     getEthStateTopic$,
-} from './rx/topics.js';
+} from '../../rx/topics.js';
 import { type Subscription } from 'rxjs';
 import {
     bridgeStatusesKnownEnoughToLockUnsafe,
     canMint,
     getDepositProcessingStatus$,
     readyToComputeMintProof,
-} from './rx/deposit.js';
-import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
-import { getTokenBridgeTester } from './workers/tokenBridgeTester/node/parent.js';
+} from '../../rx/deposit.js';
+import { getTokenBridgeWorker } from '../../workers/tokenBridgeWorker/node/parent.js';
+import { getTokenBridgeTester } from '../../workers/tokenBridgeTester/node/parent.js';
 import {
     createTimer,
     bridgeHeadNoriSP1HeliosProgramPi0,
