@@ -231,12 +231,20 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     }, 1_000_000);
 
     beforeEach(async () => {
+        const spawned = await spawnTester();
+        tester = spawned.instance;
+        logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
         await fetchAccounts(allAccounts);
+    });
+
+    afterEach(async () => {
+        tester.signalTerminate();
+        await new Promise((resolve) => setTimeout(() => resolve(null), 1000));
     });
 
     afterAll(async () => {
         tester.signalTerminate();
-        await new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+        await new Promise((resolve) => setTimeout(() => resolve(null), 1000));
     });
 
     // =======================================================================
