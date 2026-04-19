@@ -176,7 +176,7 @@ async function dispatchRoot(root: Field) {
 describe('NoriTokenBridge', () => {
     beforeAll(async () => {
         // Configure LocalBlockchain (proofsEnabled: false for fast execution)
-        const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
+        const Local = await Mina.LocalBlockchain({ proofsEnabled: false });
         Mina.setActiveInstance(Local);
 
         deployer = {
@@ -837,7 +837,7 @@ describe('NoriTokenBridge', () => {
         // =================================================================
         // Window rotation — windowRotationCount roots, eviction after maxWindow
         // =================================================================
-        describe.skip('Window Rotation', () => {
+        describe('Window Rotation', () => {
             test('window rotation: setup dave', async () => {
                 await txSend({
                     body: async () => {
