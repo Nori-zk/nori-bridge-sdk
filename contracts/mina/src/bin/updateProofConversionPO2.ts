@@ -5,7 +5,7 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import { proofConversionSP1ToPlonkPO2 } from '@nori-zk/o1js-zk-utils-new';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
-const logger = new Logger('SetProofConversionPO2');
+const logger = new Logger('UpdateProofConversionPO2');
 
 new LogPrinter('NoriTokenBridge');
 
@@ -14,11 +14,11 @@ new LogPrinter('NoriTokenBridge');
 const targetPO2Decimal = proofConversionSP1ToPlonkPO2;
 const newPO2 = Field.from(targetPO2Decimal);
 
-const config = parseAdminBinEnv(logger, 'SetProofConversionPO2');
+const config = parseAdminBinEnv(logger, 'UpdateProofConversionPO2');
 
 logger.log(`Target po2 value (from repo): '${targetPO2Decimal}'`);
 
-async function setProofConversionPO2() {
+async function updateProofConversionPO2() {
     const tokenBridge = await setupNetworkAndCompile(logger, config);
 
     // Read current on-chain state so we can log the diff and skip a no-op tx.
@@ -32,16 +32,16 @@ async function setProofConversionPO2() {
         return;
     }
 
-    logger.log('Creating setProofConversionPO2 transaction...');
+    logger.log('Creating updateProofConversionPO2 transaction...');
     logger.log(`Setting proofConversionPO2 to: '${targetPO2Decimal}'`);
     await submitAdminTx(logger, config, async () => {
-        await tokenBridge.setProofConversionPO2(newPO2);
+        await tokenBridge.updateProofConversionPO2(newPO2);
     });
 
     logger.log('proofConversionPO2 update successful!');
 }
 
-setProofConversionPO2().catch((err) => {
-    logger.fatal(`SetProofConversionPO2 function encountered an error.\n${String(err)}`);
+updateProofConversionPO2().catch((err) => {
+    logger.fatal(`UpdateProofConversionPO2 function encountered an error.\n${String(err)}`);
     process.exit(1);
 });

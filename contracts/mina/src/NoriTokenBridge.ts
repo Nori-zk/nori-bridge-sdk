@@ -168,7 +168,7 @@ export class NoriTokenBridge
      * the Nori SP1 Helios program identifier (bridgeHeadNoriSP1HeliosProgramPi0).
      * Canonical value committed in o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json —
      * a copy of nori-elf/nori-sp1-helios-program.pi0.json from bridge-head.
-     * Set on-chain via setNoriHeliosProgramPi0 after deployment (not baked into the circuit).
+     * Set on-chain via updateNoriHeliosProgramPi0 after deployment (not baked into the circuit).
      * Changes frequently as the Helios light client evolves.
      */
     @state(FrC) noriHeliosProgramPi0 = State<FrC>();
@@ -176,7 +176,7 @@ export class NoriTokenBridge
      * Public output 2 from the converted consensus MPT transition proof
      * (proofConversionOutput.proofData.publicOutput[2]).
      * Canonical value committed in o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json.
-     * Set on-chain via setProofConversionPO2 after deployment (not baked into the circuit).
+     * Set on-chain via updateProofConversionPO2 after deployment (not baked into the circuit).
      * Infrequently changes, for instance when SP1 undergoes a major version upgrade
      * (e.g. v5 -> v6) that affects the cryptography of proof conversion.
      */
@@ -242,10 +242,10 @@ export class NoriTokenBridge
     }
 
     private ethVerify(input: EthInput, proof: NodeProofLeft) {
-        // sp1Proof.proof.Plonk.public_inputs[0] — read from on-chain state (set via setNoriHeliosProgramPi0)
+        // sp1Proof.proof.Plonk.public_inputs[0] — read from on-chain state (set via updateNoriHeliosProgramPi0)
         const ethPlonkVK = this.noriHeliosProgramPi0.getAndRequireEquals();
 
-        // proofConversionOutput.proofData.publicOutput[2] — read from on-chain state (set via setProofConversionPO2)
+        // proofConversionOutput.proofData.publicOutput[2] — read from on-chain state (set via updateProofConversionPO2)
         const ethNodeVk = this.proofConversionPO2.getAndRequireEquals();
 
         // Verification of proof conversion
@@ -588,12 +588,12 @@ export class NoriTokenBridge
         this.account.verificationKey.set(vk);
     }
 
-    @method async setNoriHeliosProgramPi0(newPi0: FrC) {
+    @method async updateNoriHeliosProgramPi0(newPi0: FrC) {
         await this.ensureAdminSignature();
         this.noriHeliosProgramPi0.set(newPi0);
     }
 
-    @method async setProofConversionPO2(newPO2: Field) {
+    @method async updateProofConversionPO2(newPO2: Field) {
         await this.ensureAdminSignature();
         this.proofConversionPO2.set(newPO2);
     }

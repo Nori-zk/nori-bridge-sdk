@@ -348,16 +348,16 @@ describe('NoriTokenBridge', () => {
     });
 
     // =======================================================================
-    // setNoriHeliosProgramPi0() / setProofConversionPO2() — on-chain integrity params
+    // updateNoriHeliosProgramPi0() / updateProofConversionPO2() — on-chain integrity params
     // =======================================================================
-    describe('setNoriHeliosProgramPi0() / setProofConversionPO2()', () => {
+    describe('updateNoriHeliosProgramPi0() / updateProofConversionPO2()', () => {
         describe('Happy Path', () => {
             test('should set noriHeliosProgramPi0 with admin key', async () => {
                 const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
 
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                        await noriTokenBridge.updateNoriHeliosProgramPi0(pi0);
                     },
                     sender: admin.publicKey,
                     signers: [admin.privateKey],
@@ -376,8 +376,8 @@ describe('NoriTokenBridge', () => {
 
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
-                        await noriTokenBridge.setProofConversionPO2(po2);
+                        await noriTokenBridge.updateNoriHeliosProgramPi0(pi0);
+                        await noriTokenBridge.updateProofConversionPO2(po2);
                     },
                     sender: admin.publicKey,
                     signers: [admin.privateKey],
@@ -399,7 +399,7 @@ describe('NoriTokenBridge', () => {
 
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.setProofConversionPO2(po2);
+                        await noriTokenBridge.updateProofConversionPO2(po2);
                     },
                     sender: admin.publicKey,
                     signers: [admin.privateKey],
@@ -418,14 +418,14 @@ describe('NoriTokenBridge', () => {
         });
 
         describe('Negative Tests', () => {
-            test('should REJECT setNoriHeliosProgramPi0 by arbitrary user', async () => {
+            test('should REJECT updateNoriHeliosProgramPi0 by arbitrary user', async () => {
                 const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
 
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                                await noriTokenBridge.updateNoriHeliosProgramPi0(pi0);
                             },
                             sender: alice.publicKey,
                             signers: [alice.privateKey],
@@ -433,14 +433,14 @@ describe('NoriTokenBridge', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setProofConversionPO2 by arbitrary user', async () => {
+            test('should REJECT updateProofConversionPO2 by arbitrary user', async () => {
                 const po2 = Field.from(proofConversionSP1ToPlonkPO2);
 
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.setProofConversionPO2(po2);
+                                await noriTokenBridge.updateProofConversionPO2(po2);
                             },
                             sender: alice.publicKey,
                             signers: [alice.privateKey],
@@ -448,14 +448,14 @@ describe('NoriTokenBridge', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setNoriHeliosProgramPi0 by deployer (not admin)', async () => {
+            test('should REJECT updateNoriHeliosProgramPi0 by deployer (not admin)', async () => {
                 const pi0 = FrC.from(bridgeHeadNoriSP1HeliosProgramPi0);
 
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.setNoriHeliosProgramPi0(pi0);
+                                await noriTokenBridge.updateNoriHeliosProgramPi0(pi0);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -463,14 +463,14 @@ describe('NoriTokenBridge', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setProofConversionPO2 by deployer (not admin)', async () => {
+            test('should REJECT updateProofConversionPO2 by deployer (not admin)', async () => {
                 const po2 = Field.from(proofConversionSP1ToPlonkPO2);
 
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.setProofConversionPO2(po2);
+                                await noriTokenBridge.updateProofConversionPO2(po2);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],

@@ -6,7 +6,7 @@ import { FrC } from '@nori-zk/proof-conversion/min';
 import { bridgeHeadNoriSP1HeliosProgramPi0 } from '@nori-zk/o1js-zk-utils-new';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
-const logger = new Logger('SetNoriHeliosProgramPi0');
+const logger = new Logger('UpdateNoriHeliosProgramPi0');
 
 new LogPrinter('NoriTokenBridge');
 
@@ -15,11 +15,11 @@ new LogPrinter('NoriTokenBridge');
 const targetPi0Decimal = bridgeHeadNoriSP1HeliosProgramPi0;
 const newPi0 = FrC.from(targetPi0Decimal);
 
-const config = parseAdminBinEnv(logger, 'SetNoriHeliosProgramPi0');
+const config = parseAdminBinEnv(logger, 'UpdateNoriHeliosProgramPi0');
 
 logger.log(`Target pi0 value (from repo): '${targetPi0Decimal}'`);
 
-async function setNoriHeliosProgramPi0() {
+async function updateNoriHeliosProgramPi0() {
     const tokenBridge = await setupNetworkAndCompile(logger, config);
 
     // Read current on-chain state so we can log the diff and skip a no-op tx.
@@ -36,16 +36,16 @@ async function setNoriHeliosProgramPi0() {
         return;
     }
 
-    logger.log('Creating setNoriHeliosProgramPi0 transaction...');
+    logger.log('Creating updateNoriHeliosProgramPi0 transaction...');
     logger.log(`Setting noriHeliosProgramPi0 to: '${targetPi0Decimal}'`);
     await submitAdminTx(logger, config, async () => {
-        await tokenBridge.setNoriHeliosProgramPi0(newPi0);
+        await tokenBridge.updateNoriHeliosProgramPi0(newPi0);
     });
 
     logger.log('noriHeliosProgramPi0 update successful!');
 }
 
-setNoriHeliosProgramPi0().catch((err) => {
-    logger.fatal(`SetNoriHeliosProgramPi0 function encountered an error.\n${String(err)}`);
+updateNoriHeliosProgramPi0().catch((err) => {
+    logger.fatal(`UpdateNoriHeliosProgramPi0 function encountered an error.\n${String(err)}`);
     process.exit(1);
 });

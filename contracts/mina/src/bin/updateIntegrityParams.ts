@@ -9,7 +9,7 @@ import {
 } from '@nori-zk/o1js-zk-utils-new';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
-const logger = new Logger('SetIntegrityParams');
+const logger = new Logger('UpdateIntegrityParams');
 
 new LogPrinter('NoriTokenBridge');
 
@@ -20,12 +20,12 @@ const targetPO2Decimal = proofConversionSP1ToPlonkPO2;
 const newPi0 = FrC.from(targetPi0Decimal);
 const newPO2 = Field.from(targetPO2Decimal);
 
-const config = parseAdminBinEnv(logger, 'SetIntegrityParams');
+const config = parseAdminBinEnv(logger, 'UpdateIntegrityParams');
 
 logger.log(`Target pi0 value (from repo): '${targetPi0Decimal}'`);
 logger.log(`Target po2 value (from repo): '${targetPO2Decimal}'`);
 
-async function setIntegrityParams() {
+async function updateIntegrityParams() {
     const tokenBridge = await setupNetworkAndCompile(logger, config);
 
     // Read current on-chain state so we can log the diff and skip a no-op tx.
@@ -51,26 +51,27 @@ async function setIntegrityParams() {
     }
     if (pi0Matches) {
         logger.log('On-chain pi0 already matches the target value.');
-        throw new Error('Use the setNoriHeliosProgramPi0 script to update pi0 independently of po2.');
+        throw new Error('Use the updateNoriHeliosProgramPi0 script to update pi0 independently of po2.');
     }
     if (po2Matches) {
         logger.log('On-chain po2 already matches the target value');
-        throw new Error('Use the setProofConversionPO2 script to update po2 independently of pi0  .');
+        throw new Error('Use the updateProofConversionPO2 script to update po2 independently of pi0.');
     }
 
-    logger.log('Creating setIntegrityParams transaction (pi0 + po2)...');        // Both setters are re-issued even if one side already matches: the no-op case
+    logger.log('Creating updateIntegrityParams transaction (pi0 + po2)...');
+    // Both setters are re-issued even if one side already matches: the no-op case
     // was handled above, and splitting into two txs would double fees + wait time.
     logger.log(`Setting noriHeliosProgramPi0 to: '${targetPi0Decimal}'`);
     logger.log(`Setting proofConversionPO2 to: '${targetPO2Decimal}'`);
     await submitAdminTx(logger, config, async () => {
-        await tokenBridge.setNoriHeliosProgramPi0(newPi0);
-        await tokenBridge.setProofConversionPO2(newPO2);
+        await tokenBridge.updateNoriHeliosProgramPi0(newPi0);
+        await tokenBridge.updateProofConversionPO2(newPO2);
     });
 
     logger.log('Integrity params (pi0 + po2) update successful!');
 }
 
-setIntegrityParams().catch((err) => {
-    logger.fatal(`SetIntegrityParams function encountered an error.\n${String(err)}`);
+updateIntegrityParams().catch((err) => {
+    logger.fatal(`UpdateIntegrityParams function encountered an error.\n${String(err)}`);
     process.exit(1);
 });

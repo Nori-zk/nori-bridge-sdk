@@ -187,9 +187,9 @@ An optional `FileSystemCacheConfig` argument can be passed to use an on-disk o1j
 - **`createProof(arg: CreateProofArgument)`** — decodes a `sp1PlonkProof` (raw SP1/Plonk consensus proof) and `conversionOutputProof` (converted node proof) into `{ ethInput, rawProof }`. No ZK computation — `ethVerify` is inlined into `NoriTokenBridge.update`.
 - **`submit({ ethInput, rawProof })`** — fetches on-chain accounts, builds and proves the `NoriTokenBridge.update` transaction, signs with `MINA_SENDER_PRIVATE_KEY`, and sends it. Returns `{ txId, txHash }`.
 - **`deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field)`** — lightnet only. Deploys `NoriTokenBridge` in a single transaction. `ethTokenBridgeAddress` is the Ethereum token bridge contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthTokenBridgeAddressFromSP1Proof`. Throws if `MINA_NETWORK` is not `lightnet` — see [How to deploy](#how-to-deploy) for non-test deployments.
-- **`setNoriHeliosProgramPi0(pi0: FrC)`** — sets the on-chain `noriHeliosProgramPi0` state. Admin-gated. Must be called after deploy and before `submit()`.
-- **`setProofConversionPO2(po2: Field)`** — sets the on-chain `proofConversionPO2` state. Admin-gated. Must be called after deploy and before `submit()`.
-- **`setIntegrityParams(pi0: FrC, po2: Field)`** — sets both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Admin-gated. Preferred over calling the individual setters separately.
+- **`updateNoriHeliosProgramPi0(pi0: FrC)`** — updates the on-chain `noriHeliosProgramPi0` state. Admin-gated. Must be called after deploy and before `submit()`.
+- **`updateProofConversionPO2(po2: Field)`** — updates the on-chain `proofConversionPO2` state. Admin-gated. Must be called after deploy and before `submit()`.
+- **`updateIntegrityParams(pi0: FrC, po2: Field)`** — updates both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Admin-gated. Preferred over calling the individual setters separately.
 
 ## How to build
 
@@ -248,12 +248,12 @@ When `NoriTokenBridge`, `NoriStorageInterface`, or `FungibleToken` are modified,
 
 The following values are **not** baked into the circuit — they are stored as on-chain state and set via admin-gated methods after deployment:
 
-- `noriHeliosProgramPi0` — the Nori SP1 Helios program identifier (`bridgeHeadNoriSP1HeliosProgramPi0`). Changes frequently as the Helios light client evolves. When bridge-head releases a new version, copy [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from the appropriate release tag into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json) and then run `npm run set-pi0` (or `npm run set-integrity-params`) to update the on-chain value. No VK change or redeployment is needed.
-- `proofConversionPO2` — public output 2 from the converted consensus MPT transition proof. Infrequently changes (e.g. SP1 major version upgrade). Update via `npm run set-po2` (or `npm run set-integrity-params`). No VK change or redeployment is needed.
+- `noriHeliosProgramPi0` — the Nori SP1 Helios program identifier (`bridgeHeadNoriSP1HeliosProgramPi0`). Changes frequently as the Helios light client evolves. When bridge-head releases a new version, copy [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from the appropriate release tag into [`o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json`](../../o1js-zk-utils/src/integrity/nori-sp1-helios-program.pi0.json) and then run `npm run update:pi0` (or `npm run update:integrity-params`) to update the on-chain value. No VK change or redeployment is needed.
+- `proofConversionPO2` — public output 2 from the converted consensus MPT transition proof. Infrequently changes (e.g. SP1 major version upgrade). Update via `npm run update:po2` (or `npm run update:integrity-params`). No VK change or redeployment is needed.
 
-Changes to `proofConversionSP1ToPlonkVkData` or to the contract source code require re-running `bake-vk-hashes` before running `deploy`, `update-store-hash`, or `prove-and-submit`. Changes to pi0 or po2 only require running `set-integrity-params` — they do not affect the verification key.
+Changes to `proofConversionSP1ToPlonkVkData` or to the contract source code require re-running `bake-vk-hashes` before running `deploy`, `update:store-hash`, or `prove-and-submit`. Changes to pi0 or po2 only require running `update:integrity-params` — they do not affect the verification key.
 
-For `migrate-vk-to-tag` and `update-vk` the relationship with `bake-vk-hashes` is more nuanced: `migrate-vk-to-tag` is a VK migration workflow that runs `bake-vk-hashes` on the target commitish rather than the current checkout as part of its process — see [How to update the verification key](#how-to-update-the-verification-key).
+For `migrate-vk-to-tag` and `update:vk` the relationship with `bake-vk-hashes` is more nuanced: `migrate-vk-to-tag` is a VK migration workflow that runs `bake-vk-hashes` on the target commitish rather than the current checkout as part of its process — see [How to update the verification key](#how-to-update-the-verification-key).
 
 Run:
 
@@ -273,8 +273,8 @@ src/integrity/FungibleToken.VkHash.json
 These files are checked at runtime during:
 
 - `npm run deploy`
-- `npm run update-vk` / `npm run migrate-vk-to-tag`
-- `npm run update-store-hash`
+- `npm run update:vk` / `npm run migrate-vk-to-tag`
+- `npm run update:store-hash`
 - `npm run prove-and-submit`
 - `NoriTokenBridgeSubmitter.compileContracts` (API method)
 
@@ -307,7 +307,7 @@ npm run deploy <storeHashInHex> <ethTokenBridgeAddressHex> [adminPublicKeyBase58
 
 - `<storeHashInHex>`: must match the `input_store_hash` of the first store you expect as a checkpoint, **omitting** the `0x` prefix.
 - `<ethTokenBridgeAddressHex>`: the Ethereum contract address of the token bridge, **omitting** the `0x` prefix.
-- `[adminPublicKeyBase58]`: optional. The public key of the account with admin permissions over the contract (admin-gated methods: `setVerificationKey`, `updateStoreHash`, `setNoriHeliosProgramPi0`, `setProofConversionPO2`). If omitted, defaults to the public key derived from `MINA_SENDER_PRIVATE_KEY`.
+- `[adminPublicKeyBase58]`: optional. The public key of the account with admin permissions over the contract (admin-gated methods: `setVerificationKey`, `updateStoreHash`, `updateNoriHeliosProgramPi0`, `updateProofConversionPO2`). If omitted, defaults to the public key derived from `MINA_SENDER_PRIVATE_KEY`.
 
 You can find sensible values by running the bridge head and inspecting the checkpoint you want to start from in the proof output message directory:
 `sp1-helios-proof-messages/<file-with-slot-height>.json`
@@ -329,7 +329,7 @@ NORI_MINA_TOKEN_BRIDGE_ALLOW_VK_UPDATE=false
 
 Copy these values into your `.env` file.
 
-`noriHeliosProgramPi0` and `proofConversionPO2` are set in the deploy transaction itself (sourced from the repo-pinned JSON in `o1js-zk-utils`), so no follow-up call is required after a successful deploy. Use [`set-pi0` / `set-po2` / `set-integrity-params`](#how-to-set-both-integrity-params-in-a-single-transaction) only when rotating these values against an already-deployed contract.
+`noriHeliosProgramPi0` and `proofConversionPO2` are set in the deploy transaction itself (sourced from the repo-pinned JSON in `o1js-zk-utils`), so no follow-up call is required after a successful deploy. Use [`update:pi0` / `update:po2` / `update:integrity-params`](#how-to-update-both-integrity-params-in-a-single-transaction) only when rotating these values against an already-deployed contract.
 
 After deploying, update `src/env.ts` with the deployed contract addresses, token IDs, and RPC URLs for the target network and environment. This file is the source of truth for consumers of the `env` export — clients, frontends, and tooling all resolve their configuration from it.
 
@@ -348,7 +348,7 @@ MINA_TX_FEE=0.1
 Run:
 
 ```bash
-npm run update-store-hash <storeHashInHex>
+npm run update:store-hash <storeHashInHex>
 ```
 
 The `<storeHashInHex>` must match the `input_store_hash` of the store you expect as a checkpoint, **omitting** the `0x` prefix.
@@ -356,9 +356,9 @@ The `<storeHashInHex>` must match the `input_store_hash` of the store you expect
 You can find sensible values by running the bridge head and inspecting the checkpoint in:
 `sp1-helios-proof-messages/<file-with-slot-height>.json`
 
-## How to set noriHeliosProgramPi0
+## How to update noriHeliosProgramPi0
 
-Sets the on-chain `noriHeliosProgramPi0` state — the Nori SP1 Helios program identifier (public input 0 from the SP1 consensus MPT transition proof). This is an admin-gated provable method.
+Updates the on-chain `noriHeliosProgramPi0` state — the Nori SP1 Helios program identifier (public input 0 from the SP1 consensus MPT transition proof). This is an admin-gated provable method.
 
 From `contracts/mina/`, ensure your `.env` contains:
 
@@ -375,12 +375,12 @@ The pi0 value pushed on-chain is read from the repo — the canonical value is p
 Run:
 
 ```bash
-npm run set-pi0
+npm run update:pi0
 ```
 
-## How to set proofConversionPO2
+## How to update proofConversionPO2
 
-Sets the on-chain `proofConversionPO2` state — public output 2 from the converted consensus MPT transition proof. This is an admin-gated provable method.
+Updates the on-chain `proofConversionPO2` state — public output 2 from the converted consensus MPT transition proof. This is an admin-gated provable method.
 
 From `contracts/mina/`, ensure your `.env` contains:
 
@@ -397,17 +397,17 @@ The po2 value pushed on-chain is read from [`o1js-zk-utils/src/integrity/ProofCo
 Run:
 
 ```bash
-npm run set-po2
+npm run update:po2
 ```
 
-## How to set both integrity params in a single transaction
+## How to update both integrity params in a single transaction
 
-Sets both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Preferred when both values need updating (e.g. after a bridge-head or proof-conversion upgrade). Same `.env` requirements as the individual setters above; both values are read from the repo-pinned integrity JSONs in `o1js-zk-utils`. The script fetches both current on-chain values first and skips the transaction if both already match.
+Updates both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Preferred when both values need updating (e.g. after a bridge-head or proof-conversion upgrade). Same `.env` requirements as the individual setters above; both values are read from the repo-pinned integrity JSONs in `o1js-zk-utils`. The script fetches both current on-chain values first and skips the transaction if both already match.
 
 Run:
 
 ```bash
-npm run set-integrity-params
+npm run update:integrity-params
 ```
 
 ## How to submit a new converter proof
@@ -480,11 +480,11 @@ npm run migrate-vk-to-tag <targetTagOrCommitSHA>
 
 where `<targetTagOrCommitSHA>` is the release you are migrating **to**.
 
-The script clones the target commitish to a temporary directory, installs dependencies, runs `bake-vk-hashes`, verifies the committed integrity files are not stale, then invokes `update-vk` against the target integrity files using the current checkout's circuit to generate the proof. The temporary directory is cleaned up on completion or failure.
+The script clones the target commitish to a temporary directory, installs dependencies, runs `bake-vk-hashes`, verifies the committed integrity files are not stale, then invokes `update:vk` against the target integrity files using the current checkout's circuit to generate the proof. The temporary directory is cleaned up on completion or failure.
 
 ## How to update the verification key directly (not recommended)
 
-> **Warning:** `update-vk` bypasses the integrity verification step performed by `migrate-vk-to-tag`. If the integrity files you supply are stale or incorrect, the contract will be bricked. Only use this if you have independently verified the integrity files are correct and understand the risks.
+> **Warning:** `update:vk` bypasses the integrity verification step performed by `migrate-vk-to-tag`. If the integrity files you supply are stale or incorrect, the contract will be bricked. Only use this if you have independently verified the integrity files are correct and understand the risks.
 
 You must still be checked out to the currently deployed contract version. Check out the deployed tag, then from the **monorepo root**:
 
@@ -507,12 +507,12 @@ MINA_TX_FEE=0.1
 Then run:
 
 ```bash
-npm run update-vk -- <path/to/NoriTokenBridge.VkData.json> <path/to/NoriTokenBridge.VkHash.json>
+npm run update:vk -- <path/to/NoriTokenBridge.VkData.json> <path/to/NoriTokenBridge.VkHash.json>
 ```
 
 ## How to update the verification key (non-provable)
 
-Unlike the provable `update-vk` methods above, this approach updates the verification key directly via an `AccountUpdate` without generating a proof. Because it is non-provable, it does **not** need to be run from the currently deployed contract version — it can be run from any checkout where the integrity files (`src/integrity/NoriTokenBridge.VkData.json` and `src/integrity/NoriTokenBridge.VkHash.json`) contain the target verification key.
+Unlike the provable `update:vk` methods above, this approach updates the verification key directly via an `AccountUpdate` without generating a proof. Because it is non-provable, it does **not** need to be run from the currently deployed contract version — it can be run from any checkout where the integrity files (`src/integrity/NoriTokenBridge.VkData.json` and `src/integrity/NoriTokenBridge.VkHash.json`) contain the target verification key.
 
 Ensure `bake-vk-hashes` has been run cleanly on the target version so that the integrity files are up to date.
 
@@ -535,7 +535,7 @@ rm -rf ~/.cache/o1js/
 Then run:
 
 ```bash
-npm run update-vk-non-provable
+npm run update:vk-non-provable
 ```
 
 The script reads the VK data and hash directly from the baked integrity files, creates an `AccountUpdate` with the new verification key, and submits it without proving.

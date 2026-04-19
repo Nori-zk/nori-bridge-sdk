@@ -340,15 +340,15 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     });
 
     // =======================================================================
-    // setNoriHeliosProgramPi0() / setProofConversionPO2()
-    // Worker exposes single-setter AND combined setIntegrityParams.
+    // updateNoriHeliosProgramPi0() / updateProofConversionPO2()
+    // Worker exposes single-setter AND combined updateIntegrityParams.
     // =======================================================================
-    describe('setNoriHeliosProgramPi0() / setProofConversionPO2()', () => {
+    describe('updateNoriHeliosProgramPi0() / updateProofConversionPO2()', () => {
         describe('Happy Path', () => {
             test('should set noriHeliosProgramPi0 with admin key (worker)', async () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
 
-                await tester.setNoriHeliosProgramPi0(
+                await tester.updateNoriHeliosProgramPi0(
                     admin.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     pi0,
@@ -372,7 +372,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
                 const po2 = proofConversionSP1ToPlonkPO2;
 
-                await tester.setIntegrityParams(
+                await tester.updateIntegrityParams(
                     admin.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     pi0,
@@ -405,7 +405,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             test('should set proofConversionPO2 with admin key (worker)', async () => {
                 const po2 = proofConversionSP1ToPlonkPO2;
 
-                await tester.setProofConversionPO2(
+                await tester.updateProofConversionPO2(
                     admin.privateKey.toBase58(),
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     po2,
@@ -428,44 +428,44 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
-            test('should REJECT setIntegrityParams by arbitrary user (worker, alice)', async () => {
+            test('should REJECT updateIntegrityParams by arbitrary user (worker, alice)', async () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
                 const po2 = proofConversionSP1ToPlonkPO2;
 
                 await assert.rejects(
                     () =>
-                        tester.setIntegrityParams(
+                        tester.updateIntegrityParams(
                             alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             pi0,
                             po2,
                             fee
                         ),
-                    'setIntegrityParams by alice must fail'
+                    'updateIntegrityParams by alice must fail'
                 );
             }, 1_000_000);
 
-            test('should REJECT setIntegrityParams by deployer (not admin) (worker)', async () => {
+            test('should REJECT updateIntegrityParams by deployer (not admin) (worker)', async () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
                 const po2 = proofConversionSP1ToPlonkPO2;
 
                 await assert.rejects(
                     () =>
-                        tester.setIntegrityParams(
+                        tester.updateIntegrityParams(
                             deployer.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             pi0,
                             po2,
                             fee
                         ),
-                    'setIntegrityParams by deployer must fail'
+                    'updateIntegrityParams by deployer must fail'
                 );
             }, 1_000_000);
 
-            test('should REJECT setNoriHeliosProgramPi0 by arbitrary user (worker)', async () => {
+            test('should REJECT updateNoriHeliosProgramPi0 by arbitrary user (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        tester.setNoriHeliosProgramPi0(
+                        tester.updateNoriHeliosProgramPi0(
                             alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             FrC.from(33).toBigInt().toString(),
@@ -474,10 +474,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setProofConversionPO2 by arbitrary user (worker)', async () => {
+            test('should REJECT updateProofConversionPO2 by arbitrary user (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        tester.setProofConversionPO2(
+                        tester.updateProofConversionPO2(
                             alice.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             '54',
@@ -486,10 +486,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setNoriHeliosProgramPi0 by deployer (not admin) (worker)', async () => {
+            test('should REJECT updateNoriHeliosProgramPi0 by deployer (not admin) (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        tester.setNoriHeliosProgramPi0(
+                        tester.updateNoriHeliosProgramPi0(
                             deployer.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             FrC.from(43).toBigInt().toString(),
@@ -498,10 +498,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
 
-            test('should REJECT setProofConversionPO2 by deployer (not admin) (worker)', async () => {
+            test('should REJECT updateProofConversionPO2 by deployer (not admin) (worker)', async () => {
                 await assert.rejects(
                     () =>
-                        tester.setProofConversionPO2(
+                        tester.updateProofConversionPO2(
                             deployer.privateKey.toBase58(),
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             '65',

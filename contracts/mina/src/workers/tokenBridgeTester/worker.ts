@@ -346,7 +346,7 @@ export class TokenBridgeTester {
         return result.hash;
     }
 
-    setIntegrityParams(
+    updateIntegrityParams(
         senderPrivateKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
         pi0: string,
@@ -358,13 +358,13 @@ export class TokenBridgeTester {
             noriTokenBridgeAddressBase58,
             txFee,
             async (bridge) => {
-                await bridge.setNoriHeliosProgramPi0(FrC.from(pi0));
-                await bridge.setProofConversionPO2(Field.from(po2));
+                await bridge.updateNoriHeliosProgramPi0(FrC.from(pi0));
+                await bridge.updateProofConversionPO2(Field.from(po2));
             }
         );
     }
 
-    setNoriHeliosProgramPi0(
+    updateNoriHeliosProgramPi0(
         senderPrivateKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
         pi0: string,
@@ -375,12 +375,12 @@ export class TokenBridgeTester {
             noriTokenBridgeAddressBase58,
             txFee,
             async (bridge) => {
-                await bridge.setNoriHeliosProgramPi0(FrC.from(pi0));
+                await bridge.updateNoriHeliosProgramPi0(FrC.from(pi0));
             }
         );
     }
 
-    setProofConversionPO2(
+    updateProofConversionPO2(
         senderPrivateKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
         po2: string,
@@ -391,7 +391,7 @@ export class TokenBridgeTester {
             noriTokenBridgeAddressBase58,
             txFee,
             async (bridge) => {
-                await bridge.setProofConversionPO2(Field.from(po2));
+                await bridge.updateProofConversionPO2(Field.from(po2));
             }
         );
     }

@@ -114,10 +114,10 @@ try {
     logger.log(`VkData path: '${vkDataPath}'`);
     logger.log(`VkHash path: '${vkHashPath}'`);
 
-    // Run update-vk from the current checkout, pointing at the target integrity files
+    // Run update:vk from the current checkout, pointing at the target integrity files
     const packageRoot = resolve(rootDir, '..');
-    logger.log('Running update-vk against target integrity files...');
-    execSync(`npm run update-vk -- "${vkDataPath}" "${vkHashPath}"`, {
+    logger.log('Running update:vk against target integrity files...');
+    execSync(`npm run update:vk -- "${vkDataPath}" "${vkHashPath}"`, {
         cwd: packageRoot,
         stdio: 'inherit',
     });
