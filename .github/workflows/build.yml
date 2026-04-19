@@ -34,7 +34,7 @@ jobs:
     # Define lightnet service
     services:
       mina-lightnet:
-        image: o1labs/mina-local-network:compatible-latest-devnet
+        image: o1labs/mina-local-network@sha256:32051ff0cba26abbbb46e916c85c8d9b247d95732ec1f5f64afb04d69768aad6 # compatible-latest-devnet
         env:
           PROOF_LEVEL: full
           LOG_LEVEL: Debug
@@ -90,6 +90,9 @@ jobs:
           for i in {1..60}; do
             if curl -sf http://mina-lightnet:8181/ > /dev/null; then
               echo "✅ Mina is ready!"
+              echo "⏸️  Grace period: sleeping 60s for GraphQL (:8080) to settle..."
+              sleep 60
+              echo "▶️  Grace period complete."
               exit 0
             fi
             echo "Attempt $i/60 failed, waiting 10s..."
