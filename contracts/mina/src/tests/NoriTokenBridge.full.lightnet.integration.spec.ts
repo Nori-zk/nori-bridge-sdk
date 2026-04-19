@@ -92,6 +92,11 @@ let allAccounts: PublicKey[];
 // Tester is non-undefined inside test bodies because beforeEach guarantees it.
 let tester: TesterInstance;
 let testerAlive = false;
+// When set, afterEach skips killTester. Used inside negative-test describes
+// where assert.rejects tests don't mutate on-chain state — reusing the worker
+// across them avoids a recompile per test. The describe's afterAll resets the
+// flag and kills the worker.
+let keepWorker = false;
 
 // Compiled VKs (safe form) — produced by tester.compile()
 let storageInterfaceVerificationKeySafe: SafeVK;
@@ -255,6 +260,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     });
 
     afterEach(async () => {
+        if (keepWorker) return;
         await killTester();
     });
 
@@ -447,6 +453,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT updateIntegrityParams by arbitrary user (worker, alice)', async () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
                 const po2 = proofConversionSP1ToPlonkPO2;
@@ -685,6 +697,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT replay of old proof (slot not greater than current) (worker)', async () => {
                 await assert.rejects(
                     () =>
@@ -753,6 +771,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT duplicate storage setup for Alice (worker)', async () => {
                 await assert.rejects(
                     () =>
@@ -1149,6 +1173,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         }); // End Window Rotation
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT double-mint with the same deposit (worker)', async () => {
                 await assert.rejects(
                     () =>
