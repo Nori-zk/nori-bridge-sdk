@@ -7,7 +7,7 @@
         "workers",
         "o1js-zk-utils",
         "contracts/ethereum",
-        "contracts/mina/mina-token-bridge",
+        "contracts/mina",
         "cache-server",
         "minimal-client"
     ],

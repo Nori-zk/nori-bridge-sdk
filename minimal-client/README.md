@@ -9,7 +9,7 @@ This setup exists only to:
 - Facilitate debugging of workers.
 - Provide an e2e test for CI.
 - Demonstrate overall flow within the browser.
-- Provide a browser-based clone of the e2e.devnet.spec.ts test located in `<repo root directory>/contracts/mina/mina-token-bridge/src`.
+- Provide a browser-based clone of the e2e.devnet.spec.ts test located in `<repo root directory>/contracts/mina/src`.
 
 ------------------------------------------------------------
 
@@ -22,9 +22,9 @@ This setup exists only to:
    - ETH_PRIVATE_KEY=private key from which you wish to lock ETH to claim nETH
    - ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<apiKey>
    - MINA_SENDER_PRIVATE_KEY=private key of the Mina address for which you wish to claim nETH
-   - TEST_MINA_STAGING_CHAIN_NAME=mina (selects staging config from `env.ts` in `mina-token-bridge`, defaults to `mina`)
+   - TEST_MINA_STAGING_CHAIN_NAME=mina (selects staging config from `env.ts` in `contracts/mina`, defaults to `mina`)
 
-   Contract addresses, RPC URLs, and service endpoints are resolved automatically from the staging config in `mina-token-bridge/src/env.ts` via `getStagingEnv()`. The browser test builder bakes these into the bundle at build time.
+   Contract addresses, RPC URLs, and service endpoints are resolved automatically from the staging config in `contracts/mina/src/env.ts` via `getStagingEnv()`. The browser test builder bakes these into the bundle at build time.
 
 ## Testing:
 

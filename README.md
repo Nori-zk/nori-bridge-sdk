@@ -8,23 +8,19 @@ A collection of smart/zk contracts, o1js programs and utilities for Nori Bridge.
    `package: @nori-zk/ethereum-token-bridge`  
    Solidity contracts for the Ethereum side of the bridge.
 
-2. **[Token Bridge](./contracts/mina/token-bridge)**  
-   `package: @nori-zk/mina-token-bridge`  
-   Mina contracts for bridging tokens using Nori stack.
+2. **[Mina Token Bridge](./contracts/mina)**  
+   `package: @nori-zk/mina-token-bridge-new`  
+   Mina zkApp contracts for bridging tokens using the Nori stack.
 
-3. **[Eth Processor](./contracts/mina/eth-processor)**  
-   `package: @nori-zk/ethprocessor`  
-   Mina contract for Ethereum state commitment to Mina.
-
-4. **[o1js ZK Utils](./o1js-zk-utils)**  
+3. **[o1js ZK Utils](./o1js-zk-utils)**  
    `package: @nori-zk/o1js-zk-utils-new`  
    Zero-knowledge programs and helpers built with o1js.
 
-5. **[Workers](./workers)**  
+4. **[Workers](./workers)**  
    `package: @nori-zk/workers`  
    A node.js / browser worker abstraction.
 
-6. **[Minimal client](./minimal-client)**   
+5. **[Minimal client](./minimal-client)**   
    An e2e browser devnet test for the whole locking and minting process.
 
 ## Usage
