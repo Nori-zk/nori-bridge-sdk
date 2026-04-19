@@ -5,16 +5,13 @@ import {
 } from './constructExampleProofs.js';
 import { NoriTokenBridgeSubmitter } from './proofSubmitter.js';
 import { wait } from './txWait.js';
-import { Field, PrivateKey } from 'o1js';
+import { PrivateKey } from 'o1js';
 import {
     CacheType,
     decodeConsensusMptProof,
     extractEthTokenBridgeAddressFromSP1Proof,
-    bridgeHeadNoriSP1HeliosProgramPi0,
-    proofConversionSP1ToPlonkPO2,
     type FileSystemCacheConfig,
 } from '@nori-zk/o1js-zk-utils-new';
-import { FrC } from '@nori-zk/proof-conversion/min';
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
@@ -109,9 +106,7 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
 
             await proofSubmitter.deployContract(
                 decoded.inputStoreHash,
-                extractEthTokenBridgeAddressFromSP1Proof(proofArgument),
-                FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
-                Field.from(proofConversionSP1ToPlonkPO2),
+                extractEthTokenBridgeAddressFromSP1Proof(proofArgument)
             );
 
             // Build proof.
@@ -160,9 +155,7 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             );
             await proofSubmitter.deployContract(
                 decoded.inputStoreHash,
-                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]),
-                FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
-                Field.from(proofConversionSP1ToPlonkPO2),
+                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0])
             );
 
             // Build and submit proofs
@@ -221,9 +214,7 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             );
             await proofSubmitter.deployContract(
                 decoded.inputStoreHash,
-                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]),
-                FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
-                Field.from(proofConversionSP1ToPlonkPO2),
+                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0])
             );
 
             // Build and submit proofs

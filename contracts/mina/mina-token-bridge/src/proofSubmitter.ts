@@ -2,7 +2,7 @@ import 'dotenv/config';
 import {
     AccountUpdate,
     Bool,
-    type Field,
+    Field,
     Mina,
     PrivateKey,
     PublicKey,
@@ -25,9 +25,14 @@ import {
     NodeProofLeft,
     type FileSystemCacheConfig,
     compileAndOptionallyVerifyContracts,
+    bridgeHeadNoriSP1HeliosProgramPi0,
+    proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
 import { cacheFactory } from '@nori-zk/o1js-zk-utils-new/node';
-import type { NodeProofLeft as NodeProofLeftRaw, FrC } from '@nori-zk/proof-conversion/min';
+import {
+    type NodeProofLeft as NodeProofLeftRaw,
+    FrC,
+} from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from './integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from './integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from './integrity/FungibleToken.VkHash.js';
@@ -59,7 +64,8 @@ export class NoriTokenBridgeSubmitter {
         logger.info(`NoriTokenBridgeSubmitter constructor called.`);
         const errors: string[] = [];
 
-        const possibleSenderPrivateKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY as string;
+        const possibleSenderPrivateKeyBase58 = process.env
+            .MINA_SENDER_PRIVATE_KEY as string;
         const possibleNetwork = process.env.MINA_NETWORK as string;
         const possibleNetworkUrl = process.env.MINA_RPC_NETWORK_URL as string;
         const possibleArchiveUrl = process.env.MINA_ARCHIVE_RPC_URL as string;
@@ -69,7 +75,9 @@ export class NoriTokenBridgeSubmitter {
 
         if (!possibleNetwork) {
             errors.push('MINA_NETWORK is required');
-        } else if (!['devnet', 'mainnet', 'lightnet'].includes(possibleNetwork)) {
+        } else if (
+            !['devnet', 'mainnet', 'lightnet'].includes(possibleNetwork)
+        ) {
             errors.push(
                 `MINA_NETWORK must be one of: devnet, mainnet, lightnet (got "${possibleNetwork}")`
             );
@@ -77,17 +85,23 @@ export class NoriTokenBridgeSubmitter {
             this.#network = possibleNetwork as NetworkId;
         }
 
-        if (!possibleNetworkUrl) errors.push('MINA_RPC_NETWORK_URL is required');
-        if (!possibleArchiveUrl) errors.push('MINA_ARCHIVE_RPC_URL is required');
+        if (!possibleNetworkUrl)
+            errors.push('MINA_RPC_NETWORK_URL is required');
+        if (!possibleArchiveUrl)
+            errors.push('MINA_ARCHIVE_RPC_URL is required');
 
         const isLightnet = possibleNetwork === 'lightnet';
 
-        const possibleTokenBridgePrivateKeyBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY as string;
-        const possibleTokenBridgeAddressBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_ADDRESS as string;
+        const possibleTokenBridgePrivateKeyBase58 = process.env
+            .NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY as string;
+        const possibleTokenBridgeAddressBase58 = process.env
+            .NORI_MINA_TOKEN_BRIDGE_ADDRESS as string;
 
         if (isLightnet) {
             if (!possibleTokenBridgePrivateKeyBase58)
-                errors.push('NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY is required in lightnet mode');
+                errors.push(
+                    'NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY is required in lightnet mode'
+                );
         } else {
             if (!possibleTokenBridgeAddressBase58)
                 errors.push('NORI_MINA_TOKEN_BRIDGE_ADDRESS is required');
@@ -97,18 +111,26 @@ export class NoriTokenBridgeSubmitter {
             throw `Configuration errors:\n- ${errors.join('\n- ')}`;
         }
 
-        this.#senderPrivateKey = PrivateKey.fromBase58(possibleSenderPrivateKeyBase58);
+        this.#senderPrivateKey = PrivateKey.fromBase58(
+            possibleSenderPrivateKeyBase58
+        );
         this.#txFee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
         this.#testMode = isLightnet;
         this.minaRPCNetworkUrl = possibleNetworkUrl;
         this.minaArchiveRPCUrl = possibleArchiveUrl;
 
         if (isLightnet) {
-            this.#possibleTokenBridgePrivateKey = PrivateKey.fromBase58(possibleTokenBridgePrivateKeyBase58);
-            this.#zkApp = new NoriTokenBridge(this.#possibleTokenBridgePrivateKey.toPublicKey());
+            this.#possibleTokenBridgePrivateKey = PrivateKey.fromBase58(
+                possibleTokenBridgePrivateKeyBase58
+            );
+            this.#zkApp = new NoriTokenBridge(
+                this.#possibleTokenBridgePrivateKey.toPublicKey()
+            );
         } else {
             this.#possibleTokenBridgePrivateKey = undefined;
-            this.#zkApp = new NoriTokenBridge(PublicKey.fromBase58(possibleTokenBridgeAddressBase58));
+            this.#zkApp = new NoriTokenBridge(
+                PublicKey.fromBase58(possibleTokenBridgeAddressBase58)
+            );
         }
 
         logger.log('Loaded constants from: .env');
@@ -173,12 +195,7 @@ export class NoriTokenBridgeSubmitter {
         void FungibleTokenVerificationKey;
     }
 
-    async deployContract(
-        storeHash: Bytes32,
-        ethTokenBridgeAddress: Field,
-        noriHeliosProgramPi0: FrC,
-        proofConversionPO2: Field
-    ) {
+    async deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field) {
         if (this.#network !== 'lightnet') {
             throw new Error(
                 [
@@ -189,6 +206,10 @@ export class NoriTokenBridgeSubmitter {
         }
         logger.log('Creating deploy transaction.');
 
+        const noriHeliosProgramPi0 = FrC.from(
+            bridgeHeadNoriSP1HeliosProgramPi0
+        );
+        const proofConversionPO2 = Field.from(proofConversionSP1ToPlonkPO2);
         const senderPublicKey = this.#senderPrivateKey.toPublicKey();
         const initialStoreHash = Bytes32FieldPair.fromBytes32(storeHash);
         const tokenBasePrivateKey = PrivateKey.random();
@@ -219,17 +240,23 @@ export class NoriTokenBridgeSubmitter {
                     allowUpdates: true,
                 });
                 await tokenBase.initialize(
-                    this.#possibleTokenBridgePrivateKey!.toPublicKey(),
+                    this.#possibleTokenBridgePrivateKey.toPublicKey(),
                     UInt8.from(6),
-                    Bool(false),
+                    Bool(false)
                 );
             }
         );
         logger.log('Deploy transaction created successfully. Proving...');
         await deployTx.prove();
-        logger.log('Transaction proved. Signing and sending the transaction...');
+        logger.log(
+            'Transaction proved. Signing and sending the transaction...'
+        );
         await deployTx
-            .sign([this.#senderPrivateKey, this.#possibleTokenBridgePrivateKey!, tokenBasePrivateKey])
+            .sign([
+                this.#senderPrivateKey,
+                this.#possibleTokenBridgePrivateKey,
+                tokenBasePrivateKey,
+            ])
             .send()
             .wait();
         logger.log('NoriTokenBridge and FungibleToken deployed successfully.');
