@@ -95,7 +95,6 @@ const config = env.mina?.staging;
 
 ```typescript
 import { getTokenBridgeWorker } from '@nori-zk/mina-token-bridge-new/node/workers/tokenBridgeWorker';
-import { getTokenBridgeDeployerWorker } from '@nori-zk/mina-token-bridge-new/node/workers/tokenBridgeDeployer';
 
 async function main() {
     const TokenBridgeWorker = getTokenBridgeWorker();

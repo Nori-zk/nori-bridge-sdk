@@ -30,9 +30,6 @@
         "./node/workers/tokenBridgeWorker": {
             "import": "./build/workers/tokenBridgeWorker/node/parent.js"
         },
-        "./node/workers/tokenBridgeDeployer": {
-            "import": "./build/workers/tokenBridgeDeployer/node/parent.js"
-        },
         "./workers/defs": {
             "import": "./build/workers/defs.js"
         },

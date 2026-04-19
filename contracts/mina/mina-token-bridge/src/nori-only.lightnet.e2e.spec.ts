@@ -19,7 +19,7 @@ import {
     readyToComputeMintProof,
 } from './rx/deposit.js';
 import { getTokenBridgeWorker } from './workers/tokenBridgeWorker/node/parent.js';
-import { getTokenBridgeDeployerWorker } from './workers/tokenBridgeDeployer/node/parent.js';
+import { getTokenBridgeTester } from './workers/tokenBridgeTester/node/parent.js';
 import {
     createTimer,
     bridgeHeadNoriSP1HeliosProgramPi0,
@@ -47,8 +47,8 @@ describe('e2e', () => {
         // Deploy token minter contracts (Note this will normally be done already for the user, this is just for testing)
         // Use the worker to be able to reclaim some ram
         logger.log('Deploying contract.');
-        const TokenBridgeDeployerWorker = getTokenBridgeDeployerWorker();
-        const tokenDeployer = new TokenBridgeDeployerWorker();
+        const TokenBridgeTester = getTokenBridgeTester();
+        const tokenDeployer = new TokenBridgeTester();
         const { noriStorageInterfaceVerificationKeySafe } =
             await tokenDeployer.compile();
         const contractsLitenetSk = await getNewMinaLiteNetAccountSK();
