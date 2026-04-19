@@ -7,7 +7,7 @@ import {
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils-new';
-import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './adminBinUtils.js';
+import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
 const logger = new Logger('SetIntegrityParams');
 
@@ -46,14 +46,16 @@ async function setIntegrityParams() {
     const po2Matches = onchainPO2Decimal === targetPO2Decimal;
 
     if (pi0Matches && po2Matches) {
-        logger.log('On-chain pi0 and po2 already match the target values — nothing to do.');
-        return;
+        logger.warn('On-chain pi0 and po2 already match the target values — nothing to do.');
+        throw new Error('No update needed: on-chain integrity params already match target values.');
     }
     if (pi0Matches) {
-        logger.log('On-chain pi0 already matches the target value; only po2 will be updated.');
+        logger.log('On-chain pi0 already matches the target value.');
+        throw new Error('Use the setNoriHeliosProgramPi0 script to update pi0 independently of po2.');
     }
     if (po2Matches) {
-        logger.log('On-chain po2 already matches the target value; only pi0 will be updated.');
+        logger.log('On-chain po2 already matches the target value');
+        throw new Error('Use the setProofConversionPO2 script to update po2 independently of pi0  .');
     }
 
     logger.log('Creating setIntegrityParams transaction (pi0 + po2)...');        // Both setters are re-issued even if one side already matches: the no-op case

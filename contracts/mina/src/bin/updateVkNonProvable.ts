@@ -7,7 +7,7 @@ import { Logger, LogPrinter } from 'esm-iso-logger';
 import { type VerificationKeySafe, vkSafeToVk } from '@nori-zk/o1js-zk-utils-new';
 import noriTokenBridgeVkData from '../integrity/NoriTokenBridge.VkData.json' with { type: 'json' };
 import noriTokenBridgeVkHashStr from '../integrity/NoriTokenBridge.VkHash.json' with { type: 'json' };
-import { parseAdminBinEnv, setupNetworkAndCompile } from './adminBinUtils.js';
+import { parseAdminBinEnv, setupNetworkAndCompile } from './utils/adminBinUtils.js';
 
 const logger = new Logger('UpdateVkNonProvable');
 

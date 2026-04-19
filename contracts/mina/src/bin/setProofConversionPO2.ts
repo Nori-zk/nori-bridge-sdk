@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { Field, fetchAccount } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { proofConversionSP1ToPlonkPO2 } from '@nori-zk/o1js-zk-utils-new';
-import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './adminBinUtils.js';
+import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
 const logger = new Logger('SetProofConversionPO2');
 

@@ -3,13 +3,13 @@
 
 import { Mina, PrivateKey, type NetworkId, fetchAccount } from 'o1js';
 import type { Logger } from 'esm-iso-logger';
-import { NoriTokenBridge } from '../NoriTokenBridge.js';
-import { NoriStorageInterface } from '../NoriStorageInterface.js';
-import { FungibleToken } from '../TokenBase.js';
+import { NoriTokenBridge } from '../../NoriTokenBridge.js';
+import { NoriStorageInterface } from '../../NoriStorageInterface.js';
+import { FungibleToken } from '../../TokenBase.js';
 import { compileAndVerifyContracts } from '@nori-zk/o1js-zk-utils-new';
-import { noriTokenBridgeVkHash } from '../integrity/NoriTokenBridge.VkHash.js';
-import { noriStorageInterfaceVkHash } from '../integrity/NoriStorageInterface.VkHash.js';
-import { fungibleTokenVkHash } from '../integrity/FungibleToken.VkHash.js';
+import { noriTokenBridgeVkHash } from '../../integrity/NoriTokenBridge.VkHash.js';
+import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
+import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 
 export type AdminBinConfig = {
     adminKey: PrivateKey;

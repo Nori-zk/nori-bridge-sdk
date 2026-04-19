@@ -281,7 +281,7 @@ async function deploy() {
             logger.log('Deploying FungibleToken.');
             await tokenBase.deploy({
                 symbol: 'nETH',
-                src: 'https://github.com/2nori/nori-bridge-sdk',
+                src: 'https://github.com/Nori-zk/nori-bridge-sdk',
                 allowUpdates: tokenBaseAllowUpdates,
             });
             await tokenBase.initialize(
