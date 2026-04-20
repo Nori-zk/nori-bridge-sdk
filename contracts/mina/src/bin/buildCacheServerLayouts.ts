@@ -40,4 +40,5 @@ const layoutsDir = path.resolve(rootDir, 'src', 'cache-layouts');
 
 cacheBuilder(caches, cacheDir, layoutsDir).catch((e) => {
     logger.fatal(`Error building cache: ${e.message}`);
+    process.exit(1);
 });
