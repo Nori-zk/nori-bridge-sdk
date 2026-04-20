@@ -51,74 +51,24 @@ async function fetchAlignedServiceManagerAddress(ethNetwork: string): Promise<st
   return address;
 }
 
-/**
- * Fetch the tip state hash from the Mina daemon GraphQL endpoint.
- */
-async function fetchMinaTipStateHash(minaRpcUrl: string): Promise<string> {
-  logger.log(`Fetching tip state hash from ${minaRpcUrl}`);
-
-  const query = 'query { bestChain(maxLength: 1) { stateHashField } }';
-
-  const res = await fetch(minaRpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-
-  if (!res.ok) {
-    logger.fatal(`Mina daemon request failed: ${res.status} ${res.statusText}`);
-    process.exit(1);
-  }
-
-  const json = await res.json();
-  const bestChain = json?.data?.bestChain;
-  if (!bestChain || bestChain.length === 0) {
-    logger.fatal('No blocks returned from bestChain query');
-    process.exit(1);
-  }
-
-  const tipStateHash = bestChain[0].stateHashField;
-  if (!tipStateHash) {
-    logger.fatal('stateHashField not found in bestChain response');
-    process.exit(1);
-  }
-
-  logger.log(`MINA_TIP_STATE_HASH=${tipStateHash}`);
-  return tipStateHash;
-}
-
 const possibleEthNetwork = process.env.ETH_NETWORK;
-const possibleMinaRpcUrl = process.env.MINA_RPC_NETWORK_URL;
 
-const issues: string[] = [];
-
-if (!possibleEthNetwork) issues.push('Missing required env: ETH_NETWORK');
-if (!possibleMinaRpcUrl) issues.push('Missing required env: MINA_RPC_NETWORK_URL');
-
-if (issues.length) {
-  logger.error('PreDeploy encountered errors:');
-  issues.forEach((issue, idx) => logger.warn(`  ${idx + 1}: ${issue}`));
-  logger.fatal('Due to issues with environment variables pre-deploy cannot continue.');
+if (!possibleEthNetwork) {
+  logger.fatal('Missing required env: ETH_NETWORK');
   process.exit(1);
 }
 
 const ethNetwork = possibleEthNetwork;
-const minaRpcUrl = possibleMinaRpcUrl;
 
 logger.log(`ETH_NETWORK=${ethNetwork}`);
-logger.log(`MINA_RPC_NETWORK_URL=${minaRpcUrl}`);
 
-// Fetch both. All must succeed before writing anything.
 const alignedServiceManagerAddress = await fetchAlignedServiceManagerAddress(ethNetwork);
-const tipStateHash = await fetchMinaTipStateHash(minaRpcUrl);
 
 // Write output
 const envContent = [
   `# AlignedLayer service manager contract address for ${ethNetwork}`,
   `# Source: https://github.com/yetanotherco/aligned_layer`,
   `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=${alignedServiceManagerAddress}`,
-  `# Mina tip state hash fetched from ${minaRpcUrl}`,
-  `MINA_TIP_STATE_HASH=${tipStateHash}`,
 ].join('\n') + '\n';
 
 const envFilePath = path.resolve(__dirname, '..', '.env.nori-eth-pre-deploy');

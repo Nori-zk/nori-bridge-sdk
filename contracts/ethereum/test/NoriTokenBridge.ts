@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import { getRandomValues } from 'crypto';
 import { NoriTokenBridge__factory } from 'types/ethers-contracts/index.js';
 import hre from 'hardhat';
-const { ethers } = await hre.network.connect();
+const { ethers } = await hre.network.getOrCreate();
 
 const codeChallengeBytes = new Uint8Array(32);
 getRandomValues(codeChallengeBytes);
