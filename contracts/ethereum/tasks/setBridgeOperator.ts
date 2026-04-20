@@ -11,7 +11,7 @@ export const setBridgeOperator = task('setBridgeOperator', 'Rotate the bridge op
     })
     .setAction(async () => ({
         default: async (args, hre) => {
-            const { ethers } = await hre.network.connect();
+            const { ethers } = await hre.network.getOrCreate();
             const { newOperator } = args;
 
             const possibleDeployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;

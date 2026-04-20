@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/ethereum-token-bridge",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "description": "NoriTokenBridge contract",
     "main": "build/index.js",
     "publishConfig": {
@@ -13,6 +13,10 @@
         "test": "ETH_NETWORK=hardhat hardhat test",
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
+        "format": "prettier --check --ignore-unknown **/*",
+        "format:fix": "prettier --write --ignore-unknown **/*",
+        "lint": "npx eslint tasks bin test *.ts",
+        "lint:fix": "npx eslint tasks bin test *.ts --fix",
         "pre-deploy": "dotenv -e .env -- npx tsx bin/pre-deploy.ts",
         "deploy": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK deploy'",
         "test:lock": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK lockTokens \"$@\"' --",
@@ -36,6 +40,7 @@
         "@nomicfoundation/hardhat-typechain": "^3.0.0",
         "@nomicfoundation/hardhat-viem": "^3.0.0",
         "@types/mocha": "^10.0.0",
+        "@types/node": "^25.2.3",
         "chai": "^5.1.2",
         "dotenv": "^17.2.4",
         "dotenv-cli": "^8.0.0",

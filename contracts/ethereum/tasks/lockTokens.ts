@@ -16,7 +16,7 @@ export const lockTokens = task('lockTokens', 'Lock tokens with code challenge an
     })
     .setAction(async () => ({
         default: async (args, hre) => {
-            const { ethers } = await hre.network.connect();
+            const { ethers } = await hre.network.getOrCreate();
             const { codeChallenge } = args;
             const { amount } = args;
 

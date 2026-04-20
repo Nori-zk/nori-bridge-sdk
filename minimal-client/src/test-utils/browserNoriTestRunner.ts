@@ -19,4 +19,7 @@ async function main() {
     spawn(browser, [url], { stdio: 'inherit', detached: true }).unref(); // unref allows Node to exit independently
 }
 
-main().catch(console.error);
+main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+});

@@ -11,7 +11,7 @@ export const setFeeRecipient = task('setFeeRecipient', 'Set the fee recipient (t
     })
     .setAction(async () => ({
         default: async (args, hre) => {
-            const { ethers } = await hre.network.connect();
+            const { ethers } = await hre.network.getOrCreate();
             const { recipient } = args;
 
             const possibleDeployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;

@@ -11,7 +11,7 @@ export const getTotalDeposited = task('getTotalDeposited', 'Get the total deposi
     })
     .setAction(async () => ({
         default: async (args, hre) => {
-            const { ethers } = await hre.network.connect();
+            const { ethers } = await hre.network.getOrCreate();
             const { codeChallenge } = args;
 
             const possibleDeployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;
