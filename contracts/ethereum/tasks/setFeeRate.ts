@@ -15,7 +15,7 @@ export const setFeeRate = task('setFeeRate', 'Set lock or unlock fee rate (1 uni
     })
     .setAction(async () => ({
         default: async (args, hre) => {
-            const { ethers } = await hre.network.connect();
+            const { ethers } = await hre.network.getOrCreate();
             const { type, rate } = args;
 
             const possibleDeployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;

@@ -35,19 +35,11 @@ NORI_ETH_BRIDGE_LOCK_FEE_RATE=500
 # Unlock fee rate, 1 unit = 0.001%, e.g. 500 = 0.5%
 NORI_ETH_BRIDGE_UNLOCK_FEE_RATE=500
 
-# Mina ======================================================================
-# Mina daemon GraphQL RPC URL (required by pre-deploy helper)
-MINA_RPC_NETWORK_URL=https://devnet-plain-1.gcp.o1test.net/graphql
-
 # Aligned layer =============================================================
 # AlignedLayer service manager contract address on Ethereum.
 # Resolved automatically by the pre-deploy helper from
 # https://github.com/yetanotherco/aligned_layer for the target network.
 ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0x...
-
-# Deploy parameters (written by pre-deploy helper) ==========================
-# Tip state hash of the Mina chain at deploy time (fetched from Mina daemon)
-MINA_TIP_STATE_HASH=0x...
 
 # Deploy outputs (written by deploy task) ====================================
 # Deployed contract addresses
@@ -70,11 +62,10 @@ NORI_ETH_TOKEN_BRIDGE_TEST_MODE=true
 
 ## Pre-deploy
 
-The deploy task requires parameters that must be fetched from external sources: the AlignedLayer service manager address for the target network, and the current Mina tip state hash. The pre-deploy helper resolves these automatically.
+The deploy task requires the AlignedLayer service manager address for the target network. The pre-deploy helper resolves it automatically.
 
 Requires:
 - `ETH_NETWORK`
-- `MINA_RPC_NETWORK_URL`
 
 ```bash
 npm run pre-deploy
@@ -86,11 +77,9 @@ This writes `.env.nori-eth-pre-deploy` containing:
 # AlignedLayer service manager contract address for the target network
 # Source: https://github.com/yetanotherco/aligned_layer
 ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0xFf731AB7b3653dc66878DC77E851D174f472d137
-# Mina tip state hash fetched from the Mina daemon
-MINA_TIP_STATE_HASH=0x7b2291b3e03efab440c1eb22503bec4be29e56c27e56b5c4cc9f5e1b1e9e1a3f
 ```
 
-Copy these values into your `.env`:
+Copy this into your `.env`:
 
 ```bash
 cat .env.nori-eth-pre-deploy >> .env

@@ -15,20 +15,18 @@ const DEVNET_NETWORKS = new Set(["hardhat"]);
 export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSettlement, and NoriTokenBridge")
   .setAction(async () => ({
     default: async (_args, hre) => {
-      const { ethers } = await hre.network.connect();
+      const { ethers } = await hre.network.getOrCreate();
 
       const [deployer] = await ethers.getSigners();
       const balance = await ethers.provider.getBalance(deployer.address);
       const network = await ethers.provider.getNetwork();
 
       const possibleAlignedServiceManagerAddress = process.env.ALIGNED_ETH_SERVICE_MANAGER_ADDRESS;
-      const possibleTipStateHash = process.env.MINA_TIP_STATE_HASH;
       const possibleEthNetwork = process.env.ETH_NETWORK;
 
       const issues: string[] = [];
 
       if (!possibleAlignedServiceManagerAddress) issues.push("Missing required env: ALIGNED_ETH_SERVICE_MANAGER_ADDRESS (run npm run pre-deploy first)");
-      if (!possibleTipStateHash) issues.push("Missing required env: MINA_TIP_STATE_HASH (run npm run pre-deploy first)");
       if (!possibleEthNetwork) issues.push("Missing required env: ETH_NETWORK");
 
       if (issues.length) {
@@ -39,7 +37,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       }
 
       const alignedServiceManagerAddress = possibleAlignedServiceManagerAddress;
-      const tipStateHash = '0x' + BigInt(possibleTipStateHash).toString(16).padStart(64, '0');
       const ethNetwork = possibleEthNetwork;
       const devnetFlag = DEVNET_NETWORKS.has(ethNetwork);
 
@@ -70,7 +67,7 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       // Deploy MinaStateSettlement
       logger.log("Deploying MinaStateSettlement...");
       const MinaStateSettlement = await ethers.getContractFactory("MinaStateSettlement");
-      const stateSettlement = await MinaStateSettlement.deploy(alignedServiceManagerAddress, tipStateHash, devnetFlag);
+      const stateSettlement = await MinaStateSettlement.deploy(alignedServiceManagerAddress, devnetFlag);
       const stateSettlementDeployTx = stateSettlement.deploymentTransaction();
       if (!stateSettlementDeployTx) throw new Error("MinaStateSettlement did not deploy");
       const stateSettlementReceipt = await stateSettlementDeployTx.wait();

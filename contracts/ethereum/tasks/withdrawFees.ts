@@ -7,7 +7,7 @@ const logger = new Logger('WithdrawFees');
 export const withdrawFees = task('withdrawFees', 'Withdraw accumulated protocol fees to the fee recipient')
     .setAction(async () => ({
         default: async (_args, hre) => {
-            const { ethers } = await hre.network.connect();
+            const { ethers } = await hre.network.getOrCreate();
 
             const possibleDeployedAddress = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;
 
