@@ -1076,41 +1076,73 @@ async function runUserFlow(
 // Main-thread bridge observer (console-only)
 // ---------------------------------------------------------------------------
 
+export type ObserverSnapshot = {
+    wsState: string;
+    latestBridge: {
+        stage_name: string;
+        input_slot: number | string;
+        output_slot: number | string;
+        elapsed_sec: number | string;
+    } | null;
+    latestEth: {
+        latest_finality_slot: number | string;
+        latest_finality_block_number: number | string;
+    } | null;
+    lastBridgeAt: number;
+    lastEthAt: number;
+};
+
 /**
- * Dedicated WSS that prints live bridge state to stdout (not files) so an
- * operator tailing the process always sees what the bridge is doing, even
- * when no user flow is active.
+ * Dedicated WSS that tracks live bridge state. Still logs every emission so a
+ * tailing operator sees raw events, but also exposes a getter so the scheduler
+ * can redraw a live status banner on a fixed cadence (between bridge frames).
  */
-function startBridgeObserver(wssUrl: string): () => void {
+function startBridgeObserver(wssUrl: string): {
+    stop: () => void;
+    snapshot: () => ObserverSnapshot;
+} {
     logger.log(`[observer] connecting to ${wssUrl}`);
     const { bridgeSocket$, bridgeSocketConnectionState$ } =
         getReconnectingBridgeSocket$(wssUrl);
     const subs = new Subscription();
 
+    const snap: ObserverSnapshot = {
+        wsState: 'connecting',
+        latestBridge: null,
+        latestEth: null,
+        lastBridgeAt: 0,
+        lastEthAt: 0,
+    };
+
     subs.add(
         bridgeSocketConnectionState$.subscribe({
-            next: (state) => logger.log(`[observer WS] ${state}`),
+            next: (state) => {
+                snap.wsState = state;
+            },
             error: (err) => logger.error(`[observer WS ERROR] ${String(err)}`),
         })
     );
     subs.add(
         getBridgeStateTopic$(bridgeSocket$).subscribe({
-            next: (s) =>
-                logger.log(
-                    `[observer bridge] stage=${s.stage_name} in=${s.input_slot} out=${s.output_slot} elapsed=${s.elapsed_sec}s`
-                ),
+            next: (s) => {
+                snap.latestBridge = s;
+                snap.lastBridgeAt = Date.now();
+            },
         })
     );
     subs.add(
         getEthStateTopic$(bridgeSocket$).subscribe({
-            next: (s) =>
-                logger.log(
-                    `[observer eth] finality_slot=${s.latest_finality_slot} block=${s.latest_finality_block_number}`
-                ),
+            next: (s) => {
+                snap.latestEth = s;
+                snap.lastEthAt = Date.now();
+            },
         })
     );
 
-    return () => subs.unsubscribe();
+    return {
+        stop: () => subs.unsubscribe(),
+        snapshot: () => snap,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -1161,7 +1193,50 @@ async function main() {
     logger.log(banner);
     appendLine(aggregatePath, banner);
 
-    const stopObserver = startBridgeObserver(script.noriWssUrl);
+    const observer = startBridgeObserver(script.noriWssUrl);
+
+    // Live status banner: redraw in-place every second using ANSI cursor
+    // control so the banner stays pinned instead of scrolling. Other log
+    // lines (user flows, ticks) may still interleave; when they do, the next
+    // tick re-anchors at the new cursor position.
+    let bannerLinesRendered = 0;
+    const statusInterval = setInterval(() => {
+        const snap = observer.snapshot();
+        const now = Date.now();
+        const running = userStates.filter((u) => u.status === 'RUNNING').length;
+        const cooling = userStates.filter(
+            (u) => u.status === 'IDLE' && now < u.nextEligibleAt
+        ).length;
+        const idle = userStates.length - running - cooling;
+        const bridgeAge = snap.latestBridge
+            ? `${Math.floor((now - snap.lastBridgeAt) / 1000)}s`
+            : 'n/a';
+        const ethAge = snap.latestEth
+            ? `${Math.floor((now - snap.lastEthAt) / 1000)}s`
+            : 'n/a';
+        const bridgeLine = snap.latestBridge
+            ? `stage=${snap.latestBridge.stage_name} in=${snap.latestBridge.input_slot} out=${snap.latestBridge.output_slot} elapsed=${snap.latestBridge.elapsed_sec}s age=${bridgeAge}`
+            : `waiting (age=${bridgeAge})`;
+        const ethLine = snap.latestEth
+            ? `finality_slot=${snap.latestEth.latest_finality_slot} block=${snap.latestEth.latest_finality_block_number} age=${ethAge}`
+            : `waiting (age=${ethAge})`;
+        const lines = [
+            ...PLANKTON_ANSI,
+            '─'.repeat(60),
+            `time    : ${new Date().toISOString()}`,
+            `ws      : ${snap.wsState}`,
+            `users   : running=${running}  cooling=${cooling}  idle=${idle}  cap=${script.maxConcurrent}`,
+            `bridge  : ${bridgeLine}`,
+            `eth     : ${ethLine}`,
+            '─'.repeat(60),
+        ];
+        // Move cursor up over previous render and clear to end of screen.
+        if (bannerLinesRendered > 0) {
+            process.stdout.write(`\x1b[${bannerLinesRendered}F\x1b[0J`);
+        }
+        process.stdout.write(lines.join('\n') + '\n');
+        bannerLinesRendered = lines.length;
+    }, 1000);
 
     // Immediate shutdown (no drain, per directive). Workers are killed by
     // process termination; on restart balances are re-read for every user.
@@ -1171,7 +1246,8 @@ async function main() {
         shuttingDown = true;
         logger.log(`${signal} received — shutting down immediately.`);
         appendLine(aggregatePath, tsLine(`${signal} — immediate shutdown`));
-        stopObserver();
+        clearInterval(statusInterval);
+        observer.stop();
         setTimeout(() => process.exit(0), 200);
     };
     process.on('SIGINT', () => shutdown('SIGINT'));
@@ -1285,3 +1361,42 @@ main().catch((err) => {
     logger.fatal(`loadRunner bootstrap failed: ${String(err)}`);
     process.exit(1);
 });
+
+const PLANKTON_ANSI: readonly string[] = [
+    '          ⢠⡀           ⢦',
+    '           ⢳⡀          ⠘⣇',
+    '            ⢹⣤⡀         ⢽⡤',
+    '            ⠁⢹⡄         ⠈⣇',
+    '              ⣻⣄⡀       ⠠⢿⠄',
+    '             ⠈⠁⢷⡀        ⢸⡇',
+    '               ⠘⣷       ⢀⣸⣧',
+    '               ⠖⢻⣗       ⢸⣿',
+    '                ⠘⣿⡀      ⣸⣿⡀',
+    '                ⢠⢿⣷⠤    ⠈⢸⣿⠉',
+    '                 ⠸⣿⡀     ⢸⣿',
+    '                  ⣿⣇    ⠊⢹⡟⠢',
+    '                 ⠊⢹⣏⠁ ⣠⠖⠉⠋⠓⢤⡀',
+    '                ⢀⣔⠚⠙⠐⠤⠃     ⠱⡄',
+    '             ⢠⣶⣿⣿⡿⢿⡿⣀⡀ ⢠⣴⣶⣿⣷⣶⣶⡀',
+    '             ⠈⢉⣜⣥⣶⣶⣶⣶⡝⢶⢋⣋⣩⣭⣭⡙⢿⢏',
+    '             ⢠⡏⣞⣛⣛⠛⠛⡻⡿⠷⡿⠛⠛⣛⣛⣛⡘⣿⡀',
+    '             ⢸⠉⠉⠁⠸⣿⣿⡞⠉⠉⠉⣿⣿⣶⠁⠉⠉⢹⡇',
+    '             ⢸⡄   ⠈⠉  ⡀ ⠈⠉⠁   ⡜⡇',
+    '            ⣠⢼⢙⠦⣄⣀⣀⣀⡤⢞⢙⠢⣄⣀⣀⣀⡤⢞ ⣳⢂⣄',
+    '         ⣀⣠⢺⡄⣟⣸⣷⣶⣿⣭⣶⣾⣾⣿⣿⣶⠏⣳⢦⢸⢗⡜⡱⢋⡈⢳⡀',
+    '      ⣠⠞⣩⠅⣀⠁⢷⢹⣸⣿⣿⣿⢮⣭⣭⣭⣭⣤⠶⢞⣡⣮⢮⠞⡼⢛⠛⡉⠉⠻⡝⠢⡀',
+    '     ⢰⡇⢸⣷⣾⣿⡟⣸⡌⣷⠿⠿⢭⣟⡶⣶⠶⢶⣶⣬⠽⠿⣿⠏⣼⠁⣌⡇⣸⣤ ⣶ ⣿⡄',
+    '     ⠘⣧⡛⣧⠛⣛⣵⣿⡇⠘⢮⣳⣶⣬⡙⢯⠞⣉⣤⣶⢖⡴⠁ ⣿⣆⠻⣿⣿⠟⣡⡟⣠⣿⠃',
+    '      ⣸⠿⠿⢿⢩⣤⡉⢧ ⣀⣹⠮⣯⣥⣿⣘⣻⣽⣞⣉⡀⣰⠚⣡⣌⢻⣶⣶⣾⣿⣿⣿⠃',
+    '      ⢹⣎⣛⢿⣾⣿⡥⠾⠾⠷⢶⣦⣔⡲⣬⣭⣉⣙⣛⡒⠾⣇⣾⣿⠟⣸⡟⣭⡅⣿⣿⠇',
+    '       ⠻⣿⡷⣿⣿⣾⣿⣽⣷⣶⢝⣿⣿⣷⣭⡙⡷⣯⣭⣵⣼⣿⣷⡟⣫⣴⣿⣾⣿⠋',
+    '        ⠈⢿⣿⣿⣿⣿⣿⣿⣿⠿⠛⠉⠠⢙⠿⣿⣷⣿⣿⣿⣿⣻⣿⣿⠿⣻⠕⠁',
+    '          ⠉⠈⢹⠉⠉⠁        ⠉⠛⠛⠛⠿⠟⠁ ⣸⠁',
+    '            ⠸⣀               ⣀⣠⣤⠋',
+    '             ⢹⣿⣿⣶⣶⣶⣶⣶⣶⣶⣶⣶⣶⣿⣿⣿⣿⣿⡟',
+    '             ⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠇',
+    '              ⢹⣿⣿⣿⣿⣿⠟⠛⠛⠛⢿⣿⣿⣿⣿⣿⡟',
+    '              ⠈⣿⣿⣿⠟⠁     ⠙⢿⣿⣿⠟',
+    '            ⢀⣠⣴⣾⣿⣯⡀       ⣈⣿⣯⣄',
+    '            ⠈⠉⠉⠉⠉⠉⠁      ⠘⠛⠛⠛⠛⠛',
+] as const;
