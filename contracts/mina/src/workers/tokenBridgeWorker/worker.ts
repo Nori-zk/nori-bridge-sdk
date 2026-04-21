@@ -23,6 +23,7 @@ import {
     Signature,
     Transaction,
     type VerificationKey,
+    Cache
 } from 'o1js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
@@ -1209,7 +1210,7 @@ export class TokenBridgeWorker {
      *   noriTokenBridgeVerificationKeySafe }` in the
      *   `{ data, hashStr }` form produced by `vkToVkSafe`.
      */
-    async compileMinterDepsNoCache() {
+    async compileMinterDepsNoCache(disableCache = false) {
         logger.log('Compiling all minter dependencies...');
 
         const contracts = [
@@ -1233,7 +1234,8 @@ export class TokenBridgeWorker {
         // Compile all contracts
         const compiledVks = await compileAndOptionallyVerifyContracts(
             logger,
-            contracts
+            contracts,
+            disableCache ? Cache.None : null
         );
 
         // Convert all verification keys to safe format

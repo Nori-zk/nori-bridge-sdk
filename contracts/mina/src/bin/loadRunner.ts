@@ -614,20 +614,62 @@ async function withCancelableTimeout<T>(
 }
 
 /**
+ * Extracts a dedup key from a log message. The bridge's `[deposit]` stream
+ * fires on every WSS frame during mint processing, so we key on the
+ * embedded `stage_name` field — consecutive frames reporting the same
+ * stage collapse into a single log line. For all other messages, the
+ * first bracketed tag (or first word) is the key.
+ */
+function extractDedupKey(msg: string): string {
+    const deposit = msg.match(/\[deposit\]\s*(.*)$/);
+    if (deposit) {
+        const stage = deposit[1].match(/"stage_name"\s*:\s*"([^"]+)"/);
+        return `deposit:${stage ? stage[1] : deposit[1]}`;
+    }
+    const tag = msg.match(/\[([^\]]+)\]/);
+    if (tag) return `tag:${tag[1]}`;
+    return `word:${msg.trim().split(/\s+/)[0] ?? ''}`;
+}
+
+/**
+ * Consecutive-duplicate suppressor. Tracks the last dedup key seen on a
+ * given stream and reports whether the next message should be written.
+ */
+class StageDedup {
+    private last = '';
+    shouldEmit(msg: string): boolean {
+        const key = extractDedupKey(msg);
+        if (key === this.last) return false;
+        this.last = key;
+        return true;
+    }
+}
+
+/**
  * Writes to both the per-user log file AND the aggregate scheduler log so an
- * operator tailing either source gets full context.
+ * operator tailing either source gets full context. Consecutive duplicate
+ * stages are collapsed independently per destination so the aggregate log
+ * still shows one line per (user, stage) transition while the per-user log
+ * stays compact.
  */
 class UserFileLogger {
+    private userDedup = new StageDedup();
     constructor(
         private aggregatePath: string,
         private userPath: string,
-        private label: string
+        private label: string,
+        private aggregateDedup: StageDedup
     ) { }
 
     log(msg: string) {
-        const line = tsLine(`[${this.label}] ${msg}`);
-        appendLine(this.userPath, line);
-        appendLine(this.aggregatePath, line);
+        const prefixed = `[${this.label}] ${msg}`;
+        const line = tsLine(prefixed);
+        if (this.userDedup.shouldEmit(prefixed)) {
+            appendLine(this.userPath, line);
+        }
+        if (this.aggregateDedup.shouldEmit(prefixed)) {
+            appendLine(this.aggregatePath, line);
+        }
     }
 }
 
@@ -807,7 +849,7 @@ async function runUserFlow(
         );
         const compileStart = Date.now();
         const tokenBridgeWorkerReady = compileSemaphore.run(() =>
-            worker.compileAll()
+            worker.compileMinterDepsNoCache(true)
         );
         // Suppress unhandled-rejection if the flow returns (lock revert,
         // receipt missing, outer throw) before awaiting this promise.
@@ -1149,6 +1191,70 @@ function startBridgeObserver(wssUrl: string): {
 // Main / scheduler
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Split-screen terminal UI: stdout hijack + ring buffer + full redraw
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE_RE = /\x1b\[[0-9;?]*[a-zA-Z]/g;
+const stripAnsi = (s: string) => s.replace(ANSI_ESCAPE_RE, '');
+const visibleLen = (s: string) => stripAnsi(s).length;
+const padRightVisible = (s: string, w: number) => {
+    const v = visibleLen(s);
+    return v >= w ? s : s + ' '.repeat(w - v);
+};
+class LogRing {
+    private buf: string[] = [];
+    constructor(private capacity: number) { }
+    push(line: string) {
+        this.buf.push(line);
+        if (this.buf.length > this.capacity) {
+            this.buf.splice(0, this.buf.length - this.capacity);
+        }
+    }
+    tail(n: number): string[] {
+        return this.buf.slice(Math.max(0, this.buf.length - n));
+    }
+}
+
+const logRing = new LogRing(500);
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+let bypassStdout = false;
+let stdoutLineBuffer = '';
+
+function installStdoutHijack() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (process.stdout as unknown as { write: unknown }).write = (
+        chunk: string | Uint8Array,
+        ...rest: unknown[]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ): boolean => {
+        if (bypassStdout) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (originalStdoutWrite as any)(chunk, ...rest);
+        }
+        const str =
+            typeof chunk === 'string'
+                ? chunk
+                : Buffer.from(chunk).toString('utf8');
+        stdoutLineBuffer += str;
+        let nl = stdoutLineBuffer.indexOf('\n');
+        while (nl >= 0) {
+            const line = stdoutLineBuffer.slice(0, nl);
+            stdoutLineBuffer = stdoutLineBuffer.slice(nl + 1);
+            if (line.length > 0) logRing.push(stripAnsi(line));
+            nl = stdoutLineBuffer.indexOf('\n');
+        }
+        return true;
+    };
+}
+
+function restoreStdout() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (process.stdout as unknown as { write: unknown }).write =
+        originalStdoutWrite as unknown;
+}
+
 async function main() {
     const script = parseEnv();
 
@@ -1165,6 +1271,7 @@ async function main() {
     );
     const etherProvider = new ethers.JsonRpcProvider(script.ethRpcUrl);
     const compileSemaphore = new Semaphore(script.maxConcurrentCompiles);
+    const aggregateDedup = new StageDedup();
 
     const userStates: UserState[] = script.users.map((cfg) => ({
         cfg,
@@ -1195,12 +1302,33 @@ async function main() {
 
     const observer = startBridgeObserver(script.noriWssUrl);
 
-    // Live status banner: redraw in-place every second using ANSI cursor
-    // control so the banner stays pinned instead of scrolling. Other log
-    // lines (user flows, ticks) may still interleave; when they do, the next
-    // tick re-anchors at the new cursor position.
-    let bannerLinesRendered = 0;
-    const statusInterval = setInterval(() => {
+    // Install stdout hijack before any further log output so the ring buffer
+    // captures everything (logger.log, scheduler ticks, etc). The TTY is put
+    // into alt-screen + cursor-hidden so regular scrolling never fights the
+    // redraw. All of this is reverted in stopTTY() / shutdown paths.
+    let uiActive = false;
+    const enterAltScreen = () => {
+        if (!process.stdout.isTTY) return;
+        installStdoutHijack();
+        bypassStdout = true;
+        originalStdoutWrite('\x1b[?1049h'); // alt screen
+        originalStdoutWrite('\x1b[?25l');   // hide cursor
+        originalStdoutWrite('\x1b[2J\x1b[H'); // clear + home
+        bypassStdout = false;
+        uiActive = true;
+    };
+    const leaveAltScreen = () => {
+        if (!uiActive) return;
+        bypassStdout = true;
+        originalStdoutWrite('\x1b[?25h');   // show cursor
+        originalStdoutWrite('\x1b[?1049l'); // leave alt screen
+        bypassStdout = false;
+        restoreStdout();
+        uiActive = false;
+    };
+    enterAltScreen();
+
+    const buildBannerLines = (): string[] => {
         const snap = observer.snapshot();
         const now = Date.now();
         const running = userStates.filter((u) => u.status === 'RUNNING').length;
@@ -1220,38 +1348,143 @@ async function main() {
         const ethLine = snap.latestEth
             ? `finality_slot=${snap.latestEth.latest_finality_slot} block=${snap.latestEth.latest_finality_block_number} age=${ethAge}`
             : `waiting (age=${ethAge})`;
-        const lines = [
+        const drainTag = draining ? ' [DRAINING]' : '';
+        return [
             ...PLANKTON_ANSI,
             '─'.repeat(60),
-            `time    : ${new Date().toISOString()}`,
+            `time    : ${new Date().toISOString()}${drainTag}`,
             `ws      : ${snap.wsState}`,
             `users   : running=${running}  cooling=${cooling}  idle=${idle}  cap=${script.maxConcurrent}`,
             `bridge  : ${bridgeLine}`,
             `eth     : ${ethLine}`,
             '─'.repeat(60),
+            "keys    : 'g' graceful drain,  Ctrl+C immediate",
         ];
-        // Move cursor up over previous render and clear to end of screen.
-        if (bannerLinesRendered > 0) {
-            process.stdout.write(`\x1b[${bannerLinesRendered}F\x1b[0J`);
-        }
-        process.stdout.write(lines.join('\n') + '\n');
-        bannerLinesRendered = lines.length;
-    }, 1000);
+    };
 
-    // Immediate shutdown (no drain, per directive). Workers are killed by
-    // process termination; on restart balances are re-read for every user.
+    const renderFrame = () => {
+        if (!uiActive) return;
+        const termW = Math.max(40, process.stdout.columns ?? 120);
+        const termH = Math.max(10, process.stdout.rows ?? 40);
+        const banner = buildBannerLines();
+        const bannerW = Math.min(
+            termW - 6,
+            banner.reduce((m, l) => Math.max(m, visibleLen(l)), 0)
+        );
+        const sep = ' │ ';
+        const logW = Math.max(10, termW - bannerW - sep.length);
+        const rows = termH - 1;
+
+        // Banner is bottom-aligned against its own block: when the terminal
+        // is shorter than the full banner, drop plankton lines from the top
+        // so the status rows (ws/users/bridge/eth/keys) stay visible.
+        const bannerVisible = banner.slice(Math.max(0, banner.length - rows));
+
+        // Wrap log lines at the pane width and keep the most-recent `rows`
+        // wrapped lines. Reading the whole ring is bounded by LogRing
+        // capacity (500) so cost stays predictable.
+        const wrapped: string[] = [];
+        for (const raw of logRing.tail(500)) {
+            const plain = stripAnsi(raw);
+            if (plain.length === 0) {
+                wrapped.push('');
+                continue;
+            }
+            for (let i = 0; i < plain.length; i += logW) {
+                wrapped.push(plain.slice(i, i + logW));
+            }
+        }
+        const tail = wrapped.slice(Math.max(0, wrapped.length - rows));
+        const tailOffset = Math.max(0, rows - tail.length);
+
+        bypassStdout = true;
+        originalStdoutWrite('\x1b[H'); // home cursor
+        for (let r = 0; r < rows; r++) {
+            const bLine = r < bannerVisible.length ? bannerVisible[r] : '';
+            const tailIdx = r - tailOffset;
+            const lLine = tailIdx >= 0 && tailIdx < tail.length ? tail[tailIdx] : '';
+            const left = padRightVisible(bLine, bannerW);
+            const right = lLine.slice(0, logW);
+            originalStdoutWrite(left + sep + right + '\x1b[K');
+            if (r < rows - 1) originalStdoutWrite('\n');
+        }
+        bypassStdout = false;
+    };
+    const statusInterval = setInterval(renderFrame, 1000);
+    process.stdout.on('resize', renderFrame);
+
+    // Two shutdown modes:
+    //   - Immediate (Ctrl+C / SIGTERM): exit now, kill in-flight flows.
+    //   - Graceful ('g' key):            stop scheduling, wait for running
+    //                                    flows to finish, then exit.
     let shuttingDown = false;
+    let draining = false;
+    let drainInterval: NodeJS.Timeout | undefined;
+    const stopTTY = () => {
+        if (process.stdin.isTTY) {
+            try {
+                process.stdin.setRawMode(false);
+            } catch { /* ignore */ }
+            process.stdin.pause();
+        }
+    };
     const shutdown = (signal: string) => {
-        if (shuttingDown) return;
+        if (shuttingDown && !draining) return;
         shuttingDown = true;
+        draining = false;
+        if (drainInterval) clearInterval(drainInterval);
         logger.log(`${signal} received — shutting down immediately.`);
         appendLine(aggregatePath, tsLine(`${signal} — immediate shutdown`));
         clearInterval(statusInterval);
         observer.stop();
+        stopTTY();
+        leaveAltScreen();
         setTimeout(() => process.exit(0), 200);
+    };
+    const gracefulShutdown = () => {
+        if (shuttingDown || draining) return;
+        draining = true;
+        shuttingDown = true; // prevents new ticks from launching flows
+        logger.log(
+            "'g' received — graceful shutdown: waiting for in-flight flows to finish (Ctrl+C to abort)."
+        );
+        appendLine(
+            aggregatePath,
+            tsLine('graceful shutdown requested — draining in-flight flows')
+        );
+        drainInterval = setInterval(() => {
+            const running = userStates.filter((u) => u.status === 'RUNNING').length;
+            if (running === 0) {
+                clearInterval(drainInterval);
+                logger.log('Drain complete — exiting.');
+                appendLine(aggregatePath, tsLine('drain complete — exit'));
+                clearInterval(statusInterval);
+                observer.stop();
+                stopTTY();
+                setTimeout(() => process.exit(0), 200);
+            }
+        }, 500);
     };
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+    // Raw-mode keystroke listener: 'g' = graceful, Ctrl+C = immediate.
+    // In raw mode the kernel no longer raises SIGINT on Ctrl+C, so we
+    // dispatch it manually by character code.
+    if (process.stdin.isTTY) {
+        try {
+            process.stdin.setRawMode(true);
+            process.stdin.setEncoding('utf8');
+            process.stdin.resume();
+            process.stdin.on('data', (key: string) => {
+                if (key === '\u0003') shutdown('SIGINT');
+                else if (key === 'g' || key === 'G') gracefulShutdown();
+            });
+            logger.log("Keys: 'g' = graceful drain, Ctrl+C = immediate.");
+        } catch (err) {
+            logger.log(`raw-mode stdin unavailable: ${String(err)}`);
+        }
+    }
 
     // Recursive setTimeout (not setInterval) so slow ticks don't pile up.
     const tick = () => {
@@ -1297,7 +1530,12 @@ async function main() {
             script.logDir,
             `loadRunner.${u.cfg.label}.log`
         );
-        const uLog = new UserFileLogger(aggregatePath, userLogPath, u.cfg.label);
+        const uLog = new UserFileLogger(
+            aggregatePath,
+            userLogPath,
+            u.cfg.label,
+            aggregateDedup
+        );
         uLog.log(`=== flow #${u.stats.runs} start ===`);
 
         runUserFlow(u.cfg, script, uLog, etherProvider, compileSemaphore)
