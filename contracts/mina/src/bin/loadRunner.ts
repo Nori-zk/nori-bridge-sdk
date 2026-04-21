@@ -83,8 +83,9 @@ const logger = new Logger('LoadRunner');
 // sometimes mis-estimate — this keeps us from bouncing on tight balances.
 const ETH_GAS_BUFFER_ETH = 0.001;
 
-// Default minimum MINA balance: covers setup + mint + retry without waste.
-const MINA_BASE_BUFFER_DEFAULT = 2;
+// LOAD_MINA_MIN_BALANCES — minimum MINA balance required before a flow
+// starts. Covers setup (1 MINA new-account fee) + mint + retry headroom.
+const MINA_MIN_BALANCE_DEFAULT = 2;
 
 // Contract retains 32 deposit roots. We never lag more than this to keep a
 // safety margin below eviction.
@@ -93,7 +94,7 @@ const MAX_CLAIM_LAG_UPDATES = 28;
 // Conservative per-update wait estimate on mesa. Real cadence varies; this is
 // used only to size the claim-lag timeout cap.
 const EXPECTED_UPDATE_INTERVAL_MINUTES = 15;
-const CLAIM_LAG_MIN_TIMEOUT_MINUTES = 30;
+const CLAIM_LAG_MIN_TIMEOUT_MINUTES = 15;
 const CLAIM_LAG_MAX_TIMEOUT_MINUTES = 240;
 
 // Pause after signalTerminate so the worker child can exit cleanly.
@@ -107,6 +108,40 @@ const MINT_GATE_TIMEOUT_MINUTES_DEFAULT = 120;
 // Hard cap on the pre-lock `bridgeStatusesKnownEnoughToLockUnsafe` wait.
 // Same rationale — no upstream timeout in the helper.
 const BRIDGE_READY_TIMEOUT_MINUTES_DEFAULT = 30;
+
+// ---- Env defaults (kept here so tuning is a one-file edit) ----
+
+// LOAD_LOCK_AMOUNTS_ETH — ETH amount per lock. Sepolia is cheap; 0.0001 keeps
+// 1000s of runs affordable while staying above the contract's min unit.
+const LOCK_AMOUNT_ETH_DEFAULT = 0.0001;
+
+// LOAD_ETH_MIN_BALANCES — floor wallet balance before a flow is allowed to
+// run. Acts as operator-mandated headroom beyond a single lock+gas.
+const ETH_MIN_BALANCE_DEFAULT = 0.001;
+
+// LOAD_BASE_TICK_MINUTES — scheduler's base period between launch decisions.
+const BASE_TICK_MINUTES_DEFAULT = 2;
+
+// LOAD_TICK_JITTER_PCT — ±% random jitter around the base tick so the
+// scheduler doesn't align with bridge cadence.
+const TICK_JITTER_PCT_DEFAULT = 40;
+
+// LOAD_MAX_CONCURRENT — true global cap on flows in flight at once.
+const MAX_CONCURRENT_DEFAULT = 2;
+
+// LOAD_MAX_CONCURRENT_COMPILES — cap on parallel compileAll() invocations
+// (CPU-bound, 3–5min each). Independent of max concurrent flows so a flow
+// can lock ETH while queued for a compile slot.
+const MAX_CONCURRENT_COMPILES_DEFAULT = 5;
+
+// LOAD_PER_USER_COOLDOWN_MINUTES — post-flow ineligibility window per user.
+const PER_USER_COOLDOWN_MINUTES_DEFAULT = 5;
+
+// LOAD_MINA_TX_FEE_MINA — fee paid on every Mina tx this script sends.
+const MINA_TX_FEE_MINA_DEFAULT = 0.01;
+
+// LOAD_LOG_DIR — where the three log streams are written.
+const LOG_DIR_DEFAULT = './logs/loadRunner';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -168,27 +203,27 @@ interface UserState {
 
 type FlowResult =
     | {
-          status: 'success';
-          lockTxHash: string;
-          mintTxHash: string;
-          lockedEth: number;
-          mintedBU: string;
-          lockDurationMs: number;
-          mintDurationMs: number;
-          totalDurationMs: number;
-          claimDelayUpdates: number;
-      }
+        status: 'success';
+        lockTxHash: string;
+        mintTxHash: string;
+        lockedEth: number;
+        mintedBU: string;
+        lockDurationMs: number;
+        mintDurationMs: number;
+        totalDurationMs: number;
+        claimDelayUpdates: number;
+    }
     | {
-          status: 'failure';
-          reason: string;
-          lockTxHash?: string;
-          totalDurationMs: number;
-      }
+        status: 'failure';
+        reason: string;
+        lockTxHash?: string;
+        totalDurationMs: number;
+    }
     | {
-          status: 'skipped';
-          reason: string;
-          totalDurationMs: number;
-      };
+        status: 'skipped';
+        reason: string;
+        totalDurationMs: number;
+    };
 
 // ---------------------------------------------------------------------------
 // Env parsing
@@ -342,7 +377,7 @@ function parseEnv(): ScriptConfig {
     const lockAmountsEth = broadcastOrZip(
         parseList(process.env.LOAD_LOCK_AMOUNTS_ETH)?.map(Number),
         userCount,
-        0.0001,
+        LOCK_AMOUNT_ETH_DEFAULT,
         'LOAD_LOCK_AMOUNTS_ETH'
     );
     lockAmountsEth.forEach((amt, i) => {
@@ -362,7 +397,7 @@ function parseEnv(): ScriptConfig {
     const ethMinBalances = broadcastOrZip(
         parseList(process.env.LOAD_ETH_MIN_BALANCES)?.map(Number),
         userCount,
-        0.005,
+        ETH_MIN_BALANCE_DEFAULT,
         'LOAD_ETH_MIN_BALANCES'
     );
     ethMinBalances.forEach((v, i) => {
@@ -375,7 +410,7 @@ function parseEnv(): ScriptConfig {
     const minaMinBalances = broadcastOrZip(
         parseList(process.env.LOAD_MINA_MIN_BALANCES)?.map(Number),
         userCount,
-        MINA_BASE_BUFFER_DEFAULT,
+        MINA_MIN_BALANCE_DEFAULT,
         'LOAD_MINA_MIN_BALANCES'
     );
     minaMinBalances.forEach((v, i) => {
@@ -399,13 +434,13 @@ function parseEnv(): ScriptConfig {
     // Timing env is in MINUTES — Mina is slow and this script runs for days.
     const baseTickMinutes = parseNumberEnv(
         process.env.LOAD_BASE_TICK_MINUTES,
-        2,
+        BASE_TICK_MINUTES_DEFAULT,
         'LOAD_BASE_TICK_MINUTES',
         { min: 0.01 }
     );
     const perUserCooldownMinutes = parseNumberEnv(
         process.env.LOAD_PER_USER_COOLDOWN_MINUTES,
-        5,
+        PER_USER_COOLDOWN_MINUTES_DEFAULT,
         'LOAD_PER_USER_COOLDOWN_MINUTES',
         { min: 0 }
     );
@@ -446,19 +481,19 @@ function parseEnv(): ScriptConfig {
         baseTickMs: baseTickMinutes * 60_000,
         tickJitterPct: parseNumberEnv(
             process.env.LOAD_TICK_JITTER_PCT,
-            40,
+            TICK_JITTER_PCT_DEFAULT,
             'LOAD_TICK_JITTER_PCT',
             { min: 0, max: 200 }
         ),
         maxConcurrent: parseNumberEnv(
             process.env.LOAD_MAX_CONCURRENT,
-            2,
+            MAX_CONCURRENT_DEFAULT,
             'LOAD_MAX_CONCURRENT',
             { min: 1, int: true }
         ),
         maxConcurrentCompiles: parseNumberEnv(
             process.env.LOAD_MAX_CONCURRENT_COMPILES,
-            5,
+            MAX_CONCURRENT_COMPILES_DEFAULT,
             'LOAD_MAX_CONCURRENT_COMPILES',
             { min: 1, int: true }
         ),
@@ -474,11 +509,11 @@ function parseEnv(): ScriptConfig {
         minaTxFeeNanomina:
             parseNumberEnv(
                 process.env.LOAD_MINA_TX_FEE_MINA,
-                0.1,
+                MINA_TX_FEE_MINA_DEFAULT,
                 'LOAD_MINA_TX_FEE_MINA',
                 { min: 0 }
             ) * 1e9,
-        logDir: process.env.LOAD_LOG_DIR ?? './logs/loadRunner',
+        logDir: process.env.LOAD_LOG_DIR ?? LOG_DIR_DEFAULT,
     };
 }
 
@@ -524,7 +559,7 @@ function jitter(baseMs: number, jitterPct: number): number {
 class Semaphore {
     private queue: Array<() => void> = [];
     private active = 0;
-    constructor(private max: number) {}
+    constructor(private max: number) { }
     private acquire(): Promise<void> {
         if (this.active < this.max) {
             this.active += 1;
@@ -587,7 +622,7 @@ class UserFileLogger {
         private aggregatePath: string,
         private userPath: string,
         private label: string
-    ) {}
+    ) { }
 
     log(msg: string) {
         const line = tsLine(`[${this.label}] ${msg}`);
