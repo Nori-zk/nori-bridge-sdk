@@ -212,6 +212,16 @@ interface PaneBalances {
     error?: string;
 }
 
+// One observed value of deposit_processing_status (e.g.
+// WaitingForEthFinality → WaitingForPreviousJobCompletion → ...).
+// Bridge stage_name events only carry meaning while we're inside
+// WaitingForCurrentJobCompletion — see PHASE_LABELS for the user-facing copy.
+interface PhaseRec {
+    status: string;
+    startedAt: number;
+    finishedAt?: number;
+}
+
 interface UserState {
     cfg: UserConfig;
     status: UserStatus;
@@ -226,6 +236,7 @@ interface UserState {
     flowStartedAt?: number;
     currentStage?: string;
     stages: StageRec[];
+    phaseEvents: PhaseRec[];
     lastDepStatus?: string;
     lastSlots?: { inSlot: number; outSlot: number };
     lastDepositBlock?: number;
@@ -931,9 +942,16 @@ async function runUserFlow(
     onStageChange?: (u: UserState) => void
 ): Promise<FlowResult> {
     const cfg = userState.cfg;
+    // Wall-clock start of the whole runUserFlow call; used internally for
+    // measuring overall duration in FlowResult / log output.
     const flowStart = Date.now();
-    userState.flowStartedAt = flowStart;
+    // userState.flowStartedAt is the *user-visible* timer and is intentionally
+    // delayed until after lockTokens() returns — compile + bridge-state-wait
+    // happen before the deposit is actually on-chain, and we don't want that
+    // pre-amble to inflate the per-flow elapsed shown in the TUI.
+    userState.flowStartedAt = undefined;
     userState.stages = [];
+    userState.phaseEvents = [];
     userState.currentStage = undefined;
     userState.lastDepStatus = undefined;
     userState.lastSlots = undefined;
@@ -1046,6 +1064,8 @@ async function runUserFlow(
                 totalDurationMs: Date.now() - flowStart,
             };
         }
+        // Real timer starts here: the deposit has been broadcast.
+        userState.flowStartedAt = Date.now();
         uLog.log(`Lock tx ${txResp.hash} sent, awaiting receipt...`);
         const receipt = await txResp.wait();
         if (!receipt) {
@@ -1120,7 +1140,25 @@ async function runUserFlow(
                             cur.outSlot = m.output_slot;
                         }
                     }
-                    userState.lastDepStatus = m.deposit_processing_status;
+                    // Track high-level phase transitions independently of
+                    // bridge stages: WaitingForEthFinality →
+                    // WaitingForPreviousJobCompletion →
+                    // WaitingForCurrentJobCompletion → ReadyToMint.
+                    const newStatus = m.deposit_processing_status;
+                    if (newStatus && newStatus !== userState.lastDepStatus) {
+                        const prevPhase =
+                            userState.phaseEvents[
+                                userState.phaseEvents.length - 1
+                            ];
+                        if (prevPhase && !prevPhase.finishedAt) {
+                            prevPhase.finishedAt = now;
+                        }
+                        userState.phaseEvents.push({
+                            status: newStatus,
+                            startedAt: now,
+                        });
+                    }
+                    userState.lastDepStatus = newStatus;
                     if (m.input_slot !== undefined && m.output_slot !== undefined) {
                         userState.lastSlots = {
                             inSlot: m.input_slot,
@@ -1465,6 +1503,7 @@ async function main() {
         nextEligibleAt: 0,
         stats: { runs: 0, successes: 0, failures: 0, skipped: 0 },
         stages: [] as StageRec[],
+        phaseEvents: [] as PhaseRec[],
     }));
 
     const banner = [
@@ -1564,27 +1603,6 @@ async function main() {
         return out;
     };
 
-    // Pipeline order within one cycle. The server's `stage_name` field
-    // reports the stage that JUST COMPLETED — so the currently-active stage
-    // is the NEXT entry in this list (wrapping back to the start).
-    const PIPELINE_ORDER: readonly string[] = [
-        'EthProcessorTransactionSubmitting',
-        'EthProcessorTransactionSubmitSucceeded',
-        'EthProcessorTransactionFinalizationSucceeded',
-        'BridgeHeadJobCreated',
-        'BridgeHeadJobSucceeded',
-        'ProofConversionJobReceived',
-        'ProofConversionJobSucceeded',
-        'EthProcessorProofRequest',
-        'EthProcessorProofSucceeded',
-    ];
-    const nextStageAfter = (reported: string | undefined): string | undefined => {
-        if (!reported) return undefined;
-        const idx = PIPELINE_ORDER.indexOf(reported);
-        if (idx < 0) return undefined;
-        return PIPELINE_ORDER[(idx + 1) % PIPELINE_ORDER.length];
-    };
-
     const buildLeftPane = (): string[] => {
         const snap = observer.snapshot();
         const now = Date.now();
@@ -1599,12 +1617,8 @@ async function main() {
         const ethAge = snap.latestEth
             ? `${Math.floor((now - snap.lastEthAt) / 1000)}s`
             : 'n/a';
-        // Server's stage_name is the LAST COMPLETED stage; show what's
-        // actually active right now (the next step in the pipeline cycle).
-        const reportedStage = snap.latestBridge?.stage_name;
-        const activeStage = nextStageAfter(reportedStage) ?? reportedStage;
         const bridgeLine = snap.latestBridge
-            ? `active=${activeStage}`
+            ? `stage=${snap.latestBridge.stage_name}`
             : `waiting`;
         const ethLine = snap.latestEth
             ? `slot=${snap.latestEth.latest_finality_slot} blk=${snap.latestEth.latest_finality_block_number}`
@@ -1675,49 +1689,98 @@ async function main() {
         return undefined;
     };
 
+    // Human-readable label for the deposit_processing_status values. The
+    // bridge stage_name pipeline only matters during
+    // WaitingForCurrentJobCompletion — until then the deposit is either
+    // (a) waiting for L1 finality or (b) waiting for the current bridge
+    // batch to finish before its own batch starts.
+    const PHASE_LABELS: Record<string, string> = {
+        WaitingForEthFinality: 'Awaiting ETH finality',
+        WaitingForPreviousJobCompletion: 'Waiting for batch turn',
+        WaitingForCurrentJobCompletion: 'Bridge processing batch',
+        ReadyToMint: 'Ready to mint',
+        MissedMintingOpportunity: 'Missed mint window',
+    };
+    const phaseLabel = (status: string): string =>
+        PHASE_LABELS[status] ?? status;
+
     const buildUserDetailPanel = (u: UserState, w: number): string[] => {
         const headerLabel = `user: ${u.cfg.label}  [${u.status}]`;
         const now = Date.now();
         const flowElapsed = u.flowStartedAt
             ? formatSec((now - u.flowStartedAt) / 1000)
-            : '—';
-        // currentStage holds the LAST COMPLETED stage. The active stage is
-        // whatever comes next in the pipeline cycle.
-        const lastCompleted = u.currentStage;
-        const active = nextStageAfter(lastCompleted);
-        const lastRec = u.stages[u.stages.length - 1];
-        // Time-since-last-event is the closest proxy for "time spent on the
-        // currently-active stage" (server hasn't reported its completion yet).
-        const sinceLastSec = lastRec
-            ? Math.floor((now - lastRec.startedAt) / 1000)
-            : 0;
+            : 'pre-lock';
+        const cur = u.currentStage;
+        const curRec = u.stages[u.stages.length - 1];
+        const curPhase = u.phaseEvents[u.phaseEvents.length - 1];
         const etaLabel =
-            lastRec && lastRec.etaSec && lastRec.etaSec > 0
-                ? `~${formatSec(lastRec.etaSec)} eta`
+            curRec && curRec.etaSec && curRec.etaSec > 0
+                ? `~${formatSec(curRec.etaSec)} eta`
                 : 'eta —';
 
-        // Pipeline: show last up-to-6 reported stages (each = a completion
-        // event). Mark the implicit "active" step as a synthetic trailing
-        // entry so users can see what's currently in flight.
-        const recent = u.stages.slice(-6);
+        // Pipeline: top-level rows are the deposit's high-level phases.
+        // Bridge stage_name events only matter while the current phase is
+        // WaitingForCurrentJobCompletion — show those indented under it.
         const pipelineRows: string[] = ['pipeline:'];
-        if (recent.length === 0) {
-            pipelineRows.push('  (no deposit events yet)');
-        } else {
-            for (const s of recent) {
-                const dur = s.finishedAt
-                    ? formatSec((s.finishedAt - s.startedAt) / 1000)
-                    : formatSec(s.serverElapsedSec);
-                const bucket = bucketFor(s.name);
-                const name = bucket ? `${bucket} (${s.name})` : s.name;
-                pipelineRows.push(`  ● ${name}  ${dur}`);
+        if (u.flowStartedAt) {
+            const lockEnd = u.phaseEvents[0]?.startedAt;
+            const lockDur = lockEnd
+                ? formatSec((lockEnd - u.flowStartedAt) / 1000)
+                : formatSec((now - u.flowStartedAt) / 1000);
+            const lockMark = lockEnd ? '●' : '◐';
+            pipelineRows.push(`  ${lockMark} ETH lock submitted  ${lockDur}`);
+        }
+        if (u.phaseEvents.length === 0) {
+            if (u.flowStartedAt) {
+                pipelineRows.push('  ○ (waiting for first deposit event…)');
+            } else {
+                pipelineRows.push('  (no deposit events yet)');
             }
-            if (active) {
-                const bucket = bucketFor(active);
-                const name = bucket ? `${bucket} (${active})` : active;
-                pipelineRows.push(
-                    `  ◐ ${name}  ${formatSec(sinceLastSec)} real · ${etaLabel}`
-                );
+        } else {
+            for (let i = 0; i < u.phaseEvents.length; i++) {
+                const p = u.phaseEvents[i];
+                const isCurrent = p === curPhase;
+                const dur = p.finishedAt
+                    ? formatSec((p.finishedAt - p.startedAt) / 1000)
+                    : formatSec((now - p.startedAt) / 1000);
+                const mark = p.finishedAt ? '●' : '◐';
+                pipelineRows.push(`  ${mark} ${phaseLabel(p.status)}  ${dur}`);
+
+                // Show bridge sub-stages only during the active
+                // WaitingForCurrentJobCompletion phase (older batches
+                // observed during WaitingForPrevious… are not ours).
+                if (
+                    isCurrent &&
+                    p.status === 'WaitingForCurrentJobCompletion'
+                ) {
+                    const innerStages = u.stages.filter(
+                        (s) => s.startedAt >= p.startedAt
+                    );
+                    for (const s of innerStages) {
+                        const isStageActive = s === curRec;
+                        const sMark = isStageActive
+                            ? '◐'
+                            : s.finishedAt
+                                ? '●'
+                                : '●';
+                        const realElapsed = Math.max(
+                            s.serverElapsedSec,
+                            Math.floor((now - s.startedAt) / 1000)
+                        );
+                        const sDur = isStageActive
+                            ? `${formatSec(realElapsed)} real · ${etaLabel}`
+                            : s.finishedAt
+                                ? formatSec(
+                                    (s.finishedAt - s.startedAt) / 1000
+                                )
+                                : formatSec(s.serverElapsedSec);
+                        const bucket = bucketFor(s.name);
+                        const name = bucket
+                            ? `${bucket} (${s.name})`
+                            : s.name;
+                        pipelineRows.push(`      ${sMark} ${name}  ${sDur}`);
+                    }
+                }
             }
         }
 
@@ -1731,17 +1794,22 @@ async function main() {
                 ? `(err: ${bal.error})`
                 : `(${formatAgo(bal?.fetchedAt)})`;
 
-        const depLabel = u.lastDepStatus ?? '—';
         const slotLabel = u.lastSlots
             ? `${u.lastSlots.inSlot} → ${u.lastSlots.outSlot}`
             : '—';
+        // Top-of-panel summary: high-level phase, plus the in-flight bridge
+        // stage when (and only when) it's actually meaningful.
+        const phaseLine = curPhase ? phaseLabel(curPhase.status) : '—';
+        const stageLine =
+            curPhase?.status === 'WaitingForCurrentJobCompletion' && cur
+                ? `${bucketFor(cur) ?? cur}`
+                : '—';
 
         const out = [
             headerLabel,
             `flow  : ${flowElapsed}  ·  runs ${u.stats.runs} ok=${u.stats.successes} fail=${u.stats.failures} skip=${u.stats.skipped}`,
-            `active: ${active ?? '—'}`,
-            `last  : ${lastCompleted ?? '—'}`,
-            `dep   : ${depLabel}`,
+            `phase : ${phaseLine}`,
+            `stage : ${stageLine}`,
             `slot  : ${slotLabel}`,
             '',
             ...pipelineRows,
@@ -1759,22 +1827,28 @@ async function main() {
         const rows: string[] = [header];
         for (let i = 0; i < userStates.length; i++) {
             const u = userStates[i];
-            const lastRec = u.stages[u.stages.length - 1];
-            // Reported stage is the LAST COMPLETED — display the active
-            // (next) bucket so the user sees what's currently in flight.
-            const active = nextStageAfter(u.currentStage);
-            const stageLabel = active
-                ? `${bucketFor(active) ?? active}`
-                : u.currentStage
-                    ? `${bucketFor(u.currentStage) ?? u.currentStage}?`
-                    : u.status === 'RUNNING'
-                        ? '(no deposit yet)'
-                        : u.nextEligibleAt > Date.now()
-                            ? 'COOLING'
-                            : 'IDLE';
-            const dur = lastRec
-                ? ` ${formatSec(Math.floor((Date.now() - lastRec.startedAt) / 1000))}`
-                : '';
+            const curPhase = u.phaseEvents[u.phaseEvents.length - 1];
+            const curRec = u.stages[u.stages.length - 1];
+            // High-level phase is the meaningful indicator. The bridge
+            // sub-stage is only relevant during WaitingForCurrentJobCompletion.
+            let stageLabel: string;
+            let durRef: number | undefined;
+            if (curPhase) {
+                if (curPhase.status === 'WaitingForCurrentJobCompletion' && curRec) {
+                    stageLabel = `${phaseLabel(curPhase.status)} · ${bucketFor(curRec.name) ?? curRec.name}`;
+                    durRef = Math.max(curRec.serverElapsedSec * 1000, Date.now() - curRec.startedAt);
+                } else {
+                    stageLabel = phaseLabel(curPhase.status);
+                    durRef = Date.now() - curPhase.startedAt;
+                }
+            } else if (u.status === 'RUNNING') {
+                stageLabel = u.flowStartedAt ? 'pre-deposit' : 'compiling…';
+            } else if (u.nextEligibleAt > Date.now()) {
+                stageLabel = 'COOLING';
+            } else {
+                stageLabel = 'IDLE';
+            }
+            const dur = durRef !== undefined ? ` ${formatSec(durRef / 1000)}` : '';
             const stats = `runs=${u.stats.runs} ok=${u.stats.successes} f=${u.stats.failures}`;
             rows.push(
                 `  ${u.cfg.label.padEnd(8)} ${u.status.padEnd(7)} ${stageLabel}${dur}  ${stats}`
