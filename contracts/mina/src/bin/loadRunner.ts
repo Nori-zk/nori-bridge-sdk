@@ -41,19 +41,14 @@ import 'dotenv/config';
 import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { Mina, PrivateKey, fetchAccount, type NetworkId } from 'o1js';
+import { Field, Mina, PrivateKey, fetchAccount, type NetworkId } from 'o1js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { NoriTokenBridge__factory } from '@nori-zk/ethereum-token-bridge';
 import {
-    filter,
-    firstValueFrom,
-    map,
-    race,
     share,
     Subject,
     Subscription,
     takeUntil,
-    timer,
     type Observable,
 } from 'rxjs';
 
@@ -91,11 +86,12 @@ const MINA_MIN_BALANCE_DEFAULT = 2;
 // safety margin below eviction.
 const MAX_CLAIM_LAG_UPDATES = 28;
 
-// Conservative per-update wait estimate on mesa. Real cadence varies; this is
-// used only to size the claim-lag timeout cap.
-const EXPECTED_UPDATE_INTERVAL_MINUTES = 15;
-const CLAIM_LAG_MIN_TIMEOUT_MINUTES = 15;
-const CLAIM_LAG_MAX_TIMEOUT_MINUTES = 240;
+// Stall watchdog for the claim-lag wait: we don't cap TOTAL time, we cap
+// silence between advances. A single mesa update can take 15–60min (avg ~30);
+// waiting N updates just means summing N of those. What's actually abnormal
+// is an extended gap with no advances at all, so we bail if no fresh slot
+// lands for this long.
+const CLAIM_LAG_STALL_TIMEOUT_MINUTES = 45;
 
 // Pause after signalTerminate so the worker child can exit cleanly.
 const WORKER_SETTLE_MS_DEFAULT = 5000;
@@ -170,6 +166,7 @@ interface ScriptConfig {
     noriTokenBaseAddressBase58: string;
     noriWssUrl: string;
     noriPcsUrl: string;
+    noriTokenBaseTokenId: string;
     minaRpcUrl: string;
     minaArchiveRpcUrl: string;
     minaNetworkId: NetworkId;
@@ -189,6 +186,32 @@ interface ScriptConfig {
 
 type UserStatus = 'IDLE' | 'RUNNING';
 
+/**
+ * One observed stage transition. `startedAt` is the local timestamp when we
+ * first saw this `stage_name`; `finishedAt` is set when the next stage_name
+ * arrives. `serverElapsedSec` / `etaSec` are the server's self-reported
+ * numbers on the last message for this stage — elapsed is real, eta is a
+ * prediction from prior runs.
+ */
+interface StageRec {
+    name: string;
+    startedAt: number;
+    finishedAt?: number;
+    serverElapsedSec: number;
+    etaSec?: number;
+    depStatus?: string;
+    inSlot?: number;
+    outSlot?: number;
+}
+
+interface PaneBalances {
+    eth: number;
+    mina: number;
+    nEth: number | null;
+    fetchedAt: number;
+    error?: string;
+}
+
 interface UserState {
     cfg: UserConfig;
     status: UserStatus;
@@ -199,6 +222,15 @@ interface UserState {
         failures: number;
         skipped: number;
     };
+    // TUI state: populated incrementally from runUserFlow + TUI side.
+    flowStartedAt?: number;
+    currentStage?: string;
+    stages: StageRec[];
+    lastDepStatus?: string;
+    lastSlots?: { inSlot: number; outSlot: number };
+    lastDepositBlock?: number;
+    balances?: PaneBalances;
+    balancesLoading?: boolean;
 }
 
 type FlowResult =
@@ -471,6 +503,9 @@ function parseEnv(): ScriptConfig {
             staging.NORI_MINA_TOKEN_BASE_ADDRESS,
         noriWssUrl: process.env.NORI_WSS_URL ?? staging.NORI_WSS_URL,
         noriPcsUrl: process.env.NORI_PCS_URL ?? staging.NORI_PCS_URL,
+        noriTokenBaseTokenId:
+            process.env.NORI_MINA_TOKEN_BASE_TOKEN_ID ??
+            staging.NORI_MINA_TOKEN_BASE_TOKEN_ID,
         minaRpcUrl:
             process.env.MINA_RPC_NETWORK_URL ?? staging.MINA_RPC_NETWORK_URL,
         minaArchiveRpcUrl:
@@ -613,47 +648,56 @@ async function withCancelableTimeout<T>(
     }
 }
 
-/**
- * Extracts a dedup key from a log message. The bridge's `[deposit]` stream
- * fires on every WSS frame during mint processing, so we key on the
- * embedded `stage_name` field — consecutive frames reporting the same
- * stage collapse into a single log line. For all other messages, the
- * first bracketed tag (or first word) is the key.
- */
-function extractDedupKey(msg: string): string {
-    const deposit = msg.match(/\[deposit\]\s*(.*)$/);
-    if (deposit) {
-        const stage = deposit[1].match(/"stage_name"\s*:\s*"([^"]+)"/);
-        return `deposit:${stage ? stage[1] : deposit[1]}`;
+// Shared split-screen buffers. The TTY UI (below) redraws these, and the
+// per-user + scheduler loggers push through them so the right pane reflects
+// all flow activity regardless of who emitted it.
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE_RE_INLINE = /\x1b\[[0-9;?]*[a-zA-Z]/g;
+const stripAnsi = (s: string) => s.replace(ANSI_ESCAPE_RE_INLINE, '');
+class LogRing {
+    private buf: string[] = [];
+    constructor(private capacity: number) { }
+    push(line: string) {
+        this.buf.push(line);
+        if (this.buf.length > this.capacity) {
+            this.buf.splice(0, this.buf.length - this.capacity);
+        }
     }
-    const tag = msg.match(/\[([^\]]+)\]/);
-    if (tag) return `tag:${tag[1]}`;
-    return `word:${msg.trim().split(/\s+/)[0] ?? ''}`;
+    tail(n: number): string[] {
+        return this.buf.slice(Math.max(0, this.buf.length - n));
+    }
 }
+const logRing = new LogRing(500);
 
 /**
- * Consecutive-duplicate suppressor. Tracks the last dedup key seen on a
- * given stream and reports whether the next message should be written.
+ * Consecutive-duplicate suppressor. Only collapses the bridge's `[deposit]`
+ * stream, which fires on every WSS frame during mint processing — keying on
+ * the embedded `stage_name` field so we get one line per stage transition.
+ * Every other log passes through unchanged so compile progress, lock/mint
+ * timing, WS state transitions, etc. all appear verbatim.
  */
 class StageDedup {
-    private last = '';
+    private lastDepositStage = '';
     shouldEmit(msg: string): boolean {
-        const key = extractDedupKey(msg);
-        if (key === this.last) return false;
-        this.last = key;
+        const deposit = msg.match(/\[deposit\]\s*(.*)$/);
+        if (!deposit) return true;
+        const stageMatch = deposit[1].match(/"stage_name"\s*:\s*"([^"]+)"/);
+        const key = stageMatch ? stageMatch[1] : deposit[1];
+        if (key === this.lastDepositStage) return false;
+        this.lastDepositStage = key;
         return true;
     }
 }
 
 /**
- * Writes to both the per-user log file AND the aggregate scheduler log so an
- * operator tailing either source gets full context. Consecutive duplicate
- * stages are collapsed independently per destination so the aggregate log
- * still shows one line per (user, stage) transition while the per-user log
- * stays compact.
+ * Writes to the per-user log file, the aggregate scheduler log, AND mirrors
+ * to the split-screen ring so the right pane reflects flow activity. Each
+ * destination has its own dedup state to keep [deposit] chatter bounded
+ * without hiding any other messages.
  */
 class UserFileLogger {
     private userDedup = new StageDedup();
+    private ringDedup = new StageDedup();
     constructor(
         private aggregatePath: string,
         private userPath: string,
@@ -669,6 +713,9 @@ class UserFileLogger {
         }
         if (this.aggregateDedup.shouldEmit(prefixed)) {
             appendLine(this.aggregatePath, line);
+        }
+        if (this.ringDedup.shouldEmit(prefixed)) {
+            logRing.push(stripAnsi(line));
         }
     }
 }
@@ -687,46 +734,64 @@ function pickClaimDelayUpdates(): number {
 }
 
 /**
- * Waits for N distinct bridge output_slot advances, or for timeoutMs,
- * whichever fires first. Never throws on timeout — better to mint early
- * than miss the window.
+ * Waits for N distinct bridge output_slot advances, with an inactivity
+ * watchdog: bails if no new advance is seen for `stallTimeoutMs`. Never
+ * throws — on stall we resolve with `completed=false` so the caller can
+ * decide (typically still try to mint; the on-chain call is authoritative).
  *
- * `timeoutMs` is a stall-guard, NOT an expected-wait estimate. Mesa updates
- * can take 15min+ each — callers should compute a cap that comfortably
- * exceeds normal cadence.
+ * The first emission of `bridgeStateTopic$` is the replayed current slot, not
+ * a fresh advance — we capture it as a baseline and count only strictly
+ * greater slots.
  */
-async function waitForBridgeUpdatesOrTimeout(
+async function waitForBridgeUpdatesOrStall(
     bridgeStateTopic$: Observable<{ output_slot: number }>,
     updatesToWaitFor: number,
-    timeoutMs: number,
+    stallTimeoutMs: number,
     onUpdate: (count: number, slot: number) => void
-): Promise<void> {
-    if (updatesToWaitFor <= 0) return;
+): Promise<{ completed: boolean; reason?: string; received: number }> {
+    if (updatesToWaitFor <= 0) return { completed: true, received: 0 };
 
-    // getBridgeStateTopic$ is shareReplay(1): the first emission after
-    // subscribing is the CURRENT slot, not a fresh advance. Capture it as the
-    // baseline and count only strictly-greater slots so the caller gets the N
-    // future advances they asked for.
-    let baselineSlot: number | undefined;
-    const seen = new Set<number>();
-    let count = 0;
-    const distinctAdvances$ = bridgeStateTopic$.pipe(
-        map((s) => s.output_slot),
-        filter((slot) => {
-            if (baselineSlot === undefined) {
-                baselineSlot = slot;
+    return new Promise((resolve) => {
+        let baselineSlot: number | undefined;
+        const seen = new Set<number>();
+        let count = 0;
+        let stallTimer: NodeJS.Timeout | undefined;
+        const done = (completed: boolean, reason?: string) => {
+            if (stallTimer) clearTimeout(stallTimer);
+            sub.unsubscribe();
+            resolve({ completed, reason, received: count });
+        };
+        const armStall = () => {
+            if (stallTimer) clearTimeout(stallTimer);
+            stallTimer = setTimeout(
+                () =>
+                    done(
+                        false,
+                        `no advance in ${Math.round(stallTimeoutMs / 60_000)}min`
+                    ),
+                stallTimeoutMs
+            );
+        };
+        armStall();
+        const sub = bridgeStateTopic$.subscribe({
+            next: (s) => {
+                const slot = s.output_slot;
+                if (baselineSlot === undefined) {
+                    baselineSlot = slot;
+                    seen.add(slot);
+                    return;
+                }
+                if (slot <= baselineSlot || seen.has(slot)) return;
                 seen.add(slot);
-                return false;
-            }
-            if (slot <= baselineSlot || seen.has(slot)) return false;
-            seen.add(slot);
-            count += 1;
-            onUpdate(count, slot);
-            return count >= updatesToWaitFor;
-        })
-    );
-
-    await firstValueFrom(race(distinctAdvances$, timer(timeoutMs)));
+                count += 1;
+                onUpdate(count, slot);
+                if (count >= updatesToWaitFor) done(true);
+                else armStall();
+            },
+            error: () => done(false, 'stream error'),
+            complete: () => done(false, 'stream completed'),
+        });
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -787,6 +852,60 @@ async function checkBalances(
     return { ok: true, reason: '', ethBalanceEth, minaBalance };
 }
 
+/**
+ * Read ETH, MINA, and nETH balances for the TUI side panel. Never throws —
+ * failures are recorded as NaN with an `error` note so the pane can still
+ * render. Intentionally fetches without a worker: nETH is read via
+ * `Mina.getAccount(..., tokenId)` directly so we don't spin up a worker for
+ * every IDLE user.
+ */
+async function fetchPaneBalances(
+    u: UserState,
+    script: ScriptConfig,
+    etherProvider: ethers.JsonRpcProvider
+): Promise<void> {
+    u.balancesLoading = true;
+    try {
+        const ethWallet = new ethers.Wallet(u.cfg.ethPrivKeyHex, etherProvider);
+        const ethAddr = await ethWallet.getAddress();
+        const ethWei = await etherProvider.getBalance(ethAddr);
+        const eth = Number(ethers.formatEther(ethWei));
+
+        const minaPubKey = PrivateKey.fromBase58(
+            u.cfg.minaPrivKeyBase58
+        ).toPublicKey();
+        await fetchAccount({ publicKey: minaPubKey });
+        let mina = 0;
+        try {
+            mina = Number(Mina.getAccount(minaPubKey).balance.toBigInt()) / 1e9;
+        } catch { /* account doesn't exist yet */ }
+
+        let nEth: number | null = null;
+        try {
+            const fetched = await fetchAccount({ publicKey: minaPubKey, tokenId: Field.fromValue(script.noriTokenBaseTokenId) });
+            nEth =
+                Number(
+                    fetched.account.balance.toBigInt()
+                )
+                / 1e6;
+        } catch {
+            nEth = 0;
+        }
+
+        u.balances = { eth, mina, nEth, fetchedAt: Date.now() };
+    } catch (err) {
+        u.balances = {
+            eth: NaN,
+            mina: NaN,
+            nEth: null,
+            fetchedAt: Date.now(),
+            error: String(err).slice(0, 60),
+        };
+    } finally {
+        u.balancesLoading = false;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Per-user flow
 // ---------------------------------------------------------------------------
@@ -804,13 +923,20 @@ async function checkBalances(
  * with a single `await tokenBridgeWorkerReady` right after the lock receipt.
  */
 async function runUserFlow(
-    cfg: UserConfig,
+    userState: UserState,
     script: ScriptConfig,
     uLog: UserFileLogger,
     etherProvider: ethers.JsonRpcProvider,
-    compileSemaphore: Semaphore
+    compileSemaphore: Semaphore,
+    onStageChange?: (u: UserState) => void
 ): Promise<FlowResult> {
+    const cfg = userState.cfg;
     const flowStart = Date.now();
+    userState.flowStartedAt = flowStart;
+    userState.stages = [];
+    userState.currentStage = undefined;
+    userState.lastDepStatus = undefined;
+    userState.lastSlots = undefined;
     let lockDurationMs = 0;
     let mintDurationMs = 0;
 
@@ -952,9 +1078,68 @@ async function runUserFlow(
         ).pipe(takeUntil(cancelMintGate$), share());
         subs.add(
             depositProcessingStatus$.subscribe({
-                next: (msg) => uLog.log(`[deposit] ${JSON.stringify(msg)}`),
+                next: (msg) => {
+                    uLog.log(`[deposit] ${JSON.stringify(msg)}`);
+                    // Mirror to UserState so the TUI can render pipeline
+                    // + balances without scraping the log ring.
+                    const m = msg as unknown as {
+                        stage_name?: string;
+                        elapsed_sec?: number;
+                        time_remaining_sec?: number;
+                        deposit_processing_status?: string;
+                        input_slot?: number;
+                        output_slot?: number;
+                        deposit_block_number?: number;
+                    };
+                    if (!m.stage_name) return;
+                    const now = Date.now();
+                    const stageChanged =
+                        userState.currentStage !== m.stage_name;
+                    if (stageChanged) {
+                        const prev =
+                            userState.stages[userState.stages.length - 1];
+                        if (prev && !prev.finishedAt) prev.finishedAt = now;
+                        userState.stages.push({
+                            name: m.stage_name,
+                            startedAt: now,
+                            serverElapsedSec: m.elapsed_sec ?? 0,
+                            etaSec: m.time_remaining_sec,
+                            depStatus: m.deposit_processing_status,
+                            inSlot: m.input_slot,
+                            outSlot: m.output_slot,
+                        });
+                        userState.currentStage = m.stage_name;
+                    } else {
+                        const cur =
+                            userState.stages[userState.stages.length - 1];
+                        if (cur) {
+                            cur.serverElapsedSec = m.elapsed_sec ?? cur.serverElapsedSec;
+                            cur.etaSec = m.time_remaining_sec ?? cur.etaSec;
+                            cur.depStatus = m.deposit_processing_status;
+                            cur.inSlot = m.input_slot;
+                            cur.outSlot = m.output_slot;
+                        }
+                    }
+                    userState.lastDepStatus = m.deposit_processing_status;
+                    if (m.input_slot !== undefined && m.output_slot !== undefined) {
+                        userState.lastSlots = {
+                            inSlot: m.input_slot,
+                            outSlot: m.output_slot,
+                        };
+                    }
+                    userState.lastDepositBlock = m.deposit_block_number;
+                    if (stageChanged) onStageChange?.(userState);
+                },
                 error: (err) => uLog.log(`[deposit ERROR] ${String(err)}`),
-                complete: () => uLog.log('[deposit] processing completed'),
+                complete: () => {
+                    // The upstream observable completes on MissedMintingOpportunity
+                    // (a narrow-window heuristic) OR teardown via cancelMintGate$.
+                    // Neither implies the on-chain mint will fail, so don't
+                    // phrase this as terminal.
+                    uLog.log('[deposit] WSS stream ended (informational only)');
+                    const last = userState.stages[userState.stages.length - 1];
+                    if (last && !last.finishedAt) last.finishedAt = Date.now();
+                },
             })
         );
 
@@ -967,13 +1152,24 @@ async function runUserFlow(
             );
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            uLog.log(`readyToComputeMintProof threw: ${msg}`);
-            return {
-                status: 'failure',
-                reason: `missed mint window (pre-proof): ${msg}`,
-                lockTxHash: txResp.hash,
-                totalDurationMs: Date.now() - flowStart,
-            };
+            // Same rationale as the canMint catch below: the observable's
+            // "missed" heuristic is unreliable. Only a true timeout (from
+            // withCancelableTimeout) should bail — anything else, log and
+            // fall through to setup + attempt mint.
+            const isMissedHeuristic =
+                /miss/i.test(msg) && !msg.includes('timed out');
+            if (!isMissedHeuristic) {
+                uLog.log(`readyToComputeMintProof threw (timeout): ${msg}`);
+                return {
+                    status: 'failure',
+                    reason: `missed mint window (pre-proof): ${msg}`,
+                    lockTxHash: txResp.hash,
+                    totalDurationMs: Date.now() - flowStart,
+                };
+            }
+            uLog.log(
+                `readyToComputeMintProof reports missed (heuristic): ${msg} — attempting mint anyway`
+            );
         }
 
         const minaPubKeyBase58 = PrivateKey.fromBase58(cfg.minaPrivKeyBase58)
@@ -1016,36 +1212,46 @@ async function runUserFlow(
             );
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            uLog.log(`canMint threw: ${msg}`);
-            return {
-                status: 'failure',
-                reason: `missed mint window (pre-send): ${msg}`,
-                lockTxHash: txResp.hash,
-                totalDurationMs: Date.now() - flowStart,
-            };
+            // The observable's "MissedMintingOpportunity" classification uses
+            // a narrow window heuristic that often fires before the on-chain
+            // window actually closes. We've already paid for compile + setup
+            // + attestation witness — let the on-chain mint call decide.
+            // Real timeouts (cancelMintGate$ fired) still bail.
+            const isMissedHeuristic =
+                /miss/i.test(msg) && !msg.includes('timed out');
+            if (!isMissedHeuristic) {
+                uLog.log(`canMint threw (timeout): ${msg}`);
+                return {
+                    status: 'failure',
+                    reason: `missed mint window (pre-send): ${msg}`,
+                    lockTxHash: txResp.hash,
+                    totalDurationMs: Date.now() - flowStart,
+                };
+            }
+            uLog.log(
+                `canMint reports missed (heuristic): ${msg} — attempting mint anyway`
+            );
         }
 
         const claimDelayUpdates = pickClaimDelayUpdates();
         if (claimDelayUpdates > 0) {
-            const timeoutMin = Math.min(
-                CLAIM_LAG_MAX_TIMEOUT_MINUTES,
-                Math.max(
-                    CLAIM_LAG_MIN_TIMEOUT_MINUTES,
-                    claimDelayUpdates * EXPECTED_UPDATE_INTERVAL_MINUTES
-                )
-            );
             uLog.log(
-                `Lagging claim: ${claimDelayUpdates} update(s) or ${timeoutMin}min timeout`
+                `Lagging claim: ${claimDelayUpdates} update(s) (stall watchdog: ${CLAIM_LAG_STALL_TIMEOUT_MINUTES}min)`
             );
-            await waitForBridgeUpdatesOrTimeout(
+            const lagResult = await waitForBridgeUpdatesOrStall(
                 bridgeStateTopic$,
                 claimDelayUpdates,
-                timeoutMin * 60_000,
+                CLAIM_LAG_STALL_TIMEOUT_MINUTES * 60_000,
                 (count, slot) =>
                     uLog.log(
                         `[claim-lag] ${count}/${claimDelayUpdates} (slot ${slot})`
                     )
             );
+            if (!lagResult.completed) {
+                uLog.log(
+                    `[claim-lag] giving up after ${lagResult.received}/${claimDelayUpdates} (${lagResult.reason}) — attempting mint anyway`
+                );
+            }
         }
 
         const needsToFundAccount = await worker.needsToFundAccount(
@@ -1195,39 +1401,20 @@ function startBridgeObserver(wssUrl: string): {
 // Split-screen terminal UI: stdout hijack + ring buffer + full redraw
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line no-control-regex
-const ANSI_ESCAPE_RE = /\x1b\[[0-9;?]*[a-zA-Z]/g;
-const stripAnsi = (s: string) => s.replace(ANSI_ESCAPE_RE, '');
 const visibleLen = (s: string) => stripAnsi(s).length;
 const padRightVisible = (s: string, w: number) => {
     const v = visibleLen(s);
     return v >= w ? s : s + ' '.repeat(w - v);
 };
-class LogRing {
-    private buf: string[] = [];
-    constructor(private capacity: number) { }
-    push(line: string) {
-        this.buf.push(line);
-        if (this.buf.length > this.capacity) {
-            this.buf.splice(0, this.buf.length - this.capacity);
-        }
-    }
-    tail(n: number): string[] {
-        return this.buf.slice(Math.max(0, this.buf.length - n));
-    }
-}
 
-const logRing = new LogRing(500);
 const originalStdoutWrite = process.stdout.write.bind(process.stdout);
 let bypassStdout = false;
 let stdoutLineBuffer = '';
 
 function installStdoutHijack() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (process.stdout as unknown as { write: unknown }).write = (
         chunk: string | Uint8Array,
         ...rest: unknown[]
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ): boolean => {
         if (bypassStdout) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1250,7 +1437,6 @@ function installStdoutHijack() {
 }
 
 function restoreStdout() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (process.stdout as unknown as { write: unknown }).write =
         originalStdoutWrite as unknown;
 }
@@ -1278,6 +1464,7 @@ async function main() {
         status: 'IDLE',
         nextEligibleAt: 0,
         stats: { runs: 0, successes: 0, failures: 0, skipped: 0 },
+        stages: [] as StageRec[],
     }));
 
     const banner = [
@@ -1328,7 +1515,77 @@ async function main() {
     };
     enterAltScreen();
 
-    const buildBannerLines = (): string[] => {
+    // TUI state: -1 == ALL users summary; >= 0 == specific user detail.
+    let selectedUserIndex = -1;
+    const TOP_RIGHT_ROWS = 14;
+
+    const formatSec = (s: number | undefined): string => {
+        if (s === undefined || !Number.isFinite(s)) return '—';
+        if (s < 60) return `${Math.floor(s)}s`;
+        const m = Math.floor(s / 60);
+        const r = Math.floor(s % 60);
+        return `${m}m${String(r).padStart(2, '0')}s`;
+    };
+    const formatAgo = (t: number | undefined): string => {
+        if (!t) return 'never';
+        const d = Math.floor((Date.now() - t) / 1000);
+        if (d < 60) return `${d}s ago`;
+        const m = Math.floor(d / 60);
+        const s = d % 60;
+        return `${m}m${String(s).padStart(2, '0')}s ago`;
+    };
+    const formatNum = (n: number | null | undefined, digits = 4): string => {
+        if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+        return n.toFixed(digits);
+    };
+
+    const LEFT_PANE_WIDTH = 40;
+
+    // Wrap a single line to `width`, indenting continuation rows under the
+    // value column when the line is `LABEL: value` style. Otherwise indents
+    // continuations by 2 spaces.
+    const wrapLine = (line: string, width: number): string[] => {
+        if (line.length <= width) return [line];
+        const m = line.match(/^([^:]*?:\s+)(.+)$/);
+        let prefix = '';
+        let value = line;
+        if (m) {
+            prefix = m[1];
+            value = m[2];
+        }
+        const indent = prefix ? ' '.repeat(prefix.length) : '  ';
+        const firstWidth = Math.max(1, width - prefix.length);
+        const contWidth = Math.max(1, width - indent.length);
+        const out: string[] = [];
+        out.push(prefix + value.slice(0, firstWidth));
+        for (let i = firstWidth; i < value.length; i += contWidth) {
+            out.push(indent + value.slice(i, i + contWidth));
+        }
+        return out;
+    };
+
+    // Pipeline order within one cycle. The server's `stage_name` field
+    // reports the stage that JUST COMPLETED — so the currently-active stage
+    // is the NEXT entry in this list (wrapping back to the start).
+    const PIPELINE_ORDER: readonly string[] = [
+        'EthProcessorTransactionSubmitting',
+        'EthProcessorTransactionSubmitSucceeded',
+        'EthProcessorTransactionFinalizationSucceeded',
+        'BridgeHeadJobCreated',
+        'BridgeHeadJobSucceeded',
+        'ProofConversionJobReceived',
+        'ProofConversionJobSucceeded',
+        'EthProcessorProofRequest',
+        'EthProcessorProofSucceeded',
+    ];
+    const nextStageAfter = (reported: string | undefined): string | undefined => {
+        if (!reported) return undefined;
+        const idx = PIPELINE_ORDER.indexOf(reported);
+        if (idx < 0) return undefined;
+        return PIPELINE_ORDER[(idx + 1) % PIPELINE_ORDER.length];
+    };
+
+    const buildLeftPane = (): string[] => {
         const snap = observer.snapshot();
         const now = Date.now();
         const running = userStates.filter((u) => u.status === 'RUNNING').length;
@@ -1342,47 +1599,219 @@ async function main() {
         const ethAge = snap.latestEth
             ? `${Math.floor((now - snap.lastEthAt) / 1000)}s`
             : 'n/a';
+        // Server's stage_name is the LAST COMPLETED stage; show what's
+        // actually active right now (the next step in the pipeline cycle).
+        const reportedStage = snap.latestBridge?.stage_name;
+        const activeStage = nextStageAfter(reportedStage) ?? reportedStage;
         const bridgeLine = snap.latestBridge
-            ? `stage=${snap.latestBridge.stage_name} in=${snap.latestBridge.input_slot} out=${snap.latestBridge.output_slot} elapsed=${snap.latestBridge.elapsed_sec}s age=${bridgeAge}`
-            : `waiting (age=${bridgeAge})`;
+            ? `active=${activeStage}`
+            : `waiting`;
         const ethLine = snap.latestEth
-            ? `finality_slot=${snap.latestEth.latest_finality_slot} block=${snap.latestEth.latest_finality_block_number} age=${ethAge}`
-            : `waiting (age=${ethAge})`;
+            ? `slot=${snap.latestEth.latest_finality_slot} blk=${snap.latestEth.latest_finality_block_number}`
+            : `waiting`;
         const drainTag = draining ? ' [DRAINING]' : '';
-        return [
+        const raw = [
             ...PLANKTON_ANSI,
-            '─'.repeat(60),
-            `time    : ${new Date().toISOString()}${drainTag}`,
-            `ws      : ${snap.wsState}`,
-            `users   : running=${running}  cooling=${cooling}  idle=${idle}  cap=${script.maxConcurrent}`,
-            `bridge  : ${bridgeLine}`,
-            `eth     : ${ethLine}`,
-            '─'.repeat(60),
-            "keys    : 'g' graceful drain,  Ctrl+C immediate",
+            '─'.repeat(LEFT_PANE_WIDTH - 6),
+            `time  : ${new Date().toISOString().slice(11, 19)}Z${drainTag}`,
+            `ws    : ${snap.wsState}`,
+            `users : run=${running} cool=${cooling} idle=${idle}`,
+            `bridge: ${bridgeLine} (${bridgeAge})`,
+            `eth   : ${ethLine} (${ethAge})`,
+            '',
+            `keys  : ←/→ select user`,
+            `        ! launch all IDLE`,
+            `        g graceful drain`,
+            `        Ctrl+C immediate`,
         ];
+        const wrapped: string[] = [];
+        for (const line of raw) {
+            for (const w of wrapLine(line, LEFT_PANE_WIDTH)) wrapped.push(w);
+        }
+        return wrapped;
+    };
+
+    // Map raw stage_name to compact pipeline buckets. One bucket may have
+    // multiple stage_names that we collapse into a "current step of" view.
+    const PIPELINE_BUCKETS: ReadonlyArray<{
+        label: string;
+        stages: readonly string[];
+    }> = [
+            {
+                label: 'EthSubmit',
+                stages: [
+                    'EthProcessorTransactionSubmitting',
+                    'EthProcessorTransactionSubmitSucceeded',
+                ],
+            },
+            {
+                label: 'EthFinalize',
+                stages: ['EthProcessorTransactionFinalizationSucceeded'],
+            },
+            {
+                label: 'BridgeHead',
+                stages: ['BridgeHeadJobCreated', 'BridgeHeadJobSucceeded'],
+            },
+            {
+                label: 'ProofConv',
+                stages: [
+                    'ProofConversionJobReceived',
+                    'ProofConversionJobSucceeded',
+                ],
+            },
+            {
+                label: 'EthProof',
+                stages: [
+                    'EthProcessorProofRequest',
+                    'EthProcessorProofSucceeded',
+                ],
+            },
+        ];
+
+    const bucketFor = (stageName: string): string | undefined => {
+        for (const b of PIPELINE_BUCKETS) {
+            if (b.stages.includes(stageName)) return b.label;
+        }
+        return undefined;
+    };
+
+    const buildUserDetailPanel = (u: UserState, w: number): string[] => {
+        const headerLabel = `user: ${u.cfg.label}  [${u.status}]`;
+        const now = Date.now();
+        const flowElapsed = u.flowStartedAt
+            ? formatSec((now - u.flowStartedAt) / 1000)
+            : '—';
+        // currentStage holds the LAST COMPLETED stage. The active stage is
+        // whatever comes next in the pipeline cycle.
+        const lastCompleted = u.currentStage;
+        const active = nextStageAfter(lastCompleted);
+        const lastRec = u.stages[u.stages.length - 1];
+        // Time-since-last-event is the closest proxy for "time spent on the
+        // currently-active stage" (server hasn't reported its completion yet).
+        const sinceLastSec = lastRec
+            ? Math.floor((now - lastRec.startedAt) / 1000)
+            : 0;
+        const etaLabel =
+            lastRec && lastRec.etaSec && lastRec.etaSec > 0
+                ? `~${formatSec(lastRec.etaSec)} eta`
+                : 'eta —';
+
+        // Pipeline: show last up-to-6 reported stages (each = a completion
+        // event). Mark the implicit "active" step as a synthetic trailing
+        // entry so users can see what's currently in flight.
+        const recent = u.stages.slice(-6);
+        const pipelineRows: string[] = ['pipeline:'];
+        if (recent.length === 0) {
+            pipelineRows.push('  (no deposit events yet)');
+        } else {
+            for (const s of recent) {
+                const dur = s.finishedAt
+                    ? formatSec((s.finishedAt - s.startedAt) / 1000)
+                    : formatSec(s.serverElapsedSec);
+                const bucket = bucketFor(s.name);
+                const name = bucket ? `${bucket} (${s.name})` : s.name;
+                pipelineRows.push(`  ● ${name}  ${dur}`);
+            }
+            if (active) {
+                const bucket = bucketFor(active);
+                const name = bucket ? `${bucket} (${active})` : active;
+                pipelineRows.push(
+                    `  ◐ ${name}  ${formatSec(sinceLastSec)} real · ${etaLabel}`
+                );
+            }
+        }
+
+        const bal = u.balances;
+        const balLine1 = bal
+            ? `ETH=${formatNum(bal.eth, 5)}  MINA=${formatNum(bal.mina, 4)}  nETH=${formatNum(bal.nEth, 6)}`
+            : 'ETH=—  MINA=—  nETH=—';
+        const balAge = u.balancesLoading
+            ? '(loading…)'
+            : bal?.error
+                ? `(err: ${bal.error})`
+                : `(${formatAgo(bal?.fetchedAt)})`;
+
+        const depLabel = u.lastDepStatus ?? '—';
+        const slotLabel = u.lastSlots
+            ? `${u.lastSlots.inSlot} → ${u.lastSlots.outSlot}`
+            : '—';
+
+        const out = [
+            headerLabel,
+            `flow  : ${flowElapsed}  ·  runs ${u.stats.runs} ok=${u.stats.successes} fail=${u.stats.failures} skip=${u.stats.skipped}`,
+            `active: ${active ?? '—'}`,
+            `last  : ${lastCompleted ?? '—'}`,
+            `dep   : ${depLabel}`,
+            `slot  : ${slotLabel}`,
+            '',
+            ...pipelineRows,
+            '',
+            `bal   : ${balLine1}`,
+            `        ${balAge}`,
+        ];
+        // Pad/truncate to TOP_RIGHT_ROWS
+        while (out.length < TOP_RIGHT_ROWS) out.push('');
+        return out.slice(0, TOP_RIGHT_ROWS).map((l) => l.slice(0, w));
+    };
+
+    const buildAllUsersPanel = (w: number): string[] => {
+        const header = 'users (←/→ to focus)';
+        const rows: string[] = [header];
+        for (let i = 0; i < userStates.length; i++) {
+            const u = userStates[i];
+            const lastRec = u.stages[u.stages.length - 1];
+            // Reported stage is the LAST COMPLETED — display the active
+            // (next) bucket so the user sees what's currently in flight.
+            const active = nextStageAfter(u.currentStage);
+            const stageLabel = active
+                ? `${bucketFor(active) ?? active}`
+                : u.currentStage
+                    ? `${bucketFor(u.currentStage) ?? u.currentStage}?`
+                    : u.status === 'RUNNING'
+                        ? '(no deposit yet)'
+                        : u.nextEligibleAt > Date.now()
+                            ? 'COOLING'
+                            : 'IDLE';
+            const dur = lastRec
+                ? ` ${formatSec(Math.floor((Date.now() - lastRec.startedAt) / 1000))}`
+                : '';
+            const stats = `runs=${u.stats.runs} ok=${u.stats.successes} f=${u.stats.failures}`;
+            rows.push(
+                `  ${u.cfg.label.padEnd(8)} ${u.status.padEnd(7)} ${stageLabel}${dur}  ${stats}`
+            );
+        }
+        while (rows.length < TOP_RIGHT_ROWS) rows.push('');
+        return rows.slice(0, TOP_RIGHT_ROWS).map((l) => l.slice(0, w));
     };
 
     const renderFrame = () => {
         if (!uiActive) return;
-        const termW = Math.max(40, process.stdout.columns ?? 120);
-        const termH = Math.max(10, process.stdout.rows ?? 40);
-        const banner = buildBannerLines();
-        const bannerW = Math.min(
-            termW - 6,
-            banner.reduce((m, l) => Math.max(m, visibleLen(l)), 0)
+        const termW = Math.max(60, process.stdout.columns ?? 120);
+        const termH = Math.max(16, process.stdout.rows ?? 40);
+        const leftLines = buildLeftPane();
+        const leftW = Math.min(
+            LEFT_PANE_WIDTH,
+            leftLines.reduce((m, l) => Math.max(m, visibleLen(l)), 0)
         );
         const sep = ' │ ';
-        const logW = Math.max(10, termW - bannerW - sep.length);
+        const rightW = Math.max(20, termW - leftW - sep.length);
         const rows = termH - 1;
 
-        // Banner is bottom-aligned against its own block: when the terminal
-        // is shorter than the full banner, drop plankton lines from the top
-        // so the status rows (ws/users/bridge/eth/keys) stay visible.
-        const bannerVisible = banner.slice(Math.max(0, banner.length - rows));
+        // Left pane: bottom-aligned so plankton scrolls off the top first.
+        const leftVisible = leftLines.slice(
+            Math.max(0, leftLines.length - rows)
+        );
 
-        // Wrap log lines at the pane width and keep the most-recent `rows`
-        // wrapped lines. Reading the whole ring is bounded by LogRing
-        // capacity (500) so cost stays predictable.
+        const topRows = Math.min(TOP_RIGHT_ROWS, Math.max(4, rows - 3));
+        const logRows = Math.max(1, rows - topRows - 1); // -1 for divider row
+
+        const topPanel =
+            selectedUserIndex >= 0 &&
+                selectedUserIndex < userStates.length
+                ? buildUserDetailPanel(userStates[selectedUserIndex], rightW)
+                : buildAllUsersPanel(rightW);
+
+        // Wrap log lines to rightW and take the last logRows wrapped lines.
         const wrapped: string[] = [];
         for (const raw of logRing.tail(500)) {
             const plain = stripAnsi(raw);
@@ -1390,21 +1819,32 @@ async function main() {
                 wrapped.push('');
                 continue;
             }
-            for (let i = 0; i < plain.length; i += logW) {
-                wrapped.push(plain.slice(i, i + logW));
+            for (let i = 0; i < plain.length; i += rightW) {
+                wrapped.push(plain.slice(i, i + rightW));
             }
         }
-        const tail = wrapped.slice(Math.max(0, wrapped.length - rows));
-        const tailOffset = Math.max(0, rows - tail.length);
+        const tail = wrapped.slice(Math.max(0, wrapped.length - logRows));
+        const tailOffset = Math.max(0, logRows - tail.length);
 
         bypassStdout = true;
         originalStdoutWrite('\x1b[H'); // home cursor
         for (let r = 0; r < rows; r++) {
-            const bLine = r < bannerVisible.length ? bannerVisible[r] : '';
-            const tailIdx = r - tailOffset;
-            const lLine = tailIdx >= 0 && tailIdx < tail.length ? tail[tailIdx] : '';
-            const left = padRightVisible(bLine, bannerW);
-            const right = lLine.slice(0, logW);
+            const leftLine = r < leftVisible.length ? leftVisible[r] : '';
+            const left = padRightVisible(leftLine, leftW);
+
+            let right = '';
+            if (r < topRows) {
+                right = topPanel[r] ?? '';
+            } else if (r === topRows) {
+                right = '─'.repeat(rightW);
+            } else {
+                const tIdx = r - topRows - 1 - tailOffset;
+                right =
+                    tIdx >= 0 && tIdx < tail.length
+                        ? tail[tIdx]
+                        : '';
+            }
+
             originalStdoutWrite(left + sep + right + '\x1b[K');
             if (r < rows - 1) originalStdoutWrite('\n');
         }
@@ -1468,9 +1908,45 @@ async function main() {
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-    // Raw-mode keystroke listener: 'g' = graceful, Ctrl+C = immediate.
-    // In raw mode the kernel no longer raises SIGINT on Ctrl+C, so we
-    // dispatch it manually by character code.
+    // `!` key: bring the scheduler forward for every IDLE user that's still
+    // in cooldown. Respects maxConcurrent — the subsequent tick will only
+    // launch up to `slotsAvailable` flows; any leftovers get picked up on
+    // the next natural tick (their nextEligibleAt is already 0).
+    const fireAllIdle = () => {
+        if (shuttingDown) return;
+        const touched = userStates.filter(
+            (u) => u.status === 'IDLE' && u.nextEligibleAt > 0
+        );
+        for (const u of touched) u.nextEligibleAt = 0;
+        logger.log(
+            `[!] cleared cooldown for ${touched.length}/${userStates.length} idle user(s); firing tick`
+        );
+        try {
+            tick();
+        } catch (err) {
+            logger.error(`tick (from !) error: ${String(err)}`);
+        }
+    };
+
+    // Cycle selectedUserIndex through [-1 (ALL), 0 .. N-1]. On switch to a
+    // real user, kick a balance refresh so the pane shows fresh numbers.
+    const cycleUser = (delta: 1 | -1) => {
+        const total = userStates.length + 1; // +1 for ALL
+        const cur = selectedUserIndex + 1; // [0..N]
+        const next = (cur + delta + total) % total;
+        selectedUserIndex = next - 1;
+        if (selectedUserIndex >= 0) {
+            const u = userStates[selectedUserIndex];
+            if (!u.balancesLoading) {
+                void fetchPaneBalances(u, script, etherProvider);
+            }
+        }
+        renderFrame();
+    };
+
+    // Raw-mode keystroke listener. In raw mode Ctrl+C no longer raises SIGINT
+    // automatically, so we dispatch it manually by character code. Arrow
+    // keys arrive as 3-byte CSI sequences (ESC [ C | ESC [ D).
     if (process.stdin.isTTY) {
         try {
             process.stdin.setRawMode(true);
@@ -1479,8 +1955,13 @@ async function main() {
             process.stdin.on('data', (key: string) => {
                 if (key === '\u0003') shutdown('SIGINT');
                 else if (key === 'g' || key === 'G') gracefulShutdown();
+                else if (key === '!') fireAllIdle();
+                else if (key === '\x1b[C') cycleUser(1); // right arrow
+                else if (key === '\x1b[D') cycleUser(-1); // left arrow
             });
-            logger.log("Keys: 'g' = graceful drain, Ctrl+C = immediate.");
+            logger.log(
+                "Keys: ←/→ select user, ! launch idle, g drain, Ctrl+C immediate."
+            );
         } catch (err) {
             logger.log(`raw-mode stdin unavailable: ${String(err)}`);
         }
@@ -1538,7 +2019,17 @@ async function main() {
         );
         uLog.log(`=== flow #${u.stats.runs} start ===`);
 
-        runUserFlow(u.cfg, script, uLog, etherProvider, compileSemaphore)
+        runUserFlow(u, script, uLog, etherProvider, compileSemaphore, (us) => {
+            // Refresh balances on every stage transition, but only for the
+            // currently-selected user to avoid burning RPC budget on all N.
+            if (
+                selectedUserIndex >= 0 &&
+                userStates[selectedUserIndex] === us &&
+                !us.balancesLoading
+            ) {
+                void fetchPaneBalances(us, script, etherProvider);
+            }
+        })
             .then((result) => {
                 appendLine(
                     summaryPath,
