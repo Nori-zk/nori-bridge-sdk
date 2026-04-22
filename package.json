@@ -28,6 +28,9 @@
         "typescript": "^5.1.0",
         "typescript-eslint": "^8.55.0"
     },
+    "overrides": {
+        "o1js": "3.0.0-mesa-native.0"
+    },
     "scripts": {
         "build": "npm run build --workspaces --if-present",
         "lint": "npm run lint --workspaces --if-present",
