@@ -28,6 +28,7 @@ class EthInput extends Struct({
     verifiedContractDepositsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
     contractAddress: Bytes20.provable,
+    genesisRoot: Bytes32.provable,
 }) { }
 
 const EthVerifier = ZkProgram({
@@ -73,6 +74,7 @@ const EthVerifier = ZkProgram({
                 bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
                 bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
                 bytes = bytes.concat(input.contractAddress.bytes);
+                bytes = bytes.concat(input.genesisRoot.bytes);
 
                 // Check that zkprograminput is same as passed to the SP1 program
                 const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.

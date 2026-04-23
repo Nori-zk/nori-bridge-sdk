@@ -270,6 +270,7 @@ export class NoriTokenBridge
         bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
         bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
         bytes = bytes.concat(input.contractAddress.bytes);
+        bytes = bytes.concat(input.genesisRoot.bytes);
 
 
         // Check that zkprograminput is same as passed to the SP1 program
