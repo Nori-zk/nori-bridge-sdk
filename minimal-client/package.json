@@ -32,7 +32,7 @@
         "@nori-zk/ethereum-token-bridge": "*",
         "@nori-zk/proof-conversion": "0.8.19",
         "@nori-zk/mina-token-bridge": "*",
-        "@nori-zk/pts-types": "5.0.0",
+        "@nori-zk/pts-types": "6.0.1",
         "@nori-zk/workers": "*",
         "esm-iso-logger": "1.0.2",
         "ethers": "^6.16.0",

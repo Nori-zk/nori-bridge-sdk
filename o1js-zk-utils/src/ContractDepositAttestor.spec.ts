@@ -46,7 +46,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         const contractStorageSlots =
             sp1ConsensusMPTPlonkProof.contract_storage_slots.map((slot) => {
                 const codeChallenge = Bytes32.fromHex(
-                    slot.slot_nested_key_attestation_hash
+                    slot.slot_key_code_challenge
                         .slice(2)
                         .padStart(64, '0')
                 );

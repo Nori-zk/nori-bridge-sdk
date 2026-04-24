@@ -1,24 +1,9 @@
 import type { NoriSP1ProofInput } from '@nori-zk/pts-types';
-import sp1ConsensusMPTPlonkProofRaw from './10080800-v6.1.0.json' with { type: 'json' };
-const sp1ConsensusMPTPlonkProof = sp1ConsensusMPTPlonkProofRaw as WorkerOutputBridgeHeadMessage;
+import sp1ConsensusMPTPlonkProofRaw from './10102688-v6.1.0.json' with { type: 'json' };
 
-type VerifiedContractStorageSlot = {
-    slot_key_address: string;
-    slot_nested_key_attestation_hash: string;
-    value: string;
-};
-
-type WorkerOutputBridgeHeadMessage = {
-    input_slot: number;
-    input_block_number: number;
-    input_store_hash: string;
-    output_slot: number;
-    output_block_number: number;
-    output_store_hash: string;
-    proof: NoriSP1ProofInput;
-    execution_state_root: string;
-    contract_storage_slots: VerifiedContractStorageSlot[];
-    elapsed_sec: number;
+const sp1ConsensusMPTPlonkProof = {
+    ...sp1ConsensusMPTPlonkProofRaw,
+    proof: sp1ConsensusMPTPlonkProofRaw.proof as unknown as NoriSP1ProofInput,
 };
 
 export { sp1ConsensusMPTPlonkProof };
