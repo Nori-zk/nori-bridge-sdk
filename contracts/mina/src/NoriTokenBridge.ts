@@ -18,7 +18,9 @@ import {
     UInt8,
     Bytes,
     Struct,
-    Reducer
+    Reducer,
+    VerificationKey,
+    AccountUpdateForest
 } from 'o1js';
 // NodeProofLeft must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -27,26 +29,22 @@ import {
     NodeProofLeft,
     parsePlonkPublicInputsProvable,
 } from '@nori-zk/proof-conversion/min';
-// VerificationKey/AccountUpdateForest must be a value import for @method decorator runtime validation
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { EthInput, bytes32LEToFieldProvable, Bytes20 } from '@nori-zk/o1js-zk-utils';
 import {
+    EthInput, bytes32LEToFieldProvable, Bytes20,
     Bytes32,
     Bytes32FieldPair,
     proofConversionSP1ToPlonkVkData,
 } from '@nori-zk/o1js-zk-utils';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-import {
-    extractCodeChallengeAndTotalLocked,
-    getContractDepositSlotRootFromContractDepositAndWitness,
-} from './depositAttestation.js';
 // MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
+import {
+    MerkleTreeContractDepositAttestorInput, extractCodeChallengeAndTotalLocked,
+    getContractDepositSlotRootFromContractDepositAndWitness,
+} from './depositAttestation.js';
 // SCRAMWitness must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SCRAMWitness, verifyCodeChallenge } from './scram.js';
@@ -452,6 +450,7 @@ export class NoriTokenBridge
                 setVerificationKey:
                     Permissions.VerificationKey.impossibleDuringCurrentVersion(),
                 setPermissions: Permissions.proof(), //imposible?
+                access: Permissions.proof(),
             },
         };
 
@@ -581,6 +580,8 @@ export class NoriTokenBridge
     }
     /** 
      * Update the verification key.
+     * Required if proof-conversion vk has to change.
+     * May be required for any changes with ethVerify() like EthInput type
      */
     @method
     async updateVerificationKey(vk: VerificationKey) {
@@ -597,7 +598,7 @@ export class NoriTokenBridge
         await this.ensureAdminSignature();
         this.proofConversionPO2.set(newPO2);
     }
-
+    // we need it in case Helios changes it's store structure 
     @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
         await this.ensureAdminSignature();
         this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
@@ -608,7 +609,7 @@ export class NoriTokenBridge
 
     /**
      * Admin-only helper that dispatches a deposit root directly into the window,
-     * bypassing update(). Exists for testing, to be deleted.
+     * bypassing update(). @TODO Exists for testing, to be deleted.
      */
     @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
         await this.ensureAdminSignature();
@@ -631,7 +632,7 @@ export class NoriTokenBridge
     @method.returns(Bool)
     public async canChangeAdmin(_admin: PublicKey) {
         await this.ensureAdminSignature();
-        return Bool(true);
+        return Bool(false);
     }
 
     @method.returns(Bool)
