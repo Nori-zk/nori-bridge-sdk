@@ -23,10 +23,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     uint32 public constant FEE_DENOMINATOR = 100_000;
     uint256 public constant MIN_FEE_BU = 10;
     uint256 public constant MIN_LOCK_AMOUNT_WEI = 100 * WEI_PER_BRIDGE_UNIT; // 0.0001 ETH minimum deposit
-    /// @notice The NoriStorageInterface zkApp verification key hash. Set at deployment.
-    bytes32 public immutable NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH;
-    /// @notice The NoriStorageInterface zkApp tokenID. Set at deployment.
-    bytes32 public immutable NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID;
     // -------------------------------
     // Custom Errors
     // -------------------------------
@@ -74,6 +70,10 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Hash(publicKey, tokenId) -> burnSoFar (in bridge units, matches Mina appState)
     mapping(uint256 => uint256) public unlockedTokens;
 
+    /// @notice The NoriStorageInterface zkApp verification key hash. Set at deployment.
+    bytes32 public immutable NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH;
+    /// @notice The NoriStorageInterface zkApp tokenID. Set at deployment.
+    bytes32 public immutable NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID;
     // -------------------------------
     // Fee State
     // -------------------------------
