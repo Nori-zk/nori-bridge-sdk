@@ -98,7 +98,10 @@
         "typescript-eslint": "^8.55.0"
     },
     "peerDependencies": {
-        "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
+        "o1js": "3.0.0-mesa.698ca"
+    },
+    "overrides": {
+        "o1js": "3.0.0-mesa.698ca"
     },
     "engines": {
         "node": ">=18.14.0"
@@ -106,7 +109,7 @@
     "dependencies": {
         "@nori-zk/o1js-zk-utils": "*",
         "@nori-zk/workers": "*",
-        "@nori-zk/proof-conversion": "*",
+        "@nori-zk/proof-conversion": "0.8.19",
         "autrace": "^0.0.25",
         "dotenv": "^17.2.4",
         "esm-iso-logger": "1.0.2",

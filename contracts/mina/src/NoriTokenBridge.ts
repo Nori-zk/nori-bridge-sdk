@@ -251,8 +251,11 @@ export class NoriTokenBridge
         // Verification of proof conversion
         // vk = proofConversionOutput.vkData
         // this is also from nodeVK
-        const vk = VerificationKey.fromJSON(proofConversionSP1ToPlonkVkData);
-
+        // const vk = VerificationKey.fromJSON(JSON.stringify(proofConversionSP1ToPlonkVkData));
+        const vk = VerificationKey.fromValue({
+            data: proofConversionSP1ToPlonkVkData.data,
+            hash: Field(proofConversionSP1ToPlonkVkData.hash),
+        })
 
         proof.verify(vk);
 
