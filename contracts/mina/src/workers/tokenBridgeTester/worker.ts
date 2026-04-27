@@ -23,6 +23,7 @@ import {
     Field,
     Mina,
     type NetworkId,
+    Poseidon,
     PrivateKey,
     PublicKey,
     Signature,
@@ -126,6 +127,7 @@ export class TokenBridgeTester {
         tokenBasePrivateKeyBase58: string,
         storeHashHex: string,
         ethTokenBridgeAddressHex: string,
+        genesisRootHex: string,
         storageInterfaceVerificationKeySafe: SafeVK,
         pi0: string,
         po2: string,
@@ -148,6 +150,7 @@ export class TokenBridgeTester {
         const ethTokenBridgeAddress = Bytes20.fromHex(
             ethTokenBridgeAddressHex
         ).toField();
+        const genesisRoot = Poseidon.hash(Bytes32.fromHex(genesisRootHex).toFields());
 
         const noriTokenBridgePrivateKey = PrivateKey.fromBase58(
             noriTokenBridgePrivateKeyBase58
@@ -184,6 +187,7 @@ export class TokenBridgeTester {
                     storageVKHash: storageInterfaceVerificationKey.hash,
                     newStoreHash,
                     ethTokenBridgeAddress,
+                    genesisRoot,
                     noriHeliosProgramPi0: FrC.from(pi0),
                     proofConversionPO2: Field.from(po2),
                 });

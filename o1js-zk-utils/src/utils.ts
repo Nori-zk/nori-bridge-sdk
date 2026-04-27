@@ -3,6 +3,7 @@ import {
     type Cache,
     Field,
     Provable,
+    Poseidon,
     type SmartContract,
     UInt64,
     UInt8,
@@ -254,6 +255,11 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 export function extractEthTokenBridgeAddressFromSP1Proof(example: CreateProofArgument): Field {
     const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
     return new Bytes20(decoded.contractAddress.bytes).toField();
+}
+
+export function extractGenesisRootFromSP1Proof(example: CreateProofArgument): Field {
+    const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
+    return Poseidon.hash(new Bytes32(decoded.genesisRoot.bytes).toFields());
 }
 
 // Compile and verify contracts utility
