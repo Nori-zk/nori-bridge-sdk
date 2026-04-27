@@ -23,13 +23,10 @@ contract NoriTokenBridge is ReentrancyGuard {
     uint32 public constant FEE_DENOMINATOR = 100_000;
     uint256 public constant MIN_FEE_BU = 10;
     uint256 public constant MIN_LOCK_AMOUNT_WEI = 100 * WEI_PER_BRIDGE_UNIT; // 0.0001 ETH minimum deposit
-    /// The NoriStorageInterface zkApp verification key hash.
-    bytes32 constant NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH =
-        0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3; // TODO need change it
-
-    /// @notice The NoriStorageInterface zkApp tokenID.
-    bytes32 constant NORI_STORAGE_ZKAPP_ACCT_TOKEN_ID =
-        0x1b848805a3db129b6b41adca52c9b6f380d58dc9c283f73ce17466a01b90d361; // TODO need change it
+    /// @notice The NoriStorageInterface zkApp verification key hash. Set at deployment.
+    bytes32 public immutable NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH;
+    /// @notice The NoriStorageInterface zkApp tokenID. Set at deployment.
+    bytes32 public immutable NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID;
     // -------------------------------
     // Custom Errors
     // -------------------------------
@@ -131,10 +128,20 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Constructor
     // -------------------------------
     /// @param _bridgeOperator The admin address (expected to be a Safe in production).
+    /// @param _stateSettlementAddr Mina state settlement contract address.
+    /// @param _accountValidationAddr Mina account validation contract address.
+    /// @param _zkappAcctTokenId The Mina zkApp account tokenID expected during unlock validation.
+    /// @param _zkappAcctVerificationKeyHash The keccak256 of the ABI-encoded NoriStorage zkApp
+    ///        verification key, expected during unlock validation.
+    /// @param _feeRecipient Initial treasury address that will receive accumulated fees.
+    ///        Pass `address(0)` to defer; it can be configured later via `setFeeRecipient`.
     constructor(
         address _bridgeOperator,
         address _stateSettlementAddr,
-        address _accountValidationAddr
+        address _accountValidationAddr,
+        bytes32 _zkappAcctTokenId,
+        bytes32 _zkappAcctVerificationKeyHash,
+        address _feeRecipient
     ) {
         assert(DECIMALS < 18);
         if (
@@ -146,6 +153,13 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         stateSettlement = MinaStateSettlement(_stateSettlementAddr);
         accountValidation = MinaAccountValidation(_accountValidationAddr);
+        NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID = _zkappAcctTokenId;
+        NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH = _zkappAcctVerificationKeyHash;
+
+        if (_feeRecipient != address(0)) {
+            feeRecipient = _feeRecipient;
+            emit FeeRecipientSet(address(0), _feeRecipient);
+        }
 
         emit StateSettlementSet(_stateSettlementAddr);
         emit AccountValidationSet(_accountValidationAddr);
@@ -154,7 +168,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Configuration
     // those should only change if mina has hardfork so maybe make those time-lockable by bridge operator in case expected hardforks
     // or changes in the Mina zkapp architecture that would require updating the aligned contracts
-    // TODO: add timelock?
     // -------------------------------
     function setAlignedContracts(
         address _stateSettlementAddr,
@@ -209,7 +222,6 @@ contract NoriTokenBridge is ReentrancyGuard {
         address linkedEthAddress = depositKeyToEthAddress[codeChallenge];
         if (linkedEthAddress == address(0)) {
             // First deposit: bind Mina account deposit key to sender
-            // TODO emit event?
             depositKeyToEthAddress[codeChallenge] = msg.sender;
         } else {
             if (linkedEthAddress != msg.sender)
@@ -283,7 +295,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         ) revert IncorrectZkappVerificationKey();
 
         // check if the tokenId is aligned
-        if (account.tokenIdKeyHash != NORI_STORAGE_ZKAPP_ACCT_TOKEN_ID)
+        if (account.tokenIdKeyHash != NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID)
             revert IncorrectTokenHolderAccount();
 
         uint256 pubKeyTokenIdHash = uint256(
@@ -347,7 +359,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     /// @notice Rotate the bridge operator to a new address.
     /// @dev Allows migration from one Safe to another without redeploying.
     /// @param newOperator The new bridge operator address.
-    /// TODO: 2step?
     function setBridgeOperator(
         address newOperator
     ) external onlyBridgeOperator {

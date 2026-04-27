@@ -27,12 +27,23 @@ ETH_NETWORK=sepolia
 # Safe address or EOA to serve as bridge operator; defaults to deployer if unset
 NORI_ETH_BRIDGE_OPERATOR_ADDRESS=0x...
 
-# Fee configuration (optional, can be set post-deploy) ======================
-# Treasury address for fee withdrawal
+# Mina zkApp tokenID (required) =============================================
+# 32-byte hex of the Mina NoriStorage zkApp tokenID expected during unlock validation.
+# Set on the bridge as an immutable at deployment time.
+NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID=0x...
+
+# Mina zkApp verification key hash (required) ===============================
+# keccak256 of the ABI-encoded NoriStorage zkApp verification key.
+# Set on the bridge as an immutable at deployment time.
+NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH=0x...
+
+# Fee configuration =========================================================
+# Treasury address for fee withdrawal. If provided, set as the initial feeRecipient
+# at deployment; otherwise it can be configured later via `setFeeRecipient`.
 NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS=0x...
-# Lock fee rate, 1 unit = 0.001%, e.g. 500 = 0.5%
+# Lock fee rate, 1 unit = 0.001%, e.g. 500 = 0.5% (optional, set post-deploy)
 NORI_ETH_BRIDGE_LOCK_FEE_RATE=500
-# Unlock fee rate, 1 unit = 0.001%, e.g. 500 = 0.5%
+# Unlock fee rate, 1 unit = 0.001%, e.g. 500 = 0.5% (optional, set post-deploy)
 NORI_ETH_BRIDGE_UNLOCK_FEE_RATE=500
 
 # Aligned layer =============================================================
@@ -97,8 +108,10 @@ Requires:
 - `ETH_PRIVATE_KEY`
 - `ETH_RPC_URL`
 - `ETH_NETWORK`
+- `NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID` (32-byte hex; set as immutable on the deployed bridge)
+- `NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH` (32-byte hex; set as immutable on the deployed bridge)
 - `NORI_ETH_BRIDGE_OPERATOR_ADDRESS` (optional, defaults to deployer)
-- `NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS` (optional)
+- `NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS` (optional; if set, applied at construction)
 - `NORI_ETH_BRIDGE_LOCK_FEE_RATE` (optional)
 - `NORI_ETH_BRIDGE_UNLOCK_FEE_RATE` (optional)
 
@@ -117,6 +130,8 @@ Deployer balance: 40.718863431964256704 ETH
 Network: sepolia (chainId: 11155111)
 Configuration:
   NORI_ETH_BRIDGE_OPERATOR_ADDRESS: (defaulting to deployer)
+  NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID: 0x1b848805a3db129b6b41adca52c9b6f380d58dc9c283f73ce17466a01b90d361
+  NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH: 0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3
   NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS: (not set)
   NORI_ETH_BRIDGE_LOCK_FEE_RATE: (not set)
   NORI_ETH_BRIDGE_UNLOCK_FEE_RATE: (not set)
