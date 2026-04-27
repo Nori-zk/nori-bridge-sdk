@@ -18,8 +18,10 @@ All scripts read from `.env`. The full set of env vars:
 # Ethereum =================================================================
 # Deployer/operator private key (bare hex, no 0x prefix)
 ETH_PRIVATE_KEY=deadbeef...
-# JSON-RPC endpoint
+# Execution JSON-RPC endpoint
 ETH_RPC_URL=https://ethereum-holesky.core.chainstack.com/<api-key>
+# Consensus JSON-RPC endpoint (used to fetch a particular ETH networks genesis validators root)
+ETH_CONSENSUS_RPC=https://ethereum-sepolia.core.chainstack.com/beacon/<api-key>
 # Network label: hardhat, sepolia, mainnet, hoodi
 ETH_NETWORK=sepolia
 
@@ -40,6 +42,12 @@ NORI_ETH_BRIDGE_UNLOCK_FEE_RATE=500
 # Resolved automatically by the pre-deploy helper from
 # https://github.com/yetanotherco/aligned_layer for the target network.
 ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0x...
+
+# Genesis validators root ===================================================
+# Immutable per-chain constant fetched by the pre-deploy helper from the
+# beacon chain consensus API. Used on the Mina side to anchor the bridge
+# to a specific Ethereum chain.
+NORI_ETH_GENESIS_ROOT=0x...
 
 # Deploy outputs (written by deploy task) ====================================
 # Deployed contract addresses
@@ -62,10 +70,14 @@ NORI_ETH_TOKEN_BRIDGE_TEST_MODE=true
 
 ## Pre-deploy
 
-The deploy task requires the AlignedLayer service manager address for the target network. The pre-deploy helper resolves it automatically.
+The pre-deploy helper resolves two values needed by the deploy task:
+
+1. **AlignedLayer service manager address** — fetched from the [aligned_layer](https://github.com/yetanotherco/aligned_layer) GitHub repo for the target network.
+2. **Genesis validators root** — fetched from the beacon chain consensus API (`/eth/v1/beacon/genesis`). This is an immutable per-chain constant used on the Mina side to anchor the bridge to a specific Ethereum chain, preventing governance store hash rotations from redirecting the bridge to a different chain.
 
 Requires:
 - `ETH_NETWORK`
+- `ETH_CONSENSUS_RPC`
 
 ```bash
 npm run pre-deploy
@@ -77,6 +89,8 @@ This writes `.env.nori-eth-pre-deploy` containing:
 # AlignedLayer service manager contract address for the target network
 # Source: https://github.com/yetanotherco/aligned_layer
 ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0xFf731AB7b3653dc66878DC77E851D174f472d137
+# Ethereum chain genesis validators root
+NORI_ETH_GENESIS_ROOT=0xd8ea171f3c94aea21ebc42a1ed61052acf3f9209c00e4efbaaddac09ed9b8078
 ```
 
 Copy this into your `.env`:
