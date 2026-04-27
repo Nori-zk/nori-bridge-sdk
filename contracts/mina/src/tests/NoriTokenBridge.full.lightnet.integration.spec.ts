@@ -85,8 +85,18 @@ let noriTokenBridge: NoriTokenBridge;
 
 let allAccounts: PublicKey[];
 
-// Single worker drives every contract interaction.
+// Single worker drives every contract interaction. Lifecycle:
+//   - ensureTester() spawns lazily — safe to call from any hook.
+//   - afterEach terminates and clears the liveness flag so the next test gets a
+//     fresh instance (o1js leaks memory across proof computations otherwise).
+// Tester is non-undefined inside test bodies because beforeEach guarantees it.
 let tester: TesterInstance;
+let testerAlive = false;
+// When set, afterEach skips killTester. Used inside negative-test describes
+// where assert.rejects tests don't mutate on-chain state — reusing the worker
+// across them avoids a recompile per test. The describe's afterAll resets the
+// flag and kills the worker.
+let keepWorker = false;
 
 // Compiled VKs (safe form) — produced by tester.compile()
 let storageInterfaceVerificationKeySafe: SafeVK;
@@ -111,7 +121,6 @@ let ethInput4: EthInput;
 // ---------------------------------------------------------------------------
 
 // Spawn a fresh tester worker: wire Mina network + compile circuits.
-// Call this whenever you need a new instance (e.g. after signalTerminate()).
 async function spawnTester(): Promise<{
     instance: TesterInstance;
     compiled: CompileOutput;
@@ -121,6 +130,29 @@ async function spawnTester(): Promise<{
     await instance.minaSetup(networkOptions);
     const compiled = await instance.compile();
     return { instance, compiled };
+}
+
+// Idempotent: spawns a tester only if one isn't already live. VK metadata is
+// re-captured on every spawn (deterministic — same circuits → same VKs).
+async function ensureTester(): Promise<void> {
+    if (testerAlive) return;
+    const spawned = await spawnTester();
+    tester = spawned.instance;
+    testerAlive = true;
+    storageInterfaceVerificationKeySafe =
+        spawned.compiled.noriStorageInterfaceVerificationKeySafe;
+    tokenBaseVerificationKeySafe =
+        spawned.compiled.fungibleTokenVerificationKeySafe;
+    storageInterfaceVKHashField = new Field(
+        BigInt(storageInterfaceVerificationKeySafe.hashStr)
+    );
+}
+
+async function killTester(): Promise<void> {
+    if (!testerAlive) return;
+    tester.signalTerminate();
+    testerAlive = false;
+    await new Promise((resolve) => setTimeout(() => resolve(null), 2000));
 }
 
 async function txSend({
@@ -210,15 +242,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
       noriTokenBridge ${noriTokenBridgeKeypair.publicKey.toBase58()}
     `);
 
-        const spawned = await spawnTester();
-        tester = spawned.instance;
-        storageInterfaceVerificationKeySafe =
-            spawned.compiled.noriStorageInterfaceVerificationKeySafe;
-        tokenBaseVerificationKeySafe =
-            spawned.compiled.fungibleTokenVerificationKeySafe;
-        storageInterfaceVKHashField = new Field(
-            BigInt(storageInterfaceVerificationKeySafe.hashStr)
-        );
+        await ensureTester();
 
         // Decode example proofs (EthInput only — NodeProofLeft is reconstructed
         // inside tester.update from examples[i].conversionOutputProof.proofData).
@@ -231,20 +255,13 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     }, 1_000_000);
 
     beforeEach(async () => {
-        const spawned = await spawnTester();
-        tester = spawned.instance;
-        logger.warn('Tester worker respawned after termination signal. New instance ready for next test.');
+        await ensureTester();
         await fetchAccounts(allAccounts);
     });
 
     afterEach(async () => {
-        tester.signalTerminate();
-        await new Promise((resolve) => setTimeout(() => resolve(null), 1000));
-    });
-
-    afterAll(async () => {
-        tester.signalTerminate();
-        await new Promise((resolve) => setTimeout(() => resolve(null), 1000));
+        if (keepWorker) return;
+        await killTester();
     });
 
     // =======================================================================
@@ -436,6 +453,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT updateIntegrityParams by arbitrary user (worker, alice)', async () => {
                 const pi0 = bridgeHeadNoriSP1HeliosProgramPi0;
                 const po2 = proofConversionSP1ToPlonkPO2;
@@ -674,6 +697,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT replay of old proof (slot not greater than current) (worker)', async () => {
                 await assert.rejects(
                     () =>
@@ -742,6 +771,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         });
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT duplicate storage setup for Alice (worker)', async () => {
                 await assert.rejects(
                     () =>
@@ -819,6 +854,8 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         let daveMintCount = 0;
 
         beforeAll(async () => {
+            await ensureTester();
+
             dave = keyPairBase58ToKeyPair(
                 await getNewMinaLiteNetAccountKeyPair()
             );
@@ -832,6 +869,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             aliceDepositAttestationInput = result.merkleInput;
             aliceSCRAMWitness = result.scramWitness;
             logger.log(`Alice synthetic deposit built.`);
+            await fetchAccounts(allAccounts);
 
             // Seed Alice's deposit root into the contract's rolling window via
             // the admin-gated adminSetDepositRoot method (through the tester worker).
@@ -1135,6 +1173,12 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         }); // End Window Rotation
 
         describe('Negative Tests', () => {
+            beforeAll(() => { keepWorker = true; });
+            afterAll(async () => {
+                keepWorker = false;
+                await killTester();
+            });
+
             test('should REJECT double-mint with the same deposit (worker)', async () => {
                 await assert.rejects(
                     () =>

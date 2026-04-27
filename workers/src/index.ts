@@ -293,7 +293,7 @@ export class WorkerChildBase {
         if (methodName === 'worker-terminate') {
             // Call the terminate function on the Child ParentInterface which
             // will contain the endpoint (node or browser) terminate method.
-            logger.log('Calling terminate on self', this.parent);
+            logger.debug('Calling terminate on self');
             // So this is the child killing itself even though the 'parent' naming falls down hear.
             // We are not requesting the parent thread/process terminate themselves. We are termining ourselves.
             this.parent.terminate();
@@ -460,7 +460,7 @@ export function createProxy<T extends new (...args: any[]) => unknown>(
             };
         }
     } as {
-        new (...args: ConstructorArgs): InstanceType<T> & {
+        new(...args: ConstructorArgs): InstanceType<T> & {
             terminate(): void;
             signalTerminate(): void;
             ready: Promise<void>;
