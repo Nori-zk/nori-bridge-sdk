@@ -15,7 +15,7 @@ export interface MinaStateSettlement$Type {
   readonly deployedLinkReferences: {};
   readonly immutableReferences: {"342":[{"length":32,"start":256},{"length":32,"start":947}],"346":[{"length":32,"start":186},{"length":32,"start":1030}]};
   readonly inputSourceName: "project/contracts/MinaStateSettlement.sol";
-  readonly buildInfoId: "solc-0_8_28-ce617288fa1a365aee870cedaf43b23ed96ba24f";
+  readonly buildInfoId: "solc-0_8_28-731b65d1cffcf2c7a6d54355561cb0aaa28f1009";
 };
 
 import "hardhat/types/artifacts";

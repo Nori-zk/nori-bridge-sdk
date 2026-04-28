@@ -20,6 +20,10 @@ console.log('codeChallengeBigInt', codeChallengeBigInt);
 console.log('codeChallengeHex', codeChallengeHex);
 
 const WEI_PER_BRIDGE_UNIT = 10n ** 12n;
+const ZKAPP_ACCT_TOKEN_ID =
+    '0x1b848805a3db129b6b41adca52c9b6f380d58dc9c283f73ce17466a01b90d361';
+const ZKAPP_ACCT_VERIFICATION_KEY_HASH =
+    '0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3';
 
 describe('NoriTokenBridge', () => {
     async function deployTokenBridgeFixture() {
@@ -27,8 +31,15 @@ describe('NoriTokenBridge', () => {
 
         const TokenBridge = new NoriTokenBridge__factory(owner);
 
-        // Constructor now requires explicit bridgeOperator address
-        const tokenBridge = await TokenBridge.deploy(owner.address, dummyState.address, dummyAccount.address);
+        // Constructor now requires explicit bridgeOperator, zkApp tokenID, and (optional) feeRecipient
+        const tokenBridge = await TokenBridge.deploy(
+            owner.address,
+            dummyState.address,
+            dummyAccount.address,
+            ZKAPP_ACCT_TOKEN_ID,
+            ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+            ethers.ZeroAddress
+        );
 
         // Configure with dummy aligned contract addresses so onlyConfigured passes
         await tokenBridge.setAlignedContracts(dummyState.address, dummyAccount.address);
@@ -48,7 +59,14 @@ describe('NoriTokenBridge', () => {
         it('Should allow deploying with a different bridgeOperator than deployer', async function () {
             const [deployer, operator, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
-            const tokenBridge = await TokenBridge.deploy(operator.address, dummyState.address, dummyAccount.address);
+            const tokenBridge = await TokenBridge.deploy(
+                operator.address,
+                dummyState.address,
+                dummyAccount.address,
+                ZKAPP_ACCT_TOKEN_ID,
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                ethers.ZeroAddress
+            );
 
             expect(await tokenBridge.bridgeOperator()).equals(operator.address);
 
@@ -65,14 +83,28 @@ describe('NoriTokenBridge', () => {
             const [deployer, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             await expect(
-                TokenBridge.deploy(ethers.ZeroAddress, dummyState.address, dummyAccount.address)
+                TokenBridge.deploy(
+                    ethers.ZeroAddress,
+                    dummyState.address,
+                    dummyAccount.address,
+                    ZKAPP_ACCT_TOKEN_ID,
+                    ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                    ethers.ZeroAddress
+                )
             ).to.be.revertedWithCustomError(TokenBridge, 'ZeroAddress');
         });
 
         it('Should deploy with zero balance (non-payable constructor)', async function () {
             const [deployer, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
-            const tokenBridge = await TokenBridge.deploy(deployer.address, dummyState.address, dummyAccount.address);
+            const tokenBridge = await TokenBridge.deploy(
+                deployer.address,
+                dummyState.address,
+                dummyAccount.address,
+                ZKAPP_ACCT_TOKEN_ID,
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                ethers.ZeroAddress
+            );
             const balance = await ethers.provider.getBalance(tokenBridge.target);
             expect(balance).to.equal(0n);
         });
@@ -82,6 +114,55 @@ describe('NoriTokenBridge', () => {
             expect(await tokenBridge.lockFeeRate()).to.equal(0);
             expect(await tokenBridge.unlockFeeRate()).to.equal(0);
             expect(await tokenBridge.accumulatedFees()).to.equal(0n);
+            expect(await tokenBridge.feeRecipient()).to.equal(ethers.ZeroAddress);
+        });
+
+        it('Should set NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID from constructor', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture();
+            expect(await tokenBridge.NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID()).to.equal(ZKAPP_ACCT_TOKEN_ID);
+        });
+
+        it('Should set NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH from constructor', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture();
+            expect(await tokenBridge.NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH()).to.equal(
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH
+            );
+        });
+
+        it('Should set feeRecipient from constructor when non-zero', async function () {
+            const [deployer, dummyState, dummyAccount, treasury] = await ethers.getSigners();
+            const TokenBridge = new NoriTokenBridge__factory(deployer);
+            const tokenBridge = await TokenBridge.deploy(
+                deployer.address,
+                dummyState.address,
+                dummyAccount.address,
+                ZKAPP_ACCT_TOKEN_ID,
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                treasury.address
+            );
+            expect(await tokenBridge.feeRecipient()).to.equal(treasury.address);
+        });
+
+        it('Should emit FeeRecipientSet at deployment when non-zero recipient is provided', async function () {
+            const [deployer, dummyState, dummyAccount, treasury] = await ethers.getSigners();
+            const TokenBridge = new NoriTokenBridge__factory(deployer);
+            const tokenBridge = await TokenBridge.deploy(
+                deployer.address,
+                dummyState.address,
+                dummyAccount.address,
+                ZKAPP_ACCT_TOKEN_ID,
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                treasury.address
+            );
+            const deployTx = tokenBridge.deploymentTransaction();
+            if (!deployTx) throw new Error('No deployment tx');
+            await expect(deployTx)
+                .to.emit(tokenBridge, 'FeeRecipientSet')
+                .withArgs(ethers.ZeroAddress, treasury.address);
+        });
+
+        it('Should leave feeRecipient unset when constructor passes zero address', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture();
             expect(await tokenBridge.feeRecipient()).to.equal(ethers.ZeroAddress);
         });
 
@@ -832,7 +913,14 @@ describe('NoriTokenBridge', () => {
         it('Should emit events when aligned contracts are set', async function () {
             const [owner, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(owner.address, dummyState.address, dummyAccount.address);
+            const tokenBridge = await TokenBridge.deploy(
+                owner.address,
+                dummyState.address,
+                dummyAccount.address,
+                ZKAPP_ACCT_TOKEN_ID,
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                ethers.ZeroAddress
+            );
 
             await expect(
                 tokenBridge.connect(owner).setAlignedContracts(dummyState.address, dummyAccount.address)
@@ -854,7 +942,14 @@ describe('NoriTokenBridge', () => {
             // Constructor now sets aligned contracts — this test documents that isConfigured is always true after deploy
             const [owner, dummyState, dummyAccount] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(owner.address, dummyState.address, dummyAccount.address);
+            const tokenBridge = await TokenBridge.deploy(
+                owner.address,
+                dummyState.address,
+                dummyAccount.address,
+                ZKAPP_ACCT_TOKEN_ID,
+                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                ethers.ZeroAddress
+            );
 
             expect(await tokenBridge.isConfigured()).to.equal(true);
         });

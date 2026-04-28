@@ -18,7 +18,9 @@ import {
     UInt8,
     Bytes,
     Struct,
-    Reducer
+    Reducer,
+    VerificationKey,
+    AccountUpdateForest
 } from 'o1js';
 // NodeProofLeft must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -27,26 +29,22 @@ import {
     NodeProofLeft,
     parsePlonkPublicInputsProvable,
 } from '@nori-zk/proof-conversion/min';
-// VerificationKey/AccountUpdateForest must be a value import for @method decorator runtime validation
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { EthInput, bytes32LEToFieldProvable, Bytes20 } from '@nori-zk/o1js-zk-utils';
 import {
+    EthInput, bytes32LEToFieldProvable, Bytes20,
     Bytes32,
     Bytes32FieldPair,
     proofConversionSP1ToPlonkVkData,
 } from '@nori-zk/o1js-zk-utils';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-import {
-    extractCodeChallengeAndTotalLocked,
-    getContractDepositSlotRootFromContractDepositAndWitness,
-} from './depositAttestation.js';
 // MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { MerkleTreeContractDepositAttestorInput } from './depositAttestation.js';
+import {
+    MerkleTreeContractDepositAttestorInput, extractCodeChallengeAndTotalLocked,
+    getContractDepositSlotRootFromContractDepositAndWitness,
+} from './depositAttestation.js';
 // SCRAMWitness must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SCRAMWitness, verifyCodeChallenge } from './scram.js';
@@ -158,12 +156,7 @@ export class NoriTokenBridge
     @state(Field) verifiedStateRoot = State<Field>();
     /** Latest Ethereum slot verified by this bridge (strictly increasing). */
     @state(UInt64) latestHead = State<UInt64>();
-    /** Chain-linkage hash (high byte) — the next proof's `inputStoreHash` must match this + lower bytes. */
-    @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
-    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliusStoreInputHashHighByte`. */
-    @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
-    /** Deposits root from the most recent successful `update` (exposed for off-chain consumers). */
-    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
+
     /**
      * Public input 0 from the SP1 consensus MPT transition proof (sp1Proof.proof.Plonk.public_inputs[0]),
      * the Nori SP1 Helios program identifier (bridgeHeadNoriSP1HeliosProgramPi0).
@@ -183,12 +176,6 @@ export class NoriTokenBridge
      */
     @state(Field) proofConversionPO2 = State<Field>();
 
-    /** Action-state hash marking the start of the valid deposit-root window. */
-    @state(Field) windowStart = State<Field>();
-    /** Number of deposit-root actions currently in the window (max maxWindow). */
-    @state(Field) windowSize = State<Field>();
-    /** The Ethereum contract address associated with this token bridge. */
-    @state(Field) ethTokenBridgeAddress = State<Field>();
     /**
      * Poseidon hash of the Ethereum chain genesis validators root.
      * Immutable after deploy — no admin setter exists by design.
@@ -209,6 +196,20 @@ export class NoriTokenBridge
      * fixed, well-known constant that does not change across non-contentious hard forks.
      */
     @state(Field) genesisRoot = State<Field>();
+    /** Chain-linkage hash (high byte) — the next proof's `inputStoreHash` must match this + lower bytes. */
+    @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
+    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliusStoreInputHashHighByte`. */
+    @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
+    /** Deposits root from the most recent successful `update` (exposed for off-chain consumers). */
+    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
+    /** The Ethereum contract address associated with this token bridge. */
+    @state(Field) ethTokenBridgeAddress = State<Field>();
+
+
+    /** Action-state hash marking the start of the valid deposit-root window. */
+    @state(Field) windowStart = State<Field>();
+    /** Number of deposit-root actions currently in the window (max maxWindow). */
+    @state(Field) windowSize = State<Field>();
 
     readonly events = {
         Burn: BurnEvent
@@ -277,8 +278,11 @@ export class NoriTokenBridge
         // Verification of proof conversion
         // vk = proofConversionOutput.vkData
         // this is also from nodeVK
-        const vk = VerificationKey.fromJSON(proofConversionSP1ToPlonkVkData);
-
+        // const vk = VerificationKey.fromJSON(JSON.stringify(proofConversionSP1ToPlonkVkData));
+        const vk = VerificationKey.fromValue({
+            data: proofConversionSP1ToPlonkVkData.data,
+            hash: Field(proofConversionSP1ToPlonkVkData.hash),
+        })
 
         proof.verify(vk);
 
@@ -322,6 +326,13 @@ export class NoriTokenBridge
     }
 
     /**
+     * Settle the latest Ethereum state root and NoriTokenBridge deposit root
+     * by verifying converted SP1 nori-bride-head proof 
+     * @param input public outputs from the SP1 proof
+     * @param proof converted SP1 to Plonk proof, verified against the on-chain VK for the conversion circuit
+     * @param oldestAction when the deposit root window is full, the caller must provide the oldest action as a witness for eviction;
+     * pass Field(0) if the window is not yet full and eviction is not required.
+     * 
      * Verify an SP1 consensus MPT transition proof and advance the bridge
      * head. On success:
      *   - `input.genesisRoot` is verified against the immutable on-chain `genesisRoot`
@@ -340,7 +351,7 @@ export class NoriTokenBridge
         const {
             ethGenesisRootBytes,
             ethTokenBridgeAddressBytes
-         } = this.ethVerify(input, proof);
+        } = this.ethVerify(input, proof);
 
         // Verify ethereum proof is of the correct address
         const ethTokenBridgeAddress = new Bytes20(ethTokenBridgeAddressBytes).toField();
@@ -496,6 +507,7 @@ export class NoriTokenBridge
                 setVerificationKey:
                     Permissions.VerificationKey.impossibleDuringCurrentVersion(),
                 setPermissions: Permissions.proof(), //imposible?
+                access: Permissions.proof(),
             },
         };
 
@@ -625,6 +637,8 @@ export class NoriTokenBridge
     }
     /** 
      * Update the verification key.
+     * Required if proof-conversion vk has to change.
+     * May be required for any changes with ethVerify() like EthInput type
      */
     @method
     async updateVerificationKey(vk: VerificationKey) {
@@ -641,7 +655,7 @@ export class NoriTokenBridge
         await this.ensureAdminSignature();
         this.proofConversionPO2.set(newPO2);
     }
-
+    // we need it in case Helios changes it's store structure 
     @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
         await this.ensureAdminSignature();
         this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
@@ -652,7 +666,7 @@ export class NoriTokenBridge
 
     /**
      * Admin-only helper that dispatches a deposit root directly into the window,
-     * bypassing update(). Exists for testing, to be deleted.
+     * bypassing update(). @TODO Exists for testing, to be deleted.
      */
     @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
         await this.ensureAdminSignature();
@@ -675,7 +689,7 @@ export class NoriTokenBridge
     @method.returns(Bool)
     public async canChangeAdmin(_admin: PublicKey) {
         await this.ensureAdminSignature();
-        return Bool(true);
+        return Bool(false);
     }
 
     @method.returns(Bool)
