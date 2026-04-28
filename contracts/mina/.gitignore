@@ -17,3 +17,4 @@ cache
 
 # Poll scripts output
 *.log
+*.summary.jsonl
