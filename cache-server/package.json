@@ -49,9 +49,6 @@
     "peerDependencies": {
         "o1js": "3.0.0-mesa.698ca"
     },
-    "overrides": {
-        "o1js": "3.0.0-mesa.698ca"
-    },
     "engines": {
         "node": ">=18.14.0"
     },

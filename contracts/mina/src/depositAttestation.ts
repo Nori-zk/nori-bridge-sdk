@@ -6,7 +6,7 @@ import {
     getMerklePathFromLeaves,
     getMerkleZeros,
 } from '@nori-zk/o1js-zk-utils';
-import { DynamicArray } from 'mina-attestations';
+import { DynamicArray } from '@nori-zk/mina-attestations/dynamic/array';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';

@@ -11,9 +11,6 @@
         "cache-server",
         "minimal-client"
     ],
-    "overrides": {
-        "o1js": "3.0.0-mesa.698ca"
-    },
     "devDependencies": {
         "@babel/preset-env": "^7.29.0",
         "@babel/preset-typescript": "^7.28.5",
