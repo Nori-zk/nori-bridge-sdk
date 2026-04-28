@@ -23,11 +23,18 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
 
       const possibleAlignedServiceManagerAddress = process.env.ALIGNED_ETH_SERVICE_MANAGER_ADDRESS;
       const possibleEthNetwork = process.env.ETH_NETWORK;
+      const possibleZkappTokenId = process.env.NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID;
+      const possibleZkappVkHash = process.env.NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH;
 
       const issues: string[] = [];
+      const bytes32Re = /^0x[0-9a-fA-F]{64}$/;
 
       if (!possibleAlignedServiceManagerAddress) issues.push("Missing required env: ALIGNED_ETH_SERVICE_MANAGER_ADDRESS (run npm run pre-deploy first)");
       if (!possibleEthNetwork) issues.push("Missing required env: ETH_NETWORK");
+      if (!possibleZkappTokenId) issues.push("Missing required env: NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID (32-byte hex of the Mina zkApp tokenID)");
+      else if (!bytes32Re.test(possibleZkappTokenId)) issues.push("NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID must be a 0x-prefixed 32-byte hex string");
+      if (!possibleZkappVkHash) issues.push("Missing required env: NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH (keccak256 of the ABI-encoded NoriStorage zkApp verification key)");
+      else if (!bytes32Re.test(possibleZkappVkHash)) issues.push("NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH must be a 0x-prefixed 32-byte hex string");
 
       if (issues.length) {
         logger.error("Deploy encountered errors:");
@@ -38,16 +45,22 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
 
       const alignedServiceManagerAddress = possibleAlignedServiceManagerAddress;
       const ethNetwork = possibleEthNetwork;
+      const zkappTokenId = possibleZkappTokenId;
+      const zkappVkHash = possibleZkappVkHash;
       const devnetFlag = DEVNET_NETWORKS.has(ethNetwork);
 
       const bridgeOperator =
         process.env.NORI_ETH_BRIDGE_OPERATOR_ADDRESS || deployer.address;
+      const feeRecipient =
+        process.env.NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS || ethers.ZeroAddress;
 
       logger.log(`Deploying with account: ${deployer.address}`);
       logger.log(`Deployer balance: ${ethers.formatEther(balance)} ETH`);
       logger.log(`Network: ${network.name} (chainId: ${network.chainId})`);
       logger.log(`Configuration:`);
       logger.log(`  NORI_ETH_BRIDGE_OPERATOR_ADDRESS: ${process.env.NORI_ETH_BRIDGE_OPERATOR_ADDRESS || "(defaulting to deployer)"}`);
+      logger.log(`  NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID: ${zkappTokenId}`);
+      logger.log(`  NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH: ${zkappVkHash}`);
       logger.log(`  NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS: ${process.env.NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS || "(not set)"}`);
       logger.log(`  NORI_ETH_BRIDGE_LOCK_FEE_RATE: ${process.env.NORI_ETH_BRIDGE_LOCK_FEE_RATE || "(not set)"}`);
       logger.log(`  NORI_ETH_BRIDGE_UNLOCK_FEE_RATE: ${process.env.NORI_ETH_BRIDGE_UNLOCK_FEE_RATE || "(not set)"}`);
@@ -81,7 +94,10 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       const tokenBridge = await NoriTokenBridge.deploy(
         bridgeOperator,
         stateSettlement.target,
-        accountValidation.target
+        accountValidation.target,
+        zkappTokenId,
+        zkappVkHash,
+        feeRecipient
       );
       const tokenBridgeDeployTx = tokenBridge.deploymentTransaction();
       if (!tokenBridgeDeployTx) throw new Error("NoriTokenBridge did not deploy");
@@ -90,14 +106,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       logger.log(`NoriTokenBridge deployed to: ${tokenBridge.target}`);
       logger.log(`Deployed in block: ${tokenBridgeReceipt.blockNumber}`);
       logger.log(`Gas used: ${tokenBridgeReceipt.gasUsed.toString()}`);
-
-      // Optional post-deploy fee configuration
-      const feeRecipient = process.env.NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS;
-      if (feeRecipient) {
-        logger.log(`Setting fee recipient: ${feeRecipient}`);
-        const setFeeRecipientTx = await tokenBridge.setFeeRecipient(feeRecipient);
-        await setFeeRecipientTx.wait();
-      }
 
       const lockFeeRate = process.env.NORI_ETH_BRIDGE_LOCK_FEE_RATE;
       if (lockFeeRate) {

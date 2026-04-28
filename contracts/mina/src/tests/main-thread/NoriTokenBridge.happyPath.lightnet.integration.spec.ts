@@ -35,6 +35,7 @@ import {
     decodeConsensusMptProof,
     Bytes32FieldPair,
     extractEthTokenBridgeAddressFromSP1Proof,
+    extractGenesisRootFromSP1Proof,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils';
@@ -162,6 +163,8 @@ describe('NoriTokenBridge Happy Path', () => {
     // ── 1. Deploy ──────────────────────────────────────────────────────────
     test('1. deploy NoriTokenBridge and FungibleToken', async () => {
         const initialStoreHash = Bytes32FieldPair.fromBytes32(ethInput1.inputStoreHash);
+        const ethTokenBridgeAddress = extractEthTokenBridgeAddressFromSP1Proof(examples[0]);
+        const genesisRoot = extractGenesisRootFromSP1Proof(examples[0]);
 
         await txSend({
             body: async () => {
@@ -172,9 +175,10 @@ describe('NoriTokenBridge Happy Path', () => {
                     tokenBaseAddress: tokenBaseKeypair.publicKey,
                     storageVKHash: storageInterfaceVK.hash,
                     newStoreHash: initialStoreHash,
-                    ethTokenBridgeAddress: extractEthTokenBridgeAddressFromSP1Proof(examples[0]),
+                    ethTokenBridgeAddress,
                     noriHeliosProgramPi0: FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                     proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
+                    genesisRoot,
                 });
 
                 await tokenBase.deploy({

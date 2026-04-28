@@ -227,6 +227,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             const ethTokenBridgeAddressHex = new Bytes20(
                 decoded.contractAddress.bytes
             ).toHex();
+            const genesisRootHex = decoded.genesisRoot.toHex();
 
             await tester.deployContracts(
                 deployer.privateKey.toBase58(),
@@ -235,6 +236,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 tokenBaseKeypair.privateKey.toBase58(),
                 inputStoreHashHex,
                 ethTokenBridgeAddressHex,
+                genesisRootHex,
                 storageInterfaceVerificationKeySafe,
                 bridgeHeadNoriSP1HeliosProgramPi0,
                 proofConversionSP1ToPlonkPO2,

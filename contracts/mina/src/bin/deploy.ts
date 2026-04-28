@@ -9,6 +9,7 @@ import {
     Bool,
     Field,
     type NetworkId,
+    Poseidon,
     UInt8,
 } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
@@ -42,7 +43,8 @@ const possibleDeployerKeyBase58 = process.env.MINA_SENDER_PRIVATE_KEY;
 const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 const possibleStoreHashHex = process.argv[2];
 const possibleEthTokenBridgeAddressHex = process.argv[3];
-const possibleAdminPublicKeyBase58 = process.argv[4];
+const possibleGenesisRootHex = process.argv[4];
+const possibleAdminPublicKeyBase58 = process.argv[5];
 
 // Validate everything in one pass
 const issues: string[] = [];
@@ -64,6 +66,8 @@ if (!possibleStoreHashHex)
     issues.push('Missing required first argument: storeHashHex');
 if (!possibleEthTokenBridgeAddressHex)
     issues.push('Missing required second argument: ethTokenBridgeAddressHex');
+if (!possibleGenesisRootHex)
+    issues.push('Missing required third argument: genesisRootHex');
 
 let possibleDeployerKey: PrivateKey | undefined;
 if (possibleDeployerKeyBase58) {
@@ -123,6 +127,23 @@ if (possibleEthTokenBridgeAddressHex) {
     }
 }
 
+let possibleGenesisRoot: Field | undefined;
+if (possibleGenesisRootHex) {
+    if (possibleGenesisRootHex.length !== 64) {
+        issues.push(
+            `genesisRootHex '${possibleGenesisRootHex}' must be exactly 64 hex characters (32 bytes), got ${possibleGenesisRootHex.length}`
+        );
+    } else {
+        try {
+            possibleGenesisRoot = Poseidon.hash(Bytes32.fromHex(possibleGenesisRootHex).toFields());
+        } catch (e) {
+            issues.push(
+                `genesisRootHex '${possibleGenesisRootHex}' is not a valid 32-byte hex string: ${(e as Error).message}`
+            );
+        }
+    }
+}
+
 if (issues.length) {
     const formatted = [
         'Deploy encountered issues:',
@@ -158,6 +179,7 @@ if (
     !isPrivateKey(possibleDeployerKey) ||
     !isBytes32(possibleStoreHash) ||
     !isField(possibleEthTokenBridgeAddress) ||
+    !isField(possibleGenesisRoot) ||
     !isString(possibleNetworkUrl) ||
     !isString(possibleNetwork)
 ) {
@@ -168,6 +190,7 @@ if (
 const deployerKey = possibleDeployerKey;
 const storeHash = possibleStoreHash;
 const ethTokenBridgeAddress = possibleEthTokenBridgeAddress;
+const genesisRoot = possibleGenesisRoot;
 const networkUrl = possibleNetworkUrl;
 const networkId: NetworkId =
     possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
@@ -273,6 +296,7 @@ async function deploy() {
                 storageVKHash: NoriStorageInterfaceVerificationKey.hash,
                 newStoreHash: initialStoreHash,
                 ethTokenBridgeAddress,
+                genesisRoot,
                 noriHeliosProgramPi0: FrC.from(
                     bridgeHeadNoriSP1HeliosProgramPi0
                 ),

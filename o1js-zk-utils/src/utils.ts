@@ -3,6 +3,7 @@ import {
     type Cache,
     Field,
     Provable,
+    Poseidon,
     type SmartContract,
     UInt64,
     UInt8,
@@ -167,10 +168,11 @@ const proofOffsets = {
     executionStateRoot: 80,
     verifiedContractStorageSlotsRoot: 112,
     nextSyncCommitteeHash: 144,
-    contractAddress: 176
+    contractAddress: 176,
+    genesisRoot: 196,
 };
 
-const proofTotalLength = 196;
+const proofTotalLength = 228;
 
 export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
@@ -225,8 +227,13 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 
     const contractAddressSlice = proofData.slice(
         proofOffsets.contractAddress,
-        proofTotalLength
+        proofOffsets.genesisRoot,
     );
+
+    const genesisRootSlice = proofData.slice(
+        proofOffsets.genesisRoot,
+        proofTotalLength
+    )
 
     const provables = {
         inputSlot: UInt64.from(inputSlot),
@@ -239,6 +246,7 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
         ),
         nextSyncCommitteeHash: Bytes32.from(nextSyncCommitteeHashSlice),
         contractAddress: Bytes20.from(contractAddressSlice),
+        genesisRoot: Bytes32.from(genesisRootSlice),
     };
 
     return provables;
@@ -247,6 +255,11 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 export function extractEthTokenBridgeAddressFromSP1Proof(example: CreateProofArgument): Field {
     const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
     return new Bytes20(decoded.contractAddress.bytes).toField();
+}
+
+export function extractGenesisRootFromSP1Proof(example: CreateProofArgument): Field {
+    const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
+    return Poseidon.hash(new Bytes32(decoded.genesisRoot.bytes).toFields());
 }
 
 // Compile and verify contracts utility

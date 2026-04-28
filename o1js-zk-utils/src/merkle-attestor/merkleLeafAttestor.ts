@@ -6,7 +6,7 @@ import {
     UInt64,
     ZkProgram,
 } from 'o1js';
-import { DynamicArray } from 'mina-attestations';
+import { DynamicArray } from '@nori-zk/mina-attestations/dynamic/array';
 import {
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves as getMerklePathFromLeavesInner,

@@ -74,13 +74,15 @@
         "migrate-vk-to-tag": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/migrateVkToTag.js",
         "prove-and-submit": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/proveAndSubmit.js",
         "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js && npm run build",
-        "poll-deposits-root": "npm run build && node --experimental-vm-modules --experimental-wasm-modules build/bin/pollDepositsRoot.js"
+        "poll-deposits-root": "npm run build && node --experimental-vm-modules --experimental-wasm-modules build/bin/pollDepositsRoot.js",
+        "derive-token-id": "npm run build && node --experimental-vm-modules --experimental-wasm-modules build/bin/deriveTokenId.js",
+        "load-runner": "npm run build && node --max-old-space-size=16384 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/loadRunner.js"
     },
     "devDependencies": {
         "@babel/preset-env": "^7.29.0",
         "@babel/preset-typescript": "^7.28.5",
         "@nori-zk/ethereum-token-bridge": "*",
-        "@nori-zk/pts-types": "5.0.0",
+        "@nori-zk/pts-types": "6.0.1",
         "@types/jest": "^30.0.0",
         "@typescript-eslint/eslint-plugin": "^8.55.0",
         "@typescript-eslint/parser": "^8.55.0",
@@ -97,7 +99,7 @@
         "typescript-eslint": "^8.55.0"
     },
     "peerDependencies": {
-        "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
+        "o1js": "3.0.0-mesa.698ca"
     },
     "engines": {
         "node": ">=18.14.0"
@@ -105,12 +107,10 @@
     "dependencies": {
         "@nori-zk/o1js-zk-utils": "*",
         "@nori-zk/workers": "*",
-        "@nori-zk/proof-conversion": "*",
-        "autrace": "^0.0.25",
+        "@nori-zk/proof-conversion": "0.8.20",
         "dotenv": "^17.2.4",
         "esm-iso-logger": "1.0.2",
-        "mina-attestations": "^0.5.3",
-        "rxjs": "^7.8.2",
-        "xstate": "^5.27.0"
+        "@nori-zk/mina-attestations": "0.6.4",
+        "rxjs": "^7.8.2"
     }
 }

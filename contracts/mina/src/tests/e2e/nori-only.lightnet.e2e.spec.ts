@@ -29,7 +29,10 @@ import {
 new LogPrinter('TestTokenBridge');
 const logger = new Logger('E2ELitenetSpec');
 
-const { NORI_ETH_TOKEN_BRIDGE_ADDRESS: ethTokenBridgeAddress } = getStagingEnv();
+const {
+    NORI_ETH_TOKEN_BRIDGE_ADDRESS: ethTokenBridgeAddress,
+    NORI_ETH_GENESIS_ROOT: ethGenesisRoot,
+} = getStagingEnv();
 
 describe('e2e', () => {
     // Define litenet mina config
@@ -67,6 +70,7 @@ describe('e2e', () => {
                 tokenBasePrivateKey.toBase58(),
                 "FIXMETHISISTHEWRONGSTOREHASH",
                 ethTokenBridgeAddress.slice(2),
+                ethGenesisRoot.slice(2),
                 noriStorageInterfaceVerificationKeySafe,
                 bridgeHeadNoriSP1HeliosProgramPi0,
                 proofConversionSP1ToPlonkPO2,
