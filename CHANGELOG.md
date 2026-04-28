@@ -1,5 +1,31 @@
 # Changelog
 
+## 28/4/26
+
+### Migrated to @nori-zk/mina-attestations Fork
+
+- **@nori-zk/mina-attestations@0.6.4**: replaced upstream `mina-attestations` with Nori's scoped fork
+  - o1js upgraded to 3.0.0-mesa.698ca
+  - package renamed to @nori-zk/mina-attestations and deployed into Nori's org scope
+  - file restrictions added to package.json to minimise npm package size
+  - tree-shakeable `./dynamic/array` subpath export added
+  - side-effect fix for `BaseType.GenericRecord` registration on the `./dynamic/array` subpath
+  - npm audit fix applied
+  - DynamicArray imports updated to use the new subpath
+
+### @nori-zk/proof-conversion Bumped
+
+- **@nori-zk/proof-conversion** bumped from 0.8.19 to 0.8.20 -- o1js peer dep updated from 2.12.0 to 3.0.0-mesa.698ca
+
+### Stale Dependencies Removed
+
+- **autrace removed**: not imported anywhere in the codebase, and its `o1js: ^2.3.0` dependency made the resolved o1js version ambiguous. With autrace gone and the mina-attestations fork targeting 3.0.0-mesa.698ca directly, o1js overrides removed across all workspaces
+- **xstate removed**: stale dependency from previously removed code, tsconfig path entry cleaned up
+
+### npm audit
+
+- 16 vulnerabilities reported (9 low, 4 moderate, 3 high) -- all transitive through Hardhat tooling (elliptic, lodash-es, serialize-javascript) and mocha (diff, serialize-javascript). None are runtime dependencies and none end up in build output. `npm audit fix` resolves nothing without breaking changes to @nomicfoundation/hardhat-ignition. Remaining issues are upstream and do not affect deployed contracts or ZK circuits
+
 ## 27/4/26
 
 ### Ethereum Constructor Hardening and TimelockController
