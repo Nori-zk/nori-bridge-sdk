@@ -32,6 +32,7 @@ import { setFeeRate } from './tasks/setFeeRate.js';
 import { setFeeRecipient } from './tasks/setFeeRecipient.js';
 import { withdrawFees } from './tasks/withdrawFees.js';
 import { setBridgeOperator } from './tasks/setBridgeOperator.js';
+import { deployTimelock } from './tasks/deployTimelock.js';
 
 const possibleNetworkName = process.env.ETH_NETWORK;
 const possibleRpcUrl = process.env.ETH_RPC_URL;
@@ -105,7 +106,7 @@ const config: HardhatUserConfig = {
 
 
   networks,
-  tasks: [lockTokens, getTotalDeposited, deploy, getFeeInfo, setFeeRate, setFeeRecipient, withdrawFees, setBridgeOperator], plugins: [
+  tasks: [lockTokens, getTotalDeposited, deploy, deployTimelock, getFeeInfo, setFeeRate, setFeeRecipient, withdrawFees, setBridgeOperator], plugins: [
     hardhatMocha,
     hardhatTypechain,
     hardhatEthers,
