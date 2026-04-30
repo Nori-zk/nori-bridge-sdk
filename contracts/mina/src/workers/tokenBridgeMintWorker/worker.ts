@@ -1,6 +1,9 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
+    cacheFactory,
+    CacheType,
     compileAndOptionallyVerifyContracts,
+    type NetworkCacheConfig,
     vkToVkSafe,
 } from '@nori-zk/o1js-zk-utils';
 import {
@@ -24,9 +27,55 @@ import { SCRAMWitness } from '../../scram.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 import { noriTokenBridgeVkHash } from '../../integrity/NoriTokenBridge.VkHash.js';
+import {
+    NoriStorageInterfaceCacheLayout,
+    FungibleTokenCacheLayout,
+    NoriTokenBridgeCacheLayout,
+} from '../../cache-layouts/index.js';
 
 new LogPrinter('TokenBridgeMintWorker');
 const logger = new Logger('TokenBridgeMintWorker');
+
+// NOTE: explicit `globalThis.gc()` calls were tried here and removed —
+// they trigger wasm-bindgen `FinalizationRegistry` cleanup at points
+// the o1js runtime doesn't expect, which surfaced as
+// `__wbg_wasmfpplonkverifierindex_free` failing with
+// "operation does not support unaligned accesses" during prove().
+// Don't reintroduce without a deterministic way to scope which
+// objects are eligible.
+
+// Best-effort heap-usage snapshot. `performance.memory` is Chromium-only
+// and only present in secure contexts; `performance.measureUserAgentSpecificMemory`
+// is the cross-engine modern API (also Chromium-only today). Returns a
+// plain object suitable for logging or a string fallback.
+async function reportMemory(label: string) {
+    try {
+        const perf = (
+            globalThis as unknown as {
+                performance?: {
+                    memory?: {
+                        usedJSHeapSize: number;
+                        totalJSHeapSize: number;
+                        jsHeapSizeLimit: number;
+                    };
+                    measureUserAgentSpecificMemory?: () => Promise<unknown>;
+                };
+            }
+        ).performance;
+        const memory = perf?.memory;
+        if (memory) {
+            logger.log(
+                `[mem] ${label} used=${(memory.usedJSHeapSize / 1024 / 1024).toFixed(0)}MB total=${(memory.totalJSHeapSize / 1024 / 1024).toFixed(0)}MB limit=${(memory.jsHeapSizeLimit / 1024 / 1024).toFixed(0)}MB`
+            );
+        }
+        if (perf?.measureUserAgentSpecificMemory) {
+            const detail = await perf.measureUserAgentSpecificMemory();
+            logger.log(`[mem] ${label} measureUASpecificMemory:`, detail);
+        }
+    } catch (e) {
+        logger.log(`[mem] ${label} memory report failed`, e);
+    }
+}
 
 /**
  * # TokenBridgeMintWorker
@@ -104,8 +153,16 @@ export class TokenBridgeMintWorker {
      * `TokenBridgeWorker.compileMinterDepsNoCache`. The browser
      * compilation cache is disabled upstream and not replicated here.
      */
-    async compileAll() {
-        logger.log('Compiling all minter dependencies...');
+    async compileAll(cacheServer?: string) {
+        if (cacheServer) {
+            return this.compileAllNetworkCached(cacheServer);
+        }
+        return this.compileAllNoCache();
+    }
+
+    private async compileAllNoCache() {
+        logger.log('Compiling all minter dependencies (no cache)...');
+        await reportMemory('compileAll:before');
 
         const contracts = [
             {
@@ -131,6 +188,7 @@ export class TokenBridgeMintWorker {
         );
 
         logger.log('All minter dependency contracts compiled successfully.');
+        await reportMemory('compileAll:after');
 
         return {
             noriStorageInterfaceVerificationKeySafe: vkToVkSafe(
@@ -142,6 +200,86 @@ export class TokenBridgeMintWorker {
             noriTokenBridgeVerificationKeySafe: vkToVkSafe(
                 compiledVks.NoriTokenBridgeVerificationKey
             ),
+        };
+    }
+
+    /**
+     * Cache-aware compile. `cacheServer` is the base URL where the
+     * pre-baked artifacts live. The network cache fetches each
+     * file + its `.header` from
+     *   `<cacheServer>/<ContractName>/<file>` and `<...>.header`
+     * matching the layout produced by the contracts/mina
+     * `build:cache-layouts` script (which writes to
+     * `<repo>/cache-server/cache/<ContractName>/`). Each contract is
+     * compiled with its own cache instance so o1js can short-circuit
+     * the heavy prover-key computation.
+     *
+     * Cache reduces compile *time*, not steady-state memory: once
+     * loaded, prover keys still occupy WASM memory. Wired up so the
+     * dev loop is faster and so the underlying cache infra can be
+     * verified end-to-end in the browser.
+     */
+    private async compileAllNetworkCached(cacheServer: string) {
+        logger.log(
+            `Compiling all minter dependencies via network cache @ ${cacheServer}`
+        );
+        await reportMemory('compileAll:before');
+
+        // Load + use + drop each cache one at a time. Holding all
+        // three cache maps in scope through the third compile is
+        // ~1 GB of unnecessary JS heap on top of the prover keys.
+        const compileOne = async <K extends string>(
+            layoutName: K,
+            files: string[],
+            program:
+                | typeof NoriStorageInterface
+                | typeof FungibleToken
+                | typeof NoriTokenBridge,
+            integrityHash: string
+        ) => {
+            const cache = await cacheFactory({
+                type: CacheType.Network,
+                baseUrl: cacheServer,
+                path: layoutName,
+                files,
+            } as NetworkCacheConfig);
+            const vks = await compileAndOptionallyVerifyContracts(
+                logger,
+                [{ name: layoutName, program, integrityHash }],
+                cache
+            );
+            return vks[`${layoutName}VerificationKey` as const];
+        };
+
+        const noriStorageInterfaceVk = await compileOne(
+            NoriStorageInterfaceCacheLayout.name,
+            NoriStorageInterfaceCacheLayout.files,
+            NoriStorageInterface,
+            noriStorageInterfaceVkHash
+        );
+        await reportMemory('compileAll:after-NoriStorageInterface');
+        const fungibleTokenVk = await compileOne(
+            FungibleTokenCacheLayout.name,
+            FungibleTokenCacheLayout.files,
+            FungibleToken,
+            fungibleTokenVkHash
+        );
+        await reportMemory('compileAll:after-FungibleToken');
+        const noriTokenBridgeVk = await compileOne(
+            NoriTokenBridgeCacheLayout.name,
+            NoriTokenBridgeCacheLayout.files,
+            NoriTokenBridge,
+            noriTokenBridgeVkHash
+        );
+        await reportMemory('compileAll:after-NoriTokenBridge');
+
+        logger.log('All minter dependency contracts compiled (cached).');
+
+        return {
+            noriStorageInterfaceVerificationKeySafe:
+                vkToVkSafe(noriStorageInterfaceVk),
+            fungibleTokenVerificationKeySafe: vkToVkSafe(fungibleTokenVk),
+            noriTokenBridgeVerificationKeySafe: vkToVkSafe(noriTokenBridgeVk),
         };
     }
 
@@ -188,6 +326,7 @@ export class TokenBridgeMintWorker {
 
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
 
+        await reportMemory('mint:before-build');
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
             async () => {
@@ -200,8 +339,11 @@ export class TokenBridgeMintWorker {
                 );
             }
         );
+        await reportMemory('mint:after-build');
 
+        logger.log('Calling mintTx.prove()');
         const provedTx = await mintTx.prove();
+        await reportMemory('mint:after-prove');
 
         this.#mintProofCache = provedTx;
     }

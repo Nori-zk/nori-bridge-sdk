@@ -477,9 +477,14 @@ describe('e2e_testnet', () => {
                     'Deposit is processed signing and sending the mint proof.'
                 );
 
-                tokenBridgeWorker.signalTerminate()
-                //wait 3 sec
-                await new Promise((resolve) => setTimeout(resolve, 3000));
+                // Hard-terminate so the first worker's WASM heap is freed
+                // synchronously before the mint worker spawns. signalTerminate
+                // was leaving o1js memory live long enough that the mint worker
+                // would thrash trying to allocate.
+                tokenBridgeWorker.terminate();
+                // Brief pause so the browser can reclaim the worker's heap
+                // before we instantiate the mint worker.
+                await new Promise((resolve) => setTimeout(resolve, 1000));
 
                 // Persist full state so a failure in the mint worker can
                 // resume directly into the mint step. Cleared after a
@@ -504,7 +509,38 @@ describe('e2e_testnet', () => {
                 minaSenderPrivateKeyBase58
             );
             await tokenBridgeWorkerMint.minaSetup(minaConfig);
-            await tokenBridgeWorkerMint.compileAll();
+            // Same-origin cache served by the test runner from
+            // `<repo>/cache-server/cache`. Probe a known file before
+            // passing the URL: if the cache hasn't been baked
+            // (`cd contracts/mina && npm run build:cache-layouts`),
+            // every fetch in compileAll will 404 and the cache layer
+            // throws — we'd rather just skip the cache cleanly and
+            // fresh-compile.
+            const CACHE_BASE = 'http://localhost:4003/cache';
+            const cacheUrl = await (async () => {
+                try {
+                    const probe = await fetch(
+                        `${CACHE_BASE}/NoriTokenBridge/wrap-vk-noritokenbridge.header`,
+                        { method: 'HEAD' }
+                    );
+                    if (probe.ok) {
+                        logger.log(
+                            `Cache server detected at ${CACHE_BASE}; using it for compile.`
+                        );
+                        return CACHE_BASE;
+                    }
+                    logger.log(
+                        `Cache probe at ${CACHE_BASE} returned HTTP ${probe.status}; falling back to fresh compile.`
+                    );
+                    return undefined;
+                } catch (e) {
+                    logger.log(
+                        `Cache probe failed (${e instanceof Error ? e.message : String(e)}); falling back to fresh compile.`
+                    );
+                    return undefined;
+                }
+            })();
+            await tokenBridgeWorkerMint.compileAll(cacheUrl);
 
             logger.log('Computing mint proof.');
 

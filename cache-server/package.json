@@ -19,7 +19,7 @@
         "clean": "rimraf build",
         "build": "npm run clean && tsc",
         "build:cache": "cd ../contracts/mina/ && npm run build:cache-layouts",
-        "serve": "npm run build && node build/bin/server.js",
+        "serve": "npm run build && node build/server.js",
         "lint": "npx eslint src/*",
         "lint:fix": "npx eslint src/* --fix",
         "format": "prettier --check --ignore-unknown **/*",

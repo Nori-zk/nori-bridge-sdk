@@ -34,6 +34,17 @@ export const ROOT_DIR = path.resolve(__dirname, '..', '..');
 export const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
 // Test resume state — preserved across runs so partial flows can pick up where they left off.
 export const TEST_STATE_DIR = path.resolve(ROOT_DIR, '.test-state');
+// Pre-baked o1js compile cache. Populated by running
+// `cd contracts/mina && npm run build:cache-layouts` (which writes
+// to <repo>/cache-server/cache/<ContractName>/<file>{,.header}).
+// Served from this same express instance under /cache so the page
+// stays on a single origin — cross-origin would need CORP set.
+export const ZK_CACHE_DIR = path.resolve(
+    ROOT_DIR,
+    '..',
+    'cache-server',
+    'cache'
+);
 
 // Build hash
 const HASH = Math.random().toString(36).slice(2, 10);
@@ -113,6 +124,19 @@ export async function startServer(port = 4003) {
 
     // Serve static files
     app.use(express.static(PUBLIC_DIR));
+
+    // Serve the o1js compile cache so the page can fetch pre-baked
+    // prover keys + headers without crossing origins. Returns 404 per
+    // request when the cache hasn't been baked yet — the worker's
+    // cached compile path will then fall back to fresh compile.
+    if (fs.existsSync(ZK_CACHE_DIR)) {
+        app.use('/cache', express.static(ZK_CACHE_DIR));
+        logger.log(`Serving o1js cache from ${ZK_CACHE_DIR} at /cache`);
+    } else {
+        logger.warn(
+            `o1js cache directory not found at ${ZK_CACHE_DIR} — run \`cd contracts/mina && npm run build:cache-layouts\` first to populate it.`
+        );
+    }
 
     // Test-resume state. Reads/writes `.test-state/<name>.json` so the
     // browser test can persist partial-flow checkpoints across reruns.

@@ -15,7 +15,9 @@ const logger = new Logger('BuildCacheServerLayouts');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..', '..', '..');
+// __dirname when built is .../contracts/mina/build/bin
+// rootDir = .../contracts/mina (the package root)
+const rootDir = path.resolve(__dirname, '..', '..');
 
 const caches: ZKCacheWithProgram[] = [
     {
@@ -35,7 +37,9 @@ const caches: ZKCacheWithProgram[] = [
     },
 ];
 
-const cacheDir = path.resolve(rootDir, '..', '..', '..', 'cache-server', 'cache');
+// rootDir = .../contracts/mina; the workspace root is two levels up;
+// cache lives at <workspace>/cache-server/cache.
+const cacheDir = path.resolve(rootDir, '..', '..', 'cache-server', 'cache');
 const layoutsDir = path.resolve(rootDir, 'src', 'cache-layouts');
 
 cacheBuilder(caches, cacheDir, layoutsDir).catch((e) => {

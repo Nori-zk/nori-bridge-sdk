@@ -55,9 +55,28 @@ async function main() {
 
     console.log('Launching headless browser for tests');
 
+    // V8 flags mirror the o1js Node script's `--no-liftoff
+    // --no-wasm-tier-up --max-old-space-size=... --max-semi-space-size=128`
+    // — disables WASM tiered compilation, which is what causes the
+    // mint-prove step to thrash memory and stall at 100% CPU. Passed
+    // as `--js-flags` because Chromium's V8 only accepts V8-level
+    // flags through this Chromium-level switch.
+    //
+    // Extras we add on top:
+    //   --expose-gc        — lets us call `globalThis.gc()` between
+    //                        phases so o1js compile garbage doesn't
+    //                        sit through prove()
+    //   --max-old-space-size=12288 — the JS heap cap is the V8 cap;
+    //                        give it 12 GB on the assumption the host
+    //                        has enough RAM. (WASM linear memory has
+    //                        its own per-module cap; this only helps
+    //                        the JS-side work.)
     const browser = await puppeteer.launch({
         headless: true,
-        protocolTimeout: 0
+        protocolTimeout: 0,
+        args: [
+            '--js-flags=--expose-gc --experimental-wasm-memory64 --no-liftoff --no-wasm-tier-up --max-old-space-size=12288 --max-semi-space-size=128',
+        ],
     });
 
     const page = await browser.newPage();
