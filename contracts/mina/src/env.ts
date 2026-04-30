@@ -23,14 +23,14 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
         mina: {
             staging: {
                 NORI_MINA_TOKEN_BRIDGE_ADDRESS:
-                    'B62qoiefY7SGviwBAdDddekjv65G1NqLvzwxtxXSjAo4kVx4UybysQP',
+                    'B62qncFKapzR9RWDubdmrfdGxuYKCE5JMFtm1mtYW6Uo5rtiA1MWGwA',
                 NORI_MINA_TOKEN_BASE_ADDRESS:
-                    'B62qryCm7G6Mk9tJ5o5crvfTs9QjUHiw6rww2mnQrUVDdzbwnDce1QG',
-                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0x142B9d3fE3Caa2CE9DaA607A262Dc8561C694006',
+                    'B62qkZoWX6PcYTZKBYtqPDApySthckmt1T76dQx1urvm6J5NnZgT1DF',
+                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0x849b8bd52B55579682264B3CB5E10839E478E543',
                 NORI_MINA_TOKEN_BASE_TOKEN_ID:
-                    '1820725017453717818487944405494255499152401388438360132894647617164704161717',
+                    '17112140320541690424326608687027005637835476048388614802877003599438271790515',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:
-                    '16993641201534759535596432025062741903783261489827245180429469885109562975771',
+                    '11059162023103561649889259751378601715986118246125012520240418710266101727765',
                 MINA_ARCHIVE_RPC_URL: 'https://mesa-archive-node-api.gcp.o1test.net',
                 MINA_RPC_NETWORK_URL:
                     'https://plain-1-graphql.mina-mesa-network.gcp.o1test.net/graphql',
