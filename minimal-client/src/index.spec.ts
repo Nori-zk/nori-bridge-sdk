@@ -126,12 +126,16 @@ type MintWorkerInstance = InstanceType<ReturnType<typeof getTokenBridgeMintWorke
 type DepositAttestationInput = Parameters<
     MintWorkerInstance['MOCK_computeMintProofAndCache']
 >[2];
+// Persisted at two checkpoints:
+//   - "post-lock"    after the eth lock tx confirms (the last 2 fields are absent)
+//   - "post-canMint" after the bridge has fully processed the deposit (all 5 fields)
+// File at .test-state/mint-resume.json. Cleared after a successful mint.
 type MintResumeState = {
     depositBlockNumber: number;
     signatureSCRAMBase58: string;
     codeChallengeSCRAMStr: string;
-    needsToFundAccount: boolean;
-    depositAttestationInput: DepositAttestationInput;
+    depositAttestationInput?: DepositAttestationInput;
+    needsToFundAccount?: boolean;
 };
 const RESUME_URL = '/test-state/mint-resume';
 async function loadMintResumeState(): Promise<MintResumeState | null> {
@@ -193,8 +197,10 @@ describe('e2e_testnet', () => {
 
             // Inputs to MOCK_computeMintProofAndCache. Either populated by
             // running the full pre-mint flow, or restored from a cached
-            // resume file written by a previous run that got past
-            // `canMint` but failed in the mint worker.
+            // resume file:
+            //   - full state    → all 5 fields → skip everything below, go straight to mint
+            //   - post-lock     → first 3 fields → skip SCRAM + eth lock, run bridge wait + witness + canMint
+            //   - no state      → run everything end to end
             let depositBlockNumber: number;
             let signatureSCRAMBase58: string;
             let codeChallengeSCRAMStr: string;
@@ -202,28 +208,23 @@ describe('e2e_testnet', () => {
             let needsToFundAccount: boolean;
 
             const resumeState = await loadMintResumeState();
-            if (resumeState) {
+            if (
+                resumeState &&
+                resumeState.depositAttestationInput !== undefined &&
+                resumeState.needsToFundAccount !== undefined
+            ) {
                 logger.log(
-                    'Found cached mint resume state — skipping pre-mint flow.'
+                    'Found full mint resume state — skipping all pre-mint flow.'
                 );
-                ({
-                    depositBlockNumber,
-                    signatureSCRAMBase58,
-                    codeChallengeSCRAMStr,
-                    depositAttestationInput,
-                    needsToFundAccount,
-                } = resumeState);
+                depositBlockNumber = resumeState.depositBlockNumber;
+                signatureSCRAMBase58 = resumeState.signatureSCRAMBase58;
+                codeChallengeSCRAMStr = resumeState.codeChallengeSCRAMStr;
+                depositAttestationInput = resumeState.depositAttestationInput;
+                needsToFundAccount = resumeState.needsToFundAccount;
                 logger.log('Resumed depositBlockNumber:', depositBlockNumber);
                 logger.log('Resumed needsToFundAccount:', needsToFundAccount);
             } else {
-                // GET ETH WALLET **************************************************
-                logger.log('Getting ETH wallet.');
-                const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
-                const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
-
-                // START MAIN FLOW
-
-                // INIT WORKER **************************************************
+                // INIT WORKER (needed for SCRAM and/or compile/storage/witness/canMint) ******
                 logger.log('Fetching token bridge worker.');
                 const TokenBridgeWorker = getTokenBridgeWorker();
                 const tokenBridgeWorker = new TokenBridgeWorker();
@@ -235,40 +236,10 @@ describe('e2e_testnet', () => {
                 );
                 await tokenBridgeWorker.minaSetup(minaConfig);
 
-                // OBTAIN CREDENTIAL **************************************************
-
-                // CLIENT *******************
-
-                // Sign SCRAM message using Mina private key (via worker).
-                // This is used such that we can deterministically derive our codeChallenge
-                // used for the SCRAM code exchange without the user having to store
-                // any secret, when a fixed message is used.
-                // If the user uses a fixed message then they could use their Mina key to re generate
-                // their signature (and therefore codeChallenge) on another machine.
-                // If they provided a secret message then they would have to keep this themselves and provide it when minting.
-                logger.log('Signing SCRAM message');
-                const scramSignTimer = createTimer();
-                signatureSCRAMBase58 = await tokenBridgeWorker.MOCK_SCRAM_signMessage(messageSCRAMStr);
-                logger.log(`SCRAM signature computed in ${scramSignTimer()}`);
-
-                // CLIENT only logic from now on....
-
-                // Create code challenge from SCRAM signature
-                codeChallengeSCRAMStr = await tokenBridgeWorker.SCRAM_createCodeChallenge(signatureSCRAMBase58);
-                const codeChallengeSCRAMBigInt = BigInt(codeChallengeSCRAMStr);
-
-                // These prints are just for testing purposes.
-                logger.log(
-                    'senderPublicKey.toBase58()',
-                    minaSenderPublicKeyBase58
-                );
-                logger.log('signatureSCRAMBase58', signatureSCRAMBase58);
-                logger.log('codeChallengeSCRAMBigInt', codeChallengeSCRAMBigInt);
-                logger.log('codeChallengeSCRAMStr', codeChallengeSCRAMStr);
-
                 // CONNECT TO BRIDGE **************************************************
 
-                // Establish a connection to the bridge.
+                // Establish a connection to the bridge. Always needed: even on
+                // post-lock resume we still subscribe to depositProcessingStatus$.
                 logger.log('Establishing bridge connection and topics.');
                 const { bridgeSocket$, bridgeSocketConnectionState$ } =
                     getReconnectingBridgeSocket$(noriWssUrl);
@@ -286,51 +257,106 @@ describe('e2e_testnet', () => {
                 const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
                 const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
-                // Wait for bridge topics to be ready, to ensure correct deposit classification.
-                // Under normal conditions this is very fast. But see the docstring for why this
-                // may be unsafe, a safe method is also provided.
-                logger.log('Awaiting sufficient bridge state');
-                const bridgeStateReadyTimer = createTimer();
-                await bridgeStatusesKnownEnoughToLockUnsafe(
-                    ethStateTopic$,
-                    bridgeStateTopic$,
-                    bridgeTimingsTopic$
-                );
-                logger.log(`Bridge state ready in ${bridgeStateReadyTimer()}`);
+                if (resumeState) {
+                    logger.log(
+                        'Found post-lock resume state — skipping SCRAM + eth lock.'
+                    );
+                    depositBlockNumber = resumeState.depositBlockNumber;
+                    signatureSCRAMBase58 = resumeState.signatureSCRAMBase58;
+                    codeChallengeSCRAMStr = resumeState.codeChallengeSCRAMStr;
+                    logger.log('Resumed depositBlockNumber:', depositBlockNumber);
+                } else {
+                    // OBTAIN CREDENTIAL ******************************************
 
-                // LOCK TOKENS **************************************************
+                    // Note this value is used to restrict the domain of the signature but could
+                    // also be a user provided secret for extra security.
+                    // Sign SCRAM message using Mina private key (via worker).
+                    // This is used such that we can deterministically derive our codeChallenge
+                    // used for the SCRAM code exchange without the user having to store
+                    // any secret, when a fixed message is used.
+                    // If the user uses a fixed message then they could use their Mina key to re generate
+                    // their signature (and therefore codeChallenge) on another machine.
+                    // If they provided a secret message then they would have to keep this themselves and provide it when minting.
+                    logger.log('Signing SCRAM message');
+                    const scramSignTimer = createTimer();
+                    signatureSCRAMBase58 = await tokenBridgeWorker.MOCK_SCRAM_signMessage(messageSCRAMStr);
+                    logger.log(`SCRAM signature computed in ${scramSignTimer()}`);
 
-                logger.log('Locking eth tokens');
+                    // CLIENT only logic from now on....
 
-                const lockingTokensTimer = createTimer();
-                const contract = NoriTokenBridge__factory.connect(noriETHBridgeAddressHex, ethWallet);
-                /*const abi = noriEthTokenBridgeJson.abi;
-                const contract = new ethers.Contract(
-                    noriETHBridgeAddressHex,
-                    abi,
-                    ethWallet
-                );*/
-                const credentialAttestationBigNumberIsh: BigNumberish =
-                    codeChallengeSCRAMBigInt;
-                const depositAmountStr = '0.0001'; // 100 BU (minimum lock amount)
-                logger.log('depositAmountStr', depositAmountStr);
-                const depositAmount = ethers.parseEther(depositAmountStr);
-                const result: TransactionResponse = await contract.lockTokens(
-                    credentialAttestationBigNumberIsh,
-                    { value: depositAmount }
-                );
-                logger.log('Eth deposit made', result.toJSON());
-                logger.log('Waiting for 1 confirmation');
-                const confirmedResult = await result.wait();
-                logger.log('Confirmed Eth Deposit', confirmedResult.toJSON());
-                depositBlockNumber = confirmedResult.blockNumber;
-                if (!depositBlockNumber) {
-                    logger.error('depositBlockNumber was falsey');
+                    // Create code challenge from SCRAM signature
+                    codeChallengeSCRAMStr = await tokenBridgeWorker.SCRAM_createCodeChallenge(signatureSCRAMBase58);
+                    const codeChallengeSCRAMBigInt = BigInt(codeChallengeSCRAMStr);
+
+                    // These prints are just for testing purposes.
+                    logger.log(
+                        'senderPublicKey.toBase58()',
+                        minaSenderPublicKeyBase58
+                    );
+                    logger.log('signatureSCRAMBase58', signatureSCRAMBase58);
+                    logger.log('codeChallengeSCRAMBigInt', codeChallengeSCRAMBigInt);
+                    logger.log('codeChallengeSCRAMStr', codeChallengeSCRAMStr);
+
+                    // Wait for bridge topics to be ready, to ensure correct deposit classification.
+                    // Under normal conditions this is very fast. But see the docstring for why this
+                    // may be unsafe, a safe method is also provided.
+                    logger.log('Awaiting sufficient bridge state');
+                    const bridgeStateReadyTimer = createTimer();
+                    await bridgeStatusesKnownEnoughToLockUnsafe(
+                        ethStateTopic$,
+                        bridgeStateTopic$,
+                        bridgeTimingsTopic$
+                    );
+                    logger.log(`Bridge state ready in ${bridgeStateReadyTimer()}`);
+
+                    // GET ETH WALLET *********************************************
+                    logger.log('Getting ETH wallet.');
+                    const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
+                    const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
+
+                    // LOCK TOKENS ************************************************
+
+                    logger.log('Locking eth tokens');
+
+                    const lockingTokensTimer = createTimer();
+                    const contract = NoriTokenBridge__factory.connect(noriETHBridgeAddressHex, ethWallet);
+                    /*const abi = noriEthTokenBridgeJson.abi;
+                    const contract = new ethers.Contract(
+                        noriETHBridgeAddressHex,
+                        abi,
+                        ethWallet
+                    );*/
+                    const credentialAttestationBigNumberIsh: BigNumberish =
+                        codeChallengeSCRAMBigInt;
+                    const depositAmountStr = '0.0001'; // 100 BU (minimum lock amount)
+                    logger.log('depositAmountStr', depositAmountStr);
+                    const depositAmount = ethers.parseEther(depositAmountStr);
+                    const result: TransactionResponse = await contract.lockTokens(
+                        credentialAttestationBigNumberIsh,
+                        { value: depositAmount }
+                    );
+                    logger.log('Eth deposit made', result.toJSON());
+                    logger.log('Waiting for 1 confirmation');
+                    const confirmedResult = await result.wait();
+                    logger.log('Confirmed Eth Deposit', confirmedResult.toJSON());
+                    depositBlockNumber = confirmedResult.blockNumber;
+                    if (!depositBlockNumber) {
+                        logger.error('depositBlockNumber was falsey');
+                    }
+                    logger.log(
+                        `Deposit confirmed with blockNumber: ${depositBlockNumber}`
+                    );
+                    logger.log(`Tokens locked in ${lockingTokensTimer()}`);
+
+                    // Persist post-lock state so a failure between here and
+                    // canMint can resume without re-locking eth.
+                    await saveMintResumeState({
+                        depositBlockNumber,
+                        signatureSCRAMBase58,
+                        codeChallengeSCRAMStr,
+                    });
+                    logger.log('Saved post-lock resume state.');
                 }
-                logger.log(
-                    `Deposit confirmed with blockNumber: ${depositBlockNumber}`
-                );
-                logger.log(`Tokens locked in ${lockingTokensTimer()}`);
 
                 // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
 
@@ -455,8 +481,9 @@ describe('e2e_testnet', () => {
                 //wait 3 sec
                 await new Promise((resolve) => setTimeout(resolve, 3000));
 
-                // Persist mint inputs so the next run can resume here if
-                // the mint worker fails. Cleared after a successful mint.
+                // Persist full state so a failure in the mint worker can
+                // resume directly into the mint step. Cleared after a
+                // successful mint.
                 await saveMintResumeState({
                     depositBlockNumber,
                     signatureSCRAMBase58,
@@ -464,7 +491,7 @@ describe('e2e_testnet', () => {
                     depositAttestationInput,
                     needsToFundAccount,
                 });
-                logger.log('Saved mint resume state.');
+                logger.log('Saved full mint resume state.');
             }
 
             logger.log('Fetching token bridge mint worker.');

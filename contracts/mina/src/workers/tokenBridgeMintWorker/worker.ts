@@ -21,7 +21,7 @@ import {
     type MerkleTreeContractDepositAttestorInputJson,
 } from '../../depositAttestation.js';
 import { SCRAMWitness } from '../../scram.js';
-// import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
+import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
 import { fungibleTokenVkHash } from '../../integrity/FungibleToken.VkHash.js';
 import { noriTokenBridgeVkHash } from '../../integrity/NoriTokenBridge.VkHash.js';
 
@@ -108,11 +108,11 @@ export class TokenBridgeMintWorker {
         logger.log('Compiling all minter dependencies...');
 
         const contracts = [
-            // {
-            //     name: 'NoriStorageInterface',
-            //     program: NoriStorageInterface,
-            //     integrityHash: noriStorageInterfaceVkHash,
-            // },
+            {
+                name: 'NoriStorageInterface',
+                program: NoriStorageInterface,
+                integrityHash: noriStorageInterfaceVkHash,
+            },
             {
                 name: 'FungibleToken',
                 program: FungibleToken,
@@ -133,9 +133,9 @@ export class TokenBridgeMintWorker {
         logger.log('All minter dependency contracts compiled successfully.');
 
         return {
-            // noriStorageInterfaceVerificationKeySafe: vkToVkSafe(
-            //     compiledVks.NoriStorageInterfaceVerificationKey
-            // ),
+            noriStorageInterfaceVerificationKeySafe: vkToVkSafe(
+                compiledVks.NoriStorageInterfaceVerificationKey
+            ),
             fungibleTokenVerificationKeySafe: vkToVkSafe(
                 compiledVks.FungibleTokenVerificationKey
             ),
