@@ -33,6 +33,8 @@ ignition/deployments/chain-31337
 .env.nori-eth-pre-deploy
 !.env.nori-eth-pre-deploy.example
 !.env.nori-eth-token-bridge.example
+.env.nori-eth-timelock
+!.env.nori-eth-timelock.example
 lib
 
 

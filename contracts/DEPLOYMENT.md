@@ -190,37 +190,59 @@ Constructor args:
 
 ---
 
-## 8. Deploy `MinaStateSettlement` and `MinaAccountValidation` (Ethereum)
+## 8. Run the Ethereum pre-deploy step
 
-These are deployed first because the bridge constructor takes their addresses.
-Both take the AlignedLayer service manager address. The repo's existing deploy
-task does this — you can run it as a single shot once §7 and §9 inputs are
-ready (see §9 for the env vars), or split:
+`bin/preDeploy.ts` (`npm run pre-deploy`) fetches the two network-dependent
+values that aren't produced by the deploy itself and writes them to
+`.env.nori-eth-pre-deploy`:
 
-```bash
-cd contracts/ethereum
-ETH_NETWORK=<network> npm run pre-deploy   # records ALIGNED_ETH_SERVICE_MANAGER_ADDRESS
-# … then run the deploy task once §9 is ready
-```
-
-### Record
-
-- [ ] `MinaStateSettlementAddress`: `0x...`
-- [ ] `MinaAccountValidationAddress`: `0x...`
-
----
-
-## 9. Deploy `NoriTokenBridge.sol` (Ethereum)
-
-Use `contracts/ethereum/tasks/deploy.ts`. It takes 6 constructor args; all of
-them must be set in `.env` first.
+| Output                                | Source                                                                          | Used by                              |
+| ------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------ |
+| `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS` | `aligned_layer` repo's `alignedlayer_deployment_output.json` for `ETH_NETWORK`  | §9 Ethereum deploy                   |
+| `NORI_ETH_GENESIS_ROOT`               | `eth/v1/beacon/genesis` on `ETH_CONSENSUS_RPC` (`genesis_validators_root` field) | §10 Mina-side deploy (positional arg) |
 
 ### Required env
 
 ```bash
-# Pre-deploy
-ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0x...   # from §8 / npm run pre-deploy
+ETH_NETWORK=<network>           # one of: hardhat, sepolia, hoodi, mainnet
+ETH_CONSENSUS_RPC=<beacon URL>  # consensus-layer RPC for the same network
+```
+
+### Run
+
+```bash
+cd contracts/ethereum
+npm run pre-deploy
+cat .env.nori-eth-pre-deploy >> .env   # fold the values into your .env for §9
+```
+
+### Record (also written to `.env.nori-eth-pre-deploy`)
+
+- [ ] `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS`: `0x...`
+- [ ] `NORI_ETH_GENESIS_ROOT`: `0x...` (32-byte hex; consumed by §10)
+
+---
+
+## 9. Deploy the Ethereum contracts
+
+`contracts/ethereum/tasks/deploy.ts` (`npm run deploy`) deploys **all three**
+Ethereum contracts in a single command and wires them together:
+
+1. `MinaAccountValidation` — constructor arg: `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS`
+2. `MinaStateSettlement`   — constructor args: `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS`, `devnetFlag` (auto-set from `ETH_NETWORK`)
+3. `NoriTokenBridge`       — uses the addresses of (1) and (2) plus the env values below
+
+After deployment, addresses are written to `.env.nori-eth-token-bridge` and any
+optional fee rates are applied via `setLockFeeRate` / `setUnlockFeeRate`.
+
+### Required env
+
+```bash
+# From §8 pre-deploy
+ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0x...
 ETH_NETWORK=<network>
+
+# Deployer
 ETH_PRIVATE_KEY=<deployer key>
 ETH_RPC_URL=<rpc url>
 
@@ -237,7 +259,7 @@ NORI_ETH_BRIDGE_LOCK_FEE_RATE=<e.g. 500 = 0.5% — optional>
 NORI_ETH_BRIDGE_UNLOCK_FEE_RATE=<e.g. 500 = 0.5% — optional>
 ```
 
-> The constructor's 6 params (in order) are
+> The bridge constructor's 6 params (in order) are
 > `(_bridgeOperator, _stateSettlementAddr, _accountValidationAddr, _zkappAcctTokenId, _zkappAcctVerificationKeyHash, _feeRecipient)`.
 > The deploy task wires them up from the env above.
 
@@ -248,11 +270,14 @@ cd contracts/ethereum
 npm run deploy
 ```
 
-### Record
+### Record (also written to `.env.nori-eth-token-bridge`)
 
+- [ ] `MinaAccountValidationAddress`: `0x...`
+- [ ] `MinaStateSettlementAddress`: `0x...`
 - [ ] `EthereumNoriTokenBridge` (the deployed bridge): `0x...`
 
-This is what we will pass to the Mina-side `NoriTokenBridge.deploy({ ethTokenBridgeAddress: ... })`.
+The bridge address is what we will pass to the Mina-side
+`NoriTokenBridge.deploy({ ethTokenBridgeAddress: ... })`.
 
 ### Verify
 
@@ -273,19 +298,55 @@ All four must match the recorded values.
 
 `NoriTokenBridge.deploy(...)`, `NoriTokenBase.deploy(...)`, and
 `NoriTokenBase.initialize(...)` are bundled into **one** `Mina.transaction`
-block. The canonical implementation is `contracts/mina/src/bin/deploy.ts` —
-use it as-is rather than reimplementing the transaction body.
+block. Two ready-made variants ship in `contracts/mina/src/bin/`:
 
-> The existing `npm run deploy` script in `contracts/mina/` signs locally
-> with private keys read from env. With FROST we don't have direct access to
-> the Bridge/Base/Admin private keys, so the script needs a mode that **builds
-> and proves the transaction but does not sign it** — emitting the unsigned
-> tx for the FROST ceremony to sign, then a separate step to inject the
-> threshold-produced signatures and broadcast.
+| Script                                            | Inputs                                                          | Bridge / Base keys                                                                                 | Use when                                                                                   |
+| ------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `deploy.ts` (`npm run deploy`)                    | Positional argv (`storeHashHex`, `ethBridgeHex`, `genesisHex`)  | **Generated fresh** at runtime via `PrivateKey.random()`, written to `.env.nori-mina-token-bridge` | Throwaway test deploys where the address can be whatever                                   |
+| `deployWithKeys.ts` (`npm run deploy-with-keys`)  | All inputs read from env (no argv); reuses upstream env names    | **Read from env**: `NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY`, `NORI_MINA_TOKEN_BASE_PRIVATE_KEY`        | The address must match a value derived in §2 (FROST group public keys, fixture keys, etc.) |
+
+Both share the same transaction body and `.env.nori-mina-token-bridge`
+output. Use `deployWithKeys.ts` for any deploy where the Bridge / Base
+addresses are predetermined; reach for `deploy.ts` only when you genuinely
+don't care which addresses you end up with.
+
+### `deploy-with-keys` env layout
+
+The script consumes these env names as-is — sourcing the upstream `.env.*`
+files produced by §8 (`.env.nori-eth-pre-deploy`) and §9
+(`.env.nori-eth-token-bridge`) covers most of them:
+
+```bash
+# Mina network / deployer (same as `deploy.ts`)
+MINA_RPC_NETWORK_URL=<URL>
+MINA_NETWORK=<mainnet | testnet | devnet | …>
+MINA_SENDER_PRIVATE_KEY=<Base58>          # the deployer / fee payer
+MINA_TX_FEE=0.1                           # optional, in MINA
+
+# zkApp account keys (the §2 addresses must match these)
+NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY=<Base58>
+NORI_MINA_TOKEN_BASE_PRIVATE_KEY=<Base58>
+
+# Bridge integrity inputs
+NORI_INITIAL_STORE_HASH=<32-byte hex>     # §5 — `0x`-prefix tolerated
+NORI_ETH_TOKEN_BRIDGE_ADDRESS=<0x…>       # §9 — written to .env.nori-eth-token-bridge
+NORI_ETH_GENESIS_ROOT=<0x…>               # §8 — written to .env.nori-eth-pre-deploy
+
+# Optional — defaults to the public key of MINA_SENDER_PRIVATE_KEY
+NORI_MINA_TOKEN_BRIDGE_ADMIN=<Base58>     # the §2 NoriTokenAdminAddress
+```
+
+> Both scripts sign locally with the keys they hold. With FROST we don't
+> have direct access to the Bridge/Base/Admin private keys, so a third
+> variant is still required that **builds and proves the transaction but
+> does not sign it** — emitting the unsigned tx for the FROST ceremony to
+> sign, then a separate step to inject the threshold-produced signatures and
+> broadcast.
 
 ### 10.1. Build the unsigned transaction (deployer-side)
 
-Run a variant of `contracts/mina/src/bin/deploy.ts` that:
+Run a variant of `contracts/mina/src/bin/deployWithKeys.ts` (which already
+sources the Bridge / Base keys from env) that:
 
 1. Compiles + integrity-checks `NoriStorageInterface`, `FungibleToken`, and
    `NoriTokenBridge` (`compileAndVerifyContracts`).
@@ -294,6 +355,10 @@ Run a variant of `contracts/mina/src/bin/deploy.ts` that:
 4. **Stops short of signing.** Serialises the transaction (`txn.toJSON()` or
    equivalent) plus the per-account update digests that the FROST groups will
    sign, and writes them to disk for transport to the signers.
+
+Required env: see the §10 *deploy-with-keys env layout* table — the
+unsigned-tx variant inherits the same set, just with a different "stop"
+point inside the script.
 
 Parameters fed into the transaction:
 
@@ -307,6 +372,7 @@ Parameters fed into the transaction:
 | `ethTokenBridgeAddress`             | `EthereumNoriTokenBridge` (§9)                                   |
 | `noriHeliosProgramPi0`              | `FrC.from(noriHeliosProgramPi0)` (§5)                            |
 | `proofConversionPO2`                | `Field.from(proofConversionPO2)` (§5)                            |
+| `genesisRoot`                       | `NORI_ETH_GENESIS_ROOT` (§8) — passed as argv[4] to `bin/deploy.ts`, hashed via Poseidon over `Bytes32.fromHex(...).toFields()` inside the script |
 | `tokenBase.deploy.symbol`           | `'nETH'`                                                         |
 | `tokenBase.deploy.src`              | `https://github.com/Nori-zk/nori-bridge-sdk`                     |
 | `tokenBase.deploy.allowUpdates`     | `true`                                                           |
@@ -370,6 +436,7 @@ Parameters fed into the transaction:
 | `noriHeliosProgramPi0`                          |       |
 | `proofConversionPO2`                            |       |
 | `initialStoreHash`                              |       |
+| `NORI_ETH_GENESIS_ROOT`                         |       |
 | Initial `feeRecipient`                          |       |
 | Initial `lockFeeRate`                           |       |
 | Initial `unlockFeeRate`                         |       |

@@ -51,7 +51,7 @@ jobs:
     # Define lightnet service
     services:
       mina-lightnet:
-        image: o1labs/mina-local-network@sha256:b985f1cd8b4aee3e6fb3ac8f8d064235f33881fda3a41b4eb28a50ac15e276cf # mesa-latest-devnet
+        image: o1labs/mina-local-network@sha256:31b20692e0fbf9004aa6ae6b351ded0e4a1a396a5d2cb6135ed6724a7a9506ff # mesa-latest-devnet-mesa-preflight 
         env:
           RUN_ARCHIVE_NODE: true
           SLOT_TIME: 20000
@@ -70,6 +70,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: archive
+          COMPILED_PROOF_LEVEL: full
 
     steps:
       - name: Comment on PR - Build Started
