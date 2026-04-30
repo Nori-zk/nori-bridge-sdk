@@ -386,7 +386,7 @@ describe('e2e_testnet', () => {
                 // Compile tokenBridgeWorker dependancies
                 logger.log('Compiling dependancies of tokenBridgeWorker');
                 const tokenBridgeWorkerReady = tokenBridgeWorker.compileAll(
-                    'http://localhost:4210'
+                    // 'http://localhost:4210'
                 ); // ?? Can we move this earlier...
 
                 // Get noriStorageInterfaceVerificationKeySafe from tokenBridgeWorkerReady resolution.
@@ -540,7 +540,8 @@ describe('e2e_testnet', () => {
                     return undefined;
                 }
             })();
-            await tokenBridgeWorkerMint.compileAll(cacheUrl);
+            // await tokenBridgeWorkerMint.compileAll(cacheUrl);
+            await tokenBridgeWorkerMint.compileAll();
 
             logger.log('Computing mint proof.');
 

@@ -288,7 +288,6 @@ export class NoriTokenBridge
 
         // Passed proof matches extracted public entry 2
         proof.publicOutput.subtreeVkDigest.assertEquals(ethNodeVk);
-        Provable.log('newHead slot', input.outputSlot);
 
         // Verification of the input
         let bytes: UInt8[] = [];
@@ -312,11 +311,6 @@ export class NoriTokenBridge
             pi1,
         ]);
 
-        Provable.log('piDigest', piDigest);
-        Provable.log(
-            'proof.publicOutput.rightOut',
-            proof.publicOutput.rightOut
-        );
 
         piDigest.assertEquals(proof.publicOutput.rightOut);
         return {
@@ -372,20 +366,6 @@ export class NoriTokenBridge
             input.outputStoreHash
         );
 
-        Provable.asProver(() => {
-            Provable.log('Proof input store hash values were:');
-            Provable.log(input.outputStoreHash.bytes[0].value);
-            Provable.log(
-                input.outputStoreHash.bytes.slice(1, 33).map((b) => b.value)
-            );
-            Provable.log(
-                'Public outputs created:',
-                newStoreHash.highByteField,
-                newStoreHash.lowerBytesField
-            );
-            Provable.log('Current slot', currentSlot);
-        });
-
         const prevStoreHash = Bytes32FieldPair.fromBytes32(
             input.inputStoreHash
         );
@@ -396,27 +376,11 @@ export class NoriTokenBridge
             'The latest transition proofs\' input helios store hash higher byte, must match the contracts\' helios store hash higher byte.'
         );
 
-        Provable.asProver(() => {
-            Provable.log(
-                'ethProof.prevStoreHashHighByteField vs this.latestHeliusStoreInputHashHighByte',
-                prevStoreHash.highByteField.toString(),
-                this.latestHeliusStoreInputHashHighByte.get().toString()
-            );
-        });
-
         // Verification of previous store hash lower bytes.
         prevStoreHash.lowerBytesField.assertEquals(
             this.latestHeliusStoreInputHashLowerBytes.getAndRequireEquals(),
             'The latest transition proofs\' input helios store hash lower bytes, must match the contracts\' helios store hash lower bytes.'
         );
-
-        Provable.asProver(() => {
-            Provable.log(
-                'ethProof.prevStoreHashLowerBytesField vs this.latestHeliusStoreInputHashLowerBytes',
-                prevStoreHash.lowerBytesField.toString(),
-                this.latestHeliusStoreInputHashLowerBytes.get().toString()
-            );
-        });
 
         // Verification of slot progress.
         proofHead.assertGreaterThan(
@@ -587,8 +551,7 @@ export class NoriTokenBridge
 
         let token = new FungibleToken(tokenAddress);
         this.mintLock.set(Bool(false));
-        Provable.log(UInt64.fromFields(amountToMint.toFields()),
-            'UInt64.fromFields(amountToMint.toFields())');
+
         // Mint!
         await token.mint(userAddress, UInt64.fromFields(amountToMint.toFields()));
     }

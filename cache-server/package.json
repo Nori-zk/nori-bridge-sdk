@@ -47,7 +47,7 @@
         "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.57.0"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.698ca"
+        "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
     },
     "engines": {
         "node": ">=18.14.0"
