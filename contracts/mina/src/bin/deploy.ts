@@ -25,7 +25,7 @@ import {
     bridgeHeadNoriSP1HeliosProgramPi0,
     compileAndVerifyContracts,
     proofConversionSP1ToPlonkPO2,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { noriTokenBridgeVkHash } from '../integrity/NoriTokenBridge.VkHash.js';
 import { noriStorageInterfaceVkHash } from '../integrity/NoriStorageInterface.VkHash.js';

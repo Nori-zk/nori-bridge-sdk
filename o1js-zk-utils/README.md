@@ -19,7 +19,7 @@ Whenever any of these change, you must run:
 This updates the integrity files (used to ensure zk compilation is correct and not affected by stale o1js cache). Commit any changes to the `integrity` folder.
 
 ```typescript
-import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-utils';
+import { EthVerifier, EthProof, EthInput } from '@nori-zk/scrap-o1js-zk-utils';
 ```
 
 ## Merkle Leaf Attestor Generator / Utils
@@ -36,15 +36,15 @@ import {
     getMerklePathFromTree,
     computeMerkleRootFromPath,
     merkleLeafAttestorGenerator,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 ```
 
 **Example Usage**
 
 ```typescript
 import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
-import { Bytes32 } from '@nori-zk/o1js-zk-utils';
-import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils';
+import { Bytes32 } from '@nori-zk/scrap-o1js-zk-utils';
+import { merkleAttestorGenerator } from '@nori-zk/scrap-o1js-zk-utils';
 
 export class YourLeafType extends Struct({
     value: Bytes32.provable,
@@ -108,7 +108,7 @@ import {
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 ```
 
 For example usage see the [test](./src/contractDepositAttestor.spec.ts).
@@ -126,7 +126,7 @@ import {
     decodeConsensusMptProof,
     compileAndVerifyContracts,
     extractEthTokenBridgeAddressFromSP1Proof,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 ```
 
 ## Types
@@ -139,5 +139,5 @@ import {
     ConvertedProof,
     EthVerifierComputeOutput,
     Bytes32,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 ```

@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { readFileSync } from 'fs';
-import { type VerificationKeySafe, vkSafeToVk } from '@nori-zk/o1js-zk-utils';
+import { type VerificationKeySafe, vkSafeToVk } from '@nori-zk/scrap-o1js-zk-utils';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
 const logger = new Logger('UpdateVk');

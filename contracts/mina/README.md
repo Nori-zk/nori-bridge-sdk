@@ -18,7 +18,7 @@ import {
     noriTokenBridgeVkHash, // Baked verification key hash for NoriTokenBridge (integrity check)
     noriStorageInterfaceVkHash, // Baked verification key hash for NoriStorageInterface
     fungibleTokenVkHash, // Baked verification key hash for FungibleToken
-} from '@nori-zk/mina-token-bridge/node';
+} from '@nori-zk/scrap-mina-token-bridge/node';
 ```
 
 ### Browser API
@@ -35,13 +35,13 @@ import {
     fetchWindowRoots, // Fetch deposit-root actions in the contract's active window
     fetchAllDispatchedRoots, // Fetch all dispatched deposit-root actions from genesis
     getOldestActionForEviction, // Get the oldest action to evict when the window is full
-} from '@nori-zk/mina-token-bridge/browser';
+} from '@nori-zk/scrap-mina-token-bridge/browser';
 ```
 
 ### WebSocket / Reactive API
 
 ```typescript
-import { getReconnectingBridgeSocket$ } from '@nori-zk/mina-token-bridge/rx/socket';
+import { getReconnectingBridgeSocket$ } from '@nori-zk/scrap-mina-token-bridge/rx/socket';
 // getReconnectingBridgeSocket$: creates a reconnecting WebSocket with heartbeat, auto-reconnect, and bridge topic subscriptions
 // getBridgeSocket$: basic WebSocket without auto-reconnect
 
@@ -49,7 +49,7 @@ import {
     getBridgeStateTopic$, // Observable: current bridge processing state
     getBridgeTimingsTopic$, // Observable: bridge transition timing configuration
     getEthStateTopic$, // Observable: current Ethereum finality state
-} from '@nori-zk/mina-token-bridge/rx/topics';
+} from '@nori-zk/scrap-mina-token-bridge/rx/topics';
 
 import {
     BridgeDepositProcessingStatus, // Enum of deposit states: WaitingForEthFinality, ReadyToMint, etc.
@@ -62,7 +62,7 @@ import {
     getCanComputeEthProof$, // Observable: trinary compute status (CanCompute | MissedMintingOpportunity | 'Waiting')
     CanMintStatus, // Type
     CanComputEthProof, // Type
-} from '@nori-zk/mina-token-bridge/rx/deposit';
+} from '@nori-zk/scrap-mina-token-bridge/rx/deposit';
 ```
 
 ### Environment
@@ -70,9 +70,9 @@ import {
 `env` is a pre-baked configuration object keyed by network (`mina` | `zeko`) and environment (`development` | `staging` | `production`). Each entry contains the deployed contract addresses, token IDs, RPC URLs, and Nori service endpoints for that deployment — allowing consumers to import a ready-made configuration without manually specifying every value.
 
 ```typescript
-import { env } from '@nori-zk/mina-token-bridge/env';
+import { env } from '@nori-zk/scrap-mina-token-bridge/env';
 // or
-import { env } from '@nori-zk/mina-token-bridge/node';
+import { env } from '@nori-zk/scrap-mina-token-bridge/node';
 
 const config = env.mina?.staging;
 // config.NORI_MINA_TOKEN_BRIDGE_ADDRESS  — deployed NoriTokenBridge address
@@ -92,7 +92,7 @@ const config = env.mina?.staging;
 ### Node.js worker usage
 
 ```typescript
-import { getTokenBridgeWorker } from '@nori-zk/mina-token-bridge/node/workers/tokenBridgeWorker';
+import { getTokenBridgeWorker } from '@nori-zk/scrap-mina-token-bridge/node/workers/tokenBridgeWorker';
 
 async function main() {
     const TokenBridgeWorker = getTokenBridgeWorker();
@@ -111,7 +111,7 @@ For browser environments, import the pure worker class and lift it into a worker
 ```typescript
 // workers/tokenBridgeWorker/browser/parent.ts
 import { WorkerParent } from '@nori-zk/workers/browser/parent';
-import { type TokenBridgeWorker as TokenBridgeWorkerType } from '@nori-zk/mina-token-bridge/workers/defs';
+import { type TokenBridgeWorker as TokenBridgeWorkerType } from '@nori-zk/scrap-mina-token-bridge/workers/defs';
 import { createProxy } from '@nori-zk/workers';
 
 export function getTokenBridgeWorker() {
@@ -125,7 +125,7 @@ export function getTokenBridgeWorker() {
 
 ```typescript
 // workers/tokenBridgeWorker/browser/child.ts
-import { TokenBridgeWorker } from '@nori-zk/mina-token-bridge/workers/defs';
+import { TokenBridgeWorker } from '@nori-zk/scrap-mina-token-bridge/workers/defs';
 import { WorkerChild } from '@nori-zk/workers/browser/child';
 import { createWorker } from '@nori-zk/workers';
 
@@ -151,7 +151,7 @@ main();
 `NoriTokenBridgeSubmitter` is the programmatic API for building and submitting Ethereum→Mina state transition proofs to the deployed `NoriTokenBridge` contract.
 
 ```typescript
-import { NoriTokenBridgeSubmitter } from '@nori-zk/mina-token-bridge/node';
+import { NoriTokenBridgeSubmitter } from '@nori-zk/scrap-mina-token-bridge/node';
 
 const submitter = new NoriTokenBridgeSubmitter(); // reads env vars from process.env / .env
 await submitter.networkSetUp();

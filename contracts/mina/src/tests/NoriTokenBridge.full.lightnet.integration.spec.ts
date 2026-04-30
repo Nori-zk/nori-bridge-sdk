@@ -46,7 +46,7 @@ import {
     bytes32LEToFieldProvable,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../constructExampleProofs.js';
 import {

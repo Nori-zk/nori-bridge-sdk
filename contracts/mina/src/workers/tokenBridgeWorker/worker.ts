@@ -6,7 +6,7 @@ import {
     EthInput,
     NodeProofLeft,
     type NetworkCacheConfig,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import type {
     ProofDataOutput,
     SP1ProofWithPublicValuesPlonkNoTee,
@@ -45,7 +45,7 @@ import {
     FungibleTokenCacheLayout,
     NoriTokenBridgeCacheLayout,
 } from '../../cache-layouts/index.js';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/scrap-o1js-zk-utils';
 
 // `NoriTokenBridgeCacheLayout` is currently only referenced by the
 // cached branch of `compileMinterDeps`, which is disabled until the

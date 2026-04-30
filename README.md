@@ -9,11 +9,11 @@ A collection of smart/zk contracts, o1js programs and utilities for Nori Bridge.
    Solidity contracts for the Ethereum side of the bridge.
 
 2. **[Mina Token Bridge](./contracts/mina)**  
-   `package: @nori-zk/mina-token-bridge`  
+   `package: @nori-zk/scrap-mina-token-bridge`  
    Mina zkApp contracts for bridging tokens using the Nori stack.
 
 3. **[o1js ZK Utils](./o1js-zk-utils)**  
-   `package: @nori-zk/o1js-zk-utils`  
+   `package: @nori-zk/scrap-o1js-zk-utils`  
    Zero-knowledge programs and helpers built with o1js.
 
 4. **[Workers](./workers)**  

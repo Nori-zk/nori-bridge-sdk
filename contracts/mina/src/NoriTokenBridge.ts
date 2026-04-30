@@ -32,12 +32,12 @@ import {
 import { VerificationKey, AccountUpdateForest } from 'o1js';
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { EthInput, bytes32LEToFieldProvable, Bytes20 } from '@nori-zk/o1js-zk-utils';
+import { EthInput, bytes32LEToFieldProvable, Bytes20 } from '@nori-zk/scrap-o1js-zk-utils';
 import {
     Bytes32,
     Bytes32FieldPair,
     proofConversionSP1ToPlonkVkData,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
 import {

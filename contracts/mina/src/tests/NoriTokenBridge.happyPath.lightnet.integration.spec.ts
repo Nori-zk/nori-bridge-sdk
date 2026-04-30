@@ -39,7 +39,7 @@ import {
     Bytes20,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import { buildExampleProofSeriesCreateArguments } from '../constructExampleProofs.js';
 import {
     getNewMinaLiteNetAccountKeyPair,

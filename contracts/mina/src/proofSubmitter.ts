@@ -27,8 +27,8 @@ import {
     compileAndOptionallyVerifyContracts,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
-} from '@nori-zk/o1js-zk-utils';
-import { cacheFactory } from '@nori-zk/o1js-zk-utils/node';
+} from '@nori-zk/scrap-o1js-zk-utils';
+import { cacheFactory } from '@nori-zk/scrap-o1js-zk-utils/node';
 import {
     type NodeProofLeft as NodeProofLeftRaw,
     FrC,

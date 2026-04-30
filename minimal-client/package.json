@@ -26,12 +26,12 @@
     "peerDependencies": {
         "@types/express": "^5.0.3",
         "@types/node": "^25.2.3",
-        "o1js": "https://pkg.pr.new/o1-labs/o1js@2701"
+        "o1js": "3.0.0-mesa.698ca"
     },
     "dependencies": {
         "@nori-zk/ethereum-token-bridge": "*",
-        "@nori-zk/proof-conversion": "0.8.19",
-        "@nori-zk/mina-token-bridge": "*",
+        "@nori-zk/proof-conversion": "0.8.20",
+        "@nori-zk/scrap-mina-token-bridge": "*",
         "@nori-zk/pts-types": "5.0.0",
         "@nori-zk/workers": "*",
         "esm-iso-logger": "1.0.2",

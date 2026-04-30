@@ -9,7 +9,7 @@ import http from 'http';
 import httpProxy from 'http-proxy';
 // Load environment variables from .env file
 import 'dotenv/config';
-import { getStagingEnv } from '@nori-zk/mina-token-bridge/node';
+import { getStagingEnv } from '@nori-zk/scrap-mina-token-bridge/node';
 //import { Logger } from 'esm-iso-logger';
 
 const logger = console;

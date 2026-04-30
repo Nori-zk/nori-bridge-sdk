@@ -1,7 +1,7 @@
 // Load environment variables from .env file
 import 'dotenv/config';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { Bytes32, Bytes32FieldPair } from '@nori-zk/o1js-zk-utils';
+import { Bytes32, Bytes32FieldPair } from '@nori-zk/scrap-o1js-zk-utils';
 import { parseAdminBinEnv, setupNetworkAndCompile, submitAdminTx } from './utils/adminBinUtils.js';
 
 const logger = new Logger('UpdateStoreHash');

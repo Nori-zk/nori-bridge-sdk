@@ -9,7 +9,7 @@ import {
     NodeProofLeft,
     type VerificationKeySafe,
     vkToVkSafe,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import type {
     ProofDataOutput,
     SP1ProofWithPublicValuesPlonkNoTee,

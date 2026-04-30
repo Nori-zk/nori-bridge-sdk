@@ -4,7 +4,7 @@
  * Usage: npx tsx src/bin/startServer.ts [port]
  */
 import { startServer } from '../test-utils/browserTestRunnerUtils.js';
-import { getStagingEnv } from '@nori-zk/mina-token-bridge/node';
+import { getStagingEnv } from '@nori-zk/scrap-mina-token-bridge/node';
 
 const port = Number(process.argv[2]) || 4003;
 const stagingEnv = getStagingEnv();

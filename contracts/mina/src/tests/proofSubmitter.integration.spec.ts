@@ -11,7 +11,7 @@ import {
     decodeConsensusMptProof,
     extractEthTokenBridgeAddressFromSP1Proof,
     type FileSystemCacheConfig,
-} from '@nori-zk/o1js-zk-utils';
+} from '@nori-zk/scrap-o1js-zk-utils';
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
