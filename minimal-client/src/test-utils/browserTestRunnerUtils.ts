@@ -32,6 +32,8 @@ export const __dirname = path.dirname(__filename);
 // Root and public folder
 export const ROOT_DIR = path.resolve(__dirname, '..', '..');
 export const PUBLIC_DIR = path.resolve(ROOT_DIR, 'public');
+// Test resume state — preserved across runs so partial flows can pick up where they left off.
+export const TEST_STATE_DIR = path.resolve(ROOT_DIR, '.test-state');
 
 // Build hash
 const HASH = Math.random().toString(36).slice(2, 10);
@@ -112,6 +114,54 @@ export async function startServer(port = 4003) {
     // Serve static files
     app.use(express.static(PUBLIC_DIR));
 
+    // Test-resume state. Reads/writes `.test-state/<name>.json` so the
+    // browser test can persist partial-flow checkpoints across reruns.
+    const safeName = /^[a-zA-Z0-9_-]+$/;
+    const stateFile = (name: string) =>
+        path.resolve(TEST_STATE_DIR, `${name}.json`);
+    app.get('/test-state/:name', (req, res) => {
+        const { name } = req.params;
+        if (!safeName.test(name)) {
+            res.status(400).end();
+            return;
+        }
+        const filePath = stateFile(name);
+        if (!fs.existsSync(filePath)) {
+            res.status(404).end();
+            return;
+        }
+        res.type('application/json').send(fs.readFileSync(filePath, 'utf-8'));
+    });
+    app.post(
+        '/test-state/:name',
+        express.json({ limit: '50mb' }),
+        (req, res) => {
+            const { name } = req.params;
+            if (!safeName.test(name)) {
+                res.status(400).end();
+                return;
+            }
+            if (!fs.existsSync(TEST_STATE_DIR))
+                fs.mkdirSync(TEST_STATE_DIR, { recursive: true });
+            fs.writeFileSync(
+                stateFile(name),
+                JSON.stringify(req.body),
+                'utf-8'
+            );
+            res.status(204).end();
+        }
+    );
+    app.delete('/test-state/:name', (req, res) => {
+        const { name } = req.params;
+        if (!safeName.test(name)) {
+            res.status(400).end();
+            return;
+        }
+        const filePath = stateFile(name);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        res.status(204).end();
+    });
+
     // HTTP + WS proxy setup
     const proxy = httpProxy.createProxyServer({
         changeOrigin: true,
@@ -175,6 +225,18 @@ async function buildWorkers() {
         entryPoints: ['src/tokenBridgeWorker.ts'],
         bundle: true,
         outfile: tokenBridgeWorkerFilePath,
+        format: 'esm',
+        define,
+        banner: { js: banner },
+    });
+
+    // Build token bridge mint worker
+    const tokenBridgeMintWorkerFileName = `tokenBridgeMintWorker.${HASH}.js`;
+    const tokenBridgeMintWorkerFilePath = path.resolve(ROOT_DIR, 'public', tokenBridgeMintWorkerFileName);
+    await esbuild.build({
+        entryPoints: ['src/tokenBridgeMintWorker.ts'],
+        bundle: true,
+        outfile: tokenBridgeMintWorkerFilePath,
         format: 'esm',
         define,
         banner: { js: banner },

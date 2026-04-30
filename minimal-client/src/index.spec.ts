@@ -14,6 +14,7 @@ import {
     readyToComputeMintProof,
 } from '@nori-zk/mina-token-bridge/rx/deposit';
 import { getTokenBridgeWorker } from './tokenBridgeWorkerClient.js';
+import { getTokenBridgeMintWorker } from './tokenBridgeMintWorkerClient.js';
 import { type BigNumberish, ethers, type TransactionResponse } from 'ethers';
 import { noriTokenBridgeJson as noriEthTokenBridgeJson, NoriTokenBridge__factory } from '@nori-zk/ethereum-token-bridge';
 import { createTimer } from '@nori-zk/o1js-zk-utils';
@@ -113,6 +114,52 @@ function validateEnv(): {
 new LogPrinter('MinimalClient');
 const logger = new Logger('IndexSpec');
 
+// Resume state. The mint-half (MOCK_computeMintProofAndCache +
+// WALLET_MOCK_signAndSendMintProofCache) is the OOM-prone part of the
+// flow; everything before it can be cached so a failed retry does not
+// have to re-do the eth lock + bridge wait + storage setup. State is
+// dumped to `.test-state/mint-resume.json` via the express runner. On
+// each test start the file is loaded; if present, the pre-mint flow
+// is skipped and we go straight to the mint worker. Cleared after a
+// successful mint.
+type MintWorkerInstance = InstanceType<ReturnType<typeof getTokenBridgeMintWorker>>;
+type DepositAttestationInput = Parameters<
+    MintWorkerInstance['MOCK_computeMintProofAndCache']
+>[2];
+type MintResumeState = {
+    depositBlockNumber: number;
+    signatureSCRAMBase58: string;
+    codeChallengeSCRAMStr: string;
+    needsToFundAccount: boolean;
+    depositAttestationInput: DepositAttestationInput;
+};
+const RESUME_URL = '/test-state/mint-resume';
+async function loadMintResumeState(): Promise<MintResumeState | null> {
+    try {
+        const res = await fetch(RESUME_URL);
+        if (res.status === 404) return null;
+        if (!res.ok) return null;
+        return (await res.json()) as MintResumeState;
+    } catch (e) {
+        logger.warn('Failed to load mint resume state', e);
+        return null;
+    }
+}
+async function saveMintResumeState(state: MintResumeState): Promise<void> {
+    const res = await fetch(RESUME_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(state),
+    });
+    if (!res.ok)
+        logger.warn(`Failed to save mint resume state: HTTP ${res.status}`);
+}
+async function clearMintResumeState(): Promise<void> {
+    const res = await fetch(RESUME_URL, { method: 'DELETE' });
+    if (!res.ok)
+        logger.warn(`Failed to clear mint resume state: HTTP ${res.status}`);
+}
+
 describe('e2e_testnet', () => {
     test('e2e_complete_testnet', async () => {
         let depositProcessingStatusSubscription: Subscription;
@@ -140,248 +187,302 @@ describe('e2e_testnet', () => {
                 archive: 'http://localhost:4003/archive',
             };
 
-            // GET ETH WALLET **************************************************
-            logger.log('Getting ETH wallet.');
-            const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
-            const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
-
-            // START MAIN FLOW
-
-            // INIT WORKER **************************************************
-            logger.log('Fetching token bridge worker.');
-            const TokenBridgeWorker = getTokenBridgeWorker();
-            const tokenBridgeWorker = new TokenBridgeWorker();
-
-            // Configure wallet
-            // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
-            await tokenBridgeWorker.WALLET_setMinaPrivateKey(
-                minaSenderPrivateKeyBase58
-            );
-            await tokenBridgeWorker.minaSetup(minaConfig);
-
-            // OBTAIN CREDENTIAL **************************************************
-
-            // CLIENT *******************
-
             // Note this value is used to restrict the domain of the signature but could
             // also be a user provided secret for extra security.
             const messageSCRAMStr = 'NoriZK25';
-            // Sign SCRAM message using Mina private key (via worker).
-            // This is used such that we can deterministically derive our codeChallenge
-            // used for the SCRAM code exchange without the user having to store
-            // any secret, when a fixed message is used.
-            // If the user uses a fixed message then they could use their Mina key to re generate
-            // their signature (and therefore codeChallenge) on another machine.
-            // If they provided a secret message then they would have to keep this themselves and provide it when minting.
-            logger.log('Signing SCRAM message');
-            const scramSignTimer = createTimer();
-            const signatureSCRAMBase58 = await tokenBridgeWorker.MOCK_SCRAM_signMessage(messageSCRAMStr);
-            logger.log(`SCRAM signature computed in ${scramSignTimer()}`);
 
-            // CLIENT only logic from now on....
+            // Inputs to MOCK_computeMintProofAndCache. Either populated by
+            // running the full pre-mint flow, or restored from a cached
+            // resume file written by a previous run that got past
+            // `canMint` but failed in the mint worker.
+            let depositBlockNumber: number;
+            let signatureSCRAMBase58: string;
+            let codeChallengeSCRAMStr: string;
+            let depositAttestationInput: DepositAttestationInput;
+            let needsToFundAccount: boolean;
 
-            // Create code challenge from SCRAM signature
-            const codeChallengeSCRAMStr = await tokenBridgeWorker.SCRAM_createCodeChallenge(signatureSCRAMBase58);
-            const codeChallengeSCRAMBigInt = BigInt(codeChallengeSCRAMStr);
+            const resumeState = await loadMintResumeState();
+            if (resumeState) {
+                logger.log(
+                    'Found cached mint resume state — skipping pre-mint flow.'
+                );
+                ({
+                    depositBlockNumber,
+                    signatureSCRAMBase58,
+                    codeChallengeSCRAMStr,
+                    depositAttestationInput,
+                    needsToFundAccount,
+                } = resumeState);
+                logger.log('Resumed depositBlockNumber:', depositBlockNumber);
+                logger.log('Resumed needsToFundAccount:', needsToFundAccount);
+            } else {
+                // GET ETH WALLET **************************************************
+                logger.log('Getting ETH wallet.');
+                const etherProvider = new ethers.JsonRpcProvider(ethRpcUrl);
+                const ethWallet = new ethers.Wallet(ethPrivateKey, etherProvider);
 
-            // These prints are just for testing purposes.
-            logger.log(
-                'senderPublicKey.toBase58()',
-                minaSenderPublicKeyBase58
-            );
-            logger.log('signatureSCRAMBase58', signatureSCRAMBase58);
-            logger.log('codeChallengeSCRAMBigInt', codeChallengeSCRAMBigInt);
-            logger.log('codeChallengeSCRAMStr', codeChallengeSCRAMStr);
+                // START MAIN FLOW
 
-            // CONNECT TO BRIDGE **************************************************
+                // INIT WORKER **************************************************
+                logger.log('Fetching token bridge worker.');
+                const TokenBridgeWorker = getTokenBridgeWorker();
+                const tokenBridgeWorker = new TokenBridgeWorker();
 
-            // Establish a connection to the bridge.
-            logger.log('Establishing bridge connection and topics.');
-            const { bridgeSocket$, bridgeSocketConnectionState$ } =
-                getReconnectingBridgeSocket$(noriWssUrl);
+                // Configure wallet
+                // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
+                await tokenBridgeWorker.WALLET_setMinaPrivateKey(
+                    minaSenderPrivateKeyBase58
+                );
+                await tokenBridgeWorker.minaSetup(minaConfig);
 
-            // Subscribe to the sockets connection status.
-            bridgeSocketConnectionState$.subscribe({
-                next: (state) => logger.log(`[WS] ${state}`),
-                error: (state) => logger.error(`[WS] ${state}`),
-                complete: () =>
-                    logger.log('[WS] Bridge socket connection completed.'),
-            });
+                // OBTAIN CREDENTIAL **************************************************
 
-            // Retrieve observables for the bridge topics needed.
-            const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
-            const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
-            const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
+                // CLIENT *******************
 
-            // Wait for bridge topics to be ready, to ensure correct deposit classification.
-            // Under normal conditions this is very fast. But see the docstring for why this
-            // may be unsafe, a safe method is also provided.
-            logger.log('Awaiting sufficient bridge state');
-            const bridgeStateReadyTimer = createTimer();
-            await bridgeStatusesKnownEnoughToLockUnsafe(
-                ethStateTopic$,
-                bridgeStateTopic$,
-                bridgeTimingsTopic$
-            );
-            logger.log(`Bridge state ready in ${bridgeStateReadyTimer()}`);
+                // Sign SCRAM message using Mina private key (via worker).
+                // This is used such that we can deterministically derive our codeChallenge
+                // used for the SCRAM code exchange without the user having to store
+                // any secret, when a fixed message is used.
+                // If the user uses a fixed message then they could use their Mina key to re generate
+                // their signature (and therefore codeChallenge) on another machine.
+                // If they provided a secret message then they would have to keep this themselves and provide it when minting.
+                logger.log('Signing SCRAM message');
+                const scramSignTimer = createTimer();
+                signatureSCRAMBase58 = await tokenBridgeWorker.MOCK_SCRAM_signMessage(messageSCRAMStr);
+                logger.log(`SCRAM signature computed in ${scramSignTimer()}`);
 
-            // LOCK TOKENS **************************************************
+                // CLIENT only logic from now on....
 
-            logger.log('Locking eth tokens');
+                // Create code challenge from SCRAM signature
+                codeChallengeSCRAMStr = await tokenBridgeWorker.SCRAM_createCodeChallenge(signatureSCRAMBase58);
+                const codeChallengeSCRAMBigInt = BigInt(codeChallengeSCRAMStr);
 
-            const lockingTokensTimer = createTimer();
-            const contract = NoriTokenBridge__factory.connect(noriETHBridgeAddressHex, ethWallet);
-            /*const abi = noriEthTokenBridgeJson.abi;
-            const contract = new ethers.Contract(
-                noriETHBridgeAddressHex,
-                abi,
-                ethWallet
-            );*/
-            const credentialAttestationBigNumberIsh: BigNumberish =
-                codeChallengeSCRAMBigInt;
-            const depositAmountStr = '0.0001'; // 100 BU (minimum lock amount)
-            logger.log('depositAmountStr', depositAmountStr);
-            const depositAmount = ethers.parseEther(depositAmountStr);
-            const result: TransactionResponse = await contract.lockTokens(
-                credentialAttestationBigNumberIsh,
-                { value: depositAmount }
-            );
-            logger.log('Eth deposit made', result.toJSON());
-            logger.log('Waiting for 1 confirmation');
-            const confirmedResult = await result.wait();
-            logger.log('Confirmed Eth Deposit', confirmedResult.toJSON());
-            const depositBlockNumber = confirmedResult.blockNumber;
-            if (!depositBlockNumber) {
-                logger.error('depositBlockNumber was falsey');
-            }
-            logger.log(
-                `Deposit confirmed with blockNumber: ${depositBlockNumber}`
-            );
-            logger.log(`Tokens locked in ${lockingTokensTimer()}`);
+                // These prints are just for testing purposes.
+                logger.log(
+                    'senderPublicKey.toBase58()',
+                    minaSenderPublicKeyBase58
+                );
+                logger.log('signatureSCRAMBase58', signatureSCRAMBase58);
+                logger.log('codeChallengeSCRAMBigInt', codeChallengeSCRAMBigInt);
+                logger.log('codeChallengeSCRAMStr', codeChallengeSCRAMStr);
 
-            // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
+                // CONNECT TO BRIDGE **************************************************
 
-            // Get deposit status given our execution block number from the tx receipt.
-            const depositProcessingStatus$ = getDepositProcessingStatus$(
-                depositBlockNumber,
-                ethStateTopic$,
-                bridgeStateTopic$,
-                bridgeTimingsTopic$
-            );
+                // Establish a connection to the bridge.
+                logger.log('Establishing bridge connection and topics.');
+                const { bridgeSocket$, bridgeSocketConnectionState$ } =
+                    getReconnectingBridgeSocket$(noriWssUrl);
 
-            // Subscribe to the depositProcessingStatus observable to print our progress.
-            depositProcessingStatusSubscription =
-                depositProcessingStatus$.subscribe({
-                    next: (msg) => logger.info(msg),
-                    error: (err) => logger.error(err),
+                // Subscribe to the sockets connection status.
+                bridgeSocketConnectionState$.subscribe({
+                    next: (state) => logger.log(`[WS] ${state}`),
+                    error: (state) => logger.error(`[WS] ${state}`),
                     complete: () =>
-                        logger.warn(
-                            'Deposit processing completed. Mint opportunity has been missed :('
-                        ),
+                        logger.log('[WS] Bridge socket connection completed.'),
                 });
 
-            // COMPUTE DEPOSIT ATTESTATION **************************************************
+                // Retrieve observables for the bridge topics needed.
+                const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
+                const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
+                const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
-            // PREPARE FOR MINTING **************************************************
+                // Wait for bridge topics to be ready, to ensure correct deposit classification.
+                // Under normal conditions this is very fast. But see the docstring for why this
+                // may be unsafe, a safe method is also provided.
+                logger.log('Awaiting sufficient bridge state');
+                const bridgeStateReadyTimer = createTimer();
+                await bridgeStatusesKnownEnoughToLockUnsafe(
+                    ethStateTopic$,
+                    bridgeStateTopic$,
+                    bridgeTimingsTopic$
+                );
+                logger.log(`Bridge state ready in ${bridgeStateReadyTimer()}`);
 
-            // Compile tokenBridgeWorker dependancies
-            logger.log('Compiling dependancies of tokenBridgeWorker');
-            const tokenBridgeWorkerReady = tokenBridgeWorker.compileAll(
-                'http://localhost:4210'
-            ); // ?? Can we move this earlier...
+                // LOCK TOKENS **************************************************
 
-            // Get noriStorageInterfaceVerificationKeySafe from tokenBridgeWorkerReady resolution.
-            const zkVerificationKeys = await tokenBridgeWorkerReady;
-            logger.log('Awaited compilation of tokenBridgeWorkerReady');
+                logger.log('Locking eth tokens');
 
-            // SETUP STORAGE **************************************************
-            // TODO IMPROVE THIS
-            const setupRequired = await tokenBridgeWorker.needsToSetupStorage(
-                noriMinaTokenBridgeAddressBase58,
-                minaSenderPublicKeyBase58
-            );
+                const lockingTokensTimer = createTimer();
+                const contract = NoriTokenBridge__factory.connect(noriETHBridgeAddressHex, ethWallet);
+                /*const abi = noriEthTokenBridgeJson.abi;
+                const contract = new ethers.Contract(
+                    noriETHBridgeAddressHex,
+                    abi,
+                    ethWallet
+                );*/
+                const credentialAttestationBigNumberIsh: BigNumberish =
+                    codeChallengeSCRAMBigInt;
+                const depositAmountStr = '0.0001'; // 100 BU (minimum lock amount)
+                logger.log('depositAmountStr', depositAmountStr);
+                const depositAmount = ethers.parseEther(depositAmountStr);
+                const result: TransactionResponse = await contract.lockTokens(
+                    credentialAttestationBigNumberIsh,
+                    { value: depositAmount }
+                );
+                logger.log('Eth deposit made', result.toJSON());
+                logger.log('Waiting for 1 confirmation');
+                const confirmedResult = await result.wait();
+                logger.log('Confirmed Eth Deposit', confirmedResult.toJSON());
+                depositBlockNumber = confirmedResult.blockNumber;
+                if (!depositBlockNumber) {
+                    logger.error('depositBlockNumber was falsey');
+                }
+                logger.log(
+                    `Deposit confirmed with blockNumber: ${depositBlockNumber}`
+                );
+                logger.log(`Tokens locked in ${lockingTokensTimer()}`);
 
-            logger.log(`Setup storage required? '${setupRequired}'`);
-            if (setupRequired) {
-                logger.log('Setting up storage');
-                const setupStorageTimer = createTimer();
-                const { txHash: setupTxHash } =
-                    await tokenBridgeWorker.MOCK_setupStorage(
+                // ESTABLISH DEPOSIT BRIDGE PROCESSING STATUS **********************************
+
+                // Get deposit status given our execution block number from the tx receipt.
+                const depositProcessingStatus$ = getDepositProcessingStatus$(
+                    depositBlockNumber,
+                    ethStateTopic$,
+                    bridgeStateTopic$,
+                    bridgeTimingsTopic$
+                );
+
+                // Subscribe to the depositProcessingStatus observable to print our progress.
+                depositProcessingStatusSubscription =
+                    depositProcessingStatus$.subscribe({
+                        next: (msg) => logger.info(msg),
+                        error: (err) => logger.error(err),
+                        complete: () =>
+                            logger.warn(
+                                'Deposit processing completed. Mint opportunity has been missed :('
+                            ),
+                    });
+
+                // COMPUTE DEPOSIT ATTESTATION **************************************************
+
+                // PREPARE FOR MINTING **************************************************
+
+                // Compile tokenBridgeWorker dependancies
+                logger.log('Compiling dependancies of tokenBridgeWorker');
+                const tokenBridgeWorkerReady = tokenBridgeWorker.compileAll(
+                    'http://localhost:4210'
+                ); // ?? Can we move this earlier...
+
+                // Get noriStorageInterfaceVerificationKeySafe from tokenBridgeWorkerReady resolution.
+                const zkVerificationKeys = await tokenBridgeWorkerReady;
+                logger.log('Awaited compilation of tokenBridgeWorkerReady');
+
+                // SETUP STORAGE **************************************************
+                // TODO IMPROVE THIS
+                const setupRequired = await tokenBridgeWorker.needsToSetupStorage(
+                    noriMinaTokenBridgeAddressBase58,
+                    minaSenderPublicKeyBase58
+                );
+
+                logger.log(`Setup storage required? '${setupRequired}'`);
+                if (setupRequired) {
+                    logger.log('Setting up storage');
+                    const setupStorageTimer = createTimer();
+                    const { txHash: setupTxHash } =
+                        await tokenBridgeWorker.MOCK_setupStorage(
+                            minaSenderPublicKeyBase58,
+                            noriMinaTokenBridgeAddressBase58,
+                            0.1 * 1e9,
+                            zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
+                        );
+                    // NOTE! ************
+                    // Really a client would use await tokenBridgeWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
+                    // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenBridgeWorker.setupStorage should be used on the
+                    // frontend.
+                    /*const provedSetupTxStr = await tokenBridgeWorker.setupStorage(
                         minaSenderPublicKeyBase58,
                         noriMinaTokenBridgeAddressBase58,
                         0.1 * 1e9,
                         zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
                     );
-                // NOTE! ************
-                // Really a client would use await tokenBridgeWorker.setupStorage(...args) and get a provedSetupTxStr which would be submitted to the WALLET for signing
-                // Currently we don't have the correct logic for emulating the wallet signAndSend method. However tokenBridgeWorker.setupStorage should be used on the
-                // frontend.
-                /*const provedSetupTxStr = await tokenBridgeWorker.setupStorage(
-                    minaSenderPublicKeyBase58,
-                    noriMinaTokenBridgeAddressBase58,
-                    0.1 * 1e9,
-                    zkVerificationKeys.noriStorageInterfaceVerificationKeySafe
-                );
-                logger.log('provedSetupTxStr', provedSetupTxStr);*/
-                // The below should use a real wallets signAndSend method.
-                /*const { txHash: setupTxHash } =
-                await tokenBridgeWorker.WALLET_signAndSend(provedSetupTxStr);*/
+                    logger.log('provedSetupTxStr', provedSetupTxStr);*/
+                    // The below should use a real wallets signAndSend method.
+                    /*const { txHash: setupTxHash } =
+                    await tokenBridgeWorker.WALLET_signAndSend(provedSetupTxStr);*/
 
-                logger.log('setupTxHash', setupTxHash);
-                logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
+                    logger.log('setupTxHash', setupTxHash);
+                    logger.log(`Nori minter storage setup in ${setupStorageTimer()}`);
+                }
+
+                // Block until we can compute our deposit attestation proof.
+                logger.log(
+                    'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute our EthDeposit proof.'
+                );
+
+                // Waits for proof conversion to be finished.
+                // Throws if we have missed our minting opportunity.
+                await readyToComputeMintProof(depositProcessingStatus$);
+
+                // Compute deposit witness
+                logger.log(
+                    'Computing deposit witness.'
+                );
+                const depositWitnessTimer = createTimer();
+                depositAttestationInput =
+                    await tokenBridgeWorker.computeDepositAttestationWitness(
+                        codeChallengeSCRAMStr,
+                        depositBlockNumber,
+                        'http://localhost:4003'
+                    );
+                logger.log(`Deposit witness computed in ${depositWitnessTimer()}`);
+                logger.log(
+                    'Calculated deposit witness.'
+                );
+
+                // PRE-COMPUTE MINT PROOF ****************************************************
+
+                logger.log('Determining user funding status.');
+                needsToFundAccount = await tokenBridgeWorker.needsToFundAccount(
+                    noriTokenBaseAddressBase58,
+                    minaSenderPublicKeyBase58
+                );
+                logger.log('needsToFundAccount', needsToFundAccount);
+
+                // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
+
+                logger.log(
+                    'Waiting for deposit processing completion before we can sign and send the mint proof.'
+                );
+
+                // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
+                // Throws if we have missed our minting opportunity
+                await canMint(depositProcessingStatus$);
+                logger.log(
+                    'Deposit is processed signing and sending the mint proof.'
+                );
+
+                tokenBridgeWorker.signalTerminate()
+                //wait 3 sec
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+
+                // Persist mint inputs so the next run can resume here if
+                // the mint worker fails. Cleared after a successful mint.
+                await saveMintResumeState({
+                    depositBlockNumber,
+                    signatureSCRAMBase58,
+                    codeChallengeSCRAMStr,
+                    depositAttestationInput,
+                    needsToFundAccount,
+                });
+                logger.log('Saved mint resume state.');
             }
 
-            // Block until we can compute our deposit attestation proof.
-            logger.log(
-                'Waiting for ProofConversionJobSucceeded on WaitingForCurrentJobCompletion before we can compute our EthDeposit proof.'
+            logger.log('Fetching token bridge mint worker.');
+            const TokenBridgeWorkerMint = getTokenBridgeMintWorker();
+            const tokenBridgeWorkerMint = new TokenBridgeWorkerMint();
+
+            // Configure wallet
+            // In reality we would not pass this from the main thread. We would rely on the WALLET for signatures.
+            await tokenBridgeWorkerMint.WALLET_setMinaPrivateKey(
+                minaSenderPrivateKeyBase58
             );
-
-            // Waits for proof conversion to be finished.
-            // Throws if we have missed our minting opportunity.
-            await readyToComputeMintProof(depositProcessingStatus$);
-
-            // Compute deposit witness
-            logger.log(
-                'Computing deposit witness.'
-            );
-            const depositWitnessTimer = createTimer();
-            const depositAttestationInput =
-                await tokenBridgeWorker.computeDepositAttestationWitness(
-                    codeChallengeSCRAMStr,
-                    depositBlockNumber,
-                    'http://localhost:4003'
-                );
-            logger.log(`Deposit witness computed in ${depositWitnessTimer()}`);
-            logger.log(
-                'Calculated deposit witness.'
-            );
-
-            // PRE-COMPUTE MINT PROOF ****************************************************
-
-            logger.log('Determining user funding status.');
-            const needsToFundAccount = await tokenBridgeWorker.needsToFundAccount(
-                noriTokenBaseAddressBase58,
-                minaSenderPublicKeyBase58
-            );
-            logger.log('needsToFundAccount', needsToFundAccount);
-
-            // WAIT FOR DEPOSIT PROCESSING COMPLETED BY BRIDGE BEFORE SENDING OUR MINT PROOF TO MINA **********************
-
-            logger.log(
-                'Waiting for deposit processing completion before we can sign and send the mint proof.'
-            );
-
-            // Block until deposit has been processed (when the depositProcessingStatus$ observable completes)
-            // Throws if we have missed our minting opportunity
-            await canMint(depositProcessingStatus$);
-            logger.log(
-                'Deposit is processed signing and sending the mint proof.'
-            );
+            await tokenBridgeWorkerMint.minaSetup(minaConfig);
+            await tokenBridgeWorkerMint.compileAll();
 
             logger.log('Computing mint proof.');
 
             const mintProofComputationTimer = createTimer();
-            await tokenBridgeWorker.MOCK_computeMintProofAndCache(
+            await tokenBridgeWorkerMint.MOCK_computeMintProofAndCache(
                 minaSenderPublicKeyBase58,
                 noriMinaTokenBridgeAddressBase58,
                 depositAttestationInput,
@@ -411,7 +512,7 @@ describe('e2e_testnet', () => {
 
             const mintTransactionFinalizedTimer = createTimer();
             const { txHash: mintTxHash } =
-                await tokenBridgeWorker.WALLET_MOCK_signAndSendMintProofCache();
+                await tokenBridgeWorkerMint.WALLET_MOCK_signAndSendMintProofCache();
             // Note a client would really use a wallet.signAndSend(provedMintTxStr) method at this point instead of the above.
             // And ideally when WALLET_signAndSend works properly we would replace the above(within this test only!) with the below MOCK for wallet behaviour.
             /*const { txHash: mintTxHash } =
@@ -420,14 +521,18 @@ describe('e2e_testnet', () => {
             logger.log(`Mint transaction finalized in ${mintTransactionFinalizedTimer()}`);
             logger.log('Minted!');
 
+            // Mint succeeded — drop the resume cache so the next run starts fresh.
+            await clearMintResumeState();
+            logger.log('Cleared mint resume state.');
+
             // Get the amount minted so far and print it
-            const mintedSoFar = await tokenBridgeWorker.mintedSoFar(
+            const mintedSoFar = await tokenBridgeWorkerMint.mintedSoFar(
                 noriMinaTokenBridgeAddressBase58,
                 minaSenderPublicKeyBase58
             );
             logger.log('mintedSoFar', mintedSoFar);
 
-            const balanceOfUser = await tokenBridgeWorker.getBalanceOf(
+            const balanceOfUser = await tokenBridgeWorkerMint.getBalanceOf(
                 noriTokenBaseAddressBase58,
                 minaSenderPublicKeyBase58
             );

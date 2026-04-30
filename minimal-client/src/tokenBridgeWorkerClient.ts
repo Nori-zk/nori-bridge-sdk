@@ -1,6 +1,6 @@
 import { createProxy } from '@nori-zk/workers';
 import { WorkerParent } from '@nori-zk/workers/browser/parent';
-import { type TokenBridgeWorker as TokenBridgeWorkerType } from '@nori-zk/mina-token-bridge/workers/defs';
+import { type TokenBridgeWorker as TokenBridgeWorkerType } from '@nori-zk/mina-token-bridge/workers/tokenBridgeWorker';
 
 export function getTokenBridgeWorker() {
     const worker = new Worker(

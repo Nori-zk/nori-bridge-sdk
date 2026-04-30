@@ -30,6 +30,15 @@
         "./node/workers/tokenBridgeWorker": {
             "import": "./build/workers/tokenBridgeWorker/node/parent.js"
         },
+        "./node/workers/tokenBridgeMintWorker": {
+            "import": "./build/workers/tokenBridgeMintWorker/node/parent.js"
+        },
+        "./workers/tokenBridgeWorker": {
+            "import": "./build/workers/tokenBridgeWorker/worker.js"
+        },
+        "./workers/tokenBridgeMintWorker": {
+            "import": "./build/workers/tokenBridgeMintWorker/worker.js"
+        },
         "./workers/defs": {
             "import": "./build/workers/defs.js"
         },
