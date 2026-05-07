@@ -148,7 +148,8 @@ contract MinaAccountValidation {
     }
 
     struct ZkappAccount {
-        bytes32[8] appState;
+        /// @dev On-chain application state, 32 field elements (Mesa MIP-7).
+        bytes32[32] appState;
         VerificationKey verificationKey;
         uint32 zkappVersion;
         bytes32[5] actionState;
