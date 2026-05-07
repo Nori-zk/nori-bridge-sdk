@@ -50,7 +50,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     address public bridgeOperator;
 
-    // Bridge units locked per ETH address per Mina account (codeChallenge) // REMOVEME
     // lifetimeLockedByDepositor
     // Mina signature hash -> Bridge units locked amount
     mapping(uint256 => uint256) public lockedTokens;
@@ -61,7 +60,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Mina account (depositKey) -> ETH depositor
     mapping(uint256 => address) public depositKeyToEthAddress;
 
-    // Idealy these would be immutable... OR change with timelock
     /// @notice Mina bridge contract that validates and stores Mina states.
     MinaStateSettlement public stateSettlement;
     /// @notice Mina bridge contract that validates accounts
@@ -166,7 +164,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     }
     // -------------------------------
     // Configuration
-    // those should only change if mina has hardfork so maybe make those time-lockable by bridge operator in case expected hardforks
+    // those should only change if mina has hardfork - only done with timelock
     // or changes in the Mina zkapp architecture that would require updating the aligned contracts
     // -------------------------------
     function setAlignedContracts(
@@ -250,7 +248,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     ///      `unlockedTokens` tracks the full amount (inclusive of fee) to stay aligned
     ///      with Mina-side burn accounting.
     function unlockTokens(
-        // uint256 toUnlockAmount, // token to unlock
         bytes32 proofCommitment,
         bytes32 provingSystemAuxDataCommitment,
         bytes20 proofGeneratorAddr,

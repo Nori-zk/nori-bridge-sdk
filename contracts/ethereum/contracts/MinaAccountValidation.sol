@@ -5,8 +5,6 @@ import '@aligned_layer/contracts/src/core/IAlignedLayerServiceManager.sol';
 
 error MinaAccountProvingSystemIdIsNotValid(bytes32); // c1872967
 
-/// WARNING: This contract is meant ot be used as an example of how to use the Bridge.
-/// NEVER use this contract in a production environment.
 contract MinaAccountValidation {
     /// @notice The commitment to Mina Account proving system ID.
     bytes32 constant PROVING_SYSTEM_ID_COMM =

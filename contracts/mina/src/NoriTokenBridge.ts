@@ -236,7 +236,6 @@ export class NoriTokenBridge
         const isInitialized = this.account.provedState.getAndRequireEquals();
         isInitialized.assertFalse('NoriTokenBridge has already been initialized!');
 
-        // Set initial state (TODO set these to real values!)
         this.latestHead.set(UInt64.from(0));
         this.verifiedStateRoot.set(Field(1));
         // Set inital state of store hash.
