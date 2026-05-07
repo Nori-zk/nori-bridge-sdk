@@ -236,7 +236,6 @@ export class NoriTokenBridge
         const isInitialized = this.account.provedState.getAndRequireEquals();
         isInitialized.assertFalse('NoriTokenBridge has already been initialized!');
 
-        // Set initial state (TODO set these to real values!)
         this.latestHead.set(UInt64.from(0));
         this.verifiedStateRoot.set(Field(1));
         // Set inital state of store hash.
@@ -664,14 +663,30 @@ export class NoriTokenBridge
         );
     }
 
-    /**
-     * Admin-only helper that dispatches a deposit root directly into the window,
-     * bypassing update(). @TODO Exists for testing, to be deleted.
-     */
-    @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
-        await this.ensureAdminSignature();
-        this.dispatchAndEvict(depositRoot, oldestAction);
-    }
+    // -----------------------------------------------------------------------
+    // adminSetDepositRoot — TEST-ONLY, DO NOT ENABLE IN PRODUCTION.
+    //
+    // Admin-gated convenience method that dispatches a deposit root directly
+    // into the rolling window, bypassing the SP1 consensus MPT transition
+    // proof verification performed by `update()`. It exists purely so that
+    // local / lightnet integration tests can exercise `noriMint()` and the
+    // window-rotation logic without having to construct (and verify) a real
+    // proof for every synthetic deposit they want to seed.
+    //
+    // Production builds MUST keep this commented out: a deployed bridge with
+    // this method live would let the admin key inject arbitrary deposit
+    // roots — i.e. mint tokens against deposits that never happened on
+    // Ethereum. Re-enable ONLY when running the bridge against a local /
+    // lightnet network for testing, and re-comment before any production
+    // deployment. The matching worker helper in
+    // `workers/tokenBridgeTester/worker.ts` and the corresponding `.skip`-ed
+    // tests must be uncommented in lockstep.
+    //
+    // @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
+    //     await this.ensureAdminSignature();
+    //     this.dispatchAndEvict(depositRoot, oldestAction);
+    // }
+    // -----------------------------------------------------------------------
 
     /**
      * FungibleToken admin hook. Pass-through gate: noriMint clears mintLock

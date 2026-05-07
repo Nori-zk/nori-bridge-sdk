@@ -775,7 +775,17 @@ describe('NoriTokenBridge', () => {
     // =======================================================================
     // noriMint() — Token minting
     // =======================================================================
-    describe('noriMint()', () => {
+    // -----------------------------------------------------------------------
+    // describe.skip('noriMint()'): the entire suite is gated on
+    // `adminSetDepositRoot`, which is commented out on the production
+    // contract for safety (see `contracts/mina/src/NoriTokenBridge.ts`).
+    // The test-only method exists so we can seed deposit roots directly
+    // into the rolling window without generating a full SP1 proof for
+    // each synthetic deposit. To re-run these tests against lightnet,
+    // uncomment the contract method, the worker shim
+    // (`workers/tokenBridgeTester/worker.ts`), and the call sites below.
+    // -----------------------------------------------------------------------
+    describe.skip('noriMint()', () => {
         let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
@@ -802,14 +812,18 @@ describe('NoriTokenBridge', () => {
             // Seed Alice's deposit root into the contract's rolling window
             // via the admin-gated adminSetDepositRoot method, so the
             // deposit-root assertion in noriMint() passes.
+            // adminSetDepositRoot is commented out on the production contract;
+            // the body of this beforeAll is therefore neutralised and the
+            // suite is `.skip`-ed (see top-of-suite note).
             const aliceRoot = getContractDepositSlotRootFromContractDepositAndWitness(aliceDepositAttestationInput);
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.adminSetDepositRoot(aliceRoot, Field(0));
-                },
-                sender: admin.publicKey,
-                signers: [admin.privateKey],
-            });
+            void aliceRoot;
+            // await txSend({
+            //     body: async () => {
+            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot, Field(0));
+            //     },
+            //     sender: admin.publicKey,
+            //     signers: [admin.privateKey],
+            // });
             await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
             logger.log('Deposit root seeded into contract window for Alice.');
         }, 1_000_000);
@@ -854,13 +868,15 @@ describe('NoriTokenBridge', () => {
 
                 // Seed the new deposit root into the window
                 const aliceRoot2 = getContractDepositSlotRootFromContractDepositAndWitness(aliceDeposit2);
-                await txSend({
-                    body: async () => {
-                        await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
-                    },
-                    sender: admin.publicKey,
-                    signers: [admin.privateKey],
-                });
+                void aliceRoot2;
+                // adminSetDepositRoot disabled in production — see top-of-suite note.
+                // await txSend({
+                //     body: async () => {
+                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
+                //     },
+                //     sender: admin.publicKey,
+                //     signers: [admin.privateKey],
+                // });
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
                 // Mint — contract computes amountToMint = totalLocked(500) - mintedSoFar(200) = 300
@@ -947,13 +963,15 @@ describe('NoriTokenBridge', () => {
                         const oldest = windowIsFull
                             ? allDispatchedRoots[allDispatchedRoots.length - 32]
                             : Field(0);
-                        await txSend({
-                            body: async () => {
-                                await noriTokenBridge.adminSetDepositRoot(root, oldest);
-                            },
-                            sender: admin.publicKey,
-                            signers: [admin.privateKey],
-                        });
+                        void oldest;
+                        // adminSetDepositRoot disabled in production — see top-of-suite note.
+                        // await txSend({
+                        //     body: async () => {
+                        //         await noriTokenBridge.adminSetDepositRoot(root, oldest);
+                        //     },
+                        //     sender: admin.publicKey,
+                        //     signers: [admin.privateKey],
+                        // });
                         allDispatchedRoots.push(root);
                         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
@@ -990,13 +1008,15 @@ describe('NoriTokenBridge', () => {
                         const oldest = windowIsFull
                             ? allDispatchedRoots[allDispatchedRoots.length - 32]
                             : Field(0);
-                        await txSend({
-                            body: async () => {
-                                await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
-                            },
-                            sender: admin.publicKey,
-                            signers: [admin.privateKey],
-                        });
+                        void oldest;
+                        // adminSetDepositRoot disabled in production — see top-of-suite note.
+                        // await txSend({
+                        //     body: async () => {
+                        //         await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
+                        //     },
+                        //     sender: admin.publicKey,
+                        //     signers: [admin.privateKey],
+                        // });
                         allDispatchedRoots.push(dummyRoot);
                         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
                         logger.log(`Window rotation root #${i} dispatched (total=${allDispatchedRoots.length}, windowSize=${Math.min(allDispatchedRoots.length, 32)})`);

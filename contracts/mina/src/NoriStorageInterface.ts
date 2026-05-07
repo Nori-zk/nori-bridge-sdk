@@ -7,9 +7,6 @@ which is outside the supported design and must be avoided.`;
 
 const zeroMintErrorMessage = `No new amount to mint. The requested lockedSoFar equals mintedSoFar, minting zero tokens is not allowed.`;
 
-// CHECKME why is this not used!!
-const permissionCheckErrorMessage  = `\`editState\` MUST be by proof and \`setPermissions\` MUST be by proof `;
-void permissionCheckErrorMessage;
 /**
  * The contract stores the cumulative amount of token user has minted or burned. 
  * 
@@ -37,7 +34,7 @@ export class NoriStorageInterface extends SmartContract {
     let mintedSoFar = this.mintedSoFar.getAndRequireEquals();
 
     // Underflow protection (amountToMint cannot be negative)
-    lockedSoFar.assertGreaterThanOrEqual(mintedSoFar, underflowProtectionMessage );
+    lockedSoFar.assertGreaterThanOrEqual(mintedSoFar, underflowProtectionMessage);
 
     // Calculate amount to mint
     const amountToMint = lockedSoFar.sub(mintedSoFar);
@@ -49,11 +46,6 @@ export class NoriStorageInterface extends SmartContract {
     this.mintedSoFar.set(mintedSoFar.add(amountToMint));
 
     return amountToMint;
-    // Provable.log(mintedSoFaraa, 'minted so farrrrrrrr');
-    // let amount = totalAmountLockedOnEth.sub(mintedSoFar);
-    // this.mintedSoFar.set(mintedSoFar.add(amount));
-    // this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
-    // return this.self;
   }
 
   /**

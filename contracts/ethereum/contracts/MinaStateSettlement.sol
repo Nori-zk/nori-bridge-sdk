@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.28;
 
 import '@aligned_layer/contracts/src/core/AlignedLayerServiceManager.sol';
 
@@ -55,7 +55,7 @@ error NewStateIsNotValid();
 ///        blockchain_length. This is sufficient because producing a longer chain requires stake.
 contract MinaStateSettlement {
     /// @notice The commitment to Mina state proving system ID (verified by Aligned operators).
-    /// TODO - potentially find a way to get rid of this - confimred by algined team
+    /// potentially find a way to get rid of this - confimred by algined team
     bytes32 constant PROVING_SYSTEM_ID_COMM =
         0xd0591206d9e81e07f4defc5327957173572bcd1bca7838caa7be39b0c12b1873;
 
