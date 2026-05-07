@@ -105,6 +105,12 @@ const MINT_GATE_TIMEOUT_MINUTES_DEFAULT = 120;
 // Same rationale — no upstream timeout in the helper.
 const BRIDGE_READY_TIMEOUT_MINUTES_DEFAULT = 30;
 
+// Mint proofs occasionally land stale (the embedded bridge state has rolled
+// past the on-chain window between proof build and tx inclusion). The fix is
+// to rebuild the whole proof+send pair and try again — three attempts is
+// enough to absorb one or two rolls without giving up on a flow.
+const MINT_RETRY_ATTEMPTS = 3;
+
 // ---- Env defaults (kept here so tuning is a one-file edit) ----
 
 // LOAD_LOCK_AMOUNTS_ETH — ETH amount per lock. Sepolia is cheap; 0.0001 keeps
@@ -243,6 +249,16 @@ interface UserState {
     balances?: PaneBalances;
     balancesLoading?: boolean;
 }
+
+/**
+ * Cross-flow drain signal. `requested` flips true when graceful shutdown is
+ * triggered ('g' key); `signal$` fires once at the same moment so flows
+ * already inside a wait can abort. New waits should check `requested` first.
+ */
+type DrainSignal = {
+    requested: boolean;
+    signal$: Subject<void>;
+};
 
 type FlowResult =
     | {
@@ -758,7 +774,8 @@ async function waitForBridgeUpdatesOrStall(
     bridgeStateTopic$: Observable<{ output_slot: number }>,
     updatesToWaitFor: number,
     stallTimeoutMs: number,
-    onUpdate: (count: number, slot: number) => void
+    onUpdate: (count: number, slot: number) => void,
+    abort$?: Observable<unknown>
 ): Promise<{ completed: boolean; reason?: string; received: number }> {
     if (updatesToWaitFor <= 0) return { completed: true, received: 0 };
 
@@ -767,8 +784,10 @@ async function waitForBridgeUpdatesOrStall(
         const seen = new Set<number>();
         let count = 0;
         let stallTimer: NodeJS.Timeout | undefined;
+        let abortSub: Subscription | undefined;
         const done = (completed: boolean, reason?: string) => {
             if (stallTimer) clearTimeout(stallTimer);
+            abortSub?.unsubscribe();
             sub.unsubscribe();
             resolve({ completed, reason, received: count });
         };
@@ -784,6 +803,11 @@ async function waitForBridgeUpdatesOrStall(
             );
         };
         armStall();
+        if (abort$) {
+            abortSub = abort$.subscribe({
+                next: () => done(false, 'aborted (drain)'),
+            });
+        }
         const sub = bridgeStateTopic$.subscribe({
             next: (s) => {
                 const slot = s.output_slot;
@@ -939,6 +963,7 @@ async function runUserFlow(
     uLog: UserFileLogger,
     etherProvider: ethers.JsonRpcProvider,
     compileSemaphore: Semaphore,
+    drainSignal: DrainSignal,
     onStageChange?: (u: UserState) => void
 ): Promise<FlowResult> {
     const cfg = userState.cfg;
@@ -1273,42 +1298,90 @@ async function runUserFlow(
 
         const claimDelayUpdates = pickClaimDelayUpdates();
         if (claimDelayUpdates > 0) {
-            uLog.log(
-                `Lagging claim: ${claimDelayUpdates} update(s) (stall watchdog: ${CLAIM_LAG_STALL_TIMEOUT_MINUTES}min)`
-            );
-            const lagResult = await waitForBridgeUpdatesOrStall(
-                bridgeStateTopic$,
-                claimDelayUpdates,
-                CLAIM_LAG_STALL_TIMEOUT_MINUTES * 60_000,
-                (count, slot) =>
-                    uLog.log(
-                        `[claim-lag] ${count}/${claimDelayUpdates} (slot ${slot})`
-                    )
-            );
-            if (!lagResult.completed) {
+            if (drainSignal.requested) {
                 uLog.log(
-                    `[claim-lag] giving up after ${lagResult.received}/${claimDelayUpdates} (${lagResult.reason}) — attempting mint anyway`
+                    `[claim-lag] drain requested — skipping ${claimDelayUpdates}-update lag, minting now`
                 );
+            } else {
+                uLog.log(
+                    `Lagging claim: ${claimDelayUpdates} update(s) (stall watchdog: ${CLAIM_LAG_STALL_TIMEOUT_MINUTES}min)`
+                );
+                const lagResult = await waitForBridgeUpdatesOrStall(
+                    bridgeStateTopic$,
+                    claimDelayUpdates,
+                    CLAIM_LAG_STALL_TIMEOUT_MINUTES * 60_000,
+                    (count, slot) =>
+                        uLog.log(
+                            `[claim-lag] ${count}/${claimDelayUpdates} (slot ${slot})`
+                        ),
+                    drainSignal.signal$
+                );
+                if (!lagResult.completed) {
+                    if (lagResult.reason === 'aborted (drain)') {
+                        uLog.log(
+                            `[claim-lag] drain — minting immediately after ${lagResult.received}/${claimDelayUpdates}`
+                        );
+                    } else {
+                        uLog.log(
+                            `[claim-lag] giving up after ${lagResult.received}/${claimDelayUpdates} (${lagResult.reason}) — attempting mint anyway`
+                        );
+                    }
+                }
             }
         }
 
-        const needsToFundAccount = await worker.needsToFundAccount(
-            script.noriTokenBaseAddressBase58,
-            minaPubKeyBase58
-        );
-
+        // Mint can fail if the proof embeds bridge state that has rolled
+        // forward by the time the tx is included. Rebuild the whole
+        // proof+send pair on each attempt — both `needsToFundAccount` and
+        // the proof itself are re-derived from current state, so a stale
+        // one-shot becomes a fresh retry.
         const mintStart = Date.now();
-        await worker.MOCK_computeMintProofAndCache(
-            minaPubKeyBase58,
-            script.noriMinaBridgeAddressBase58,
-            depositAttestationInput,
-            cfg.scramMsg,
-            signatureSCRAMBase58,
-            script.minaTxFeeNanomina,
-            needsToFundAccount
-        );
-        const { txHash: mintTxHash } =
-            await worker.WALLET_MOCK_signAndSendMintProofCache();
+        let mintTxHash: string | undefined;
+        let lastMintErr: unknown;
+        for (let attempt = 1; attempt <= MINT_RETRY_ATTEMPTS; attempt++) {
+            try {
+                const needsToFundNow = await worker.needsToFundAccount(
+                    script.noriTokenBaseAddressBase58,
+                    minaPubKeyBase58
+                );
+                uLog.log(
+                    `Mint attempt ${attempt}/${MINT_RETRY_ATTEMPTS}: building proof (needsToFund=${needsToFundNow})...`
+                );
+                await worker.MOCK_computeMintProofAndCache(
+                    minaPubKeyBase58,
+                    script.noriMinaBridgeAddressBase58,
+                    depositAttestationInput,
+                    cfg.scramMsg,
+                    signatureSCRAMBase58,
+                    script.minaTxFeeNanomina,
+                    needsToFundNow
+                );
+                const sent = await worker.WALLET_MOCK_signAndSendMintProofCache();
+                mintTxHash = sent.txHash;
+                uLog.log(
+                    `Mint attempt ${attempt} succeeded: tx ${mintTxHash}`
+                );
+                break;
+            } catch (err) {
+                lastMintErr = err;
+                const msg = err instanceof Error ? err.message : String(err);
+                uLog.log(
+                    `Mint attempt ${attempt}/${MINT_RETRY_ATTEMPTS} failed: ${msg}`
+                );
+            }
+        }
+        if (!mintTxHash) {
+            const reason =
+                lastMintErr instanceof Error
+                    ? lastMintErr.message
+                    : String(lastMintErr);
+            return {
+                status: 'failure',
+                reason: `mint failed after ${MINT_RETRY_ATTEMPTS} attempts: ${reason}`,
+                lockTxHash: txResp.hash,
+                totalDurationMs: Date.now() - flowStart,
+            };
+        }
         mintDurationMs = Date.now() - mintStart;
         uLog.log(`Mint tx ${mintTxHash} finalized in ${formatMs(mintDurationMs)}`);
 
@@ -1934,6 +2007,13 @@ async function main() {
     let shuttingDown = false;
     let draining = false;
     let drainInterval: NodeJS.Timeout | undefined;
+    // Shared with every in-flight runUserFlow so that on graceful drain a user
+    // sitting in the post-canMint claim-lag wait can short-circuit and head
+    // straight to the mint (which itself retries up to MINT_RETRY_ATTEMPTS).
+    const drainSignal: DrainSignal = {
+        requested: false,
+        signal$: new Subject<void>(),
+    };
     const stopTTY = () => {
         if (process.stdin.isTTY) {
             try {
@@ -1959,8 +2039,13 @@ async function main() {
         if (shuttingDown || draining) return;
         draining = true;
         shuttingDown = true; // prevents new ticks from launching flows
+        // Tell every in-flight flow to short-circuit any claim-lag wait so
+        // ReadyToMint users mint immediately. The mint itself still goes
+        // through the standard 3-retry path — we don't shortcut that.
+        drainSignal.requested = true;
+        drainSignal.signal$.next();
         logger.log(
-            "'g' received — graceful shutdown: waiting for in-flight flows to finish (Ctrl+C to abort)."
+            "'g' received — graceful shutdown: skipping claim-lag, waiting for in-flight flows to finish (Ctrl+C to abort)."
         );
         appendLine(
             aggregatePath,
@@ -2093,7 +2178,7 @@ async function main() {
         );
         uLog.log(`=== flow #${u.stats.runs} start ===`);
 
-        runUserFlow(u, script, uLog, etherProvider, compileSemaphore, (us) => {
+        runUserFlow(u, script, uLog, etherProvider, compileSemaphore, drainSignal, (us) => {
             // Refresh balances on every stage transition, but only for the
             // currently-selected user to avoid burning RPC budget on all N.
             if (
