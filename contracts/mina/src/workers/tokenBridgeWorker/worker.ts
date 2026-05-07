@@ -5,6 +5,7 @@
 // pointer the prover still holds after the first prove(), causing dangling
 // WASM memory on subsequent proves. Disabling auto-free is safe — WASM heap
 // is reclaimed when the worker is torn down on page refresh.
+// https://github.com/o1-labs/o1js/issues/2870
 (globalThis as any).FinalizationRegistry = class {
     register() { }
     unregister() {
@@ -106,7 +107,7 @@ export function isBrowser(): boolean {
 // Bootstrap trace emitted once on worker-bundle load so logs make it
 // clear which runtime the worker was instantiated in.
 logger.log('Constructing TokenBridgeWorker. isBrowser:', isBrowser());
-
+console.log('FR is patched?', new FinalizationRegistry(() => { }).register.toString());
 /**
  * # TokenBridgeWorker
  *
