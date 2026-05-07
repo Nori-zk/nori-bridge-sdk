@@ -1,12 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.28;
 
 import '@aligned_layer/contracts/src/core/IAlignedLayerServiceManager.sol';
 
-error MinaAccountProvingSystemIdIsNotValid(bytes32); // c1872967
+error MinaAccountProvingSystemIdIsNotValid(bytes32);
 
-/// WARNING: This contract is meant ot be used as an example of how to use the Bridge.
-/// NEVER use this contract in a production environment.
+/// @title MinaAccountValidation
+/// @notice Wraps Aligned Layer batch-inclusion verification for Mina zkApp
+///         account proofs. Called by NoriTokenBridge.unlockTokens to confirm
+///         that a presented Mina account state was included in a batch
+///         verified by Aligned Layer under the Mina account proving system.
+/// @dev Forked from the lambdaclass Aligned Layer Mina bridge reference
+///      (mina_bridge/contract/src/MinaAccountValidation.sol). The on-chain
+///      Account / ZkappAccount / Permissions / VerificationKey structs below
+///      mirror the public-input layout produced by mina_bridge_core; ABI
+///      decoding is positional, so any upstream change to that pubInput
+///      format must be reflected in these struct definitions in lockstep.
+///      The verification path itself is a thin pass-through to
+///      AlignedLayerServiceManager.verifyBatchInclusion plus a proving-system
+///      ID check, and inherits its security from Aligned Layer.
 contract MinaAccountValidation {
     /// @notice The commitment to Mina Account proving system ID.
     bytes32 constant PROVING_SYSTEM_ID_COMM =

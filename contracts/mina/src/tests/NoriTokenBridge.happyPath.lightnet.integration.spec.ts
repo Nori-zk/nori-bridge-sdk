@@ -12,6 +12,9 @@
  *   2. update() — 4 consecutive blocks          (tester.update)
  *   3. setUpStorage for Alice                   (tester.setUpStorage)
  *   4. adminSetDepositRoot + noriMint for Alice (tester.adminSetDepositRoot + .mint)
+ *      — currently `.skip`-ed because adminSetDepositRoot is commented out
+ *      on the production contract. Re-enable in lockstep with the contract
+ *      method and the worker shim for local / lightnet testing.
  */
 
 import { Logger, LogPrinter } from 'esm-iso-logger';
@@ -435,7 +438,17 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // 4. noriMint for Alice via tester
     //    (deposit-root seed step also goes through the tester worker)
     // =======================================================================
-    describe('noriMint() via tester worker', () => {
+    // -----------------------------------------------------------------------
+    // describe.skip('noriMint() via tester worker'): the test is gated on
+    // `adminSetDepositRoot`, which is commented out on the production
+    // contract for safety (see `contracts/mina/src/NoriTokenBridge.ts`).
+    // The test-only method exists so we can seed deposit roots directly
+    // into the rolling window without generating a full SP1 proof for
+    // each synthetic deposit. To re-run this test against lightnet,
+    // uncomment the contract method, the worker shim
+    // (`workers/tokenBridgeTester/worker.ts`), and the call sites below.
+    // -----------------------------------------------------------------------
+    describe.skip('noriMint() via tester worker', () => {
         test('should seed deposit root then mint 200 bridge units for Alice', async () => {
             const aliceScramMsg = 'NoriZK';
             const totalLockedBU = 200n;
@@ -450,13 +463,15 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 getContractDepositSlotRootFromContractDepositAndWitness(
                     merkleInput
                 );
-            await tester.adminSetDepositRoot(
-                admin.privateKey.toBase58(),
-                noriTokenBridgeKeypair.publicKey.toBase58(),
-                depositRoot.toBigInt().toString(),
-                '0',
-                fee
-            );
+            void depositRoot;
+            // adminSetDepositRoot disabled in production — see top-of-suite note.
+            // await tester.adminSetDepositRoot(
+            //     admin.privateKey.toBase58(),
+            //     noriTokenBridgeKeypair.publicKey.toBase58(),
+            //     depositRoot.toBigInt().toString(),
+            //     '0',
+            //     fee
+            // );
 
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,

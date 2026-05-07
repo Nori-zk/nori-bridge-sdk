@@ -7,11 +7,15 @@ import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
 /// @title NoriTokenBridge
 /// @notice Lock ETH for Mina accounts with bridge unit validation, depositor binding, and fee collection.
-/// @dev The `bridgeOperator` is expected to be a Safe (multisig) smart account in production.
-///      This contract does not implement multisig logic internally — it trusts a single admin
-///      address and delegates multi-signature governance to the Safe contract itself.
-///      Fees are collected on both lock and unlock operations and are withdrawable by a
-///      separate `feeRecipient` address (treasury).
+/// @dev In production the `bridgeOperator` is expected to be an OpenZeppelin
+///      TimelockController (deployed via tasks/deployTimelock.ts), whose
+///      proposer role is held by a Safe multisig. Admin actions therefore
+///      flow as: Safe -> propose -> Timelock (delay) -> bridge admin call.
+///      This contract does not implement multisig or timelock logic
+///      internally — it trusts a single `bridgeOperator` address and
+///      delegates governance to the Timelock + Safe stack above it.
+///      Fees are collected on both lock and unlock operations and are
+///      withdrawable by a separate `feeRecipient` address (treasury).
 contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // Constants
@@ -50,7 +54,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     address public bridgeOperator;
 
-    // Bridge units locked per ETH address per Mina account (codeChallenge) // REMOVEME
     // lifetimeLockedByDepositor
     // Mina signature hash -> Bridge units locked amount
     mapping(uint256 => uint256) public lockedTokens;
@@ -61,7 +64,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Mina account (depositKey) -> ETH depositor
     mapping(uint256 => address) public depositKeyToEthAddress;
 
-    // Idealy these would be immutable... OR change with timelock
     /// @notice Mina bridge contract that validates and stores Mina states.
     MinaStateSettlement public stateSettlement;
     /// @notice Mina bridge contract that validates accounts
@@ -73,7 +75,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     /// @notice The NoriStorageInterface zkApp verification key hash. Set at deployment.
     bytes32 public immutable NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH;
     /// @notice The NoriStorageInterface zkApp tokenID. Set at deployment.
-    bytes32 public immutable NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID;
+    bytes32 public immutable NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID;
     // -------------------------------
     // Fee State
     // -------------------------------
@@ -153,7 +155,7 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         stateSettlement = MinaStateSettlement(_stateSettlementAddr);
         accountValidation = MinaAccountValidation(_accountValidationAddr);
-        NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID = _zkappAcctTokenId;
+        NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID = _zkappAcctTokenId;
         NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH = _zkappAcctVerificationKeyHash;
 
         if (_feeRecipient != address(0)) {
@@ -166,8 +168,13 @@ contract NoriTokenBridge is ReentrancyGuard {
     }
     // -------------------------------
     // Configuration
-    // those should only change if mina has hardfork so maybe make those time-lockable by bridge operator in case expected hardforks
-    // or changes in the Mina zkapp architecture that would require updating the aligned contracts
+    //
+    // setAlignedContracts is gated by onlyBridgeOperator. In production the
+    // bridgeOperator is a TimelockController (proposed by the Safe multisig),
+    // so any rotation goes Safe -> Timelock (delay) -> setAlignedContracts.
+    // Expected use cases: a Mina hard fork or a change to the Mina zkApp
+    // architecture that requires re-pointing at new validator contracts.
+    // The Timelock delay gives downstream users time to react.
     // -------------------------------
     function setAlignedContracts(
         address _stateSettlementAddr,
@@ -216,9 +223,24 @@ contract NoriTokenBridge is ReentrancyGuard {
         // Ensure total locked supply does not exceed MAX_MAGNITUDE
         if (totalLockedBU + netBU > MAX_MAGNITUDE) revert TotalLockedOverflow();
 
-        // Enforce one ETH depositor per Mina account
-        // Attack vector if a deposit key is in the mempool they could claim this eth for themselves.
-        // And then when the actual user came to mint they would be locked out, but atleast they wouldn't be bricked.
+        // Enforce one ETH depositor per Mina account.
+        //
+        // Known limitation (mempool griefing): codeChallenge values are
+        // visible in the mempool before they confirm. An observer can copy
+        // a pending codeChallenge and submit their own lockTokens first,
+        // binding their address to that codeChallenge. The honest user's
+        // tx then reverts here with MinaAccountLinkedToDifferentDepositor,
+        // and they must pick a fresh codeChallenge to retry.
+        //
+        // Funds at risk: none. The attacker locks their own ETH but cannot
+        // mint on Mina — minting requires the SCRAM signature whose hash
+        // is the codeChallenge, which only the honest user holds. The
+        // honest user's tx reverted, so no ETH was sent. The attacker's
+        // ETH remains stuck against an unmintable codeChallenge.
+        //
+        // Mitigation is off-chain: the client UX is expected to generate a
+        // fresh codeChallenge per attempt and to retry with a new one when
+        // this revert is observed.
         address linkedEthAddress = depositKeyToEthAddress[codeChallenge];
         if (linkedEthAddress == address(0)) {
             // First deposit: bind Mina account deposit key to sender
@@ -250,7 +272,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     ///      `unlockedTokens` tracks the full amount (inclusive of fee) to stay aligned
     ///      with Mina-side burn accounting.
     function unlockTokens(
-        // uint256 toUnlockAmount, // token to unlock
         bytes32 proofCommitment,
         bytes32 provingSystemAuxDataCommitment,
         bytes20 proofGeneratorAddr,
@@ -295,7 +316,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         ) revert IncorrectZkappVerificationKey();
 
         // check if the tokenId is aligned
-        if (account.tokenIdKeyHash != NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID)
+        if (account.tokenIdKeyHash != NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID)
             revert IncorrectTokenHolderAccount();
 
         uint256 pubKeyTokenIdHash = uint256(

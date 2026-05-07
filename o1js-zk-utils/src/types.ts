@@ -51,13 +51,13 @@ export type VerificationKey = {
 
 export class Bytes32 extends Bytes(32) {
     static get zero() {
-        return new this(new Array(32).map(() => new UInt8(0)));
+        return new this(new Array(32).fill(0).map(() => new UInt8(0)));
     }
 }
 
 export class Bytes20 extends Bytes(20) {
     static get zero() {
-        return new this(new Array(20).map(() => new UInt8(0)));
+        return new this(new Array(20).fill(0).map(() => new UInt8(0)));
     }
     static fromHex(hex: string): Bytes20 {
         return super.fromHex(hex) as Bytes20;
@@ -114,105 +114,3 @@ export class Bytes32FieldPair extends Struct({
     }
 }
 
-// Next version could do something like this:
-// (we could then fit two state into the contract a->b to allow the client minting more time)
-/*
-// Extract and accumulate lower 31 bytes of each Bytes32 field
-function extractHighAndLowerBytes(bytes32: Bytes32): {
-  high: Field;
-  low: Field;
-} {
-  const high = new Field(bytes32.bytes[0].value);
-  let low = new Field(0);
-  for (let i = 1; i < 32; i++) {
-    low = low.mul(256).add(bytes32.bytes[i].value);
-  }
-  return { high, low };
-}
-
-// Extract 31 bytes from a Field using bit manipulation (little-endian)
-// Probably better with a witness.
-export function extractBytesFromField(packed: Field): UInt8[] {
-  const bits = packed.toBits();
-  const bytes: UInt8[] = [];
-
-  for (let i = 0; i < 31; i++) {
-    let value = new Field(0);
-    for (let j = 7; j >= 0; j--) {
-      value = value.mul(2);
-      const bit = bits[i * 8 + j];
-      value = Provable.if(bit, value.add(1), value);
-    }
-    bytes.push(UInt8.from(value));
-  }
-
-  return bytes;
-}
-
-// Reconstruct a Bytes32 from high byte + packed lower 31 bytes
-function reconstructBytes32(highByte: UInt8, lowerBytesField: Field): Bytes32 {
-  const lowerBytes = extractBytesFromField(lowerBytesField);
-  const allBytes = [highByte, ...lowerBytes];
-  return Bytes32.from(allBytes);
-}
-
-// Input Struct
-export class EthProcessorMutateStateInputs extends Struct({
-  storageHash: Bytes32,
-  verifiedContractDepositsRoot: Bytes32,
-  verifiedStateRoot: Bytes32,
-}) {}
-
-// Internal Mutable State Struct
-export class EthProcessorMutableState extends Struct({
-  storageHashLower: Field,
-  verifiedDepositsCurrentRootLower: Field,
-  verifiedCurrentStateRootLower: Field,
-  contractMiscField: Field, // 3 high bytes packed: storageHigh, depositHigh, stateHigh
-}) {
-  static fromInputs(
-    storageHash: Bytes32,
-    verifiedContractDepositsCurrentRoot: Bytes32,
-    verifiedCurrentStateRoot: Bytes32
-  ) {
-    const { high: storageHigh, low: storageHashLower } = extractHighAndLowerBytes(storageHash);
-    const { high: depositHigh, low: verifiedDepositsCurrentRootLower } = extractHighAndLowerBytes(verifiedContractDepositsCurrentRoot);
-    const { high: stateHigh, low: verifiedCurrentStateRootLower } = extractHighAndLowerBytes(verifiedCurrentStateRoot);
-
-    // Pack high bytes: [storageHigh, depositHigh, stateHigh] -> into one Field
-    let contractMiscField = new Field(0);
-    contractMiscField = contractMiscField
-      .add(stateHigh)           // LSB
-      .mul(256)
-      .add(depositHigh)
-      .mul(256)
-      .add(storageHigh);        // MSB
-
-    return new this({
-      storageHashLower,
-      verifiedDepositsCurrentRootLower,
-      verifiedCurrentStateRootLower,
-      contractMiscField,
-    });
-  }
-
-  toInputs(): EthProcessorMutateStateInputs {
-    const miscBytes = extractBytesFromField(this.contractMiscField);
-
-    // Unpack in same order as packed
-    const stateHigh = miscBytes[0];
-    const depositHigh = miscBytes[1];
-    const storageHigh = miscBytes[2];
-
-    const storageHash = reconstructBytes32(storageHigh, this.storageHashLower);
-    const verifiedContractDepositsRoot = reconstructBytes32(depositHigh, this.verifiedDepositsCurrentRootLower);
-    const verifiedStateRoot = reconstructBytes32(stateHigh, this.verifiedCurrentStateRootLower);
-
-    return new EthProcessorMutateStateInputs({
-      storageHash,
-      verifiedContractDepositsRoot,
-      verifiedStateRoot,
-    });
-  }
-}
-*/

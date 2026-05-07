@@ -259,7 +259,16 @@ describe('NoriTokenBridge Happy Path', () => {
     }, 1_000_000);
 
     // ── 4. noriMint for Alice ─────────────────────────────────────────────
-    test('4. noriMint for Alice', async () => {
+    // -----------------------------------------------------------------------
+    // test.skip('4. noriMint for Alice'): the test is gated on
+    // `adminSetDepositRoot`, which is commented out on the production
+    // contract for safety (see `contracts/mina/src/NoriTokenBridge.ts`).
+    // The test-only method exists so we can seed deposit roots directly
+    // into the rolling window without generating a full SP1 proof for
+    // each synthetic deposit. To re-run this test against lightnet,
+    // uncomment the contract method and the call site below.
+    // -----------------------------------------------------------------------
+    test.skip('4. noriMint for Alice', async () => {
         const aliceScramMsg = 'NoriZK';
         const totalLockedBU = 200n;
 
@@ -271,13 +280,15 @@ describe('NoriTokenBridge Happy Path', () => {
 
         // Seed the deposit root into the contract window
         const depositRoot = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
-        await txSend({
-            body: async () => {
-                await noriTokenBridge.adminSetDepositRoot(depositRoot, Field(0));
-            },
-            sender: admin.publicKey,
-            signers: [admin.privateKey],
-        });
+        void depositRoot;
+        // adminSetDepositRoot disabled in production — see test-level note above.
+        // await txSend({
+        //     body: async () => {
+        //         await noriTokenBridge.adminSetDepositRoot(depositRoot, Field(0));
+        //     },
+        //     sender: admin.publicKey,
+        //     signers: [admin.privateKey],
+        // });
         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
         // Mint
