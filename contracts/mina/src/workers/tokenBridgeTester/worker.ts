@@ -400,36 +400,45 @@ export class TokenBridgeTester {
         );
     }
 
-    async adminSetDepositRoot(
-        senderPrivateKeyBase58: string,
-        noriTokenBridgeAddressBase58: string,
-        depositRootStr: string,
-        oldestActionStr: string,
-        txFee: number
-    ): Promise<string> {
-        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
-        const senderPublicKey = senderPrivateKey.toPublicKey();
-        const noriTokenBridgeAddress = PublicKey.fromBase58(
-            noriTokenBridgeAddressBase58
-        );
-        const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
-
-        const depositRoot = new Field(BigInt(depositRootStr));
-        const oldestAction = new Field(BigInt(oldestActionStr));
-
-        await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
-
-        const tx = await Mina.transaction(
-            { sender: senderPublicKey, fee: txFee },
-            async () => {
-                await bridge.adminSetDepositRoot(depositRoot, oldestAction);
-            }
-        );
-        await tx.prove();
-        const sent = await tx.sign([senderPrivateKey]).send();
-        const result = await sent.wait();
-        return result.hash;
-    }
+    // -----------------------------------------------------------------------
+    // adminSetDepositRoot — TEST-ONLY worker shim. Disabled alongside the
+    // contract method of the same name in
+    // `contracts/mina/src/NoriTokenBridge.ts`. Re-enable in lockstep with
+    // the contract method and the corresponding `.skip`-ed integration tests
+    // when running the bridge locally for testing — bypasses the SP1 proof
+    // path so tests can seed deposit roots directly. MUST stay commented out
+    // for production builds.
+    //
+    // async adminSetDepositRoot(
+    //     senderPrivateKeyBase58: string,
+    //     noriTokenBridgeAddressBase58: string,
+    //     depositRootStr: string,
+    //     oldestActionStr: string,
+    //     txFee: number
+    // ): Promise<string> {
+    //     const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
+    //     const senderPublicKey = senderPrivateKey.toPublicKey();
+    //     const noriTokenBridgeAddress = PublicKey.fromBase58(
+    //         noriTokenBridgeAddressBase58
+    //     );
+    //     const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
+    //
+    //     const depositRoot = new Field(BigInt(depositRootStr));
+    //     const oldestAction = new Field(BigInt(oldestActionStr));
+    //
+    //     await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
+    //
+    //     const tx = await Mina.transaction(
+    //         { sender: senderPublicKey, fee: txFee },
+    //         async () => {
+    //             await bridge.adminSetDepositRoot(depositRoot, oldestAction);
+    //         }
+    //     );
+    //     await tx.prove();
+    //     const sent = await tx.sign([senderPrivateKey]).send();
+    //     const result = await sent.wait();
+    //     return result.hash;
+    // }
 
     // =======================================================================
     // Bridge ops
