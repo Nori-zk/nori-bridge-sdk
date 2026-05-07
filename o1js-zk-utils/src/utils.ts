@@ -6,7 +6,7 @@ import {
     Poseidon,
     type SmartContract,
     UInt64,
-    UInt8,
+    type UInt8,
     type VerificationKey,
 } from 'o1js';
 import { wordToBytes } from '@nori-zk/proof-conversion/min';
@@ -81,18 +81,16 @@ export function isLessThanFieldPrimeLE(bytes: UInt8[]): Bool {
 
 export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
     // What if the Bytes32 represents a value greater than P - 1? We should do some
-    // assertion that it isnt FIXME
+    // assertion that it isnt CHECKME
     // See 'Field order wrapping bytes 32 validation'
     /*isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
         'Given a uint8ArrayLength32 which exceeded p - 1'
     );*/
-    // FIXME removing this for now.... I think it may be redundant as the FixedBytes are constructed
+    // CHECKME removing this for now.... I think it may be redundant as the FixedBytes are constructed
     // By the first zkprogram and it is always within the range of p - 1 by definition.
 
-    // CHECKME
-    // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
-    // And here we re-interpret the BE as LE!
-    // But it does pass the test! And otherwise fails.
+    // On the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
+    // root.to_bytes() is in LE so reconstruct it as such.
     let field = new Field(0);
     for (let i = 31; i >= 0; i--) {
         field = field.mul(256).add(uint8ArrayLength32[i].value);
@@ -132,13 +130,6 @@ export function fieldToHexLE(field: Field) {
 export function fieldToBigIntLE(field: Field) {
     const bytesLE = wordToBytes(field, 32); // This is LE
     return bytesLE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
-}
-
-// DEPRECATED
-export function padUInt64To32Bytes(num: UInt64): UInt8[] {
-    let unpadded: UInt8[] = [];
-    unpadded = wordToBytes(num.toFields()[0]);
-    return [...unpadded, ...Array(24).fill(UInt8.from(0))].reverse();
 }
 
 // This is explicitly here for validation puposes not supposed to be provable.
@@ -264,12 +255,11 @@ export function extractGenesisRootFromSP1Proof(example: CreateProofArgument): Fi
 
 // Compile and verify contracts utility
 
-// Deprecate this!
 export async function compileAndVerifyContracts(
     logger: Logger,
     contracts: {
         name: string;
-        program: typeof SmartContract | CompilableZkProgram; // Ideally we would use CompilableZkProgram
+        program: typeof SmartContract | CompilableZkProgram;
         integrityHash: string;
     }[]
 ) {

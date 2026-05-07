@@ -1,6 +1,5 @@
 import {
     createTimer,
-    type EthProofType,
     Bytes32,
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
@@ -11,12 +10,6 @@ import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
 import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 // ------- Deposit attestation ---------------------------------
-
-// Replaces VerifiedContractStorageSlot from @nori-zk/pts-types (which still has the old nested mapping shape) FIXME
-type ContractStorageSlot = {
-    slot_key_code_challenge: string;
-    value: string;
-};
 
 const logger = new Logger('DepositAttestation');
 
@@ -153,50 +146,10 @@ export function getContractDepositSlotRootFromContractDepositAndWitness(
     return currentHash;
 }
 
-// ----------------------- Verify deposit root ---------------------------
-// merkleTreeContractDepositAttestorInput
-export function verifyDepositSlotRoot(
-    contractDepositSlotRoot: Field,
-    ethVerifierProof: EthProofType
-) {
-    const ethVerifierStorageProofRootBytes =
-        ethVerifierProof.publicInput.verifiedContractDepositsRoot.bytes; // I think the is BE
-
-    // Convert verifiedContractDepositsRoot from bytes to field
-    let ethVerifierStorageProofRoot = new Field(0);
-    // FIXME
-    // Turn into a LE field?? This seems wierd as on the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
-    // And here we re-interpret the BE as LE!
-    // But it does pass the test! And otherwise fails.
-    for (let i = 31; i >= 0; i--) {
-        ethVerifierStorageProofRoot = ethVerifierStorageProofRoot
-            .mul(256)
-            .add(ethVerifierStorageProofRootBytes[i].value);
-    }
-
-    // Assert roots
-    Provable.asProver(() => {
-        Provable.log(
-            'depositAttestationProofRoot',
-            'ethVerifierStorageProofRoot',
-            contractDepositSlotRoot,
-            ethVerifierStorageProofRoot
-        );
-    });
-    contractDepositSlotRoot.assertEquals(ethVerifierStorageProofRoot);
-
-    const storageDepositRoot = ethVerifierStorageProofRoot;
-
-    return {
-        storageDepositRoot,
-    };
-}
-
 export function extractCodeChallengeAndTotalLocked(
     merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput
 ) {
-    // Its pretty wierd to have this here now
-    // Mock attestation assert
+    // Unpack deposit
     const deposit = merkleTreeContractDepositAttestorInput.value;
 
     // Convert deposit.codeChallenge from Bytes32 into a Field
@@ -205,21 +158,6 @@ export function extractCodeChallengeAndTotalLocked(
     for (let i = 0; i < 32; i++) {
         codeChallenge = codeChallenge.mul(256).add(codeChallengeBytes[i].value);
     }
-
-    /*Provable.asProver(() => {
-        Provable.log(
-            'input.codeChallenge',
-            'codeChallenge',
-            contractDepositSlotRoot,
-            codeChallenge
-        );
-    });
-
-    contractDepositSlotRoot.assertEquals(
-        codeChallenge
-    );*/
-
-    // FIX ME ABOVE??? do we need to not test this here?
 
     Provable.asProver(() => {
         logger.log('deposit value bytes');
@@ -231,11 +169,6 @@ export function extractCodeChallengeAndTotalLocked(
     // Turn totalLocked into a field
     const totalLockedBytes = deposit.value.bytes;
     let totalLocked = new Field(0);
-    /*for (let i = 31; i >= 0; i--) {
-        totalLocked = totalLocked
-            .mul(256)
-            .add(totalLockedBytes[i].value);
-    }*/
     for (let i = 0; i < 32; i++) {
         totalLocked = totalLocked.mul(256).add(totalLockedBytes[i].value);
     }
@@ -246,8 +179,7 @@ export function extractCodeChallengeAndTotalLocked(
     };
 }
 
-// fixme slot contractSlotDeposit language
-export function buildContractDepositLeaves(
+export function buildContractDepositSlotLeaves(
     contractDeposits: ContractDeposit[]
 ): Field[] {
     return contractDeposits.map((leaf) => provableStorageSlotLeafHash(leaf));
@@ -330,7 +262,7 @@ export async function computeDepositAttestationWitness(
         `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
     const paddedConsensusMPTProofContractStorageSlots = (
-        consensusMPTProofContractStorageSlots as unknown as ContractStorageSlot[]
+        consensusMPTProofContractStorageSlots
     ).map((slot) => {
         return {
             //prettier-ignore
@@ -355,7 +287,7 @@ export async function computeDepositAttestationWitness(
     );
     const despositSlotRaw =
         paddedConsensusMPTProofContractStorageSlots[depositIndex];
-    const totalDespositedValue = despositSlotRaw.value; // this is a hex // would be nice here to print a bigint
+    const totalDespositedValue = despositSlotRaw.value;
     logger.log(`Total deposited to date (hex): ${totalDespositedValue}`);
 
     // Build contract storage slots (to be hashed)
@@ -374,7 +306,7 @@ export async function computeDepositAttestationWitness(
 
     // Build leaves
     const buildLeavesTimer = createTimer();
-    const leaves = buildContractDepositLeaves(contractStorageSlots);
+    const leaves = buildContractDepositSlotLeaves(contractStorageSlots);
     logger.log(`buildContractDepositLeaves: ${buildLeavesTimer()}`);
     logger.log(
         'leaves',
