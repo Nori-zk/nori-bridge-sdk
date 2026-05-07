@@ -46,11 +46,6 @@ export class NoriStorageInterface extends SmartContract {
     this.mintedSoFar.set(mintedSoFar.add(amountToMint));
 
     return amountToMint;
-    // Provable.log(mintedSoFaraa, 'minted so farrrrrrrr');
-    // let amount = totalAmountLockedOnEth.sub(mintedSoFar);
-    // this.mintedSoFar.set(mintedSoFar.add(amount));
-    // this.self.body.mayUseToken = AccountUpdate.MayUseToken.InheritFromParent;
-    // return this.self;
   }
 
   /**
