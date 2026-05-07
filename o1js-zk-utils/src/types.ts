@@ -51,13 +51,13 @@ export type VerificationKey = {
 
 export class Bytes32 extends Bytes(32) {
     static get zero() {
-        return new this(new Array(32).map(() => new UInt8(0)));
+        return new this(new Array(32).fill(0).map(() => new UInt8(0)));
     }
 }
 
 export class Bytes20 extends Bytes(20) {
     static get zero() {
-        return new this(new Array(20).map(() => new UInt8(0)));
+        return new this(new Array(20).fill(0).map(() => new UInt8(0)));
     }
     static fromHex(hex: string): Bytes20 {
         return super.fromHex(hex) as Bytes20;
