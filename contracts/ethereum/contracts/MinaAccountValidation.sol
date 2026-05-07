@@ -122,7 +122,7 @@ contract MinaAccountValidation {
         AuthRequired editState;
         AuthRequired access;
         AuthRequired send;
-        AuthRequired rreceive;
+        AuthRequired receive;
         AuthRequired setDelegate;
         AuthRequired setPermissions;
         AuthRequired setVerificationKeyAuth;
