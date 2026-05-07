@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.28;
 
 import '@aligned_layer/contracts/src/core/IAlignedLayerServiceManager.sol';
 

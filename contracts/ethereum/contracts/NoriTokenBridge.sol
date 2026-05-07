@@ -73,7 +73,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     /// @notice The NoriStorageInterface zkApp verification key hash. Set at deployment.
     bytes32 public immutable NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH;
     /// @notice The NoriStorageInterface zkApp tokenID. Set at deployment.
-    bytes32 public immutable NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID;
+    bytes32 public immutable NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID;
     // -------------------------------
     // Fee State
     // -------------------------------
@@ -153,7 +153,7 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         stateSettlement = MinaStateSettlement(_stateSettlementAddr);
         accountValidation = MinaAccountValidation(_accountValidationAddr);
-        NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID = _zkappAcctTokenId;
+        NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID = _zkappAcctTokenId;
         NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH = _zkappAcctVerificationKeyHash;
 
         if (_feeRecipient != address(0)) {
@@ -295,7 +295,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         ) revert IncorrectZkappVerificationKey();
 
         // check if the tokenId is aligned
-        if (account.tokenIdKeyHash != NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID)
+        if (account.tokenIdKeyHash != NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID)
             revert IncorrectTokenHolderAccount();
 
         uint256 pubKeyTokenIdHash = uint256(
