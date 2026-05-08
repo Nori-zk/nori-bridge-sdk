@@ -184,7 +184,7 @@
   "linkReferences": {},
   "deployedLinkReferences": {},
   "immutableReferences": {
-    "342": [
+    "343": [
       {
         "length": 32,
         "start": 256
@@ -194,7 +194,7 @@
         "start": 947
       }
     ],
-    "346": [
+    "347": [
       {
         "length": 32,
         "start": 186
@@ -206,5 +206,5 @@
     ]
   },
   "inputSourceName": "project/contracts/MinaStateSettlement.sol",
-  "buildInfoId": "solc-0_8_28-23726d0fab1637258cfe9ab60ab80be2702af32b"
+  "buildInfoId": "solc-0_8_28-c79fe8a9491c077983499e22fcbb5a5176406110"
 }
