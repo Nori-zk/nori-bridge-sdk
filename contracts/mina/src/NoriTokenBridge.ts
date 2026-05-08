@@ -224,7 +224,7 @@ export class NoriTokenBridge
         this.mintLock.set(Bool(true));
         this.account.permissions.set({
             ...Permissions.default(),
-            setVerificationKey: Permissions.VerificationKey.proofOrSignature(),
+            setVerificationKey: Permissions.VerificationKey.impossibleDuringCurrentVersion(),
             setPermissions: Permissions.impossible(),
             editState: Permissions.proof(),
             send: Permissions.proof(),
