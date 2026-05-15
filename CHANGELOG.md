@@ -89,6 +89,20 @@ Results:
 - Cross-reference (unpatched Rust vs unpatched TypeScript non-provable): 51 leaf counts, all leaves and roots match. Zero differences.
 - Cross-reference (unpatched Rust vs unpatched TypeScript provable): 11 leaf counts (0-10), all leaves and roots match. Zero differences.
 
+### Commit 2 - Fix applied
+
+- **`zeros[level]` corrected to `zeros[depth + 1 - level]`** (`o1js-zk-utils/src/merkle-attestor/merkleTree.ts`): three sites patched in `buildMerkleTree` (line 86), `foldMerkleLeft` (line 144), and `getMerklePathFromLeaves` (line 219). When the tree-building loop is at a given `level` counting down from `depth`, the parent node of two dummy children represents an all-zero subtree of height `depth + 1 - level`. The corrected index selects the matching precomputed zero hash from `getMerkleZeros`.
+
+Results:
+
+- Regression tests: 24 pass, 0 fail. All leaf counts [1, 3, 5, 6, 9, 17] now match both the brute-force and o1js `MerkleTree` references for both `buildMerkleTree` and `foldMerkleLeft`.
+- Self-consistency (Rust): passes 0-50 leaves.
+- Self-consistency (TypeScript non-provable): passes 0-50 leaves.
+- Self-consistency (TypeScript provable): passes 0-10 leaves.
+- Cross-reference (patched Rust vs patched TypeScript non-provable): 51 leaf counts, 0 leaf mismatches, 0 root mismatches.
+- Cross-reference (patched Rust vs patched TypeScript provable): 51 leaf counts checked, 0 root mismatches, 40 leaf mismatches (all MISSING, provable suite only runs 0-10, no data exists for 11-50), 11 overlapping leaf counts all leaves and roots match.
+- Cross-reference (patched TypeScript non-provable vs patched TypeScript provable): 51 leaf counts checked, 0 root mismatches, 40 leaf mismatches (all MISSING, provable suite only runs 0-10, no data exists for 11-50), 11 overlapping leaf counts all leaves and roots match.
+
 ## 28/4/26
 
 ### Migrated to @nori-zk/mina-attestations Fork
