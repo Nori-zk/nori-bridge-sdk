@@ -1,4 +1,4 @@
-import { Field } from 'o1js';
+import { Field, MerkleTree, Poseidon } from 'o1js';
 import {
     computeMerkleTreeDepthAndSize,
     getMerkleZeros,
@@ -44,6 +44,120 @@ function fullMerkleTest(
 
     return recomputedRoot;
 }
+
+// Brute-force reference: pad with Field(0), hash every pair, no zeros cache.
+function referenceRoot(leaves: Field[], paddedSize: number): Field {
+    let level = [...leaves];
+    while (level.length < paddedSize) level.push(Field(0));
+    while (level.length > 1) {
+        const next: Field[] = [];
+        for (let i = 0; i < level.length; i += 2) {
+            next.push(Poseidon.hash([level[i], level[i + 1]]));
+        }
+        level = next;
+    }
+    return level[0];
+}
+
+describe('regression_a2090_zeros_indexing', () => {
+    // 1,3  -- no dummy pairs (sanity)
+    // 5,6  -- dummy pairs at depth 3
+    // 9    -- dummy pairs at depth 4
+    // 17   -- dummy pairs at depth 5
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_bruteforce_reference_buildMerkleTree nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const expected = referenceRoot(leaves, paddedSize);
+
+            const tree = buildMerkleTree([...leaves], paddedSize, depth, zeros);
+            expect(tree[0][0].equals(expected).toBoolean()).toBe(true);
+        }
+    );
+
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_bruteforce_reference_foldMerkleLeft nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const expected = referenceRoot(leaves, paddedSize);
+
+            const rootFold = foldMerkleLeft(
+                [...leaves],
+                paddedSize,
+                depth,
+                zeros
+            );
+            expect(rootFold.equals(expected).toBoolean()).toBe(true);
+        }
+    );
+
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_o1js_merkle_tree_reference_buildMerkleTree nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const o1jsTree = new MerkleTree(depth + 1);
+            for (let i = 0; i < nLeaves; i++) {
+                o1jsTree.setLeaf(BigInt(i), leaves[i]);
+            }
+            const o1jsRoot = o1jsTree.getRoot();
+
+            const tree = buildMerkleTree([...leaves], paddedSize, depth, zeros);
+            expect(tree[0][0].equals(o1jsRoot).toBoolean()).toBe(true);
+        }
+    );
+
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_o1js_merkle_tree_reference_foldMerkleLeft nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const o1jsTree = new MerkleTree(depth + 1);
+            for (let i = 0; i < nLeaves; i++) {
+                o1jsTree.setLeaf(BigInt(i), leaves[i]);
+            }
+            const o1jsRoot = o1jsTree.getRoot();
+
+            const rootFold = foldMerkleLeft(
+                [...leaves],
+                paddedSize,
+                depth,
+                zeros
+            );
+            expect(rootFold.equals(o1jsRoot).toBoolean()).toBe(true);
+        }
+    );
+});
 
 describe('Merkle Fixed Tests', () => {
     test('test_large_slots', () => {
