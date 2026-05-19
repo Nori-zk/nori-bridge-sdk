@@ -1,5 +1,13 @@
 # Changelog
 
+## 19/5/26 - CHORE: Update proof-conversion to 0.8.21 (FIX: Audit B1114 Nori-zk/proof-conversion#34)
+
+Bumped `@nori-zk/proof-conversion` from 0.8.20 to 0.8.21 in `contracts/mina`, `minimal-client`, and `o1js-zk-utils`.
+
+## 18/5/26 - CHORE: Update ProofConversion.sp1ToPlonk.po2.json integrity file
+
+Updated `o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json` integrity hash to reflect upstream FIX: Audit B1114 (Nori-zk/proof-conversion#34).
+
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 
 ### Finding (verbatim)
