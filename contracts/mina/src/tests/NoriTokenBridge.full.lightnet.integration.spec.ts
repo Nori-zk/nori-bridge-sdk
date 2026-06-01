@@ -844,7 +844,17 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     // =======================================================================
     // noriMint() — Token minting
     // =======================================================================
-    describe('noriMint()', () => {
+    // -----------------------------------------------------------------------
+    // describe.skip('noriMint()'): the entire suite is gated on
+    // `adminSetDepositRoot`, which is commented out on the production
+    // contract for safety (see `contracts/mina/src/NoriTokenBridge.ts`).
+    // The test-only method exists so we can seed deposit roots directly
+    // into the rolling window without generating a full SP1 proof for
+    // each synthetic deposit. To re-run these tests against lightnet,
+    // uncomment the contract method, the worker shim
+    // (`workers/tokenBridgeTester/worker.ts`), and the call sites below.
+    // -----------------------------------------------------------------------
+    describe.skip('noriMint()', () => {
         let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
@@ -875,17 +885,21 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
 
             // Seed Alice's deposit root into the contract's rolling window via
             // the admin-gated adminSetDepositRoot method (through the tester worker).
+            // adminSetDepositRoot is commented out on the production contract;
+            // the body of this beforeAll is therefore neutralised and the
+            // suite is `.skip`-ed (see top-of-suite note).
             const aliceRoot =
                 getContractDepositSlotRootFromContractDepositAndWitness(
                     aliceDepositAttestationInput
                 );
-            await tester.adminSetDepositRoot(
-                admin.privateKey.toBase58(),
-                noriTokenBridgeKeypair.publicKey.toBase58(),
-                aliceRoot.toBigInt().toString(),
-                '0',
-                fee
-            );
+            void aliceRoot;
+            // await tester.adminSetDepositRoot(
+            //     admin.privateKey.toBase58(),
+            //     noriTokenBridgeKeypair.publicKey.toBase58(),
+            //     aliceRoot.toBigInt().toString(),
+            //     '0',
+            //     fee
+            // );
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,
             });
@@ -952,13 +966,15 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     getContractDepositSlotRootFromContractDepositAndWitness(
                         aliceDeposit2
                     );
-                await tester.adminSetDepositRoot(
-                    admin.privateKey.toBase58(),
-                    noriTokenBridgeKeypair.publicKey.toBase58(),
-                    aliceRoot2.toBigInt().toString(),
-                    '0',
-                    fee
-                );
+                void aliceRoot2;
+                // adminSetDepositRoot disabled in production — see top-of-suite note.
+                // await tester.adminSetDepositRoot(
+                //     admin.privateKey.toBase58(),
+                //     noriTokenBridgeKeypair.publicKey.toBase58(),
+                //     aliceRoot2.toBigInt().toString(),
+                //     '0',
+                //     fee
+                // );
                 await fetchAccount({
                     publicKey: noriTokenBridgeKeypair.publicKey,
                 });
@@ -1076,13 +1092,15 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                             allDispatchedRoots.length - 32
                             ]
                             : Field(0);
-                        await tester.adminSetDepositRoot(
-                            admin.privateKey.toBase58(),
-                            noriTokenBridgeKeypair.publicKey.toBase58(),
-                            root.toBigInt().toString(),
-                            oldest.toBigInt().toString(),
-                            fee
-                        );
+                        void oldest;
+                        // adminSetDepositRoot disabled in production — see top-of-suite note.
+                        // await tester.adminSetDepositRoot(
+                        //     admin.privateKey.toBase58(),
+                        //     noriTokenBridgeKeypair.publicKey.toBase58(),
+                        //     root.toBigInt().toString(),
+                        //     oldest.toBigInt().toString(),
+                        //     fee
+                        // );
                         allDispatchedRoots.push(root);
                         await fetchAccount({
                             publicKey: noriTokenBridgeKeypair.publicKey,
@@ -1139,13 +1157,15 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                             allDispatchedRoots.length - 32
                             ]
                             : Field(0);
-                        await tester.adminSetDepositRoot(
-                            admin.privateKey.toBase58(),
-                            noriTokenBridgeKeypair.publicKey.toBase58(),
-                            dummyRoot.toBigInt().toString(),
-                            oldest.toBigInt().toString(),
-                            fee
-                        );
+                        void oldest;
+                        // adminSetDepositRoot disabled in production — see top-of-suite note.
+                        // await tester.adminSetDepositRoot(
+                        //     admin.privateKey.toBase58(),
+                        //     noriTokenBridgeKeypair.publicKey.toBase58(),
+                        //     dummyRoot.toBigInt().toString(),
+                        //     oldest.toBigInt().toString(),
+                        //     fee
+                        // );
                         allDispatchedRoots.push(dummyRoot);
                         await fetchAccount({
                             publicKey: noriTokenBridgeKeypair.publicKey,

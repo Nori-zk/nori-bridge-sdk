@@ -83,7 +83,7 @@ export function buildMerkleTree(
 
             if (leftIdx >= nNonDummyNodes) {
                 // Both left and right dummy nodes, use zeros cache
-                parentLevel[i] = zeros[level];
+                parentLevel[i] = zeros[depth + 1 - level];
             } else {
                 const rightIdx = leftIdx + 1;
                 // Atleast one of left and right are real.
@@ -141,7 +141,7 @@ export function foldMerkleLeft(
 
             if (leftIdx >= nNonDummyNodes) {
                 // Both left and right are dummy nodes — use cached zero for this level
-                leaves[i] = zeros[level];
+                leaves[i] = zeros[depth + 1 - level];
             } else {
                 // Atleast one of left and right are real.
                 const rightIdx = leftIdx + 1;
@@ -216,7 +216,7 @@ export function getMerklePathFromLeaves(
 
             if (leftIdx >= nNonDummyNodes) {
                 // Both left and right are dummy nodes; use zero hash for this level
-                merkleNodes[i] = zeros[level];
+                merkleNodes[i] = zeros[depth + 1 - level];
             } else {
                 const rightIdx = leftIdx + 1;
                 // Atleast one of left and right are real.

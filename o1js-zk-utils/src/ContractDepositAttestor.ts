@@ -79,7 +79,7 @@ const {
     getMerklePathFromLeaves: getContractDepositWitness,
 } = merkleLeafAttestorGenerator(
     16,
-    'ContractStorageSlotDepositAttestor',
+    'ContractStorageDepositSlotAttestor',
     ContractDeposit,
     provableStorageSlotLeafHash
 );

@@ -2,7 +2,7 @@ import { wordToBytes } from '@nori-zk/proof-conversion/min';
 import { Bytes, CircuitString, fetchAccount, Field, Mina, PrivateKey, PublicKey, Signature, UInt64 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import {
-    buildContractDepositLeaves,
+    buildContractDepositSlotLeaves,
     ContractDeposit,
     MerkleTreeContractDepositAttestorInput,
     MerklePath,
@@ -272,7 +272,7 @@ export function buildSyntheticDeposit(
         value: Bytes32.fromHex(valueHex),
     });
 
-    const leaves = buildContractDepositLeaves([deposit]);
+    const leaves = buildContractDepositSlotLeaves([deposit]);
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
     const zeros = getMerkleZeros(depth);
     const path = getMerklePathFromLeaves([...leaves], paddedSize, depth, 0, zeros);

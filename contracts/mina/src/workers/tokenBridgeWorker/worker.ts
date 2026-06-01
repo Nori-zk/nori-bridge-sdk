@@ -1,3 +1,17 @@
+// Must be imported BEFORE o1js so that when o1js creates its
+// FinalizationRegistry (kimchi_bindings/js/bindings/util.js), it gets this
+// no-op class. With IDB-cached compile, o1js's decodeProverKey creates WASM
+// wrappers that share underlying pointers; the original finalizer frees a
+// pointer the prover still holds after the first prove(), causing dangling
+// WASM memory on subsequent proves. Disabling auto-free is safe — WASM heap
+// is reclaimed when the worker is torn down on page refresh.
+// https://github.com/o1-labs/o1js/issues/2870
+(globalThis as any).FinalizationRegistry = class {
+    register() { }
+    unregister() {
+        return false;
+    }
+};
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
     CacheType,
@@ -93,7 +107,7 @@ export function isBrowser(): boolean {
 // Bootstrap trace emitted once on worker-bundle load so logs make it
 // clear which runtime the worker was instantiated in.
 logger.log('Constructing TokenBridgeWorker. isBrowser:', isBrowser());
-
+console.log('FR is patched?', new FinalizationRegistry(() => { }).register.toString());
 /**
  * # TokenBridgeWorker
  *
