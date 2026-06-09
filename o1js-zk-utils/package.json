@@ -59,7 +59,10 @@
         "npm-workspaces-publish-tool": "0.0.17"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.698ca"
+        "o1js": "3.0.0-mesa.1"
+    },
+    "overrides": {
+        "o1js": "3.0.0-mesa.1"
     },
     "engines": {
         "node": ">=22.0.0"
