@@ -45,6 +45,15 @@ Results:
 
 - Regression test: passes. After filling the window to `maxWindow` and dispatching one further root, the window still resolves from `windowStart` (holds `maxWindow` roots, including the new one) and the user mints successfully. `windowStart` can no longer be poisoned by the caller.
 
+### Commit 3 - Restore test-only method and regenerate integrity data
+
+- **`adminSetDepositRoot` re-commented** (`contracts/mina/src/NoriTokenBridge.ts`): the test-only seeding method enabled in commit 1 is disabled again so it is not part of the production contract. Its callers in `NoriTokenBridge.full.local.integration.spec.ts` are re-commented, and the eviction-witness regression suite (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`) is `describe.skip`-ed with a note documenting how to re-enable it.
+- **Bridge verification key regenerated** (`contracts/mina/src/integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.
+
+Results:
+
+- Regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note to run it.
+
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 
 ### Finding (verbatim)

@@ -153,13 +153,13 @@ async function fetchAllDispatchedRoots(bridge: NoriTokenBridge): Promise<Field[]
 async function dispatchRoot(root: Field) {
     void root;
 
-    await txSend({
-        body: async () => {
-            await noriTokenBridge.adminSetDepositRoot(root);
-        },
-        sender: admin.publicKey,
-        signers: [admin.privateKey],
-    });
+    // await txSend({
+    //     body: async () => {
+    //         await noriTokenBridge.adminSetDepositRoot(root);
+    //     },
+    //     sender: admin.publicKey,
+    //     signers: [admin.privateKey],
+    // });
     await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 }
 
@@ -750,13 +750,13 @@ describe('NoriTokenBridge', () => {
             const aliceRoot = getContractDepositSlotRootFromContractDepositAndWitness(aliceDepositAttestationInput);
             logger.log(`Seeding Alice's deposit root into contract window: ${aliceRoot}`);
             void aliceRoot;
-            await txSend({
-                body: async () => {
-                    await noriTokenBridge.adminSetDepositRoot(aliceRoot);
-                },
-                sender: admin.publicKey,
-                signers: [admin.privateKey],
-            });
+            // await txSend({
+            //     body: async () => {
+            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot);
+            //     },
+            //     sender: admin.publicKey,
+            //     signers: [admin.privateKey],
+            // });
             logger.log('Alice deposit root dispatched to contract.');
             await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
             logger.log('Deposit root seeded into contract window for Alice.');
@@ -805,13 +805,13 @@ describe('NoriTokenBridge', () => {
                 void aliceRoot2;
                 // adminSetDepositRoot is commented out on the production contract;
                 // see top-of-suite note. Skipped tests do not execute this body.
-                await txSend({
-                    body: async () => {
-                        await noriTokenBridge.adminSetDepositRoot(aliceRoot2);
-                    },
-                    sender: admin.publicKey,
-                    signers: [admin.privateKey],
-                });
+                // await txSend({
+                //     body: async () => {
+                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2);
+                //     },
+                //     sender: admin.publicKey,
+                //     signers: [admin.privateKey],
+                // });
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
                 // Mint — contract computes amountToMint = totalLocked(500) - mintedSoFar(200) = 300
