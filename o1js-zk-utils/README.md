@@ -8,9 +8,9 @@ A zk-program to verify an Ethereum consensus MPT transition proof, made verifiab
 
 It depends on:
 
-- Public input 0 from the SP1 consensus MPT transition proof (`sp1Proof.proof.Plonk.public_inputs[0]`)
-- Public output 2 from the converted consensus MPT transition proof (`proofConversionOutput.proofData.publicOutput[2]`)
-- The verification key data from the `sp1ToPlonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion)
+- Public input 0 from the SP1 consensus MPT transition proof (`sp1Proof.proof.Plonk.public_inputs[0]`), the Nori SP1 Helios program identifier (`bridgeHeadNoriSP1HeliosProgramPi0`), stored in [`src/integrity/nori-sp1-helios-program.pi0.json`](./src/integrity/nori-sp1-helios-program.pi0.json) — a copy of [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from [bridge-head](https://github.com/Nori-zk/nori-bridge-head). Changes frequently as the Helios light client evolves — when bridge-head releases a new version, copy [`nori-elf/nori-sp1-helios-program.pi0.json`](https://github.com/Nori-zk/nori-bridge-head/blob/develop/nori-elf/nori-sp1-helios-program.pi0.json) from the appropriate release tag into [`src/integrity/nori-sp1-helios-program.pi0.json`](./src/integrity/nori-sp1-helios-program.pi0.json) before re-running `bake-vk-hashes`.
+- Public output 2 from the converted consensus MPT transition proof (`proofConversionOutput.proofData.publicOutput[2]`). Infrequently changes, for instance when SP1 undergoes a major version upgrade (e.g. v5 -> v6) that affects the cryptography of proof conversion.
+- The verification key data from the `sp1Plonk` zk-program in [proof-conversion](https://github.com/Nori-zk/proof-conversion). Unlikely to change.
 
 Whenever any of these change, you must run:
 
@@ -27,6 +27,7 @@ import { EthVerifier, EthProof, EthInput } from '@nori-zk/o1js-zk-utils';
 A generator that produces zk-programs for proving a leaf’s inclusion (via a witness, generatable from all leaves) in a dynamically sized Merkle tree, with a constraint on the tree’s maximum height.
 
 **Utilties**
+
 ```typescript
 import {
     buildMerkleTree,
@@ -42,7 +43,7 @@ import {
 
 ```typescript
 import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
-import { Bytes20, Bytes32 } from '@nori-zk/o1js-zk-utils';
+import { Bytes32 } from '@nori-zk/o1js-zk-utils';
 import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils';
 
 export class YourLeafType extends Struct({
@@ -56,7 +57,7 @@ export function leafHashFunction(contractDeposit: YourLeafType) {
     for (let i = 0; i < 32; i++) {
         leafBytes.push(valueBytes[i]);
     }
-  
+
     let firstField = new Field(0);
     for (let i = 31; i >= 0; i--) {
         firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
@@ -90,15 +91,16 @@ export {
 A zk-program to prove that a user's deposit is included within a consensus MPT transition proof window.
 
 **Leaf format:**
+
 ```typescript
 export class ContractDeposit extends Struct({
-  address: Bytes20.provable,         // User's Ethereum deposit address
-  attestationHash: Bytes32.provable, // ECDSA attestation hash (user-signed public key hash)
-  value: Bytes32.provable,           // Total locked amount (cumulative)
+    codeChallenge: Bytes32.provable, // SCRAM code challenge (Poseidon hash of Mina signature)
+    value: Bytes32.provable, // Total locked amount (cumulative)
 }) {}
 ```
 
 **Imports**
+
 ```typescript
 import {
     ContractDepositAttestorInput,
@@ -123,6 +125,7 @@ import {
     fieldToBigIntLE,
     decodeConsensusMptProof,
     compileAndVerifyContracts,
+    extractEthTokenBridgeAddressFromSP1Proof,
 } from '@nori-zk/o1js-zk-utils';
 ```
 
@@ -131,5 +134,10 @@ import {
 Types for various proof and encoding formats.
 
 ```typescript
-import { PlonkProof, ConvertedProof, EthVerifierComputeOutput, Bytes32, Bytes20 } from '@nori-zk/o1js-zk-utils';
+import {
+    PlonkProof,
+    ConvertedProof,
+    EthVerifierComputeOutput,
+    Bytes32,
+} from '@nori-zk/o1js-zk-utils';
 ```

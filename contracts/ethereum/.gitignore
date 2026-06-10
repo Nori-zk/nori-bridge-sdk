@@ -3,10 +3,6 @@ node_modules
 # Hardhat files
 /cache
 
-# TypeChain files
-/typechain
-/typechain-types
-
 # solidity-coverage files
 /coverage
 /coverage.json
@@ -31,5 +27,15 @@ node_modules
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
 
-# Ignore test contract env output
+# Ignore generated env output
 .env.nori-token-bridge
+.env.nori-eth-token-bridge
+.env.nori-eth-pre-deploy
+!.env.nori-eth-pre-deploy.example
+!.env.nori-eth-token-bridge.example
+.env.nori-eth-timelock
+!.env.nori-eth-timelock.example
+lib
+
+
+artifacts/build-info

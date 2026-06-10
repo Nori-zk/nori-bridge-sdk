@@ -8,7 +8,7 @@ import {
     provableStorageSlotLeafHash,
 } from './ContractDepositAttestor.js';
 import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
-import { Bytes20, Bytes32 } from './types.js';
+import { Bytes32 } from './types.js';
 import {
     computeMerkleTreeDepthAndSize,
     foldMerkleLeft,
@@ -45,9 +45,8 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         // Build contractStorageSlot from sp1 mpt message.
         const contractStorageSlots =
             sp1ConsensusMPTPlonkProof.contract_storage_slots.map((slot) => {
-                const addr = Bytes20.fromHex(slot.slot_key_address.slice(2));
-                const attestation = Bytes32.fromHex(
-                    slot.slot_nested_key_attestation_hash
+                const codeChallenge = Bytes32.fromHex(
+                    slot.slot_key_code_challenge
                         .slice(2)
                         .padStart(64, '0')
                 );
@@ -55,8 +54,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
                 console.log('padded value', valuePad);
                 const value = Bytes32.fromHex(valuePad);
                 return new ContractDeposit({
-                    address: addr,
-                    attestationHash: attestation,
+                    codeChallenge,
                     value,
                 });
             });
@@ -95,7 +93,6 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
 
         // Build ZK input
         const input = new ContractDepositAttestorInput({
-            rootHash,
             path,
             index: UInt64.from(index),
             value: slotToFind,

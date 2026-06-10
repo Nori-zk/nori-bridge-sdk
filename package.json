@@ -1,15 +1,14 @@
 {
     "name": "@nori-zk/nori-bridge-sdk",
     "private": true,
-    "version": "0.0.29",
+    "version": "0.0.33",
     "type": "module",
     "workspaces": [
         "workers",
         "o1js-zk-utils",
-        "contracts/mina/eth-processor",
-        "contracts/mina/token-bridge",
-        "cache-server",
         "contracts/ethereum",
+        "contracts/mina",
+        "cache-server",
         "minimal-client"
     ],
     "devDependencies": {
@@ -39,6 +38,7 @@
         "publish": "nw-publish",
         "determine-breakage:o1js": "node determine-o1js-breaking-changes.js",
         "clean:modules": "rm -rf node_modules */node_modules */*/node_modules */*/*/node_modules",
-        "reinstall": "npm run clean:modules && rm -f package-lock.json && npm install"
+        "reinstall": "npm run clean:modules && rm -f package-lock.json && npm install",
+        "reinstall:ci": "npm run clean:modules && npm ci"
     }
 }

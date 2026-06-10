@@ -1,0 +1,32 @@
+{
+  "name": "FungibleToken",
+  "integrityHash": "11275266297357989434659649579180929660472107786900344600948115953037388411671",
+  "files": [
+    "lagrange-basis-fp-4096",
+    "lagrange-basis-fp-8192",
+    "step-pk-fungibletoken-approvebase",
+    "step-pk-fungibletoken-burn",
+    "step-pk-fungibletoken-getbalanceof",
+    "step-pk-fungibletoken-getdecimals",
+    "step-pk-fungibletoken-initialize",
+    "step-pk-fungibletoken-mint",
+    "step-pk-fungibletoken-pause",
+    "step-pk-fungibletoken-resume",
+    "step-pk-fungibletoken-setadmin",
+    "step-pk-fungibletoken-transfer",
+    "step-pk-fungibletoken-updateverificationkey",
+    "step-vk-fungibletoken-approvebase",
+    "step-vk-fungibletoken-burn",
+    "step-vk-fungibletoken-getbalanceof",
+    "step-vk-fungibletoken-getdecimals",
+    "step-vk-fungibletoken-initialize",
+    "step-vk-fungibletoken-mint",
+    "step-vk-fungibletoken-pause",
+    "step-vk-fungibletoken-resume",
+    "step-vk-fungibletoken-setadmin",
+    "step-vk-fungibletoken-transfer",
+    "step-vk-fungibletoken-updateverificationkey",
+    "wrap-pk-fungibletoken",
+    "wrap-vk-fungibletoken"
+  ]
+}

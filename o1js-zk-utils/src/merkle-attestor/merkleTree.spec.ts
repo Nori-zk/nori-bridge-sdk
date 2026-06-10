@@ -1,4 +1,4 @@
-import { Field } from 'o1js';
+import { Field, MerkleTree, Poseidon } from 'o1js';
 import {
     computeMerkleTreeDepthAndSize,
     getMerkleZeros,
@@ -8,21 +8,20 @@ import {
     computeMerkleRootFromPath,
     getMerklePathFromLeaves,
 } from './merkleTree.js';
-import { type Bytes20, type Bytes32 } from '../types.js';
+import { type Bytes32 } from '../types.js';
 import {
     buildLeavesNonProvable,
-    dummyAddress,
-    dummyAttestation,
+    dummyCodeChallenge,
     dummyValue,
     nonProvableStorageSlotLeafHash,
 } from './testUtils.js';
 
 // Full Merkle lifecycle test using actual hashed leaves and leaf index
 function fullMerkleTest(
-    triples: Array<[Bytes20, Bytes32, Bytes32]>,
+    pairs: Array<[Bytes32, Bytes32]>,
     leafIndex: number
 ): Field {
-    const leaves = buildLeavesNonProvable(triples);
+    const leaves = buildLeavesNonProvable(pairs);
     const { depth, paddedSize } = computeMerkleTreeDepthAndSize(leaves.length);
     const zeros = getMerkleZeros(depth);
 
@@ -46,23 +45,136 @@ function fullMerkleTest(
     return recomputedRoot;
 }
 
+// Brute-force reference: pad with Field(0), hash every pair, no zeros cache.
+function referenceRoot(leaves: Field[], paddedSize: number): Field {
+    let level = [...leaves];
+    while (level.length < paddedSize) level.push(Field(0));
+    while (level.length > 1) {
+        const next: Field[] = [];
+        for (let i = 0; i < level.length; i += 2) {
+            next.push(Poseidon.hash([level[i], level[i + 1]]));
+        }
+        level = next;
+    }
+    return level[0];
+}
+
+describe('regression_a2090_zeros_indexing', () => {
+    // 1,3  -- no dummy pairs (sanity)
+    // 5,6  -- dummy pairs at depth 3
+    // 9    -- dummy pairs at depth 4
+    // 17   -- dummy pairs at depth 5
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_bruteforce_reference_buildMerkleTree nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const expected = referenceRoot(leaves, paddedSize);
+
+            const tree = buildMerkleTree([...leaves], paddedSize, depth, zeros);
+            expect(tree[0][0].equals(expected).toBoolean()).toBe(true);
+        }
+    );
+
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_bruteforce_reference_foldMerkleLeft nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const expected = referenceRoot(leaves, paddedSize);
+
+            const rootFold = foldMerkleLeft(
+                [...leaves],
+                paddedSize,
+                depth,
+                zeros
+            );
+            expect(rootFold.equals(expected).toBoolean()).toBe(true);
+        }
+    );
+
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_o1js_merkle_tree_reference_buildMerkleTree nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const o1jsTree = new MerkleTree(depth + 1);
+            for (let i = 0; i < nLeaves; i++) {
+                o1jsTree.setLeaf(BigInt(i), leaves[i]);
+            }
+            const o1jsRoot = o1jsTree.getRoot();
+
+            const tree = buildMerkleTree([...leaves], paddedSize, depth, zeros);
+            expect(tree[0][0].equals(o1jsRoot).toBoolean()).toBe(true);
+        }
+    );
+
+    test.each([1, 3, 5, 6, 9, 17])(
+        'regression_a2090_o1js_merkle_tree_reference_foldMerkleLeft nLeaves=%i',
+        (nLeaves) => {
+            const pairs: Array<[Bytes32, Bytes32]> = [];
+            for (let i = 0; i < nLeaves; i++) {
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
+            }
+            const leaves = buildLeavesNonProvable(pairs);
+            const { depth, paddedSize } =
+                computeMerkleTreeDepthAndSize(nLeaves);
+            const zeros = getMerkleZeros(depth);
+
+            const o1jsTree = new MerkleTree(depth + 1);
+            for (let i = 0; i < nLeaves; i++) {
+                o1jsTree.setLeaf(BigInt(i), leaves[i]);
+            }
+            const o1jsRoot = o1jsTree.getRoot();
+
+            const rootFold = foldMerkleLeft(
+                [...leaves],
+                paddedSize,
+                depth,
+                zeros
+            );
+            expect(rootFold.equals(o1jsRoot).toBoolean()).toBe(true);
+        }
+    );
+});
+
 describe('Merkle Fixed Tests', () => {
     test('test_large_slots', () => {
         const n = 1000;
-        const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
+        const pairs: Array<[Bytes32, Bytes32]> = [];
         for (let i = 0; i < n; i++) {
-            triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
+            pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
         }
-        const root = fullMerkleTest(triples, 543);
+        const root = fullMerkleTest(pairs, 543);
         console.log("root", root.toBigInt());
 
     });
 
     test('test_hash_storage_slot_basic', () => {
-        const address = dummyAddress(1);
-        const attestation = dummyAttestation(2);
+        const codeChallenge = dummyCodeChallenge(2);
         const value = dummyValue(3);
-        const leafHash = nonProvableStorageSlotLeafHash(address, attestation, value);
+        const leafHash = nonProvableStorageSlotLeafHash(codeChallenge, value);
         expect(leafHash.equals(Field(0)).toBoolean()).toBe(false);
     });
 
@@ -82,12 +194,12 @@ describe('Merkle Fixed Tests', () => {
         for (let nLeaves = 0; nLeaves <= maxLeaves; nLeaves++) {
             console.log(`→ Testing with ${nLeaves} leaves`);
 
-            const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
+            const pairs: Array<[Bytes32, Bytes32]> = [];
             for (let i = 0; i < nLeaves; i++) {
-                triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
+                pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
             }
 
-            const leaves = buildLeavesNonProvable(triples);
+            const leaves = buildLeavesNonProvable(pairs);
             console.log(
                 `   leaves ${leaves.map((l) =>
                     l.toJSON().split('\n').join(' ,')
@@ -163,15 +275,15 @@ describe('Merkle Fixed Tests', () => {
         const zeros = getMerkleZeros(maxDepth);
         console.log(`01. getMerkleZeros: ${Date.now() - startTimeGetMerkleZeros}ms`);
 
-        const startTimeGenerateDummyTriples = Date.now();
-        const triples: Array<[Bytes20, Bytes32, Bytes32]> = [];
+        const startTimeGenerateDummyPairs = Date.now();
+        const pairs: Array<[Bytes32, Bytes32]> = [];
         for (let i = 0; i < nLeaves; i++) {
-            triples.push([dummyAddress(i), dummyAttestation(i), dummyValue(i)]);
+            pairs.push([dummyCodeChallenge(i), dummyValue(i)]);
         }
-        console.log(`02. Generate dummy triples: ${Date.now() - startTimeGenerateDummyTriples}ms`);
+        console.log(`02. Generate dummy pairs: ${Date.now() - startTimeGenerateDummyPairs}ms`);
 
         const startTimeBuildLeaves = Date.now();
-        const leaves = buildLeavesNonProvable(triples);
+        const leaves = buildLeavesNonProvable(pairs);
         console.log(`03. buildLeaves: ${Date.now() - startTimeBuildLeaves}ms`);
 
         const startTimeComputeDepthAndSize = Date.now();

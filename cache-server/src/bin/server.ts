@@ -94,4 +94,5 @@ const port = 4210;
 const server = new StaticServer(port, cacheDir);
 server.start().catch((e) => {
     logger.fatal(`Server errored: ${e.stack}`);
+    process.exit(1);
 });

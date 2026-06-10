@@ -6,7 +6,7 @@ import {
     UInt64,
     ZkProgram,
 } from 'o1js';
-import { DynamicArray } from 'mina-attestations';
+import { DynamicArray } from '@nori-zk/mina-attestations/dynamic/array';
 import {
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves as getMerklePathFromLeavesInner,
@@ -23,7 +23,6 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
     const MerklePath = DynamicArray(Field, { maxLength: treeDepth });
 
     class MerkleTreeLeafAttestorInput extends Struct({
-        rootHash: Field,
         path: MerklePath,
         index: UInt64,
         value: provableLeafType,
@@ -37,7 +36,7 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
             compute: {
                 privateInputs: [],
                 async method(input: MerkleTreeLeafAttestorInput) {
-                    let { index, path, rootHash } = input; // value
+                    let { index, path } = input;
 
                     let currentHash = leafContentsHasher(input.value as TLeaf);
 
@@ -97,10 +96,9 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
 
                     /*Provable.asProver(() => {
                         Provable.log(
-                            `Got to assert root ${rootHash}, current ${currentHash}`
+                            `Computed root: ${currentHash}`
                         );
                     });*/
-                    currentHash.assertEquals(rootHash);
                     return { publicOutput: currentHash };
                 },
             },
@@ -129,12 +127,10 @@ export function merkleLeafAttestorGenerator<TLeaf>( // extends Struct<any>
     // Deal with value: TLeaf, type inference fails, so need to retype everything.
 
     type MerkleTreeLeafAttestorInputConstructor = new (arg: {
-        rootHash: Field;
         path: InstanceType<typeof MerklePath>;
         index: UInt64;
         value: TLeaf;
     }) => {
-        rootHash: Field;
         path: InstanceType<typeof MerklePath>;
         index: UInt64;
         value: TLeaf;

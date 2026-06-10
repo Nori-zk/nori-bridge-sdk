@@ -94,9 +94,19 @@ export function getWorkerUrl(url: URL): string {
 
     // Build candidate path inside outDir (do NOT change extension)
     const candidate = path.resolve(outDirAbs, relFromConfig);
+    if (fs.existsSync(candidate)) return candidate;
 
-    // If compiled file exists in outDir, return it; otherwise return original path.
-    return fs.existsSync(candidate) ? candidate : filePath;
+    // When tsconfig has no explicit rootDir, TypeScript infers it from the common
+    // ancestor of all source files (typically `src/`), stripping that prefix from
+    // the output path. Try stripping each leading segment until we find the file.
+    const parts = relFromConfig.split(path.sep);
+    for (let i = 1; i < parts.length; i++) {
+        const stripped = parts.slice(i).join(path.sep);
+        const alt = path.resolve(outDirAbs, stripped);
+        if (fs.existsSync(alt)) return alt;
+    }
+
+    return filePath;
 }
 
 export class WorkerParent implements WorkerParentChildInterface {

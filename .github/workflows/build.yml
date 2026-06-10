@@ -15,7 +15,7 @@ jobs:
       contents: read
       pull-requests: write
     container:
-      image: docker.nori.it.com/stacksmith:2.0.6
+      image: docker.nori.it.com/stacksmith:2.0.10
       volumes:
         # SSH for git operations
         - /home/runner/.ssh:/root/.ssh:ro
@@ -34,25 +34,26 @@ jobs:
     # Define lightnet service
     services:
       mina-lightnet:
-        image: o1labs/mina-local-network@sha256:32051ff0cba26abbbb46e916c85c8d9b247d95732ec1f5f64afb04d69768aad6 # compatible-latest-devnet
+        image: o1labs/mina-local-network@sha256:31b20692e0fbf9004aa6ae6b351ded0e4a1a396a5d2cb6135ed6724a7a9506ff # mesa-latest-devnet-mesa-preflight 
         env:
-          PROOF_LEVEL: full
-          LOG_LEVEL: Debug
           RUN_ARCHIVE_NODE: true
           SLOT_TIME: 20000
           NETWORK_TYPE: single-node
-          PATH: /root/.nvm/versions/node/v22.9.0/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/14/bin
-          GOSU_VERSION: 1.17
+          PROOF_LEVEL: full
+          LOG_LEVEL: Trace
+          PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/14/bin
+          GOSU_VERSION: 1.19
           LANG: en_US.utf8
           PG_MAJOR: 14
-          PG_VERSION: 14.17-1.pgdg120+1
+          PG_VERSION: 14.21-1.pgdg12+1
           PGDATA: /var/lib/postgresql/data
-          NODE_VERSION: 22.9.0
-          NVM_DIR: /root/.nvm
-          MINA_LIBP2P_HELPER_PATH: /root/libp2p_helper
+          NODE_VERSION: 20.11.1
+          MINA_DEB_NAME: mina-mesa
+          MINA_COMMIT: aa93c44428e7c73cd7b77900634522108b746d18
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: archive
+          COMPILED_PROOF_LEVEL: full
 
     steps:
       - name: Comment on PR - Build Started

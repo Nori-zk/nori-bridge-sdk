@@ -1,0 +1,29 @@
+{
+  "name": "NoriTokenBridge",
+  "integrityHash": "",
+  "files": [
+    "lagrange-basis-fp-32768",
+    "step-pk-noritokenbridge-update",
+    "step-pk-noritokenbridge-setupstorage",
+    "step-pk-noritokenbridge-updateverificationkey",
+    "step-pk-noritokenbridge-updatestorehash",
+    "step-pk-noritokenbridge-norimint",
+    "step-pk-noritokenbridge-canmint",
+    "step-pk-noritokenbridge-canchangeadmin",
+    "step-pk-noritokenbridge-canpause",
+    "step-pk-noritokenbridge-canresume",
+    "step-pk-noritokenbridge-canchangeverificationkey",
+    "step-vk-noritokenbridge-update",
+    "step-vk-noritokenbridge-setupstorage",
+    "step-vk-noritokenbridge-updateverificationkey",
+    "step-vk-noritokenbridge-updatestorehash",
+    "step-vk-noritokenbridge-norimint",
+    "step-vk-noritokenbridge-canmint",
+    "step-vk-noritokenbridge-canchangeadmin",
+    "step-vk-noritokenbridge-canpause",
+    "step-vk-noritokenbridge-canresume",
+    "step-vk-noritokenbridge-canchangeverificationkey",
+    "wrap-pk-noritokenbridge",
+    "wrap-vk-noritokenbridge"
+  ]
+}

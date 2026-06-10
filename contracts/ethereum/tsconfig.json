@@ -1,14 +1,13 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true
+    "outDir": "target",
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
+    "types": ["mocha", "node"],
+    "rootDir": ".",
+    "baseUrl": "."
   },
-  "exclude": [
-    "index.ts"
-  ]
+  "exclude": ["node_modules", "build"],
+  "files": ["./hardhat-env.d.ts"],
+  "include": ["*", "*/*", "**/*.json", "./hardhat.config.ts"]
 }

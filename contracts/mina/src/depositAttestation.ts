@@ -1,0 +1,340 @@
+import {
+    createTimer,
+    Bytes32,
+    computeMerkleTreeDepthAndSize,
+    getMerklePathFromLeaves,
+    getMerkleZeros,
+} from '@nori-zk/o1js-zk-utils';
+import { DynamicArray } from '@nori-zk/mina-attestations/dynamic/array';
+import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
+import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
+import { Logger } from 'esm-iso-logger';
+// ------- Deposit attestation ---------------------------------
+
+const logger = new Logger('DepositAttestation');
+
+export class ContractDeposit extends Struct({
+    codeChallenge: Bytes32.provable,
+    value: Bytes32.provable,
+}) { }
+
+const treeDepth = 16;
+
+export const MerklePath = DynamicArray(Field, { maxLength: treeDepth });
+
+export class MerkleTreeContractDepositAttestorInput extends Struct({
+    path: MerklePath,
+    index: UInt64,
+    value: ContractDeposit,
+}) { }
+
+export type MerkleTreeContractDepositAttestorInputJson = {
+    depositIndex: number;
+    despositSlotRaw: {
+        slot_key_code_challenge: string;
+        value: string;
+    };
+    path: string[];
+};
+
+export function buildMerkleTreeContractDepositAttestorInput(
+    jsonInputs: MerkleTreeContractDepositAttestorInputJson
+) {
+    const merklePath = MerklePath.from([]);
+    jsonInputs.path.forEach((element) =>
+        merklePath.push(new Field(BigInt(element)))
+    );
+    return new MerkleTreeContractDepositAttestorInput({
+        path: merklePath,
+        index: UInt64.fromValue(jsonInputs.depositIndex),
+        value: new ContractDeposit({
+            codeChallenge: Bytes32.fromHex(
+                jsonInputs.despositSlotRaw.slot_key_code_challenge.slice(2)
+            ),
+            value: Bytes32.fromHex(jsonInputs.despositSlotRaw.value.slice(2)),
+        }),
+    });
+}
+
+export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
+    const codeChallengeBytes = contractDeposit.codeChallenge.bytes; // UInt8[]
+    const valueBytes = contractDeposit.value.bytes; // UInt8[]
+
+    // 64 bytes total (32 + 32), max 31 bytes per field → 3 fields
+    // Strip high byte off each, pack into firstField; remaining 31 bytes each in secondField/thirdField
+
+    // firstFieldBytes: 1 byte from codeChallengeBytes and 1 byte from valueBytes
+    const firstFieldBytes: UInt8[] = [];
+
+    firstFieldBytes.push(codeChallengeBytes[0]);
+    firstFieldBytes.push(valueBytes[0]);
+
+    for (let i = 2; i < 32; i++) {
+        firstFieldBytes.push(UInt8.zero); // static pad to 32
+    }
+
+    // secondFieldBytes: remaining 31 bytes from codeChallengeBytes (1 to 31)
+    const secondFieldBytes: UInt8[] = [];
+    for (let i = 1; i < 32; i++) {
+        secondFieldBytes.push(codeChallengeBytes[i]);
+    }
+
+    // already 31 elements; add 1 zero to reach 32
+    secondFieldBytes.push(UInt8.zero);
+
+    // thirdFieldBytes: remaining 31 bytes from valueBytes (1 to 31)
+    const thirdFieldBytes: UInt8[] = [];
+    for (let i = 1; i < 32; i++) {
+        thirdFieldBytes.push(valueBytes[i]);
+    }
+
+    // already 31 elements; add 1 zero to reach 32
+    thirdFieldBytes.push(UInt8.zero);
+
+    // Convert UInt8[] to Bytes (provable bytes)
+    const firstBytes = Bytes.from(firstFieldBytes);
+    const secondBytes = Bytes.from(secondFieldBytes);
+    const thirdBytes = Bytes.from(thirdFieldBytes);
+
+    // Little endian
+    let firstField = new Field(0);
+    let secondField = new Field(0);
+    let thirdField = new Field(0);
+    for (let i = 31; i >= 0; i--) {
+        firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
+        secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
+        thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
+    }
+
+    return Poseidon.hash([firstField, secondField, thirdField]);
+}
+
+export function getContractDepositSlotRootFromContractDepositAndWitness(
+    input: MerkleTreeContractDepositAttestorInput
+) {
+    let { index, path } = input;
+
+    let currentHash = provableStorageSlotLeafHash(input.value);
+
+    const bitPath = index.value.toBits(path.maxLength);
+    path.forEach((sibling, isDummy, i) => {
+        const bit = bitPath[i];
+
+        const left = Provable.if(bit, Field, sibling, currentHash);
+        const right = Provable.if(bit, Field, currentHash, sibling);
+        const nextHash = Poseidon.hash([left, right]);
+
+        /*Provable.asProver(() => {
+            if (!isDummy) {
+                console.log(
+                    `merkle pair @ level ${i}:`,
+                    'left =',
+                    typeof left.toBigInt === 'function'
+                        ? left.toBigInt()
+                        : left,
+                    'right =',
+                    typeof right.toBigInt === 'function'
+                        ? right.toBigInt()
+                        : right
+                );
+            }
+        });*/
+
+        currentHash = Provable.if(isDummy, Field, currentHash, nextHash);
+    });
+
+    return currentHash;
+}
+
+export function extractCodeChallengeAndTotalLocked(
+    merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput
+) {
+    // Unpack deposit
+    const deposit = merkleTreeContractDepositAttestorInput.value;
+
+    // Convert deposit.codeChallenge from Bytes32 into a Field
+    const codeChallengeBytes = deposit.codeChallenge.bytes;
+    let codeChallenge = new Field(0);
+    for (let i = 0; i < 32; i++) {
+        codeChallenge = codeChallenge.mul(256).add(codeChallengeBytes[i].value);
+    }
+
+    Provable.asProver(() => {
+        logger.log('deposit value bytes');
+        logger.log(deposit.value.bytes.map((byte) => byte.toBigInt().toString()));
+        logger.log('codeChallenge');
+        logger.log(codeChallenge.toBigInt());
+    });
+
+    // Turn totalLocked into a field
+    const totalLockedBytes = deposit.value.bytes;
+    let totalLocked = new Field(0);
+    for (let i = 0; i < 32; i++) {
+        totalLocked = totalLocked.mul(256).add(totalLockedBytes[i].value);
+    }
+
+    return {
+        totalLocked,
+        codeChallenge,
+    };
+}
+
+export function buildContractDepositSlotLeaves(
+    contractDeposits: ContractDeposit[]
+): Field[] {
+    return contractDeposits.map((leaf) => provableStorageSlotLeafHash(leaf));
+}
+
+export function getMerklePathFromContractDeposits(
+    merkleLeaves: Field[],
+    index: number
+) {
+    const nLeaves = merkleLeaves.length;
+    const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
+    const path = getMerklePathFromLeaves(
+        merkleLeaves,
+        paddedSize,
+        depth,
+        index,
+        getMerkleZeros(depth)
+    );
+    const merklePath = MerklePath.from([]);
+    path.forEach((element) => merklePath.push(element));
+    return merklePath;
+}
+
+async function proofConversionServiceRequest(
+    depositBlockNumber: number,
+    domain = 'https://pcs.nori.it.com'
+): Promise<Sp1ProofAndConvertedProofBundle> {
+    const fetchResponse = await fetch(
+        `${domain}/converted-consensus-mpt-proofs/${depositBlockNumber}`
+    );
+    logger.log('fetchResponse GET', fetchResponse);
+    const json = await fetchResponse.json();
+    logger.log('parsedjson', json, typeof json);
+    if ('error' in json) throw new Error(json.error as string);
+    return json;
+}
+
+async function fetchContractWindowSlotProofs(
+    depositBlockNumber: number,
+    domain = 'https://pcs.nori.it.com'
+) {
+    logger.log(
+        `Fetching proof bundle for deposit with block number: ${depositBlockNumber}`
+    );
+
+    const proofConversionTimer = createTimer();
+    const {
+        consensusMPTProof: {
+            proof: consensusMPTProofProof,
+            contract_storage_slots: consensusMPTProofContractStorageSlots,
+        },
+        consensusMPTProofVerification: consensusMPTProofVerification,
+    } = await proofConversionServiceRequest(depositBlockNumber, domain);
+    logger.log(`proofConversionServiceRequest: ${proofConversionTimer()}`);
+
+    logger.log(
+        'consensusMPTProofVerification, consensusMPTProofProof, consensusMPTProofContractStorageSlots',
+        consensusMPTProofVerification,
+        consensusMPTProofProof,
+        consensusMPTProofContractStorageSlots
+    );
+
+    return {
+        consensusMPTProofProof,
+        consensusMPTProofContractStorageSlots,
+        consensusMPTProofVerification,
+    };
+}
+
+export async function computeDepositAttestationWitness(
+    depositBlockNumber: number,
+    codeChallengeBEHex: string,
+    domain = 'https://pcs.nori.it.com'
+) {
+    const { consensusMPTProofContractStorageSlots } =
+        await fetchContractWindowSlotProofs(depositBlockNumber, domain);
+
+    // Find deposit
+    logger.log(
+        `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
+    );
+    const paddedConsensusMPTProofContractStorageSlots = (
+        consensusMPTProofContractStorageSlots
+    ).map((slot) => {
+        return {
+            //prettier-ignore
+            slot_key_code_challenge: `0x${slot.slot_key_code_challenge.slice(2).padStart(64, '0')}`,
+            //prettier-ignore
+            value: `0x${slot.value.slice(2).padStart(64, '0')}`,
+        };
+    });
+    const depositIndex = paddedConsensusMPTProofContractStorageSlots.findIndex(
+        (slot) => slot.slot_key_code_challenge === codeChallengeBEHex
+    );
+    if (depositIndex === -1)
+        throw new Error(
+            `Could not find deposit index with codeChallengeBEHex: ${codeChallengeBEHex} in slots ${JSON.stringify(
+                paddedConsensusMPTProofContractStorageSlots,
+                null,
+                4
+            )}`
+        );
+    logger.log(
+        `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
+    );
+    const despositSlotRaw =
+        paddedConsensusMPTProofContractStorageSlots[depositIndex];
+    const totalDespositedValue = despositSlotRaw.value;
+    logger.log(`Total deposited to date (hex): ${totalDespositedValue}`);
+
+    // Build contract storage slots (to be hashed)
+    const contractStorageSlots =
+        paddedConsensusMPTProofContractStorageSlots.map((slot) => {
+            const codeChallenge = slot.slot_key_code_challenge;
+            const value = slot.value;
+            logger.log({ codeChallenge, value });
+            return new ContractDeposit({
+                codeChallenge: Bytes32.fromHex(codeChallenge.slice(2)),
+                value: Bytes32.fromHex(value.slice(2)),
+            });
+        });
+
+    // Build deposit witness
+
+    // Build leaves
+    const buildLeavesTimer = createTimer();
+    const leaves = buildContractDepositSlotLeaves(contractStorageSlots);
+    logger.log(`buildContractDepositLeaves: ${buildLeavesTimer()}`);
+    logger.log(
+        'leaves',
+        leaves.map((leaf) => leaf.toBigInt())
+    );
+
+    // Compute path
+    const merklePathTimer = createTimer();
+    const nLeaves = leaves.length;
+    const { depth, paddedSize } = computeMerkleTreeDepthAndSize(nLeaves);
+    const path = getMerklePathFromLeaves(
+        [...leaves],
+        paddedSize,
+        depth,
+        depositIndex,
+        getMerkleZeros(depth)
+    );
+    logger.log(`getContractDepositWitness: ${merklePathTimer()}`);
+    logger.log(
+        'path',
+        path.map((pathEle) => pathEle.toBigInt())
+    );
+
+    logger.log(`All inputs built needed to compute mint proof!`);
+
+    return {
+        path: path.map((it) => it.toBigInt().toString()),
+        depositIndex,
+        despositSlotRaw,
+    };
+}

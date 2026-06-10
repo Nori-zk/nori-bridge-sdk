@@ -1,4 +1,4 @@
-import noriTokenBridgeRaw from './artifacts/contracts/NoriTokenBridge.sol/NoriTokenBridge.json';
+import noriTokenBridgeRaw from './artifacts/contracts/NoriTokenBridge.sol/NoriTokenBridge.json' with { type: "json" };
 
 export interface Artifact {
   _format: string;
@@ -28,3 +28,5 @@ export interface Artifact {
 }
 
 export const noriTokenBridgeJson: Artifact = noriTokenBridgeRaw as Artifact;
+
+export * from './types/ethers-contracts/index.js';
