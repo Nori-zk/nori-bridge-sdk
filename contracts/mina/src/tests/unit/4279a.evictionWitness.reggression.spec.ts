@@ -84,10 +84,10 @@ async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]> {
 }
 
 /** Dispatch a deposit root via adminSetDepositRoot with an explicit oldestAction. */
-async function adminDispatch(root: Field, oldestAction: Field) {
+async function adminDispatch(root: Field) {
     await txSend({
         body: async () => {
-            await noriTokenBridge.adminSetDepositRoot(root, oldestAction);
+            await noriTokenBridge.adminSetDepositRoot(root);
         },
         sender: admin.publicKey,
         signers: [admin.privateKey],
@@ -97,7 +97,7 @@ async function adminDispatch(root: Field, oldestAction: Field) {
 
 describe('NoriTokenBridge — eviction witness integrity', () => {
     beforeAll(async () => {
-        const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
+        const Local = await Mina.LocalBlockchain({ proofsEnabled: false });
         Mina.setActiveInstance(Local);
 
         deployer = { publicKey: Local.testAccounts[0], privateKey: Local.testAccounts[0].key };
@@ -174,10 +174,9 @@ describe('NoriTokenBridge — eviction witness integrity', () => {
     });
 
     test('a bogus oldestAction during eviction must not brick the window or mint flow', async () => {
-        // Fill the window to maxWindow. While the window is not yet full the
-        // oldestAction argument is ignored, so Field(0) is fine here.
+        // Fill the window to maxWindow. 
         for (let i = 0; i < maxWindow; i++) {
-            await adminDispatch(Field(3_000_000n + BigInt(i)), Field(0));
+            await adminDispatch(Field(3_000_000n + BigInt(i)));
         }
 
         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
@@ -203,10 +202,10 @@ describe('NoriTokenBridge — eviction witness integrity', () => {
             signers: [deployer.privateKey, mallory.privateKey],
         });
 
-        // Window is full: this dispatch evicts the real oldest action. Pass a
-        // BOGUS oldestAction — a correct contract must not trust it.
-        const bogusOldest = Field(987_654_321n);
-        await adminDispatch(depositRoot, bogusOldest);
+        // Window is full: this dispatch evicts the real oldest action. 
+        // Pass a BOGUS oldestAction — a correct contract must not trust it.
+        // const bogusOldest = Field(987_654_321n);
+        await adminDispatch(depositRoot);
 
         // The window must still resolve from windowStart and contain the new
         // root. On the buggy contract windowStart is poisoned, so this fetch

@@ -142,21 +142,7 @@ async function fetchAllDispatchedRoots(bridge: NoriTokenBridge): Promise<Field[]
 }
 
 /**
- * Determine the oldest action that needs to be evicted when dispatching
- * a new deposit root. Returns Field(0) if the window is not yet full.
- *
- * When the window IS full, the oldest root is the first element returned
- * by `fetchWindowRoots` — i.e. the one sitting at `windowStart`.
- */
-async function getOldestActionForEviction(bridge: NoriTokenBridge): Promise<Field> {
-    const windowRoots = await fetchWindowRoots(bridge);
-    if (windowRoots.length < maxWindow) return Field(0);
-    return windowRoots[0];
-}
-
-/**
- * Dispatch a deposit root via adminSetDepositRoot, automatically
- * fetching the oldest action from the chain when the window is full.
+ * Dispatch a deposit root via adminSetDepositRoot.
  *
  * NOTE: `adminSetDepositRoot` is commented out on the production contract
  * (see `contracts/mina/src/NoriTokenBridge.ts`). The body of this helper
@@ -166,17 +152,15 @@ async function getOldestActionForEviction(bridge: NoriTokenBridge): Promise<Fiel
  */
 async function dispatchRoot(root: Field) {
     void root;
-    const oldest = await getOldestActionForEviction(noriTokenBridge);
-    void oldest;
 
-    // await txSend({
-    //     body: async () => {
-    //         await noriTokenBridge.adminSetDepositRoot(root, oldest);
-    //     },
-    //     sender: admin.publicKey,
-    //     signers: [admin.privateKey],
-    // });
-    // await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
+    await txSend({
+        body: async () => {
+            await noriTokenBridge.adminSetDepositRoot(root);
+        },
+        sender: admin.publicKey,
+        signers: [admin.privateKey],
+    });
+    await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +169,7 @@ async function dispatchRoot(root: Field) {
 describe('NoriTokenBridge', () => {
     beforeAll(async () => {
         // Configure LocalBlockchain (proofsEnabled: false for fast execution)
-        const Local = await Mina.LocalBlockchain({ proofsEnabled: false });
+        const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
         Mina.setActiveInstance(Local);
 
         deployer = {
@@ -503,7 +487,7 @@ describe('NoriTokenBridge', () => {
 
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                        await noriTokenBridge.update(ethInput1, rawProof1);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -534,7 +518,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 2 (consecutive from block 1)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                        await noriTokenBridge.update(ethInput2, rawProof2);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -549,7 +533,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 3 (consecutive from block 2)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput3, rawProof3, Field(0));
+                        await noriTokenBridge.update(ethInput3, rawProof3);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -564,7 +548,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 4 (consecutive from block 3)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput4, rawProof4, Field(0));
+                        await noriTokenBridge.update(ethInput4, rawProof4);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -608,7 +592,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                                await noriTokenBridge.update(ethInput1, rawProof1);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -622,7 +606,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                                await noriTokenBridge.update(ethInput2, rawProof2);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -744,7 +728,7 @@ describe('NoriTokenBridge', () => {
     // each synthetic deposit. To re-run these tests locally, uncomment
     // the contract method, the worker shim, and the call sites below.
     // -----------------------------------------------------------------------
-    describe.skip('noriMint()', () => {
+    describe('noriMint()', () => {
         let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
@@ -766,13 +750,13 @@ describe('NoriTokenBridge', () => {
             const aliceRoot = getContractDepositSlotRootFromContractDepositAndWitness(aliceDepositAttestationInput);
             logger.log(`Seeding Alice's deposit root into contract window: ${aliceRoot}`);
             void aliceRoot;
-            // await txSend({
-            //     body: async () => {
-            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot, Field(0));
-            //     },
-            //     sender: admin.publicKey,
-            //     signers: [admin.privateKey],
-            // });
+            await txSend({
+                body: async () => {
+                    await noriTokenBridge.adminSetDepositRoot(aliceRoot);
+                },
+                sender: admin.publicKey,
+                signers: [admin.privateKey],
+            });
             logger.log('Alice deposit root dispatched to contract.');
             await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
             logger.log('Deposit root seeded into contract window for Alice.');
@@ -821,13 +805,13 @@ describe('NoriTokenBridge', () => {
                 void aliceRoot2;
                 // adminSetDepositRoot is commented out on the production contract;
                 // see top-of-suite note. Skipped tests do not execute this body.
-                // await txSend({
-                //     body: async () => {
-                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
-                //     },
-                //     sender: admin.publicKey,
-                //     signers: [admin.privateKey],
-                // });
+                await txSend({
+                    body: async () => {
+                        await noriTokenBridge.adminSetDepositRoot(aliceRoot2);
+                    },
+                    sender: admin.publicKey,
+                    signers: [admin.privateKey],
+                });
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
                 // Mint — contract computes amountToMint = totalLocked(500) - mintedSoFar(200) = 300
