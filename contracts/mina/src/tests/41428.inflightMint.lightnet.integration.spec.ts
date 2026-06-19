@@ -239,7 +239,7 @@ describe('NoriTokenBridge — in-flight mint invalidation (lightnet green proof)
             { sender: mallory.publicKey, fee },
             async () => {
                 AccountUpdate.fundNewAccount(mallory.publicKey, 1);
-                await noriTokenBridge.noriMint(merkleInput, scramWitness);
+                await noriTokenBridge.noriMint(merkleInput, scramWitness, windowStartWitness);
             }
         );
         await mintTx.prove();

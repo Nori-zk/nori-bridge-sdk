@@ -409,36 +409,36 @@ export class TokenBridgeTester {
     // path so tests can seed deposit roots directly. MUST stay commented out
     // for production builds.
     //
-    // async adminSetDepositRoot(
-    //     senderPrivateKeyBase58: string,
-    //     noriTokenBridgeAddressBase58: string,
-    //     depositRootStr: string,
-    //     oldestActionStr: string,
-    //     txFee: number
-    // ): Promise<string> {
-    //     const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
-    //     const senderPublicKey = senderPrivateKey.toPublicKey();
-    //     const noriTokenBridgeAddress = PublicKey.fromBase58(
-    //         noriTokenBridgeAddressBase58
-    //     );
-    //     const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
-    //
-    //     const depositRoot = new Field(BigInt(depositRootStr));
-    //     const oldestAction = new Field(BigInt(oldestActionStr));
-    //
-    //     await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
-    //
-    //     const tx = await Mina.transaction(
-    //         { sender: senderPublicKey, fee: txFee },
-    //         async () => {
-    //             await bridge.adminSetDepositRoot(depositRoot, oldestAction);
-    //         }
-    //     );
-    //     await tx.prove();
-    //     const sent = await tx.sign([senderPrivateKey]).send();
-    //     const result = await sent.wait();
-    //     return result.hash;
-    // }
+    async adminSetDepositRoot(
+        senderPrivateKeyBase58: string,
+        noriTokenBridgeAddressBase58: string,
+        depositRootStr: string,
+        oldestActionStr: string,
+        txFee: number
+    ): Promise<string> {
+        const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
+        const senderPublicKey = senderPrivateKey.toPublicKey();
+        const noriTokenBridgeAddress = PublicKey.fromBase58(
+            noriTokenBridgeAddressBase58
+        );
+        const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
+
+        const depositRoot = new Field(BigInt(depositRootStr));
+        const oldestAction = new Field(BigInt(oldestActionStr));
+
+        await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
+
+        const tx = await Mina.transaction(
+            { sender: senderPublicKey, fee: txFee },
+            async () => {
+                await bridge.adminSetDepositRoot(depositRoot, oldestAction);
+            }
+        );
+        await tx.prove();
+        const sent = await tx.sign([senderPrivateKey]).send();
+        const result = await sent.wait();
+        return result.hash;
+    }
 
     // =======================================================================
     // Bridge ops
@@ -573,6 +573,11 @@ export class TokenBridgeTester {
         await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
 
         const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await bridge.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const tx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
@@ -580,7 +585,7 @@ export class TokenBridgeTester {
                 if (fundNewAccount) {
                     AccountUpdate.fundNewAccount(senderPublicKey, 1);
                 }
-                await bridge.noriMint(merkleInput, witnessSCRAM);
+                await bridge.noriMint(merkleInput, witnessSCRAM, windowStartWitness);
             }
         );
         await tx.prove();

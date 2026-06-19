@@ -68,6 +68,18 @@ Results:
 
 - Regression test: fails on the current contract. The intervening `update` moves `windowStart`, and sending the proven mint is rejected on the now-stale `windowStart` precondition (`Account_app_state_precondition_unsatisfied`) — confirming the finding.
 
+### Commit 2 - Fix applied
+
+- **`noriMint` witnesses the window start** (`contracts/mina/src/NoriTokenBridge.ts`): instead of reading `windowStart` via `getAndRequireEquals()` (a zero-tolerance precondition), the method takes `windowStartWitness: Field` and uses it as the `getActions` start. The witness is fully constrained without that precondition — `reduce` asserts the chain `windowStartWitness -> ... -> account.actionState` matches the folded actions (a stale/off-chain witness cannot pass), and `maxUpdatesWithActions: maxWindow` bounds it from below. The only shared precondition left with `update` is `account.actionState`, which tolerates the last ~5 action states, so an `update` between proving and inclusion no longer invalidates the mint.
+- **Call sites updated** to fetch and pass the witness: `workers/tokenBridgeTester/worker.ts`, `workers/tokenBridgeWorker/worker.ts` (three mint paths), and the integration specs (`full.local`, `main-thread/full.lightnet`, `main-thread/happyPath.lightnet`).
+- **Regression test updated** to the witnessed (3-arg) call so it now exercises the fix.
+- **Bridge verification key regenerated** (`integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): the `noriMint` circuit changed.
+
+Results:
+
+- Regression test: passes on lightnet. After the intervening `update` slides `windowStart`, the already-proven mint is accepted (distance 1, within the 5-slot `actionState` tolerance) and credits the balance.
+- Tolerance confirmed on lightnet by a probe: a pinned `actionState` survives up to 4 intervening updates (accepted at distances 1 and 4, rejected at 5+); LocalBlockchain rejects even distance 1 — the reason the green side runs on lightnet.
+- The worker-driven `full.lightnet` and `happyPath.lightnet` suites pass with the fix.
 
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 

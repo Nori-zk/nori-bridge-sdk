@@ -521,7 +521,8 @@ export class NoriTokenBridge
     }
     @method public async noriMint(
         merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
-        SCRAMWitness: SCRAMWitness
+        SCRAMWitness: SCRAMWitness,
+        windowStartWitness: Field
     ) {
         const userAddress = this.sender.getAndRequireSignature();
         const tokenAddress = this.tokenBaseAddress.getAndRequireEquals();
@@ -535,11 +536,24 @@ export class NoriTokenBridge
             );
 
         // Check membership in the action-based deposit-root window.
-        // Fetch actions from windowStart to current actionState, then reduce
-        // to check if any dispatched root matches the computed deposit slot root.
-        const windowStart = this.windowStart.getAndRequireEquals();
-        const actions = this.reducer.getActions({ fromActionState: windowStart });
-
+        //
+        // The window start is taken as a WITNESS rather than read from on-chain
+        // `windowStart` state. Reading `windowStart` via getAndRequireEquals
+        // would pin it as a zero-tolerance precondition, and every `update`
+        // advances it once the window is full — so any update landing between
+        // proving and inclusion would reject the mint (finding 41428).
+        //
+        // The witness is fully constrained without that precondition:
+        //   - `reduce` asserts the chain `windowStartWitness -> ... ->
+        //     account.actionState` matches the actions it folds, so an
+        //     off-chain or stale-garbage witness cannot pass.
+        //   - `maxUpdatesWithActions: maxWindow` bounds the witness from below:
+        //     a start older than the true window head yields more than
+        //     maxWindow actions and the fold cannot reach `account.actionState`.
+        //     A newer start only shrinks the considered set to a safe subset.
+        // The only on-chain precondition left is `account.actionState`, which
+        // tolerates the last 5 action states — giving ~5 updates of slack.
+        const actions = this.reducer.getActions({ fromActionState: windowStartWitness });
         const depositInWindow: Bool = this.reducer.reduce(
             actions,
             Bool,
