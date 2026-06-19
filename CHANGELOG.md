@@ -1,5 +1,74 @@
 # Changelog
 
+## 02/6/26 - Finding 41428: In-flight mints are invalidated by the next `update()`
+
+### Finding (verbatim)
+
+Thanks for the detailed answers to my questions at the end of last week regarding update and mint and the timings on Mina versus SP1 etc., that was very helpful.
+
+I dug in more into the concurrency questions regarding update and mint, and what kind of timeline users have for their mints.
+
+There are two different timeframes to consider:
+Deposit root availability: How long after the first update that placed a deposit root containing the deposit on-chain is that deposit root still available, so that the user can use it to mint?
+Mint proof usability: If a user starts generating a mint proof at time X, and it gets included on-chain at time Y (or attempted to be included), will it be accepted or rejected?
+
+With an update roughly every 16 minutes, and 32 deposit roots usable on-chain, that gives between 8 and 9 hours for deposit root availability.
+
+This does not mean that a user that generated a mint proof immediately after the update appeared on chain that carries the deposit root containing their deposit can wait for up to 8 hours to submit it.
+
+The noriMint method has a precondition that pins an action state to a value. So for this part:
+
+```typescript
+const windowStart = this.windowStart.getAndRequireEquals();
+const actions = this.reducer.getActions({ fromActionState: windowStart });
+
+const depositInWindow: Bool = this.reducer.reduce(
+    actions,
+    Bool,
+    (found: Bool, action: Field) =>
+        found.or(action.equals(contractDepositSlotRoot)),
+    Bool(false),
+    { maxUpdatesWithActions: maxWindow }
+);
+```
+
+the prover must choose the action state hash that is the end of the window for the actions used. Now that precondition is special in that on-chain, there are 5 values available, and it just needs to match one of them. In the end that means if the user creates a mint proof, if afterwards there will be 5 `update`s happening before their mint is included, then it will be rejected.
+
+In practice, if mints take ~2 minutes to prove for the user and `update` frequency is about every ~16 minutes, there should be enough time to submit the mint after having it proven, if the action state were the only state intersection between update and noriMint.
+
+However, there is also another interaction.
+
+As soon as the window is full (so after the first 32 updates at the very start after deployment of the contract), `update` will always change windowStart:
+
+```typescript
+this.windowStart.set(Provable.if(isFull, advancedStart, windowStart));
+```
+
+But windowStart is also read in noriMint and so in a precondition is pinned to a value by a mint proof:
+
+```typescript
+const windowStart = this.windowStart.getAndRequireEquals();
+```
+
+This means that if the user creates a mint proof, using the most up to date value of windowStart as of the time when they start the proof, then that proof will only be accepted on-chain if there was no update in-between.
+
+In practice, if the update have a frequency of once every 16 minutes and it takes say 2 minutes from fetching on-chain data to inclusion of the mint transaction on-chain, then 2/16 = 12.5% of the time, a user's mint transaction will be rejected on-chain, and they need to try again.
+
+This isn't a security problem in itself because the user can just try again, but your earlier answer contained "if there is a update tx pending in mempool, user's transaction would get included as there aren't any race conditions on state, as update and mint do not modify same state", which sounded like this behavior not being expected, and so as an unexpected 10% or more rejection rate on user attempts might be quite noticable in the overall user experience.
+
+### Response
+
+The finding is correct. `noriMint` reads `windowStart` via `getAndRequireEquals()`, which pins `windowStart == W` as a precondition on the mint transaction at prove time. Once the window is full every `update` advances `windowStart`, so an `update` landing between proving and inclusion makes the mint's precondition stale and the network rejects it (~12.5% at the cited cadence). The `actionState` end of the reducer read tolerates the last 5 action states, but `windowStart` is an ordinary state field with no tolerance, so a single update is enough.
+
+### Commit 1 - Test exposure of in-flight mint invalidation
+
+- **Regression test** (`contracts/mina/src/tests/41428.inflightMint.lightnet.integration.spec.ts`): added a self-contained lightnet test that fills the deposit-root window to `maxWindow` (honest evictions via the test-only `adminSetDepositRoot`), seeds the user's deposit as the newest window member, then builds **and proves** a mint. One further dispatch (an `update`) slides `windowStart` (with a sanity assert that it moved), after which the already-proven mint is sent; the test asserts it is still accepted and credits the balance. No mempool race is needed — the rejection is a stale precondition, reproduced sequentially (prove → update → send). It runs against lightnet because a real Mina node models the 5-element `actionState` precondition window the fix relies on; LocalBlockchain does not (a probe showed it rejects even a single intervening dispatch), so it cannot demonstrate the green side. The test-only `adminSetDepositRoot` method it relies on is enabled in the same commit.
+
+Results:
+
+- Regression test: fails on the current contract. The intervening `update` moves `windowStart`, and sending the proven mint is rejected on the now-stale `windowStart` precondition (`Account_app_state_precondition_unsatisfied`) — confirming the finding.
+
+
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 
 ### Finding (verbatim)
