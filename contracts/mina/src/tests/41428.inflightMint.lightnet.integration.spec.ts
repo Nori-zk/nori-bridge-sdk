@@ -112,17 +112,22 @@ async function honestOldest(): Promise<Field> {
 /** Dispatch a deposit root via adminSetDepositRoot, passing the real oldest action. */
 async function adminDispatch(root: Field) {
     const oldest = await honestOldest();
-    await txSend({
-        body: async () => {
-            await noriTokenBridge.adminSetDepositRoot(root, oldest);
-        },
-        sender: admin.publicKey,
-        signers: [admin.privateKey],
-    });
+    void root;
+    void oldest;
+    // adminSetDepositRoot is commented out on the production contract; this
+    // suite is `describe.skip`-ed. Re-enable in lockstep with the contract
+    // method to reproduce against lightnet.
+    // await txSend({
+    //     body: async () => {
+    //         await noriTokenBridge.adminSetDepositRoot(root, oldest);
+    //     },
+    //     sender: admin.publicKey,
+    //     signers: [admin.privateKey],
+    // });
     await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 }
 
-describe('NoriTokenBridge — in-flight mint invalidation (lightnet green proof)', () => {
+describe.skip('NoriTokenBridge — in-flight mint invalidation (lightnet green proof)', () => {
     beforeAll(async () => {
         const Network = Mina.Network({
             networkId: 'testnet' as NetworkId,

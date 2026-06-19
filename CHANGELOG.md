@@ -81,6 +81,16 @@ Results:
 - Tolerance confirmed on lightnet by a probe: a pinned `actionState` survives up to 4 intervening updates (accepted at distances 1 and 4, rejected at 5+); LocalBlockchain rejects even distance 1 — the reason the green side runs on lightnet.
 - The worker-driven `full.lightnet` and `happyPath.lightnet` suites pass with the fix.
 
+### Commit 3 - Restore test-only method for production
+
+- **`adminSetDepositRoot` re-commented** (`contracts/mina/src/NoriTokenBridge.ts`): the test-only seeding method enabled in commit 1 is disabled again so it is not part of the production contract. Its call sites in `full.lightnet` / `happyPath.lightnet` are re-commented and those `noriMint()` blocks re-`describe.skip`-ed; the `41428.inflightMint.lightnet` regression suite is `describe.skip`-ed (it depends on `adminSetDepositRoot`).  
+  **Bridge verification key regenerated** (`integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.  
+
+
+Results:
+
+The regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note and run against lightnet to reproduce.
+
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 
 ### Finding (verbatim)

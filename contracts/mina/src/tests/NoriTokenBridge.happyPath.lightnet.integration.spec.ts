@@ -448,7 +448,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
     // uncomment the contract method, the worker shim
     // (`workers/tokenBridgeTester/worker.ts`), and the call sites below.
     // -----------------------------------------------------------------------
-    describe('noriMint() via tester worker', () => {
+    describe.skip('noriMint() via tester worker', () => {
         test('should seed deposit root then mint 200 bridge units for Alice', async () => {
             const aliceScramMsg = 'NoriZK';
             const totalLockedBU = 200n;
@@ -465,13 +465,13 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 );
             void depositRoot;
             // adminSetDepositRoot disabled in production — see top-of-suite note.
-            await tester.adminSetDepositRoot(
-                admin.privateKey.toBase58(),
-                noriTokenBridgeKeypair.publicKey.toBase58(),
-                depositRoot.toBigInt().toString(),
-                '0',
-                fee
-            );
+            // await tester.adminSetDepositRoot(
+            //     admin.privateKey.toBase58(),
+            //     noriTokenBridgeKeypair.publicKey.toBase58(),
+            //     depositRoot.toBigInt().toString(),
+            //     '0',
+            //     fee
+            // );
 
             await fetchAccount({
                 publicKey: noriTokenBridgeKeypair.publicKey,

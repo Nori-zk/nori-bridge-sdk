@@ -696,10 +696,10 @@ export class NoriTokenBridge
     // `workers/tokenBridgeTester/worker.ts` and the corresponding `.skip`-ed
     // tests must be uncommented in lockstep.
     //
-    @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
-        await this.ensureAdminSignature();
-        this.dispatchAndEvict(depositRoot, oldestAction);
-    }
+    // @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
+    //     await this.ensureAdminSignature();
+    //     this.dispatchAndEvict(depositRoot, oldestAction);
+    // }
     // -----------------------------------------------------------------------
 
     /**
