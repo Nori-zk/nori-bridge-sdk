@@ -569,6 +569,11 @@ export class TokenBridgeTester {
         await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
 
         const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await bridge.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const tx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
@@ -576,7 +581,7 @@ export class TokenBridgeTester {
                 if (fundNewAccount) {
                     AccountUpdate.fundNewAccount(senderPublicKey, 1);
                 }
-                await bridge.noriMint(merkleInput, witnessSCRAM);
+                await bridge.noriMint(merkleInput, witnessSCRAM, windowStartWitness);
             }
         );
         await tx.prove();

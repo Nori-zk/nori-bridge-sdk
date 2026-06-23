@@ -1358,6 +1358,11 @@ export class TokenBridgeWorker {
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await noriTokenBridgeInst.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -1367,7 +1372,8 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    witnessSCRAM
+                    witnessSCRAM,
+                    windowStartWitness
                 );
             }
         );
@@ -1448,6 +1454,11 @@ export class TokenBridgeWorker {
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await noriTokenBridgeInst.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -1457,7 +1468,8 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    witnessSCRAM
+                    witnessSCRAM,
+                    windowStartWitness
                 );
             }
         );
@@ -1584,6 +1596,11 @@ export class TokenBridgeWorker {
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await noriTokenBridgeInst.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -1593,7 +1610,8 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    witnessSCRAM
+                    witnessSCRAM,
+                    windowStartWitness
                 );
             }
         );

@@ -292,10 +292,12 @@ describe('NoriTokenBridge Happy Path', () => {
         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
         // Mint
+        const windowStartWitness = await noriTokenBridge.windowStart.fetch();
+        if (windowStartWitness === undefined) throw new Error('could not fetch windowStart');
         await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
-                await noriTokenBridge.noriMint(merkleInput, scramWitness);
+                await noriTokenBridge.noriMint(merkleInput, scramWitness, windowStartWitness);
             },
             sender: alice.publicKey,
             signers: [alice.privateKey],
