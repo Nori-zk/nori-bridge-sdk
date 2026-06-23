@@ -117,9 +117,9 @@ describe('NoriTokenBridge', () => {
             expect(await tokenBridge.feeRecipient()).to.equal(ethers.ZeroAddress);
         });
 
-        it('Should set NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID from constructor', async function () {
+        it('Should set NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID from constructor', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
-            expect(await tokenBridge.NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID()).to.equal(ZKAPP_ACCT_TOKEN_ID);
+            expect(await tokenBridge.NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID()).to.equal(ZKAPP_ACCT_TOKEN_ID);
         });
 
         it('Should set NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH from constructor', async function () {
@@ -615,23 +615,21 @@ describe('NoriTokenBridge', () => {
             ).to.be.revertedWithCustomError(tokenBridge, 'InvalidBridgeUnitMultiple');
         });
 
-        it('Should bind Mina account to first depositor and reject others', async function () {
+        it('Should allow different depositors to lock to the same codeChallenge and accumulate correctly', async function () {
             const { tokenBridge, user1, user2 } = await deployTokenBridgeFixture();
-            const sendValue = ethers.parseEther('1.0');
+            const sendValue1 = ethers.parseEther('0.5');
+            const sendValue2 = ethers.parseEther('1.0');
+            const expectedBU = (sendValue1 + sendValue2) / WEI_PER_BRIDGE_UNIT;
 
             await tokenBridge
                 .connect(user1)
-                .lockTokens(codeChallengeBigInt, { value: sendValue });
-            const linked = await tokenBridge.depositKeyToEthAddress(
-                codeChallengeBigInt
-            );
-            expect(linked).to.equal(user1.address);
+                .lockTokens(codeChallengeBigInt, { value: sendValue1 });
+            await tokenBridge
+                .connect(user2)
+                .lockTokens(codeChallengeBigInt, { value: sendValue2 });
 
-            await expect(
-                tokenBridge
-                    .connect(user2)
-                    .lockTokens(codeChallengeBigInt, { value: sendValue })
-            ).to.be.revertedWithCustomError(tokenBridge, 'MinaAccountLinkedToDifferentDepositor');
+            const totalLocked = await tokenBridge.lockedTokens(codeChallengeBigInt);
+            expect(totalLocked).to.equal(expectedBU);
         });
 
         it('Should allow the same depositor to add more ETH to same Mina account', async function () {

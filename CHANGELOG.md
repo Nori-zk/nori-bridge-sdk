@@ -1,5 +1,46 @@
 # Changelog
 
+## 23/6/26 - Finding 7f3a1: codeChallenge is unnecessarily bound to msg.sender in lockTokens
+
+### Finding (verbatim)
+
+Hey team, I want to double-check the reasoning for binding codeChallenge to msg.sender on the Ethereum side in lockTokens.
+Could you clarify why this is required? Have you considered not binding codeChallenge to a single depositor and allowing anyone to deposit to that codeChallenge?
+Potential advantages of not binding are better liveness and UX (it eliminates mempool front-run grief revert), but there may be stronger reasons to keep the single-owner deposit-key invariant.
+
+### Discussion
+
+The design went through two iterations. In the earlier iteration codeChallenge was derived from an Ethereum signature and a Mina public key. After the latest redesign the Mina signature was adopted, which produces a deterministic signature for a given message. The msg.sender binding was left in the contract as a result of cognitive bias carried over from the prior design. After careful review it was agreed internally that the binding is no longer required.
+
+The auditors confirmed that it can be removed without any impact.
+
+The original constraint existed because codeChallenge previously incorporated both keys, which required an additional constraint to ensure correct accounting for cumulative lockedTokens.
+
+### Response
+
+We agree and will relax the constraint.
+
+### Commit 1 - Regression test exposing the undesirable depositor binding
+
+`contracts/ethereum/test/NoriTokenBridge.ts` contained a test `Should bind Mina account to first depositor and reject others` asserting that a second depositor calling lockTokens with a codeChallenge already used by a different address is rejected with MinaAccountLinkedToDifferentDepositor. Prior to any code change this test passed, confirming the constraint was live. Because we are relaxing that constraint, this passing test here is itself an erroneous behaviour.
+
+`npm test -- --grep "Should bind Mina account to first depositor and reject others"` run in `contracts/ethereum` against the unmodified contract:
+
+Results:
+
+- 1 passing. The test passes against the unmodified contract, confirming the binding is live and that this behaviour is erroneous under the relaxed constraint.
+- We also noticed a typo in `Should set NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID from constructor` and corrected that.
+
+We renamed and refactored the test `Should bind Mina account to first depositor and reject others` to assert the opposite `Should allow different depositors to lock to the same codeChallenge and accumulate correctly`. Updating the assertion from a failure should occur and the contract should revert - to the contract should permit the action of multiple ETH depositors sharing the same `codeChallenge`.
+
+The full test suite was run to ensure no other regressions:
+
+`npm run test`
+
+Result:
+
+`Should allow different depositors to lock to the same codeChallenge and accumulate correctly` fails with `SolidityError: VM Exception while processing transaction: reverted with an unrecognized custom error (return data: 0x30506bb1)` demonstrating the contracts undesirable rejection of the action - prior to relaxing the constraint.
+
 ## 02/6/26 - Finding 41428: In-flight mints are invalidated by the next `update()`
 
 ### Finding (verbatim)
