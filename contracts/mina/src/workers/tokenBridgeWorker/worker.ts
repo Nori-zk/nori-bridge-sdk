@@ -893,7 +893,6 @@ export class TokenBridgeWorker {
         noriTokenBridgeAddressBase58: string,
         sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
         proofData: ProofDataOutput,
-        oldestActionStr: string,
         txFee: number
     ) {
         if (!this.#minaPrivateKey)
@@ -908,7 +907,6 @@ export class TokenBridgeWorker {
         const decoded = decodeConsensusMptProof(sp1PlonkProof);
         const ethInput = new EthInput(decoded);
         const rawProof = await NodeProofLeft.fromJSON(proofData);
-        const oldestAction = new Field(BigInt(oldestActionStr));
 
         logger.log(
             `Submitting update from sender: ${senderPublicKey.toBase58()}`
@@ -921,11 +919,7 @@ export class TokenBridgeWorker {
         const updateTx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                await noriTokenBridgeInst.update(
-                    ethInput,
-                    rawProof,
-                    oldestAction
-                );
+                await noriTokenBridgeInst.update(ethInput, rawProof);
             }
         );
 
@@ -941,7 +935,6 @@ export class TokenBridgeWorker {
         noriTokenBridgeAddressBase58: string,
         sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
         proofData: ProofDataOutput,
-        oldestActionStr: string,
         txFee: number
     ) {
         if (!this.#minaPrivateKey)
@@ -956,7 +949,6 @@ export class TokenBridgeWorker {
         const decoded = decodeConsensusMptProof(sp1PlonkProof);
         const ethInput = new EthInput(decoded);
         const rawProof = await NodeProofLeft.fromJSON(proofData);
-        const oldestAction = new Field(BigInt(oldestActionStr));
 
         logger.log(
             `Submitting update from sender: ${senderPublicKey.toBase58()}`
@@ -967,11 +959,7 @@ export class TokenBridgeWorker {
         const updateTx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                await noriTokenBridgeInst.update(
-                    ethInput,
-                    rawProof,
-                    oldestAction
-                );
+                await noriTokenBridgeInst.update(ethInput, rawProof);
             }
         );
 

@@ -467,7 +467,7 @@ describe('NoriTokenBridge', () => {
 
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                        await noriTokenBridge.update(ethInput1, rawProof1);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -510,7 +510,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 2 (consecutive from block 1)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                        await noriTokenBridge.update(ethInput2, rawProof2);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -529,7 +529,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 3 (consecutive from block 2)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput3, rawProof3, Field(0));
+                        await noriTokenBridge.update(ethInput3, rawProof3);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -548,7 +548,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 4 (consecutive from block 3)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput4, rawProof4, Field(0));
+                        await noriTokenBridge.update(ethInput4, rawProof4);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -569,7 +569,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                                await noriTokenBridge.update(ethInput1, rawProof1);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -583,7 +583,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                                await noriTokenBridge.update(ethInput2, rawProof2);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -645,7 +645,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                                await noriTokenBridge.update(ethInput1, rawProof1);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -659,7 +659,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                                await noriTokenBridge.update(ethInput2, rawProof2);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -826,7 +826,7 @@ describe('NoriTokenBridge', () => {
             void aliceRoot;
             // await txSend({
             //     body: async () => {
-            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot, Field(0));
+            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot);
             //     },
             //     sender: admin.publicKey,
             //     signers: [admin.privateKey],
@@ -880,7 +880,7 @@ describe('NoriTokenBridge', () => {
                 // adminSetDepositRoot disabled in production — see top-of-suite note.
                 // await txSend({
                 //     body: async () => {
-                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
+                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2);
                 //     },
                 //     sender: admin.publicKey,
                 //     signers: [admin.privateKey],

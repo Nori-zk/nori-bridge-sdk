@@ -89,7 +89,61 @@ Results:
 
 Results:
 
-The regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note and run against lightnet to reproduce.
+- The regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note and run against lightnet to reproduce.
+
+## 15/5/26 - Audit 4279a: `dispatchAndEvict` does not verify `oldestAction`
+
+### Finding (verbatim)
+
+Hi team, I have a question regarding dispatchAndEvict from NoriTokenBridge.ts. The docstring says "When the window is full, the caller must provide the oldest action as a witness. The contract verifies the hash chain `advanceActionState(windowStart, singleActionInnerHash(oldestAction))` and advances windowStart by one step, keeping the window size constant." And in the implementation, we have
+
+```typescript
+// Compute the advanced windowStart by verifying the oldest action chains correctly.
+// If isFull is false, this computation is ignored (oldestAction can be anything).
+const innerHash = singleActionInnerHash(oldestAction);
+const advancedStart = advanceActionState(windowStart, innerHash);
+
+// Conditionally advance: if full, slide the window; otherwise keep start.
+this.windowStart.set(Provable.if(isFull, advancedStart, windowStart));
+// If full: evict 1 + add 1 = same size. If not full: size + 1.
+this.windowSize.set(Provable.if(isFull, windowSize, windowSize.add(1)));
+```
+
+The comment says "compute the advanced windowStart by verifying the oldest action chains correctly", but the verification seems to be deferred to noriMint()? In dispatchAndEvict, it looks like the new advancedStart is simply computed using whatever oldestAction is provided, with no constraint tying that value to the actual oldest dispatched action. So if an adversary provides a bad oldestAction, I think windowStart would be updated to a bad hash that is computed from the bad oldestAction. This bad hash does not correspond to any actual action chain state, so later when noriMint() is called and attempts to rebuild the chain, it would not go through, thus disabling the mint flow.
+
+What is preventing an adversary from mounting the attack I described above? I feel that I might be missing something here.
+
+### Response
+
+The finding is correct. `dispatchAndEvict` advances `windowStart` using the caller-supplied `oldestAction` without constraining it to the real oldest action in the window. When the window is full, a caller can pass any value, moving `windowStart` to an action-state hash that lies off the real action chain. Subsequent `noriMint` calls fetch actions `fromActionState: windowStart`, which then resolves to nothing, disabling minting. As with a2090, testing is bolstered first (commit 1) to expose the issue, then the fix applied (commit 2). The intended fix removes the `oldestAction` parameter and derives the oldest action in-circuit via the reducer, so `windowStart` can only ever advance to a real point on the chain.
+
+### Commit 1 - Test exposure of eviction witness integrity
+
+- **Regression test** (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`): added a self-contained LocalBlockchain test (`proofsEnabled: false`) that deploys the bridge, fills the deposit-root window to `maxWindow` via the test-only `adminSetDepositRoot` (**enabled for testing the regression ONLY** - will be removed), then dispatches one more deposit root with a deliberately bogus `oldestAction`. It asserts the window still resolves from `windowStart` (holds `maxWindow` roots, including the new one) and that the user can still `noriMint`. The test-only `adminSetDepositRoot` method it relies on is enabled in the same commit.
+
+Results:
+
+- Regression test: fails on the current contract. The bogus `oldestAction` poisons `windowStart`; `fetchActions({ fromActionState: windowStart })` throws `getActions: fromActionState not found`, so the window reads 0 roots (expected 32) and the mint flow is unreachable — confirming the finding.
+
+### Commit 2 - Fix applied
+
+- **`dispatchAndEvict` derives the oldest action in-circuit** (`contracts/mina/src/NoriTokenBridge.ts`): the caller-supplied `oldestAction` parameter is removed. The oldest action is now found by running `reducer.reduce` over the current window (`getActions({ fromActionState: windowStart })`) and latching the first action. o1js's reducer asserts the chain `windowStart -> ... -> account.actionState` matches the actions it yields, so the captured oldest is provably the real one and `windowStart` can only ever advance to a real point on the action chain. The new root is dispatched after the reduce so it is not pulled into the eviction scope.
+- **`oldestAction` parameter dropped from `update` and `adminSetDepositRoot`** (`contracts/mina/src/NoriTokenBridge.ts`) and the now-unused `getOldestActionForEviction` helper removed (`contracts/mina/src/NoriTokenBridge.utils.ts`). Call sites updated: `proofSubmitter.ts`, `workers/tokenBridgeWorker/worker.ts`, `workers/tokenBridgeTester/worker.ts`, and the integration specs.
+- **Bridge verification key regenerated** (`contracts/mina/src/integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): the `update` circuit changed.
+- **Regression test updated to the single-argument API** (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`): with no `oldestAction` to supply, the test now confirms a full-window eviction keeps the window healthy and mintable. **NOTE: this regression will pass by definition of the fix, as the oldestAction is no longer provided but deterministically derived in provable way **
+
+Results:
+
+- Regression test: passes. After filling the window to `maxWindow` and dispatching one further root, the window still resolves from `windowStart` (holds `maxWindow` roots, including the new one) and the user mints successfully. `windowStart` can no longer be poisoned by the caller.
+
+### Commit 3 - Restore test-only method and regenerate integrity data
+
+- **`adminSetDepositRoot` re-commented** (`contracts/mina/src/NoriTokenBridge.ts`): the test-only seeding method enabled in commit 1 is disabled again so it is not part of the production contract. Its callers in `NoriTokenBridge.full.local.integration.spec.ts` are re-commented, and the eviction-witness regression suite (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`) is `describe.skip`-ed with a note documenting how to re-enable it.
+- **Bridge verification key regenerated** (`contracts/mina/src/integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.
+
+Results:
+
+- Regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note to run it.
 
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 
@@ -199,13 +253,13 @@ Results:
 ### Migrated to @nori-zk/mina-attestations Fork
 
 - **@nori-zk/mina-attestations@0.6.4**: replaced upstream `mina-attestations` with Nori's scoped fork
-  - o1js upgraded to 3.0.0-mesa.698ca
-  - package renamed to @nori-zk/mina-attestations and deployed into Nori's org scope
-  - file restrictions added to package.json to minimise npm package size
-  - tree-shakeable `./dynamic/array` subpath export added
-  - side-effect fix for `BaseType.GenericRecord` registration on the `./dynamic/array` subpath
-  - npm audit fix applied
-  - DynamicArray imports updated to use the new subpath
+    - o1js upgraded to 3.0.0-mesa.698ca
+    - package renamed to @nori-zk/mina-attestations and deployed into Nori's org scope
+    - file restrictions added to package.json to minimise npm package size
+    - tree-shakeable `./dynamic/array` subpath export added
+    - side-effect fix for `BaseType.GenericRecord` registration on the `./dynamic/array` subpath
+    - npm audit fix applied
+    - DynamicArray imports updated to use the new subpath
 
 ### @nori-zk/proof-conversion Bumped
 

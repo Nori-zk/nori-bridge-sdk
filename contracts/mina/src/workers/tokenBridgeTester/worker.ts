@@ -413,7 +413,6 @@ export class TokenBridgeTester {
     //     senderPrivateKeyBase58: string,
     //     noriTokenBridgeAddressBase58: string,
     //     depositRootStr: string,
-    //     oldestActionStr: string,
     //     txFee: number
     // ): Promise<string> {
     //     const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
@@ -424,14 +423,13 @@ export class TokenBridgeTester {
     //     const bridge = new NoriTokenBridge(noriTokenBridgeAddress);
     //
     //     const depositRoot = new Field(BigInt(depositRootStr));
-    //     const oldestAction = new Field(BigInt(oldestActionStr));
     //
     //     await this.fetchAccounts([senderPublicKey, noriTokenBridgeAddress]);
     //
     //     const tx = await Mina.transaction(
     //         { sender: senderPublicKey, fee: txFee },
     //         async () => {
-    //             await bridge.adminSetDepositRoot(depositRoot, oldestAction);
+    //             await bridge.adminSetDepositRoot(depositRoot);
     //         }
     //     );
     //     await tx.prove();
@@ -449,7 +447,6 @@ export class TokenBridgeTester {
         noriTokenBridgeAddressBase58: string,
         sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
         proofData: ProofDataOutput,
-        oldestActionStr: string,
         txFee: number
     ): Promise<string> {
         const senderPrivateKey = PrivateKey.fromBase58(senderPrivateKeyBase58);
@@ -461,7 +458,6 @@ export class TokenBridgeTester {
         const decoded = decodeConsensusMptProof(sp1PlonkProof);
         const ethInput = new EthInput(decoded);
         const rawProof = await NodeProofLeft.fromJSON(proofData);
-        const oldestAction = new Field(BigInt(oldestActionStr));
 
         logger.log(
             `Submitting update from sender: ${senderPublicKey.toBase58()}`
@@ -474,7 +470,7 @@ export class TokenBridgeTester {
         const tx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                await bridge.update(ethInput, rawProof, oldestAction);
+                await bridge.update(ethInput, rawProof);
             }
         );
         await tx.prove();

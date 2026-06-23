@@ -558,7 +558,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[0].sp1PlonkProof,
                     examples[0].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -604,7 +603,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[1].sp1PlonkProof,
                     examples[1].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -626,7 +624,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[2].sp1PlonkProof,
                     examples[2].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -648,7 +645,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[3].sp1PlonkProof,
                     examples[3].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -713,7 +709,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             examples[0].sp1PlonkProof,
                             examples[0].conversionOutputProof.proofData,
-                            '0',
                             fee
                         ),
                     'Replay of old proof must fail'
@@ -728,7 +723,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             examples[1].sp1PlonkProof,
                             examples[1].conversionOutputProof.proofData,
-                            '0',
                             fee
                         ),
                     'Out-of-order proof (store hash mismatch) must fail'
