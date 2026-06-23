@@ -1,14 +1,9 @@
 // ---------------------------------------------------------------------------
-// Window rotation config
-// ---------------------------------------------------------------------------
-
-import { fetchAccount, Field, Reducer } from 'o1js';
-import type { NoriTokenBridge } from './NoriTokenBridge.js';
-import { maxWindow } from './NoriTokenBridge.const.js';
-
-// ---------------------------------------------------------------------------
 // Deposit-root window helpers (reusable for client code)
 // ---------------------------------------------------------------------------
+
+import { fetchAccount, type Field, Reducer } from 'o1js';
+import type { NoriTokenBridge } from './NoriTokenBridge.js';
 
 /**
  * Fetch the deposit-root actions currently in the contract's active window.
@@ -37,19 +32,4 @@ export async function fetchAllDispatchedRoots(
         fromActionState: Reducer.initialActionState,
     });
     return actionBatches.flat();
-}
-
-/**
- * Determine the oldest action that needs to be evicted when dispatching
- * a new deposit root. Returns Field(0) if the window is not yet full.
- *
- * When the window IS full, the oldest root is the first element returned
- * by `fetchWindowRoots` — i.e. the one sitting at `windowStart`.
- */
-export async function getOldestActionForEviction(
-    bridge: NoriTokenBridge
-): Promise<Field> {
-    const windowRoots = await fetchWindowRoots(bridge);
-    if (windowRoots.length < maxWindow) return Field(0);
-    return windowRoots[0];
 }

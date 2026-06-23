@@ -122,6 +122,9 @@ export class BurnEvent extends Struct({
 
 class DepositRootAction extends Field { }
 
+/** Accumulator for capturing the first action in a reducer pass. */
+class FirstActionAcc extends Struct({ found: Bool, value: Field }) { }
+
 /**
  * NoriTokenBridge — Mina anchor for the Nori ETH ↔ Mina token bridge.
  *
@@ -326,12 +329,10 @@ export class NoriTokenBridge
 
     /**
      * Settle the latest Ethereum state root and NoriTokenBridge deposit root
-     * by verifying converted SP1 nori-bride-head proof 
+     * by verifying converted SP1 nori-bride-head proof
      * @param input public outputs from the SP1 proof
      * @param proof converted SP1 to Plonk proof, verified against the on-chain VK for the conversion circuit
-     * @param oldestAction when the deposit root window is full, the caller must provide the oldest action as a witness for eviction;
-     * pass Field(0) if the window is not yet full and eviction is not required.
-     * 
+     *
      * Verify an SP1 consensus MPT transition proof and advance the bridge
      * head. On success:
      *   - `input.genesisRoot` is verified against the immutable on-chain `genesisRoot`
@@ -342,10 +343,10 @@ export class NoriTokenBridge
      *   - `latestHeliusStoreInputHash{HighByte,LowerBytes}` advance to the
      *     new store hash (prior values must match the proof's `inputStoreHash`)
      *   - `input.verifiedContractDepositsRoot` is dispatched into the rolling
-     *     window; when the window is full, `oldestAction` is consumed as the
-     *     eviction witness. Pass `Field(0)` when the window is not yet full.
+     *     window; when the window is full, the oldest action is evicted —
+     *     its identity is derived in-circuit via the reducer (no caller witness).
      */
-    @method async update(input: EthInput, proof: NodeProofLeft, oldestAction: Field) {
+    @method async update(input: EthInput, proof: NodeProofLeft) {
         // Verify transition proof.
         const {
             ethGenesisRootBytes,
@@ -451,37 +452,50 @@ export class NoriTokenBridge
         );
 
         // Dispatch + window eviction
-        this.dispatchAndEvict(verifiedContractDepositsRootField, oldestAction);
+        this.dispatchAndEvict(verifiedContractDepositsRootField);
     }
     /**
      * Dispatch a new deposit root action and evict the oldest if the window is full.
      *
-     * When the window has fewer than maxWindow actions, the new root is simply
-     * appended (oldestAction is ignored — can be Field(0)).
+     * The oldest action is derived in-circuit by iterating the current window's
+     * actions via the reducer. Because o1js's reducer asserts that the chain
+     * `windowStart -> ... -> account.actionState` matches the actions it yields
+     * (and Poseidon is collision-resistant), a poisoned `windowStart` cannot
+     * pass reduce — and the action captured here is provably the real oldest.
      *
-     * When the window is full, the caller must provide the oldest action as a
-     * witness. The contract verifies the hash chain:
-     *   advanceActionState(windowStart, singleActionInnerHash(oldestAction))
-     * and advances windowStart by one step, keeping the window size constant.
+     * Order matters: reduce runs over the current window BEFORE the new root is
+     * dispatched, so the new root is not part of the reduction scope.
      */
-    private dispatchAndEvict(depositRoot: Field, oldestAction: Field) {
-        // Dispatch the new deposit root as an action
-        this.reducer.dispatch(depositRoot);
-
-        let windowStart = this.windowStart.getAndRequireEquals();
-        let windowSize = this.windowSize.getAndRequireEquals();
-
+    private dispatchAndEvict(depositRoot: Field) {
+        const windowStart = this.windowStart.getAndRequireEquals();
+        const windowSize = this.windowSize.getAndRequireEquals();
         const isFull = windowSize.greaterThanOrEqual(maxWindow);
 
-        // Compute the advanced windowStart by verifying the oldest action chains correctly.
-        // If isFull is false, this computation is ignored (oldestAction can be anything).
-        const innerHash = singleActionInnerHash(oldestAction);
+        // Iterate the window's actions and latch the first one as the verified
+        // oldest. `found` toggles true on the first iteration; subsequent
+        // iterations keep `value` unchanged.
+        const actions = this.reducer.getActions({ fromActionState: windowStart });
+        const oldest = this.reducer.reduce(
+            actions,
+            FirstActionAcc,
+            ({ found, value }, action) => new FirstActionAcc({
+                found: Bool(true),
+                value: Provable.if(found, value, action),
+            }),
+            new FirstActionAcc({ found: Bool(false), value: Field(0) }),
+            { maxUpdatesWithActions: maxWindow, maxActionsPerUpdate: 1 }
+        );
+
+        const innerHash = singleActionInnerHash(oldest.value);
         const advancedStart = advanceActionState(windowStart, innerHash);
 
         // Conditionally advance: if full, slide the window; otherwise keep start.
         this.windowStart.set(Provable.if(isFull, advancedStart, windowStart));
         // If full: evict 1 + add 1 = same size. If not full: size + 1.
         this.windowSize.set(Provable.if(isFull, windowSize, windowSize.add(1)));
+
+        // Dispatch AFTER reduce so the new root isn't pulled into the eviction scope.
+        this.reducer.dispatch(depositRoot);
     }
 
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
@@ -682,9 +696,9 @@ export class NoriTokenBridge
     // `workers/tokenBridgeTester/worker.ts` and the corresponding `.skip`-ed
     // tests must be uncommented in lockstep.
     //
-    // @method async adminSetDepositRoot(depositRoot: Field, oldestAction: Field) {
+    // @method async adminSetDepositRoot(depositRoot: Field) {
     //     await this.ensureAdminSignature();
-    //     this.dispatchAndEvict(depositRoot, oldestAction);
+    //     this.dispatchAndEvict(depositRoot);
     // }
     // -----------------------------------------------------------------------
 
