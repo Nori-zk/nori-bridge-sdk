@@ -41,6 +41,23 @@ Result:
 
 `Should allow different depositors to lock to the same codeChallenge and accumulate correctly` fails with `SolidityError: VM Exception while processing transaction: reverted with an unrecognized custom error (return data: 0x30506bb1)` demonstrating the contracts undesirable rejection of the action - prior to relaxing the constraint.
 
+### Commit 2 - Fix applied
+
+- `contracts/ethereum/contracts/NoriTokenBridge.sol`
+    - Removed `depositKeyToEthAddress` mapping from  which captures the binding from a `codeChallenge` to an ETH address
+    - Removed `MinaAccountLinkedToDifferentDepositor` bespoke error.
+    - Removed `Enforce one ETH depositor per Mina account` validation logic.
+- `contracts/mina/src/scram.ts`
+    - Updated documentation to remove references of `depositKeyToEthAddress`
+
+Re-ran the ethereum contract tests:
+
+`cd contracts/ethereum/contracts && npm run test`
+
+Result:
+
+62 tests passed, showing that the relaxed constraints allow the modified test to pass.
+
 ## 02/6/26 - Finding 41428: In-flight mints are invalidated by the next `update()`
 
 ### Finding (verbatim)
