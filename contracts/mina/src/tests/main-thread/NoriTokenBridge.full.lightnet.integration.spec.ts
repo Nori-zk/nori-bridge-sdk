@@ -55,7 +55,7 @@ import {
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
-import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from '../testUtils.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit, fetchWindowStartWitness } from '../testUtils.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLightnetTest');
@@ -120,14 +120,6 @@ async function txSend({
 async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
-
-/** Read the current on-chain windowStart to pass as the noriMint witness. */
-async function fetchWindowStartWitness(bridge: NoriTokenBridge): Promise<Field> {
-    const ws = await bridge.windowStart.fetch();
-    if (ws === undefined) throw new Error('could not fetch windowStart');
-    return ws;
-}
-
 
 // ---------------------------------------------------------------------------
 // Suite

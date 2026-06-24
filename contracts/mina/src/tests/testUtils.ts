@@ -19,6 +19,7 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 
 import { env, type NetworkName } from '../env.js';
+import { NoriTokenBridge } from '../NoriTokenBridge.js';
 
 const logger = new Logger('NoriTokenBridgeTestUtils');
 
@@ -292,4 +293,11 @@ export function buildSyntheticDeposit(
     });
 
     return { merkleInput, scramWitness };
+}
+
+/** Read the current on-chain windowStart to pass as the noriMint witness. */
+export async function fetchWindowStartWitness(bridge: NoriTokenBridge): Promise<Field> {
+    const ws = await bridge.windowStart.fetch();
+    if (ws === undefined) throw new Error('could not fetch windowStart');
+    return ws;
 }

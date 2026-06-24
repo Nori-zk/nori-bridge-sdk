@@ -52,7 +52,7 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
-import { buildSyntheticDeposit, txSend, fetchAccounts } from '../testUtils.js';
+import { buildSyntheticDeposit, txSend, fetchAccounts, fetchWindowStartWitness } from '../testUtils.js';
 import { maxWindow } from '../../NoriTokenBridge.const.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeEvictionWitness');
@@ -230,11 +230,13 @@ describe.skip('NoriTokenBridge — eviction witness integrity', () => {
             'freshly dispatched deposit root must be present in the window',
         );
 
+        const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
+
         // End-to-end: the user can still mint (the finding claims this breaks).
         await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(mallory.publicKey, 1);
-                await noriTokenBridge.noriMint(merkleInput, scramWitness);
+                await noriTokenBridge.noriMint(merkleInput, scramWitness, windowStartWitness);
             },
             sender: mallory.publicKey,
             signers: [mallory.privateKey],

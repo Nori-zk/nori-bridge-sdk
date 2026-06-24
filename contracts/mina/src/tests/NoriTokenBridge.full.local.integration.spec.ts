@@ -56,7 +56,7 @@ import { FrC } from '@nori-zk/proof-conversion/min';
 // NoriTokenBridge.update() takes the raw proof-conversion type.
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../constructExampleProofs.js';
-import { buildSyntheticDeposit, txSend, fetchAccounts } from './testUtils.js';
+import { buildSyntheticDeposit, txSend, fetchAccounts, fetchWindowStartWitness } from './testUtils.js';
 import { maxWindow } from '../NoriTokenBridge.const.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
@@ -139,13 +139,6 @@ async function fetchAllDispatchedRoots(bridge: NoriTokenBridge): Promise<Field[]
         fromActionState: Reducer.initialActionState,
     });
     return actionBatches.flat();
-}
-
-/** Read the current on-chain windowStart to pass as the noriMint witness. */
-async function fetchWindowStartWitness(bridge: NoriTokenBridge): Promise<Field> {
-    const ws = await bridge.windowStart.fetch();
-    if (ws === undefined) throw new Error('could not fetch windowStart');
-    return ws;
 }
 
 /**
