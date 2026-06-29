@@ -558,7 +558,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[0].sp1PlonkProof,
                     examples[0].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -604,7 +603,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[1].sp1PlonkProof,
                     examples[1].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -626,7 +624,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[2].sp1PlonkProof,
                     examples[2].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -648,7 +645,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     noriTokenBridgeKeypair.publicKey.toBase58(),
                     examples[3].sp1PlonkProof,
                     examples[3].conversionOutputProof.proofData,
-                    '0',
                     fee
                 );
 
@@ -713,7 +709,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             examples[0].sp1PlonkProof,
                             examples[0].conversionOutputProof.proofData,
-                            '0',
                             fee
                         ),
                     'Replay of old proof must fail'
@@ -728,7 +723,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                             noriTokenBridgeKeypair.publicKey.toBase58(),
                             examples[1].sp1PlonkProof,
                             examples[1].conversionOutputProof.proofData,
-                            '0',
                             fee
                         ),
                     'Out-of-order proof (store hash mismatch) must fail'
@@ -897,7 +891,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             //     admin.privateKey.toBase58(),
             //     noriTokenBridgeKeypair.publicKey.toBase58(),
             //     aliceRoot.toBigInt().toString(),
-            //     '0',
             //     fee
             // );
             await fetchAccount({
@@ -972,7 +965,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 //     admin.privateKey.toBase58(),
                 //     noriTokenBridgeKeypair.publicKey.toBase58(),
                 //     aliceRoot2.toBigInt().toString(),
-                //     '0',
                 //     fee
                 // );
                 await fetchAccount({
@@ -1085,20 +1077,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                                 merkleInput
                             );
 
-                        // Dispatch this root into the window via the tester worker.
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[
-                            allDispatchedRoots.length - 32
-                            ]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await tester.adminSetDepositRoot(
                         //     admin.privateKey.toBase58(),
                         //     noriTokenBridgeKeypair.publicKey.toBase58(),
                         //     root.toBigInt().toString(),
-                        //     oldest.toBigInt().toString(),
                         //     fee
                         // );
                         allDispatchedRoots.push(root);
@@ -1151,19 +1134,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 } else {
                     test(`window rotation root #${i}: dispatch deposit root (worker)`, async () => {
                         const dummyRoot = Field(1_000_000n + BigInt(i));
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[
-                            allDispatchedRoots.length - 32
-                            ]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await tester.adminSetDepositRoot(
                         //     admin.privateKey.toBase58(),
                         //     noriTokenBridgeKeypair.publicKey.toBase58(),
                         //     dummyRoot.toBigInt().toString(),
-                        //     oldest.toBigInt().toString(),
                         //     fee
                         // );
                         allDispatchedRoots.push(dummyRoot);

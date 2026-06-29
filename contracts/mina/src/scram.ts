@@ -4,8 +4,8 @@
  * Short:
  *   SCRAM is a scheme where a Mina signature is Poseidon-hashed into a
  *   commitment (codeChallenge). The codeChallenge is stored on-chain within
- *   the Eth deposit smart contract as the key in the `lockedTokens` and
- *   `depositKeyToEthAddress` maps. Later, the claimant supplies the original
+ *   the Eth deposit smart contract as the key in the `lockedTokens` map.
+ *   Later, the claimant supplies the original
  *   signature, publicKey, and message as private witnesses inside a ZK proof
  *   on the Mina side. The ZK circuit verifies both that the signature is
  *   valid for the claimed (publicKey, message) pair AND that its Poseidon
@@ -24,8 +24,7 @@
  *   1. Sign a message with the signer's Mina private key.
  *   2. Compute codeChallenge = Poseidon(signature.toFields()).
  *   3. Submit the codeChallenge to the Eth smart contract's lockTokens
- *      function, where it becomes the deposit key in `lockedTokens` and
- *      is bound to the depositor's ETH address in `depositKeyToEthAddress`.
+ *      function, where it becomes the deposit key in `lockedTokens`.
  *
  * On-chain Mina (ZK verification):
  *   1. Claimant supplies the original signature, publicKey, and message

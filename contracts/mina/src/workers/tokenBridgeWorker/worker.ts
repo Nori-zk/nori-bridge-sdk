@@ -893,7 +893,6 @@ export class TokenBridgeWorker {
         noriTokenBridgeAddressBase58: string,
         sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
         proofData: ProofDataOutput,
-        oldestActionStr: string,
         txFee: number
     ) {
         if (!this.#minaPrivateKey)
@@ -908,7 +907,6 @@ export class TokenBridgeWorker {
         const decoded = decodeConsensusMptProof(sp1PlonkProof);
         const ethInput = new EthInput(decoded);
         const rawProof = await NodeProofLeft.fromJSON(proofData);
-        const oldestAction = new Field(BigInt(oldestActionStr));
 
         logger.log(
             `Submitting update from sender: ${senderPublicKey.toBase58()}`
@@ -921,11 +919,7 @@ export class TokenBridgeWorker {
         const updateTx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                await noriTokenBridgeInst.update(
-                    ethInput,
-                    rawProof,
-                    oldestAction
-                );
+                await noriTokenBridgeInst.update(ethInput, rawProof);
             }
         );
 
@@ -941,7 +935,6 @@ export class TokenBridgeWorker {
         noriTokenBridgeAddressBase58: string,
         sp1PlonkProof: SP1ProofWithPublicValuesPlonkNoTee,
         proofData: ProofDataOutput,
-        oldestActionStr: string,
         txFee: number
     ) {
         if (!this.#minaPrivateKey)
@@ -956,7 +949,6 @@ export class TokenBridgeWorker {
         const decoded = decodeConsensusMptProof(sp1PlonkProof);
         const ethInput = new EthInput(decoded);
         const rawProof = await NodeProofLeft.fromJSON(proofData);
-        const oldestAction = new Field(BigInt(oldestActionStr));
 
         logger.log(
             `Submitting update from sender: ${senderPublicKey.toBase58()}`
@@ -967,11 +959,7 @@ export class TokenBridgeWorker {
         const updateTx = await Mina.transaction(
             { sender: senderPublicKey, fee: txFee },
             async () => {
-                await noriTokenBridgeInst.update(
-                    ethInput,
-                    rawProof,
-                    oldestAction
-                );
+                await noriTokenBridgeInst.update(ethInput, rawProof);
             }
         );
 
@@ -1370,6 +1358,11 @@ export class TokenBridgeWorker {
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await noriTokenBridgeInst.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -1379,7 +1372,8 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    witnessSCRAM
+                    witnessSCRAM,
+                    windowStartWitness
                 );
             }
         );
@@ -1460,6 +1454,11 @@ export class TokenBridgeWorker {
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await noriTokenBridgeInst.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -1469,7 +1468,8 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    witnessSCRAM
+                    witnessSCRAM,
+                    windowStartWitness
                 );
             }
         );
@@ -1596,6 +1596,11 @@ export class TokenBridgeWorker {
 
         // Note we could have another method to not have to do this multiple times, but keeping it stateless for now.
         const noriTokenBridgeInst = new NoriTokenBridge(noriTokenBridgeAddress);
+        // Witness the current window start for noriMint.
+        const windowStartWitness = await noriTokenBridgeInst.windowStart.fetch();
+        if (windowStartWitness === undefined) {
+            throw new Error('Could not fetch windowStart for noriMint.');
+        }
 
         const mintTx = await Mina.transaction(
             { sender: userPublicKey, fee: txFee },
@@ -1605,7 +1610,8 @@ export class TokenBridgeWorker {
                 }
                 await noriTokenBridgeInst.noriMint(
                     merkleTreeContractDepositAttestorInput,
-                    witnessSCRAM
+                    witnessSCRAM,
+                    windowStartWitness
                 );
             }
         );

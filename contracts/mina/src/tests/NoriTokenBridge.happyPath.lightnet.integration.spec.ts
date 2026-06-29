@@ -315,7 +315,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[0].sp1PlonkProof,
                 examples[0].conversionOutputProof.proofData,
-                '0',
                 fee
             );
 
@@ -337,7 +336,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[1].sp1PlonkProof,
                 examples[1].conversionOutputProof.proofData,
-                '0',
                 fee
             );
 
@@ -359,7 +357,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[2].sp1PlonkProof,
                 examples[2].conversionOutputProof.proofData,
-                '0',
                 fee
             );
 
@@ -381,7 +378,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
                 noriTokenBridgeKeypair.publicKey.toBase58(),
                 examples[3].sp1PlonkProof,
                 examples[3].conversionOutputProof.proofData,
-                '0',
                 fee
             );
 
@@ -469,7 +465,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             //     admin.privateKey.toBase58(),
             //     noriTokenBridgeKeypair.publicKey.toBase58(),
             //     depositRoot.toBigInt().toString(),
-            //     '0',
             //     fee
             // );
 
