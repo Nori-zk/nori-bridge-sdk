@@ -1,5 +1,154 @@
 # Changelog
 
+## 23/6/26 - Finding 7f3a1: codeChallenge is unnecessarily bound to msg.sender in lockTokens
+
+### Finding (verbatim)
+
+Hey team, I want to double-check the reasoning for binding codeChallenge to msg.sender on the Ethereum side in lockTokens.
+Could you clarify why this is required? Have you considered not binding codeChallenge to a single depositor and allowing anyone to deposit to that codeChallenge?
+Potential advantages of not binding are better liveness and UX (it eliminates mempool front-run grief revert), but there may be stronger reasons to keep the single-owner deposit-key invariant.
+
+### Discussion
+
+The design went through two iterations. In the earlier iteration codeChallenge was derived from an Ethereum signature and a Mina public key. After the latest redesign the Mina signature was adopted, which produces a deterministic signature for a given message. The msg.sender binding was left in the contract as a result of cognitive bias carried over from the prior design. After careful review it was agreed internally that the binding is no longer required.
+
+The auditors confirmed that it can be removed without any impact.
+
+The original constraint existed because codeChallenge previously incorporated both keys, which required an additional constraint to ensure correct accounting for cumulative lockedTokens.
+
+### Response
+
+We agree and will relax the constraint.
+
+### Commit 1 - Regression test exposing the undesirable depositor binding
+
+`contracts/ethereum/test/NoriTokenBridge.ts` contained a test `Should bind Mina account to first depositor and reject others` asserting that a second depositor calling lockTokens with a codeChallenge already used by a different address is rejected with MinaAccountLinkedToDifferentDepositor. Prior to any code change this test passed, confirming the constraint was live. Because we are relaxing that constraint, this passing test here is itself an erroneous behaviour.
+
+`npm test -- --grep "Should bind Mina account to first depositor and reject others"` run in `contracts/ethereum` against the unmodified contract:
+
+Results:
+
+- 1 passing. The test passes against the unmodified contract, confirming the binding is live and that this behaviour is erroneous under the relaxed constraint.
+- We also noticed a typo in `Should set NORI_BRIDE_ZKAPP_ACCT_TOKEN_ID from constructor` and corrected that.
+
+We renamed and refactored the test `Should bind Mina account to first depositor and reject others` to assert the opposite `Should allow different depositors to lock to the same codeChallenge and accumulate correctly`. Updating the assertion from a failure should occur and the contract should revert - to the contract should permit the action of multiple ETH depositors sharing the same `codeChallenge`.
+
+The full test suite was run to ensure no other regressions:
+
+`npm run test`
+
+Result:
+
+`Should allow different depositors to lock to the same codeChallenge and accumulate correctly` fails with `SolidityError: VM Exception while processing transaction: reverted with an unrecognized custom error (return data: 0x30506bb1)` demonstrating the contracts undesirable rejection of the action - prior to relaxing the constraint.
+
+### Commit 2 - Fix applied
+
+- `contracts/ethereum/contracts/NoriTokenBridge.sol`
+    - Removed `depositKeyToEthAddress` mapping from  which captures the binding from a `codeChallenge` to an ETH address
+    - Removed `MinaAccountLinkedToDifferentDepositor` bespoke error.
+    - Removed `Enforce one ETH depositor per Mina account` validation logic.
+- `contracts/mina/src/scram.ts`
+    - Updated documentation to remove references of `depositKeyToEthAddress`
+
+Re-ran the ethereum contract tests:
+
+`cd contracts/ethereum/contracts && npm run test`
+
+Result:
+
+62 tests passed, showing that the relaxed constraints allow the modified test to pass.
+
+## 02/6/26 - Finding 41428: In-flight mints are invalidated by the next `update()`
+
+### Finding (verbatim)
+
+Thanks for the detailed answers to my questions at the end of last week regarding update and mint and the timings on Mina versus SP1 etc., that was very helpful.
+
+I dug in more into the concurrency questions regarding update and mint, and what kind of timeline users have for their mints.
+
+There are two different timeframes to consider:
+Deposit root availability: How long after the first update that placed a deposit root containing the deposit on-chain is that deposit root still available, so that the user can use it to mint?
+Mint proof usability: If a user starts generating a mint proof at time X, and it gets included on-chain at time Y (or attempted to be included), will it be accepted or rejected?
+
+With an update roughly every 16 minutes, and 32 deposit roots usable on-chain, that gives between 8 and 9 hours for deposit root availability.
+
+This does not mean that a user that generated a mint proof immediately after the update appeared on chain that carries the deposit root containing their deposit can wait for up to 8 hours to submit it.
+
+The noriMint method has a precondition that pins an action state to a value. So for this part:
+
+```typescript
+const windowStart = this.windowStart.getAndRequireEquals();
+const actions = this.reducer.getActions({ fromActionState: windowStart });
+
+const depositInWindow: Bool = this.reducer.reduce(
+    actions,
+    Bool,
+    (found: Bool, action: Field) =>
+        found.or(action.equals(contractDepositSlotRoot)),
+    Bool(false),
+    { maxUpdatesWithActions: maxWindow }
+);
+```
+
+the prover must choose the action state hash that is the end of the window for the actions used. Now that precondition is special in that on-chain, there are 5 values available, and it just needs to match one of them. In the end that means if the user creates a mint proof, if afterwards there will be 5 `update`s happening before their mint is included, then it will be rejected.
+
+In practice, if mints take ~2 minutes to prove for the user and `update` frequency is about every ~16 minutes, there should be enough time to submit the mint after having it proven, if the action state were the only state intersection between update and noriMint.
+
+However, there is also another interaction.
+
+As soon as the window is full (so after the first 32 updates at the very start after deployment of the contract), `update` will always change windowStart:
+
+```typescript
+this.windowStart.set(Provable.if(isFull, advancedStart, windowStart));
+```
+
+But windowStart is also read in noriMint and so in a precondition is pinned to a value by a mint proof:
+
+```typescript
+const windowStart = this.windowStart.getAndRequireEquals();
+```
+
+This means that if the user creates a mint proof, using the most up to date value of windowStart as of the time when they start the proof, then that proof will only be accepted on-chain if there was no update in-between.
+
+In practice, if the update have a frequency of once every 16 minutes and it takes say 2 minutes from fetching on-chain data to inclusion of the mint transaction on-chain, then 2/16 = 12.5% of the time, a user's mint transaction will be rejected on-chain, and they need to try again.
+
+This isn't a security problem in itself because the user can just try again, but your earlier answer contained "if there is a update tx pending in mempool, user's transaction would get included as there aren't any race conditions on state, as update and mint do not modify same state", which sounded like this behavior not being expected, and so as an unexpected 10% or more rejection rate on user attempts might be quite noticable in the overall user experience.
+
+### Response
+
+The finding is correct. `noriMint` reads `windowStart` via `getAndRequireEquals()`, which pins `windowStart == W` as a precondition on the mint transaction at prove time. Once the window is full every `update` advances `windowStart`, so an `update` landing between proving and inclusion makes the mint's precondition stale and the network rejects it (~12.5% at the cited cadence). The `actionState` end of the reducer read tolerates the last 5 action states, but `windowStart` is an ordinary state field with no tolerance, so a single update is enough.
+
+### Commit 1 - Test exposure of in-flight mint invalidation
+
+- **Regression test** (`contracts/mina/src/tests/41428.inflightMint.lightnet.integration.spec.ts`): added a self-contained lightnet test that fills the deposit-root window to `maxWindow` (honest evictions via the test-only `adminSetDepositRoot`), seeds the user's deposit as the newest window member, then builds **and proves** a mint. One further dispatch (an `update`) slides `windowStart` (with a sanity assert that it moved), after which the already-proven mint is sent; the test asserts it is still accepted and credits the balance. No mempool race is needed — the rejection is a stale precondition, reproduced sequentially (prove → update → send). It runs against lightnet because a real Mina node models the 5-element `actionState` precondition window the fix relies on; LocalBlockchain does not (a probe showed it rejects even a single intervening dispatch), so it cannot demonstrate the green side. The test-only `adminSetDepositRoot` method it relies on is enabled in the same commit.
+
+Results:
+
+- Regression test: fails on the current contract. The intervening `update` moves `windowStart`, and sending the proven mint is rejected on the now-stale `windowStart` precondition (`Account_app_state_precondition_unsatisfied`) — confirming the finding.
+
+### Commit 2 - Fix applied
+
+- **`noriMint` witnesses the window start** (`contracts/mina/src/NoriTokenBridge.ts`): instead of reading `windowStart` via `getAndRequireEquals()` (a zero-tolerance precondition), the method takes `windowStartWitness: Field` and uses it as the `getActions` start. The witness is fully constrained without that precondition — `reduce` asserts the chain `windowStartWitness -> ... -> account.actionState` matches the folded actions (a stale/off-chain witness cannot pass), and `maxUpdatesWithActions: maxWindow` bounds it from below. The only shared precondition left with `update` is `account.actionState`, which tolerates the last ~5 action states, so an `update` between proving and inclusion no longer invalidates the mint.
+- **Call sites updated** to fetch and pass the witness: `workers/tokenBridgeTester/worker.ts`, `workers/tokenBridgeWorker/worker.ts` (three mint paths), and the integration specs (`full.local`, `main-thread/full.lightnet`, `main-thread/happyPath.lightnet`).
+- **Regression test updated** to the witnessed (3-arg) call so it now exercises the fix.
+- **Bridge verification key regenerated** (`integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): the `noriMint` circuit changed.
+
+Results:
+
+- Regression test: passes on lightnet. After the intervening `update` slides `windowStart`, the already-proven mint is accepted (distance 1, within the 5-slot `actionState` tolerance) and credits the balance.
+- Tolerance confirmed on lightnet by a probe: a pinned `actionState` survives up to 4 intervening updates (accepted at distances 1 and 4, rejected at 5+); LocalBlockchain rejects even distance 1 — the reason the green side runs on lightnet.
+- The worker-driven `full.lightnet` and `happyPath.lightnet` suites pass with the fix.
+
+### Commit 3 - Restore test-only method for production
+
+- **`adminSetDepositRoot` re-commented** (`contracts/mina/src/NoriTokenBridge.ts`): the test-only seeding method enabled in commit 1 is disabled again so it is not part of the production contract. Its call sites in `full.lightnet` / `happyPath.lightnet` are re-commented and those `noriMint()` blocks re-`describe.skip`-ed; the `41428.inflightMint.lightnet` regression suite is `describe.skip`-ed (it depends on `adminSetDepositRoot`).  
+  **Bridge verification key regenerated** (`integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.  
+
+
+Results:
+
+- The regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note and run against lightnet to reproduce.
+
 ## 19/5/26 - CHORE: Update proof-conversion to 0.8.21 (FIX: Audit B1114 Nori-zk/proof-conversion#34)
 
 Bumped `@nori-zk/proof-conversion` from 0.8.20 to 0.8.21 in `contracts/mina`, `minimal-client`, and `o1js-zk-utils`.
@@ -7,6 +156,60 @@ Bumped `@nori-zk/proof-conversion` from 0.8.20 to 0.8.21 in `contracts/mina`, `m
 ## 18/5/26 - CHORE: Update ProofConversion.sp1ToPlonk.po2.json integrity file
 
 Updated `o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json` integrity hash to reflect upstream FIX: Audit B1114 (Nori-zk/proof-conversion#34).
+
+## 15/5/26 - Audit 4279a: `dispatchAndEvict` does not verify `oldestAction`
+
+### Finding (verbatim)
+
+Hi team, I have a question regarding dispatchAndEvict from NoriTokenBridge.ts. The docstring says "When the window is full, the caller must provide the oldest action as a witness. The contract verifies the hash chain `advanceActionState(windowStart, singleActionInnerHash(oldestAction))` and advances windowStart by one step, keeping the window size constant." And in the implementation, we have
+
+```typescript
+// Compute the advanced windowStart by verifying the oldest action chains correctly.
+// If isFull is false, this computation is ignored (oldestAction can be anything).
+const innerHash = singleActionInnerHash(oldestAction);
+const advancedStart = advanceActionState(windowStart, innerHash);
+
+// Conditionally advance: if full, slide the window; otherwise keep start.
+this.windowStart.set(Provable.if(isFull, advancedStart, windowStart));
+// If full: evict 1 + add 1 = same size. If not full: size + 1.
+this.windowSize.set(Provable.if(isFull, windowSize, windowSize.add(1)));
+```
+
+The comment says "compute the advanced windowStart by verifying the oldest action chains correctly", but the verification seems to be deferred to noriMint()? In dispatchAndEvict, it looks like the new advancedStart is simply computed using whatever oldestAction is provided, with no constraint tying that value to the actual oldest dispatched action. So if an adversary provides a bad oldestAction, I think windowStart would be updated to a bad hash that is computed from the bad oldestAction. This bad hash does not correspond to any actual action chain state, so later when noriMint() is called and attempts to rebuild the chain, it would not go through, thus disabling the mint flow.
+
+What is preventing an adversary from mounting the attack I described above? I feel that I might be missing something here.
+
+### Response
+
+The finding is correct. `dispatchAndEvict` advances `windowStart` using the caller-supplied `oldestAction` without constraining it to the real oldest action in the window. When the window is full, a caller can pass any value, moving `windowStart` to an action-state hash that lies off the real action chain. Subsequent `noriMint` calls fetch actions `fromActionState: windowStart`, which then resolves to nothing, disabling minting. As with a2090, testing is bolstered first (commit 1) to expose the issue, then the fix applied (commit 2). The intended fix removes the `oldestAction` parameter and derives the oldest action in-circuit via the reducer, so `windowStart` can only ever advance to a real point on the chain.
+
+### Commit 1 - Test exposure of eviction witness integrity
+
+- **Regression test** (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`): added a self-contained LocalBlockchain test (`proofsEnabled: false`) that deploys the bridge, fills the deposit-root window to `maxWindow` via the test-only `adminSetDepositRoot` (**enabled for testing the regression ONLY** - will be removed), then dispatches one more deposit root with a deliberately bogus `oldestAction`. It asserts the window still resolves from `windowStart` (holds `maxWindow` roots, including the new one) and that the user can still `noriMint`. The test-only `adminSetDepositRoot` method it relies on is enabled in the same commit.
+
+Results:
+
+- Regression test: fails on the current contract. The bogus `oldestAction` poisons `windowStart`; `fetchActions({ fromActionState: windowStart })` throws `getActions: fromActionState not found`, so the window reads 0 roots (expected 32) and the mint flow is unreachable — confirming the finding.
+
+### Commit 2 - Fix applied
+
+- **`dispatchAndEvict` derives the oldest action in-circuit** (`contracts/mina/src/NoriTokenBridge.ts`): the caller-supplied `oldestAction` parameter is removed. The oldest action is now found by running `reducer.reduce` over the current window (`getActions({ fromActionState: windowStart })`) and latching the first action. o1js's reducer asserts the chain `windowStart -> ... -> account.actionState` matches the actions it yields, so the captured oldest is provably the real one and `windowStart` can only ever advance to a real point on the action chain. The new root is dispatched after the reduce so it is not pulled into the eviction scope.
+- **`oldestAction` parameter dropped from `update` and `adminSetDepositRoot`** (`contracts/mina/src/NoriTokenBridge.ts`) and the now-unused `getOldestActionForEviction` helper removed (`contracts/mina/src/NoriTokenBridge.utils.ts`). Call sites updated: `proofSubmitter.ts`, `workers/tokenBridgeWorker/worker.ts`, `workers/tokenBridgeTester/worker.ts`, and the integration specs.
+- **Bridge verification key regenerated** (`contracts/mina/src/integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): the `update` circuit changed.
+- **Regression test updated to the single-argument API** (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`): with no `oldestAction` to supply, the test now confirms a full-window eviction keeps the window healthy and mintable. **NOTE: this regression will pass by definition of the fix, as the oldestAction is no longer provided but deterministically derived in provable way **
+
+Results:
+
+- Regression test: passes. After filling the window to `maxWindow` and dispatching one further root, the window still resolves from `windowStart` (holds `maxWindow` roots, including the new one) and the user mints successfully. `windowStart` can no longer be poisoned by the caller.
+
+### Commit 3 - Restore test-only method and regenerate integrity data
+
+- **`adminSetDepositRoot` re-commented** (`contracts/mina/src/NoriTokenBridge.ts`): the test-only seeding method enabled in commit 1 is disabled again so it is not part of the production contract. Its callers in `NoriTokenBridge.full.local.integration.spec.ts` are re-commented, and the eviction-witness regression suite (`contracts/mina/src/tests/unit/4279a.evictionWitness.reggression.spec.ts`) is `describe.skip`-ed with a note documenting how to re-enable it.
+- **Bridge verification key regenerated** (`contracts/mina/src/integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.
+
+Results:
+
+- Regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note to run it.
 
 ## 15/5/26 - Audit A2090: Non-standard Merkle zero indexing
 
@@ -116,13 +319,13 @@ Results:
 ### Migrated to @nori-zk/mina-attestations Fork
 
 - **@nori-zk/mina-attestations@0.6.4**: replaced upstream `mina-attestations` with Nori's scoped fork
-  - o1js upgraded to 3.0.0-mesa.698ca
-  - package renamed to @nori-zk/mina-attestations and deployed into Nori's org scope
-  - file restrictions added to package.json to minimise npm package size
-  - tree-shakeable `./dynamic/array` subpath export added
-  - side-effect fix for `BaseType.GenericRecord` registration on the `./dynamic/array` subpath
-  - npm audit fix applied
-  - DynamicArray imports updated to use the new subpath
+    - o1js upgraded to 3.0.0-mesa.698ca
+    - package renamed to @nori-zk/mina-attestations and deployed into Nori's org scope
+    - file restrictions added to package.json to minimise npm package size
+    - tree-shakeable `./dynamic/array` subpath export added
+    - side-effect fix for `BaseType.GenericRecord` registration on the `./dynamic/array` subpath
+    - npm audit fix applied
+    - DynamicArray imports updated to use the new subpath
 
 ### @nori-zk/proof-conversion Bumped
 
