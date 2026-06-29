@@ -891,7 +891,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             //     admin.privateKey.toBase58(),
             //     noriTokenBridgeKeypair.publicKey.toBase58(),
             //     aliceRoot.toBigInt().toString(),
-            //     '0',
             //     fee
             // );
             await fetchAccount({
@@ -966,7 +965,6 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 //     admin.privateKey.toBase58(),
                 //     noriTokenBridgeKeypair.publicKey.toBase58(),
                 //     aliceRoot2.toBigInt().toString(),
-                //     '0',
                 //     fee
                 // );
                 await fetchAccount({
@@ -1079,20 +1077,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                                 merkleInput
                             );
 
-                        // Dispatch this root into the window via the tester worker.
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[
-                            allDispatchedRoots.length - 32
-                            ]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await tester.adminSetDepositRoot(
                         //     admin.privateKey.toBase58(),
                         //     noriTokenBridgeKeypair.publicKey.toBase58(),
                         //     root.toBigInt().toString(),
-                        //     oldest.toBigInt().toString(),
                         //     fee
                         // );
                         allDispatchedRoots.push(root);
@@ -1145,19 +1134,11 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 } else {
                     test(`window rotation root #${i}: dispatch deposit root (worker)`, async () => {
                         const dummyRoot = Field(1_000_000n + BigInt(i));
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[
-                            allDispatchedRoots.length - 32
-                            ]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await tester.adminSetDepositRoot(
                         //     admin.privateKey.toBase58(),
                         //     noriTokenBridgeKeypair.publicKey.toBase58(),
                         //     dummyRoot.toBigInt().toString(),
-                        //     oldest.toBigInt().toString(),
                         //     fee
                         // );
                         allDispatchedRoots.push(dummyRoot);

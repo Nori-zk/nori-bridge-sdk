@@ -465,7 +465,6 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             //     admin.privateKey.toBase58(),
             //     noriTokenBridgeKeypair.publicKey.toBase58(),
             //     depositRoot.toBigInt().toString(),
-            //     '0',
             //     fee
             // );
 
