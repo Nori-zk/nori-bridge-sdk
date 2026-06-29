@@ -55,7 +55,7 @@ import {
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
-import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit } from '../testUtils.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit, fetchWindowStartWitness } from '../testUtils.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLightnetTest');
@@ -120,7 +120,6 @@ async function txSend({
 async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
-
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -460,7 +459,7 @@ describe('NoriTokenBridge', () => {
 
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                        await noriTokenBridge.update(ethInput1, rawProof1);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -503,7 +502,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 2 (consecutive from block 1)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                        await noriTokenBridge.update(ethInput2, rawProof2);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -522,7 +521,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 3 (consecutive from block 2)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput3, rawProof3, Field(0));
+                        await noriTokenBridge.update(ethInput3, rawProof3);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -541,7 +540,7 @@ describe('NoriTokenBridge', () => {
             test('should accept block 4 (consecutive from block 3)', async () => {
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.update(ethInput4, rawProof4, Field(0));
+                        await noriTokenBridge.update(ethInput4, rawProof4);
                     },
                     sender: deployer.publicKey,
                     signers: [deployer.privateKey],
@@ -562,7 +561,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                                await noriTokenBridge.update(ethInput1, rawProof1);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -576,7 +575,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                                await noriTokenBridge.update(ethInput2, rawProof2);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -638,7 +637,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                                await noriTokenBridge.update(ethInput1, rawProof1);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -652,7 +651,7 @@ describe('NoriTokenBridge', () => {
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.update(ethInput2, rawProof2, Field(0));
+                                await noriTokenBridge.update(ethInput2, rawProof2);
                             },
                             sender: deployer.publicKey,
                             signers: [deployer.privateKey],
@@ -819,7 +818,7 @@ describe('NoriTokenBridge', () => {
             void aliceRoot;
             // await txSend({
             //     body: async () => {
-            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot, Field(0));
+            //         await noriTokenBridge.adminSetDepositRoot(aliceRoot);
             //     },
             //     sender: admin.publicKey,
             //     signers: [admin.privateKey],
@@ -830,10 +829,11 @@ describe('NoriTokenBridge', () => {
 
         describe('Happy Path', () => {
             test('should mint 2 bridge units for Alice on first deposit', async () => {
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await txSend({
                     body: async () => {
                         AccountUpdate.fundNewAccount(alice.publicKey, 1);
-                        await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness);
+                        await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness, windowStartWitness);
                     },
                     sender: alice.publicKey,
                     signers: [alice.privateKey],
@@ -872,7 +872,7 @@ describe('NoriTokenBridge', () => {
                 // adminSetDepositRoot disabled in production — see top-of-suite note.
                 // await txSend({
                 //     body: async () => {
-                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2, Field(0));
+                //         await noriTokenBridge.adminSetDepositRoot(aliceRoot2);
                 //     },
                 //     sender: admin.publicKey,
                 //     signers: [admin.privateKey],
@@ -880,9 +880,10 @@ describe('NoriTokenBridge', () => {
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
                 // Mint — contract computes amountToMint = totalLocked(500) - mintedSoFar(200) = 300
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await txSend({
                     body: async () => {
-                        await noriTokenBridge.noriMint(aliceDeposit2, aliceSCRAM2);
+                        await noriTokenBridge.noriMint(aliceDeposit2, aliceSCRAM2, windowStartWitness);
                     },
                     sender: alice.publicKey,
                     signers: [alice.privateKey],
@@ -958,16 +959,10 @@ describe('NoriTokenBridge', () => {
                         );
                         const root = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
 
-                        // Dispatch this root into the window
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await txSend({
                         //     body: async () => {
-                        //         await noriTokenBridge.adminSetDepositRoot(root, oldest);
+                        //         await noriTokenBridge.adminSetDepositRoot(root);
                         //     },
                         //     sender: admin.publicKey,
                         //     signers: [admin.privateKey],
@@ -976,11 +971,12 @@ describe('NoriTokenBridge', () => {
                         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
                         // Fund token account on first mint only
+                        const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                         const isFirstMint = daveMintCount === 0;
                         await txSend({
                             body: async () => {
                                 if (isFirstMint) AccountUpdate.fundNewAccount(dave.publicKey, 1);
-                                await noriTokenBridge.noriMint(merkleInput, scramWitness);
+                                await noriTokenBridge.noriMint(merkleInput, scramWitness, windowStartWitness);
                             },
                             sender: dave.publicKey,
                             signers: [dave.privateKey],
@@ -1004,15 +1000,10 @@ describe('NoriTokenBridge', () => {
                 } else {
                     test(`window rotation root #${i}: dispatch deposit root`, async () => {
                         const dummyRoot = Field(1_000_000n + BigInt(i));
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await txSend({
                         //     body: async () => {
-                        //         await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
+                        //         await noriTokenBridge.adminSetDepositRoot(dummyRoot);
                         //     },
                         //     sender: admin.publicKey,
                         //     signers: [admin.privateKey],
@@ -1035,11 +1026,12 @@ describe('NoriTokenBridge', () => {
 
         describe('Negative Tests', () => {
             test('should REJECT double-mint with the same deposit (zero new amount)', async () => {
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness);
+                                await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness, windowStartWitness);
                             },
                             sender: alice.publicKey,
                             signers: [alice.privateKey],
@@ -1065,12 +1057,13 @@ describe('NoriTokenBridge', () => {
                     signers: [deployer.privateKey, bob.privateKey],
                 });
 
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
                                 AccountUpdate.fundNewAccount(deployer.publicKey, 1);
-                                await noriTokenBridge.noriMint(bobDepositAttestationInput, bobSCRAMWitness);
+                                await noriTokenBridge.noriMint(bobDepositAttestationInput, bobSCRAMWitness, windowStartWitness);
                             },
                             sender: bob.publicKey,
                             signers: [bob.privateKey],
@@ -1087,11 +1080,12 @@ describe('NoriTokenBridge', () => {
                     2n
                 );
 
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
-                                await noriTokenBridge.noriMint(aliceDepositAttestationInput, wrongSCRAMWitness);
+                                await noriTokenBridge.noriMint(aliceDepositAttestationInput, wrongSCRAMWitness, windowStartWitness);
                             },
                             sender: alice.publicKey,
                             signers: [alice.privateKey],
@@ -1108,12 +1102,13 @@ describe('NoriTokenBridge', () => {
                     2n
                 );
 
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
                                 AccountUpdate.fundNewAccount(charlie.publicKey, 1);
-                                await noriTokenBridge.noriMint(charlieDepositAttestationInput, charlieSCRAMWitness);
+                                await noriTokenBridge.noriMint(charlieDepositAttestationInput, charlieSCRAMWitness, windowStartWitness);
                             },
                             sender: charlie.publicKey,
                             signers: [charlie.privateKey],
@@ -1134,12 +1129,13 @@ describe('NoriTokenBridge', () => {
                     signers: [deployer.privateKey, eve.privateKey],
                 });
 
+                const windowStartWitness = await fetchWindowStartWitness(noriTokenBridge);
                 await assert.rejects(
                     () =>
                         txSend({
                             body: async () => {
                                 AccountUpdate.fundNewAccount(eve.publicKey, 1);
-                                await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness);
+                                await noriTokenBridge.noriMint(aliceDepositAttestationInput, aliceSCRAMWitness, windowStartWitness);
                             },
                             sender: eve.publicKey,
                             signers: [eve.privateKey],

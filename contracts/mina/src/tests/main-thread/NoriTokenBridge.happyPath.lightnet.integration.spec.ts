@@ -217,7 +217,7 @@ describe('NoriTokenBridge Happy Path', () => {
     test('2a. update block 1', async () => {
         await txSend({
             body: async () => {
-                await noriTokenBridge.update(ethInput1, rawProof1, Field(0));
+                await noriTokenBridge.update(ethInput1, rawProof1);
             },
             sender: deployer.publicKey,
             signers: [deployer.privateKey],
@@ -284,7 +284,7 @@ describe('NoriTokenBridge Happy Path', () => {
         // adminSetDepositRoot disabled in production — see test-level note above.
         // await txSend({
         //     body: async () => {
-        //         await noriTokenBridge.adminSetDepositRoot(depositRoot, Field(0));
+        //         await noriTokenBridge.adminSetDepositRoot(depositRoot);
         //     },
         //     sender: admin.publicKey,
         //     signers: [admin.privateKey],
@@ -292,10 +292,12 @@ describe('NoriTokenBridge Happy Path', () => {
         await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
 
         // Mint
+        const windowStartWitness = await noriTokenBridge.windowStart.fetch();
+        if (windowStartWitness === undefined) throw new Error('could not fetch windowStart');
         await txSend({
             body: async () => {
                 AccountUpdate.fundNewAccount(alice.publicKey, 1);
-                await noriTokenBridge.noriMint(merkleInput, scramWitness);
+                await noriTokenBridge.noriMint(merkleInput, scramWitness, windowStartWitness);
             },
             sender: alice.publicKey,
             signers: [alice.privateKey],

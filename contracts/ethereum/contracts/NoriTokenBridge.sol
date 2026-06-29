@@ -36,7 +36,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     error BelowMinLockAmount();
     error InvalidBridgeUnitMultiple();
     error TotalLockedOverflow();
-    error MinaAccountLinkedToDifferentDepositor();
     error InvalidLedger();
     error InvalidZkappAccount();
     error InvalidUnlockAmount();
@@ -61,8 +60,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Total locked supply in bridge units
     uint256 public totalLockedBU;
 
-    // Mina account (depositKey) -> ETH depositor
-    mapping(uint256 => address) public depositKeyToEthAddress;
 
     /// @notice Mina bridge contract that validates and stores Mina states.
     MinaStateSettlement public stateSettlement;
@@ -222,33 +219,6 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         // Ensure total locked supply does not exceed MAX_MAGNITUDE
         if (totalLockedBU + netBU > MAX_MAGNITUDE) revert TotalLockedOverflow();
-
-        // Enforce one ETH depositor per Mina account.
-        //
-        // Known limitation (mempool griefing): codeChallenge values are
-        // visible in the mempool before they confirm. An observer can copy
-        // a pending codeChallenge and submit their own lockTokens first,
-        // binding their address to that codeChallenge. The honest user's
-        // tx then reverts here with MinaAccountLinkedToDifferentDepositor,
-        // and they must pick a fresh codeChallenge to retry.
-        //
-        // Funds at risk: none. The attacker locks their own ETH but cannot
-        // mint on Mina — minting requires the SCRAM signature whose hash
-        // is the codeChallenge, which only the honest user holds. The
-        // honest user's tx reverted, so no ETH was sent. The attacker's
-        // ETH remains stuck against an unmintable codeChallenge.
-        //
-        // Mitigation is off-chain: the client UX is expected to generate a
-        // fresh codeChallenge per attempt and to retry with a new one when
-        // this revert is observed.
-        address linkedEthAddress = depositKeyToEthAddress[codeChallenge];
-        if (linkedEthAddress == address(0)) {
-            // First deposit: bind Mina account deposit key to sender
-            depositKeyToEthAddress[codeChallenge] = msg.sender;
-        } else {
-            if (linkedEthAddress != msg.sender)
-                revert MinaAccountLinkedToDifferentDepositor();
-        }
 
         // ===============================
         // LOCK LOGIC (bridge units internally)
