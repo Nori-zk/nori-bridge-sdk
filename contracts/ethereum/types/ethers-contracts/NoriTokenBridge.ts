@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "depositKeyToEthAddress" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "FeeRecipientSet" | "FeesWithdrawn" | "LockFeeRateSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked" | "UnlockFeeRateSet"): EventFragment;
 
@@ -23,7 +23,6 @@ encodeFunctionData(functionFragment: 'accountValidation', values?: undefined): s
 encodeFunctionData(functionFragment: 'accumulatedFees', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bridgeOperator', values?: undefined): string;
 encodeFunctionData(functionFragment: 'calcGrossLockAmount', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'depositKeyToEthAddress', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'feeRecipient', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isConfigured', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lockFeeRate', values?: undefined): string;
@@ -54,7 +53,6 @@ decodeFunctionResult(functionFragment: 'accountValidation', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'accumulatedFees', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'calcGrossLockAmount', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'depositKeyToEthAddress', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'feeRecipient', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isConfigured', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockFeeRate', data: BytesLike): Result;
@@ -320,14 +318,6 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
     
 
     
-    depositKeyToEthAddress: TypedContractMethod<
-      [arg0: BigNumberish, ],
-      [string],
-      'view'
-    >
-    
-
-    
     feeRecipient: TypedContractMethod<
       [],
       [string],
@@ -521,11 +511,6 @@ getFunction(nameOrSignature: 'bridgeOperator'): TypedContractMethod<
 getFunction(nameOrSignature: 'calcGrossLockAmount'): TypedContractMethod<
       [desiredNetAmount: BigNumberish, ],
       [[bigint, bigint, bigint] & {grossAmount: bigint, fee: bigint, actualNetAmount: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'depositKeyToEthAddress'): TypedContractMethod<
-      [arg0: BigNumberish, ],
-      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'feeRecipient'): TypedContractMethod<
