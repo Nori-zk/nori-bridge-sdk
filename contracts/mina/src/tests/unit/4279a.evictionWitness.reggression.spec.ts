@@ -17,6 +17,12 @@
  * still mintable. It FAILS on the unfixed contract (windowStart is poisoned)
  * and passes once eviction derives the oldest action in-circuit.
  *
+ * NOTE (4279a fix): the attack surface described above no longer exists.
+ * dispatchAndEvict() now derives the oldest action in-circuit via
+ * reducer.reduce(); there is no caller-supplied oldestAction parameter
+ * to exploit. This test remains as a regression guard: it confirms the
+ * window stays healthy after eviction without any caller input.
+ *
  * Self-contained: own LocalBlockchain (proofsEnabled: false), deploy and a
  * single test. Requires the test-only `adminSetDepositRoot` method to be
  * enabled on the contract.
@@ -83,7 +89,8 @@ async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]> {
     return actionBatches.flat();
 }
 
-/** Dispatch a deposit root via adminSetDepositRoot with an explicit oldestAction. */
+/** Dispatch a deposit root via adminSetDepositRoot with an explicit oldestAction.
+ * NOTE (4279a fix): oldestAction is no longer caller-supplied; derived in-circuit. */
 async function adminDispatch(root: Field) {
     void root
     // await txSend({

@@ -959,16 +959,10 @@ describe('NoriTokenBridge', () => {
                         );
                         const root = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
 
-                        // Dispatch this root into the window
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await txSend({
                         //     body: async () => {
-                        //         await noriTokenBridge.adminSetDepositRoot(root, oldest);
+                        //         await noriTokenBridge.adminSetDepositRoot(root);
                         //     },
                         //     sender: admin.publicKey,
                         //     signers: [admin.privateKey],
@@ -1006,15 +1000,10 @@ describe('NoriTokenBridge', () => {
                 } else {
                     test(`window rotation root #${i}: dispatch deposit root`, async () => {
                         const dummyRoot = Field(1_000_000n + BigInt(i));
-                        const windowIsFull = allDispatchedRoots.length >= 32;
-                        const oldest = windowIsFull
-                            ? allDispatchedRoots[allDispatchedRoots.length - 32]
-                            : Field(0);
-                        void oldest;
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await txSend({
                         //     body: async () => {
-                        //         await noriTokenBridge.adminSetDepositRoot(dummyRoot, oldest);
+                        //         await noriTokenBridge.adminSetDepositRoot(dummyRoot);
                         //     },
                         //     sender: admin.publicKey,
                         //     signers: [admin.privateKey],

@@ -102,14 +102,16 @@ async function fetchWindowRoots(): Promise<Field[]> {
     return actionBatches.flat();
 }
 
-/** The real oldest action to evict: Field(0) until full, else the first window root. */
+/** The real oldest action to evict: Field(0) until full, else the first window root.
+ * NOTE (4279a fix): oldestAction is no longer caller-supplied; derived in-circuit. */
 async function honestOldest(): Promise<Field> {
     const windowRoots = await fetchWindowRoots();
     if (windowRoots.length < maxWindow) return Field(0);
     return windowRoots[0];
 }
 
-/** Dispatch a deposit root via adminSetDepositRoot, passing the real oldest action. */
+/** Dispatch a deposit root via adminSetDepositRoot, passing the real oldest action.
+ * NOTE (4279a fix): oldestAction is no longer caller-supplied; derived in-circuit. */
 async function adminDispatch(root: Field) {
     const oldest = await honestOldest();
     void root;
@@ -119,7 +121,8 @@ async function adminDispatch(root: Field) {
     // method to reproduce against lightnet.
     // await txSend({
     //     body: async () => {
-    //         await noriTokenBridge.adminSetDepositRoot(root, oldest);
+    //         // NOTE (4279a fix): oldest param removed; derived in-circuit.
+    //         await noriTokenBridge.adminSetDepositRoot(root);
     //     },
     //     sender: admin.publicKey,
     //     signers: [admin.privateKey],
