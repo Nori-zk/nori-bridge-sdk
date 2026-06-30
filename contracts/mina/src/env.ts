@@ -24,15 +24,15 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
         mina: {
             staging: {
                 NORI_MINA_TOKEN_BRIDGE_ADDRESS:
-                    'B62qnACDhucgLab215x7JDJxieSPSKVqoTABfRizLbiJevbAxf6452B',
+                    'B62qjigCVVzvy6LbRAMCqxhPqV8mGxwPxQJGPCMmpeqsfkYiyYBCLYq',
                 NORI_MINA_TOKEN_BASE_ADDRESS:
-                    'B62qntxfsJN32rqtxCHegQuwmhnBweYSm5V759vqfwTRjkEkjXbWu29',
-                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0xb3b05Cf23Bd11d66724D1d0e90c26aa152a49f05',
+                    'B62qqyZCu8kJWRZeiLp5QjFEgnxVQV2biKZAjz3fMX9gmcobd6kZn9R',
+                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0xa2817F30a73B32860184E444Fc80018A45aD2CF6',
                 NORI_ETH_GENESIS_ROOT: '0xd8ea171f3c94aea21ebc42a1ed61052acf3f9209c00e4efbaaddac09ed9b8078',
                 NORI_MINA_TOKEN_BASE_TOKEN_ID:
-                    '24098714746905983835104154056693549708624840478268637089705991354502404436988',
+                    '23207811039425078693436510285206559010493020387602225291050792895744129890740',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:
-                    '12400710434375992068583964199024771138334414971199242896756582360882388023323',
+                    '6811376996622512476719015784840261938635317102403423887560127581629647405132',
                 MINA_ARCHIVE_RPC_URL: 'https://mesa-archive-node-api.gcp.o1test.net',
                 MINA_RPC_NETWORK_URL:
                     'https://plain-1-graphql.mina-mesa-network.gcp.o1test.net/graphql',
