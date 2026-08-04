@@ -100,7 +100,7 @@
         "typescript-eslint": "^8.55.0"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.final"
+        "o1js": "3.0.0-mesa.rc2"
     },
     "engines": {
         "node": ">=18.14.0"
@@ -108,10 +108,10 @@
     "dependencies": {
         "@nori-zk/o1js-zk-utils": "*",
         "@nori-zk/workers": "*",
-        "@nori-zk/proof-conversion": "0.8.26",
+        "@nori-zk/proof-conversion": "0.8.27",
         "dotenv": "^17.2.4",
         "esm-iso-logger": "1.0.2",
-        "@nori-zk/mina-attestations": "0.6.5",
+        "@nori-zk/mina-attestations": "0.6.6",
         "rxjs": "^7.8.2"
     }
 }
