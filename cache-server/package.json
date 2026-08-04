@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/cache-server",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "description": "",
     "author": "",
     "license": "Apache-2.0",
@@ -47,7 +47,7 @@
         "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.57.0"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.final"
+        "o1js": "3.0.0-mesa.rc2"
     },
     "engines": {
         "node": ">=18.14.0"

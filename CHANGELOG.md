@@ -1,5 +1,11 @@
 # Changelog
 
+## 4/8/26 - Updating o1js, proof-conversion and mina-attestations
+
+- Bumping o1js to 3.0.0-mesa.rc2
+- Bumping mina-attestations to 0.6.6
+- Bumping proof-conversion to 0.8.27
+
 ## 23/6/26 - Finding 7f3a1: codeChallenge is unnecessarily bound to msg.sender in lockTokens
 
 ### Finding (verbatim)
