@@ -33,9 +33,9 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
                     '24076995954020199447973315155258633096183592652675591033300568109713209038362',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:
                     '13777098415199831791531080343181889531730769260227911933839499395711118342003',
-                MINA_ARCHIVE_RPC_URL: 'https://archive-node-api.mesa-mut.minaprotocol.com',
+                MINA_ARCHIVE_RPC_URL: 'https://archive-node-api.mesa-rc.minaprotocol.com',
                 MINA_RPC_NETWORK_URL:
-                    'https://plain-1-graphql.mesa-mut.minaprotocol.com/graphql',
+                    'https://plain-1-graphql.mesa-rc.minaprotocol.com/graphql',
                 MINA_RPC_NETWORK_ID: 'devnet',
                 MINA_ZKAPP_TRANSACTION_RPC_URL:
                     'https://mina-zkapp-transaction-api.devnet.nori.it.com/api/transactions', // FIXME this is still not mesa!
