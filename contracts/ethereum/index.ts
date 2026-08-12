@@ -1,4 +1,5 @@
 import noriTokenBridgeRaw from './artifacts/contracts/NoriTokenBridge.sol/NoriTokenBridge.json' with { type: "json" };
+import noriProofRequestQueueRaw from './artifacts/contracts/NoriProofRequestQueue.sol/NoriProofRequestQueue.json' with { type: "json" };
 
 export interface Artifact {
   _format: string;
@@ -28,5 +29,6 @@ export interface Artifact {
 }
 
 export const noriTokenBridgeJson: Artifact = noriTokenBridgeRaw as Artifact;
+export const noriProofRequestQueueJson: Artifact = noriProofRequestQueueRaw as Artifact;
 
 export * from './types/ethers-contracts/index.js';

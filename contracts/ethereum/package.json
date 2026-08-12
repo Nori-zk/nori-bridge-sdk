@@ -24,9 +24,12 @@
         "test:lock-loop": "dotenv -e .env -- sh -c 'while true; do npx hardhat --network \"$ETH_NETWORK\" lockTokens \"$@\" || break; sleep 384; done' --",
         "get-deposited": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK getTotalDeposited \"$@\"' --",
         "get-fee-info": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK getFeeInfo'",
+        "preview-fees": "ETH_NETWORK=hardhat npx hardhat previewFees",
         "set-fee-rate": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setFeeRate \"$@\"' --",
         "set-fee-recipient": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setFeeRecipient \"$@\"' --",
         "withdraw-fees": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK withdrawFees'",
+        "set-proof-request-queue-fee": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setProofRequestQueueFee \"$@\"' --",
+        "withdraw-proof-request-queue-fees": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK withdrawProofRequestQueueFees'",
         "set-bridge-operator": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setBridgeOperator \"$@\"' --"
     },
     "author": "",
