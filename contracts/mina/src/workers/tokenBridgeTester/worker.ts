@@ -127,7 +127,7 @@ export class TokenBridgeTester {
         tokenBasePrivateKeyBase58: string,
         storeHashHex: string,
         ethTokenBridgeAddressHex: string,
-        genesisRootHex: string,
+        ethProofQueueAddressHex: string,
         storageInterfaceVerificationKeySafe: SafeVK,
         pi0: string,
         po2: string,
@@ -150,7 +150,9 @@ export class TokenBridgeTester {
         const ethTokenBridgeAddress = Bytes20.fromHex(
             ethTokenBridgeAddressHex
         ).toField();
-        const genesisRoot = Poseidon.hash(Bytes32.fromHex(genesisRootHex).toFields());
+        const ethProofQueueAddress = Bytes20.fromHex(
+            ethProofQueueAddressHex
+        ).toField();
 
         const noriTokenBridgePrivateKey = PrivateKey.fromBase58(
             noriTokenBridgePrivateKeyBase58
@@ -187,7 +189,7 @@ export class TokenBridgeTester {
                     storageVKHash: storageInterfaceVerificationKey.hash,
                     newStoreHash,
                     ethTokenBridgeAddress,
-                    genesisRoot,
+                    ethProofQueueAddress,
                     noriHeliosProgramPi0: FrC.from(pi0),
                     proofConversionPO2: Field.from(po2),
                 });

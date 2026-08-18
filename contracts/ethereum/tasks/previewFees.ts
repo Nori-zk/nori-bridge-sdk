@@ -40,8 +40,7 @@ export const previewFees = task('previewFees', 'Tabulate what a depositor pays a
         default: async (args, hre) => {
             const { ethers } = await hre.network.getOrCreate();
 
-            // This deploys throwaway contracts to do the arithmetic, so refuse
-            // to run anywhere those deployments would be real.
+            // Deploys throwaway contracts, so refuse to run anywhere real
             const { chainId } = await ethers.provider.getNetwork();
             if (chainId !== 31337n) {
                 logger.fatal(`previewFees simulates locally and must run on the built-in Hardhat network, but is connected to chain ${chainId}. Re-run with ETH_NETWORK=hardhat.`);
@@ -51,8 +50,8 @@ export const previewFees = task('previewFees', 'Tabulate what a depositor pays a
             const [deployer, dummy] = await ethers.getSigners();
             const ethUsd = Number(process.env.ETH_USD_PRICE ?? DEFAULT_ETH_USD);
 
-            // Deploy the real contracts so every number below comes from the
-            // shipped fee logic rather than a copy of it.
+            // Deploy the real contracts so the numbers come from the shipped
+            // fee logic rather than a copy of it
             const Queue = await ethers.getContractFactory('NoriProofRequestQueue');
             const queue = await Queue.deploy(
                 deployer.address,
@@ -112,8 +111,7 @@ export const previewFees = task('previewFees', 'Tabulate what a depositor pays a
                 let fee: bigint;
                 let net: bigint;
                 try {
-                    // previewLock applies exactly the rules lockTokens does, so
-                    // a revert here is a deposit the bridge would reject.
+                    // A revert here is a deposit lockTokens would also reject
                     [fee, net] = await bridge.previewLock(gross);
                 } catch (err: unknown) {
                     const data = err instanceof Object && 'data' in err ? (err as { data: string }).data : null;

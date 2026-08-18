@@ -516,6 +516,10 @@ export class TokenBridgeWorker {
      * @param depositBlockNumber Ethereum block number at which the
      *   deposit event was emitted. Used by the attestor to locate the
      *   deposit in the chain's action history.
+     * @param ethTokenBridgeAddressHex Ethereum token bridge address
+     *   (`0x`-prefixed, 20 bytes). The queue is shared between consumers,
+     *   so the witness search matches on `target` as well as the code
+     *   challenge.
      * @param domain Attestation-service domain used to look up the
      *   deposit proof. Defaults to the Nori production PCS endpoint;
      *   override for staging, local development, or test harnesses.
@@ -527,6 +531,7 @@ export class TokenBridgeWorker {
     async computeDepositAttestationWitness(
         codeChallengeSCRAM: string,
         depositBlockNumber: number,
+        ethTokenBridgeAddressHex: string,
         domain = 'https://pcs.nori.it.com'
     ) {
         const codeChallengeBigInt = BigInt(codeChallengeSCRAM);
@@ -536,6 +541,7 @@ export class TokenBridgeWorker {
         return computeDepositAttestationWitness(
             depositBlockNumber,
             codeChallengeFieldBEHex,
+            ethTokenBridgeAddressHex,
             domain
         );
     }

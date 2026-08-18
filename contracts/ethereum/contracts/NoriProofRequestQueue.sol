@@ -4,41 +4,28 @@ pragma solidity ^0.8.28;
 /// @title NoriProofRequestQueue
 /// @notice Append-only, on-chain buffer of storage-proof requests, consumed in
 ///         order by the Nori SP1 consensus + MPT program. Any contract may
-///         enqueue a proof of ITS OWN storage — `target` is always
+///         enqueue a proof of its own storage — `target` is always
 ///         `msg.sender` — by paying `proofRequestQueueFee` per request.
-/// @dev STORAGE LAYOUT IS CONSENSUS-CRITICAL.
+/// @dev STORAGE LAYOUT IS CONSENSUS-CRITICAL. The SP1 guest program derives
+///      storage keys from the layout below and verifies the words it reads by
+///      Merkle-Patricia proof against the Ethereum execution state root.
+///      Reordering these declarations, inheriting a contract that declares
+///      storage of its own, or deploying behind an upgradeable proxy
+///      invalidates every proof.
 ///
-///      The SP1 guest program derives storage keys from the layout below and
-///      verifies the words it reads by Merkle-Patricia proof against the
-///      Ethereum execution state root. Reordering the declarations,
-///      inheriting a contract that itself declares storage (OpenZeppelin
-///      `ReentrancyGuard` would claim slot 0 — this is precisely why
-///      `NoriTokenBridge.lockedTokens` sits at slot 2), or deploying behind
-///      an upgradeable proxy all silently invalidate every proof.
-///
-///        slot 0  : head          <- provable, read by the circuit
-///        slot 1  : _requests     <- provable, read by the circuit
-///        slot 2+ : configuration <- not provable, free to evolve
+///        slot 0  : head          <- read by the circuit
+///        slot 1  : _requests     <- read by the circuit
+///        slot 2+ : configuration <- not read by the circuit
 ///
 ///      Entry `i` occupies five consecutive words starting at
-///      `keccak256(abi.encode(i, uint256(1)))`:
+///      `keccak256(abi.encode(i, uint256(1)))`, one field per word:
 ///
 ///        +0  target                +3  collectionKeys[0]
 ///        +1  slotKey               +4  collectionKeys[1]
 ///        +2  collectionKeysCount
 ///
-///      Every field deliberately gets a whole word. Bit-packing would save
-///      gas but would have to be respecified and tested identically in
-///      Solidity, the Rust circuit and the TypeScript tooling; the extra
-///      storage cost is carried by `proofRequestQueueFee`.
-///
-///      Governance mirrors NoriTokenBridge: in production `operator` is
-///      expected to be the same OpenZeppelin TimelockController (deployed via
-///      tasks/deployTimelock.ts) whose proposer role is held by a Safe
-///      multisig. Admin actions therefore flow as: Safe -> propose ->
-///      Timelock (delay) -> queue admin call. This contract implements no
-///      timelock logic internally, and holds no reentrancy guard by design
-///      (see the storage note above); `withdrawFees` follows CEI instead.
+///      `operator` is expected to be the TimelockController deployed by
+///      tasks/deployTimelock.ts, fronted by a Safe multisig.
 contract NoriProofRequestQueue {
     // -------------------------------
     // Constants
@@ -47,9 +34,8 @@ contract NoriProofRequestQueue {
     /// @dev Consensus-critical: the circuit's leaf hash has one input per key.
     uint8 public constant MAX_COLLECTION_KEYS = 2;
     /// @notice Fees must be whole multiples of 10^12 wei (0.000001 ETH).
-    /// @dev NoriTokenBridge denominates value in bridge units of exactly
-    ///      10^12 wei, so an aligned fee folds into its fee schedule without
-    ///      rounding. Consumers with coarser units are unaffected.
+    /// @dev Matches NoriTokenBridge's bridge unit, so an aligned fee folds
+    ///      into its fee schedule without rounding.
     uint256 public constant PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI = 10 ** 12;
     /// @notice Hard ceiling on the fee; governance cannot exceed it.
     /// @dev Mirrors NoriTokenBridge.MAX_FEE_RATE — an immutable bound on what
@@ -84,16 +70,14 @@ contract NoriProofRequestQueue {
     // Provable State (consensus-critical layout — do not reorder)
     // -------------------------------
     /// @notice Total requests ever enqueued; also the id of the next request.
-    /// @dev Slot 0. Monotonic, never decremented. The circuit MPT-proves this
-    ///      value and derives its batch size as `head - cursor`, so the
-    ///      prover has no discretion over which requests an update covers.
+    /// @dev Slot 0. Monotonic. The circuit MPT-proves this value and derives
+    ///      its batch size as `head - cursor`.
     uint256 public head;
 
-    /// @notice Request id => request record. Append-only: written once at
-    ///         enqueue time, never edited and never deleted, so any entry
-    ///         stays provable at every later block.
-    /// @dev Slot 1. Internal because Solidity's auto-generated getter would
-    ///      omit the fixed-array member; use `requests(i)` instead.
+    /// @notice Request id => request record. Written once at enqueue time,
+    ///         never edited and never deleted.
+    /// @dev Slot 1. Internal because the auto-generated getter would omit the
+    ///      fixed-array member; use `requests(i)` instead.
     mapping(uint256 => Request) internal _requests;
 
     // -------------------------------
@@ -111,21 +95,17 @@ contract NoriProofRequestQueue {
     // -------------------------------
     // Types
     // -------------------------------
-    /// @param target The contract whose storage is to be proven — always the
-    ///        enqueuer. Rides into the proven leaf so consumers can be told
-    ///        apart, and so a leaf can never be replayed against a different
-    ///        consumer's Mina-side counterpart.
+    /// @param target The contract whose storage is proven — always the
+    ///        enqueuer. Namespaces each consumer's leaves by its own address.
     /// @param slotKey The raw storage key handed to `eth_getProof`. Opaque to
-    ///        the circuit: the requester resolves its own layout (mapping
-    ///        hashes, array offsets, nested paths) before enqueueing, so any
-    ///        storage shape is supported.
+    ///        the circuit; the requester resolves its own layout before
+    ///        enqueueing, so any storage shape is supported.
     /// @param collectionKeysCount How many of `collectionKeys` are in use.
     ///        Distinguishes "one key" from "two keys of which the second is
     ///        zero"; unused entries stay zero.
-    /// @param collectionKeys The keys locating the value inside its
-    ///        collection — a mapping key, an array index, or both for a
-    ///        nested mapping. Relayed into the leaf without interpretation so
-    ///        the consumer's counterpart can identify what was proven.
+    /// @param collectionKeys Keys locating the value inside its collection —
+    ///        a mapping key, an array index, or both for a nested mapping.
+    ///        Relayed into the leaf uninterpreted.
     struct Request {
         address target;
         bytes32 slotKey;
@@ -166,8 +146,7 @@ contract NoriProofRequestQueue {
     ///        `address(0)` to defer; configure later via `setFeeRecipient`.
     /// @param _proofRequestQueueFee Initial per-request fee in wei. Must not
     ///        exceed `MAX_PROOF_REQUEST_QUEUE_FEE` and must be a multiple of
-    ///        `PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI`, exactly as
-    ///        `setProofRequestQueueFee` requires.
+    ///        `PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI`.
     constructor(
         address _operator,
         address _feeRecipient,
@@ -196,25 +175,18 @@ contract NoriProofRequestQueue {
     // -------------------------------
     // Enqueue a proof request
     // -------------------------------
-    /// @notice Enqueue a request to prove one storage slot of the CALLER's
-    ///         own storage alongside the next consensus proof.
+    /// @notice Enqueue a request to prove one slot of the caller's own storage
+    ///         alongside the next consensus proof.
     /// @dev `target` is `msg.sender` by construction: a contract can only
-    ///      request proofs of its own state. That is what makes the
-    ///      (`slotKey`, `collectionKeys`) pairing the caller's responsibility
-    ///      and unforgeable by third parties — the circuit relays both
-    ///      verbatim and cannot validate them against an arbitrary contract's
-    ///      storage layout. A caller that pairs them inconsistently only
-    ///      misleads its own counterpart.
+    ///      request proofs of its own state. The circuit relays `slotKey` and
+    ///      `collectionKeys` verbatim without checking them against the
+    ///      caller's layout, so consumers should derive both from the same
+    ///      validated input rather than letting untrusted callers choose them
+    ///      independently.
     ///
-    ///      Integration rule for consumers: derive `slotKey` and
-    ///      `collectionKeys` inside your contract from the same validated
-    ///      input. Never expose a pass-through that lets untrusted callers
-    ///      choose them independently.
-    ///
-    ///      Send exactly `proofRequestQueueFee`: any excess is retained as
-    ///      protocol fees rather than refunded, which keeps this function free
-    ///      of outbound calls. Read the fee in the same transaction to avoid
-    ///      racing a change to it.
+    ///      Send exactly `proofRequestQueueFee`; any excess is retained as
+    ///      protocol fees rather than refunded. Read the fee in the same
+    ///      transaction to avoid racing a change to it.
     /// @param slotKey Raw 32-byte storage key to prove under `msg.sender`.
     /// @param collectionKeys Up to `MAX_COLLECTION_KEYS` identifiers locating
     ///        the value within its collection.
@@ -235,15 +207,13 @@ contract NoriProofRequestQueue {
         request.target = msg.sender;
         request.slotKey = slotKey;
         request.collectionKeysCount = uint8(keysCount);
-        // Unused key words are never written, so they stay absent from the
-        // storage trie and the circuit reads them as zero via an exclusion
-        // proof. Ids are never reused, so there is nothing stale to clear.
+        // Unused key words are left unwritten: absent from the storage trie,
+        // and read as zero by the circuit via an exclusion proof
         for (uint256 k = 0; k < keysCount; k++) {
             request.collectionKeys[k] = collectionKeys[k];
         }
 
-        // Cannot realistically overflow: one enqueue costs at least a
-        // non-zero SSTORE, so 2^256 requests are unreachable.
+        // Each enqueue costs a non-zero SSTORE, so 2^256 requests are unreachable
         unchecked {
             head = requestId + 1;
         }
@@ -268,7 +238,7 @@ contract NoriProofRequestQueue {
     // -------------------------------
     /// @notice Rotate the operator to a new address.
     /// @dev Allows migration from one Timelock or Safe to another without
-    ///      redeploying — the provable slots are untouched by this call.
+    ///      redeploying.
     function setOperator(address newOperator) external onlyOperator {
         if (newOperator == address(0)) revert ZeroAddress();
 
@@ -283,8 +253,7 @@ contract NoriProofRequestQueue {
     // -------------------------------
     /// @notice Set the per-request fee.
     /// @dev Timelocking is external: `operator` is the TimelockController, so
-    ///      every change already carries the timelock delay and Safe
-    ///      approval. `MAX_PROOF_REQUEST_QUEUE_FEE` bounds the outcome anyway.
+    ///      every change carries the timelock delay and Safe approval.
     /// @param newFee New fee in wei; at most `MAX_PROOF_REQUEST_QUEUE_FEE` and
     ///        a multiple of `PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI`.
     function setProofRequestQueueFee(uint256 newFee) external onlyOperator {
@@ -310,11 +279,7 @@ contract NoriProofRequestQueue {
     }
 
     /// @notice Withdraw accumulated fees to the fee recipient.
-    /// @dev Only callable by the feeRecipient. Uses CEI; deliberately not
-    ///      guarded by OpenZeppelin's ReentrancyGuard, whose `_status` would
-    ///      occupy provable slot 0. A reentrant call would find
-    ///      `accumulatedFees` already zeroed and revert with
-    ///      `NoFeesToWithdraw`.
+    /// @dev Only callable by the feeRecipient. Uses CEI.
     function withdrawFees() external {
         if (feeRecipient == address(0)) revert FeeRecipientNotSet();
         if (msg.sender != feeRecipient) revert NotFeeRecipient();

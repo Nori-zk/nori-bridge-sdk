@@ -10,29 +10,29 @@ import * as Contracts from "./index.js";
 
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
-  getContractFactory(name: 'MinaAccountValidation', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaAccountValidation__factory>
+  getContractFactory(name: 'NoriTokenBridge', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NoriTokenBridge__factory>
+getContractFactory(name: 'NoriProofRequestQueue', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NoriProofRequestQueue__factory>
+getContractFactory(name: 'MinaAccountValidation', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaAccountValidation__factory>
 getContractFactory(name: 'MinaStateSettlement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MinaStateSettlement__factory>
 getContractFactory(name: 'TimelockController', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TimelockController__factory>
-getContractFactory(name: 'NoriProofRequestQueue', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NoriProofRequestQueue__factory>
-getContractFactory(name: 'NoriTokenBridge', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NoriTokenBridge__factory>
 
-  getContractAt(name: 'MinaAccountValidation', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaAccountValidation>
+  getContractAt(name: 'NoriTokenBridge', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NoriTokenBridge>
+getContractAt(name: 'NoriProofRequestQueue', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NoriProofRequestQueue>
+getContractAt(name: 'MinaAccountValidation', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaAccountValidation>
 getContractAt(name: 'MinaStateSettlement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MinaStateSettlement>
 getContractAt(name: 'TimelockController', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TimelockController>
-getContractAt(name: 'NoriProofRequestQueue', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NoriProofRequestQueue>
-getContractAt(name: 'NoriTokenBridge', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NoriTokenBridge>
 
-  deployContract(name: 'MinaAccountValidation', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidation>
+  deployContract(name: 'NoriTokenBridge', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriTokenBridge>
+deployContract(name: 'NoriProofRequestQueue', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriProofRequestQueue>
+deployContract(name: 'MinaAccountValidation', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidation>
 deployContract(name: 'MinaStateSettlement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaStateSettlement>
 deployContract(name: 'TimelockController', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TimelockController>
-deployContract(name: 'NoriProofRequestQueue', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriProofRequestQueue>
-deployContract(name: 'NoriTokenBridge', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriTokenBridge>
 
-  deployContract(name: 'MinaAccountValidation', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidation>
+  deployContract(name: 'NoriTokenBridge', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriTokenBridge>
+deployContract(name: 'NoriProofRequestQueue', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriProofRequestQueue>
+deployContract(name: 'MinaAccountValidation', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaAccountValidation>
 deployContract(name: 'MinaStateSettlement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MinaStateSettlement>
 deployContract(name: 'TimelockController', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TimelockController>
-deployContract(name: 'NoriProofRequestQueue', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriProofRequestQueue>
-deployContract(name: 'NoriTokenBridge', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NoriTokenBridge>
 
     // default types
     getContractFactory(

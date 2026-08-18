@@ -1,8 +1,7 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { decodeConsensusMptProof } from './utils.js';
+import { decodeConsensusMptProof, fieldToBytesLE } from './utils.js';
 import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 import { Bool, Field, Provable, UInt8 } from 'o1js';
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
 
 new LogPrinter('TestO1jsZkUtils');
 const logger = new Logger('UtilsSpec');
@@ -88,7 +87,7 @@ describe('ConsensusMPT marshaller Integration Test', () => {
         }
 
         // p - 1 (max valid field element) -> valid
-        const maxValidBytes = wordToBytes(new Field(Field.ORDER - 1n), 32);
+        const maxValidBytes = fieldToBytesLE(new Field(Field.ORDER - 1n));
         logger.log(
             'p-1 LE bytes:',
             maxValidBytes.map((u) => u.toNumber())

@@ -2,7 +2,7 @@ import { UInt64 } from 'o1js';
 import { merkleLeafAttestorGenerator } from './merkleLeafAttestor.js';
 import { Bytes32 } from '../types.js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { wordToBytes } from '@nori-zk/proof-conversion';
+import { fieldToBytesLE } from '../utils.js';
 import {
     computeMerkleTreeDepthAndSize,
     foldMerkleLeft,
@@ -54,12 +54,12 @@ describe('Merkle Attestor Test', () => {
 
         console.log(`Hash result big int: ${hash.toBigInt()}`);
         console.log(
-            `Hash result bytes: ${wordToBytes(hash, 32).map((byte) =>
+            `Hash result bytes: ${fieldToBytesLE(hash).map((byte) =>
                 byte.toNumber()
             )}`
         );
         console.log(
-            `Hash result hex: ${wordToBytes(hash, 32)
+            `Hash result hex: ${fieldToBytesLE(hash)
                 .map((byte) => byte.toNumber().toString(16).padStart(2, '0'))
                 .join('')}`
         );
@@ -70,7 +70,7 @@ describe('Merkle Attestor Test', () => {
 
         console.log('Provable hash result', hash2.toBigInt().toString());
         console.log(
-            `Provable hash result hex: ${wordToBytes(hash2, 32)
+            `Provable hash result hex: ${fieldToBytesLE(hash2)
                 .map((byte) => byte.toNumber().toString(16).padStart(2, '0'))
                 .join('')}`
         );

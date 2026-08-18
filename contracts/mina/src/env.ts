@@ -6,7 +6,7 @@ type Env = {
     NORI_MINA_TOKEN_BRIDGE_ADDRESS: string;
     NORI_MINA_TOKEN_BASE_ADDRESS: string;
     NORI_ETH_TOKEN_BRIDGE_ADDRESS: string;
-    NORI_ETH_GENESIS_ROOT: string;
+    NORI_ETH_PROOF_QUEUE_ADDRESS: string;
     NORI_MINA_TOKEN_BASE_TOKEN_ID: string;
     NORI_MINA_TOKEN_BRIDGE_TOKEN_ID: string;
     MINA_ARCHIVE_RPC_URL: string;
@@ -28,7 +28,8 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
                 NORI_MINA_TOKEN_BASE_ADDRESS:
                     'B62qjF2S71pPfMyiSBXscHVmsHtBReRzXB1DkMg6HxZUbPW2a1bYSQH',
                 NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0xa2817F30a73B32860184E444Fc80018A45aD2CF6',
-                NORI_ETH_GENESIS_ROOT: '0xd8ea171f3c94aea21ebc42a1ed61052acf3f9209c00e4efbaaddac09ed9b8078',
+                // Placeholder until the NoriProofRequestQueue is deployed; written by ethereum `npm run deploy`.
+                NORI_ETH_PROOF_QUEUE_ADDRESS: '0x0000000000000000000000000000000000000000',
                 NORI_MINA_TOKEN_BASE_TOKEN_ID:
                     '24076995954020199447973315155258633096183592652675591033300568109713209038362',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:

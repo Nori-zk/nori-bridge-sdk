@@ -18,7 +18,7 @@ export { bridgeHeadNoriSP1HeliosProgramPi0 } from './integrity/BridgeHead.NoriSP
 export { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToPlonk.po2.js';
 export { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js'
 
-export { EthVerifier, EthProof, EthInput, EthProofType } from './ethVerifier.js';
+export { EthVerifier, EthProof, EthInput, EthProofType, ethInputToBytes } from './ethVerifier.js';
 
 export * from './types.js';
 
@@ -29,6 +29,15 @@ export {
     buildContractDepositLeaves,
     getContractDepositWitness,
     ContractDeposit,
+    provableStorageSlotLeafHash,
+    MAX_COLLECTION_KEYS,
+    VerifiedRequest,
+    provableRequestLeafHash,
+    VerifiedRequestAttestorInput,
+    VerifiedRequestAttestor,
+    VerifiedRequestAttestorProof,
+    buildVerifiedRequestLeaves,
+    getVerifiedRequestWitness,
 } from './ContractDepositAttestor.js';
 
 export * from './nodeProofLeft.patch.js';

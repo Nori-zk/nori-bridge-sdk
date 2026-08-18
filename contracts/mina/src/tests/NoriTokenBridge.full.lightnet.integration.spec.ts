@@ -53,6 +53,7 @@ import {
     getNewMinaLiteNetAccountKeyPair,
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
+    TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX,
 } from './testUtils.js';
 import { getTokenBridgeTester } from '../workers/tokenBridgeTester/node/parent.js';
 
@@ -189,7 +190,9 @@ function merkleInputToJson(
     return {
         depositIndex: Number(input.index.toBigInt()),
         despositSlotRaw: {
-            slot_key_code_challenge: '0x' + input.value.codeChallenge.toHex(),
+            target: '0x' + input.value.target.toHex(),
+            collectionKeysCount: Number(input.value.collectionKeysCount.toBigInt()),
+            collectionKeys: input.value.collectionKeys.map((key) => '0x' + key.toHex()),
             value: '0x' + input.value.value.toHex(),
         },
         path,
@@ -271,10 +274,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         test('should deploy NoriTokenBridge and FungibleToken via worker', async () => {
             const inputStoreHashHex = ethInput1.inputStoreHash.toHex();
             const decoded = decodeConsensusMptProof(examples[0].sp1PlonkProof);
-            const ethTokenBridgeAddressHex = new Bytes20(
-                decoded.contractAddress.bytes
+            const ethTokenBridgeAddressHex = TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX;
+            const ethProofQueueAddressHex = new Bytes20(
+                decoded.proofRequestQueueAddress.bytes
             ).toHex();
-            const genesisRootHex = decoded.genesisRoot.toHex();
 
             await tester.deployContracts(
                 deployer.privateKey.toBase58(),
@@ -283,7 +286,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 tokenBaseKeypair.privateKey.toBase58(),
                 inputStoreHashHex,
                 ethTokenBridgeAddressHex,
-                genesisRootHex,
+                ethProofQueueAddressHex,
                 storageInterfaceVerificationKeySafe,
                 bridgeHeadNoriSP1HeliosProgramPi0,
                 proofConversionSP1ToPlonkPO2,

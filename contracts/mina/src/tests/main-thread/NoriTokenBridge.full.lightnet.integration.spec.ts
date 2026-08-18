@@ -45,8 +45,8 @@ import {
     Bytes32,
     Bytes32FieldPair,
     bytes32LEToFieldProvable,
-    extractEthTokenBridgeAddressFromSP1Proof,
-    extractGenesisRootFromSP1Proof,
+    Bytes20,
+    extractEthProofQueueAddressFromSP1Proof,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils';
@@ -55,7 +55,7 @@ import {
 import type { NodeProofLeft as NodeProofLeftRaw } from '@nori-zk/proof-conversion/min';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
-import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit, fetchWindowStartWitness } from '../testUtils.js';
+import { getNewMinaLiteNetAccountKeyPair, keyPairBase58ToKeyPair, buildSyntheticDeposit, TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX, fetchWindowStartWitness } from '../testUtils.js';
 
 new LogPrinter('TestMinaNoriTokenBridge');
 const logger = new Logger('IntegrationLightnetTest');
@@ -215,8 +215,8 @@ describe('NoriTokenBridge', () => {
             const initialStoreHash = Bytes32FieldPair.fromBytes32(
                 ethInput1.inputStoreHash
             );
-            const ethTokenBridgeAddress = extractEthTokenBridgeAddressFromSP1Proof(examples[0]);
-            const genesisRoot = extractGenesisRootFromSP1Proof(examples[0]);
+            const ethTokenBridgeAddress = Bytes20.fromHex(TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX).toField();
+            const ethProofQueueAddress = extractEthProofQueueAddressFromSP1Proof(examples[0]);
 
             await txSend({
                 body: async () => {
@@ -228,9 +228,9 @@ describe('NoriTokenBridge', () => {
                         storageVKHash: storageInterfaceVK.hash,
                         newStoreHash: initialStoreHash,
                         ethTokenBridgeAddress,
+                        ethProofQueueAddress,
                         noriHeliosProgramPi0: FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                         proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
-                        genesisRoot,
                     });
 
                     await tokenBase.deploy({

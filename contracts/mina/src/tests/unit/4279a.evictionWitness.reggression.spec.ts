@@ -51,14 +51,14 @@ import {
     EthInput,
     decodeConsensusMptProof,
     Bytes32FieldPair,
-    extractEthTokenBridgeAddressFromSP1Proof,
-    extractGenesisRootFromSP1Proof,
+    Bytes20,
+    extractEthProofQueueAddressFromSP1Proof,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils';
 import { FrC } from '@nori-zk/proof-conversion/min';
 import { buildExampleProofSeriesCreateArguments } from '../../constructExampleProofs.js';
-import { buildSyntheticDeposit, txSend, fetchAccounts, fetchWindowStartWitness } from '../testUtils.js';
+import { buildSyntheticDeposit, TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX, txSend, fetchAccounts, fetchWindowStartWitness } from '../testUtils.js';
 import { maxWindow } from '../../NoriTokenBridge.const.js';
 
 new LogPrinter('TestMinaNoriTokenBridgeEvictionWitness');
@@ -143,8 +143,8 @@ describe.skip('NoriTokenBridge — eviction witness integrity', () => {
         const examples = buildExampleProofSeriesCreateArguments();
         const ethInput1 = new EthInput(decodeConsensusMptProof(examples[0].sp1PlonkProof));
         const initialStoreHash = Bytes32FieldPair.fromBytes32(ethInput1.inputStoreHash);
-        const ethTokenBridgeAddress = extractEthTokenBridgeAddressFromSP1Proof(examples[0]);
-        const genesisRoot = extractGenesisRootFromSP1Proof(examples[0]);
+        const ethTokenBridgeAddress = Bytes20.fromHex(TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX).toField();
+        const ethProofQueueAddress = extractEthProofQueueAddressFromSP1Proof(examples[0]);
 
         await txSend({
             body: async () => {
@@ -157,7 +157,7 @@ describe.skip('NoriTokenBridge — eviction witness integrity', () => {
                     ethTokenBridgeAddress,
                     noriHeliosProgramPi0: FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                     proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
-                    genesisRoot,
+                    ethProofQueueAddress,
                 });
                 await tokenBase.deploy({
                     symbol: 'nETH',

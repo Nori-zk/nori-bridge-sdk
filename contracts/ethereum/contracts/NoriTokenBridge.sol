@@ -18,14 +18,11 @@ import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 ///      Fees are collected on both lock and unlock operations and are
 ///      withdrawable by a separate `feeRecipient` address (treasury).
 ///
-///      Every lock enqueues a storage-proof request on `proofQueue`, which is
-///      what forces the deposit into the next consensus proof instead of
-///      leaving its inclusion to the operator's discretion. The lock fee is
-///      therefore two parts added together: the queue's flat per-request fee,
-///      forwarded straight to the queue to pay for that proving work, plus
-///      `lockFeeRate` applied to the deposit, which is the only part the
-///      treasury keeps. With `lockFeeRate` at zero a depositor pays exactly
-///      the proof request queue fee. Use `previewLock` to quote either case.
+///      Every lock enqueues a storage-proof request on `proofQueue`, which
+///      forces the deposit into the next consensus proof. The lock fee is two
+///      parts added together: the queue's flat per-request fee, forwarded to
+///      the queue, plus `lockFeeRate` applied to the deposit, which is the
+///      only part the treasury keeps. `previewLock` quotes both.
 contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // Constants
@@ -37,13 +34,8 @@ contract NoriTokenBridge is ReentrancyGuard {
     uint32 public constant FEE_DENOMINATOR = 100_000;
     uint256 public constant MIN_FEE_BU = 10;
     /// @notice Smallest deposit `lockTokens` accepts.
-    /// @dev Sits an order of magnitude above the expected queue fee, so the
-    ///      flat part of the fee stays a modest share of even the smallest
-    ///      deposit. A deposit must also leave something after fees, which
-    ///      `FeeExceedsLockAmount` enforces separately. The queue's fee
-    ///      ceiling is far above this figure to leave room for extreme gas
-    ///      conditions, so it is the operator's responsibility to keep the
-    ///      live fee well below this — otherwise the smallest deposits revert.
+    /// @dev Independent of the queue fee: a deposit must also leave something
+    ///      after fees, which `FeeExceedsLockAmount` enforces separately.
     uint256 public constant MIN_LOCK_AMOUNT_WEI = 1000 * WEI_PER_BRIDGE_UNIT; // 0.001 ETH minimum deposit
     /// @notice Storage slot index of `lockedTokens`, used to derive the
     ///         storage key enqueued with each deposit.
@@ -99,12 +91,9 @@ contract NoriTokenBridge is ReentrancyGuard {
     /// @notice The NoriStorageInterface zkApp tokenID. Set at deployment.
     bytes32 public immutable NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID;
     /// @notice Queue this bridge enqueues its deposit storage-proof requests on.
-    /// @dev Immutable, and immutable on purpose. The Mina bridge pins the
-    ///      queue address at deploy time with no setter, so repointing this
-    ///      bridge at a different queue without redeploying the Mina side
-    ///      would silently stop deposits being proven. Both sides move
-    ///      together or not at all. Being immutable also keeps it out of
-    ///      storage entirely, so `lockedTokens` stays at slot 2.
+    /// @dev No setter: the Mina bridge pins the same queue address at its own
+    ///      deploy time, so both sides move together or not at all. Immutable
+    ///      also keeps it out of storage, leaving `lockedTokens` at slot 2.
     NoriProofRequestQueue public immutable proofQueue;
     // -------------------------------
     // Fee State
@@ -162,8 +151,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     /// @param _bridgeOperator The admin address (expected to be a Safe in production).
     /// @param _stateSettlementAddr Mina state settlement contract address.
     /// @param _accountValidationAddr Mina account validation contract address.
-    /// @param _proofQueueAddr NoriProofRequestQueue address. Immutable once set —
-    ///        the Mina bridge pins the same address at its own deploy time.
+    /// @param _proofQueueAddr NoriProofRequestQueue address. Immutable once set.
     /// @param _zkappAcctTokenId The Mina zkApp account tokenID expected during unlock validation.
     /// @param _zkappAcctVerificationKeyHash The keccak256 of the ABI-encoded NoriStorage zkApp
     ///        verification key, expected during unlock validation.
@@ -248,8 +236,6 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         // ===============================
         // FEE DEDUCTION (in bridge units)
-        // Two parts added together: the flat queue fee, forwarded to the
-        // queue, plus the configured rate, which the treasury keeps.
         // ===============================
         uint256 grossBU = msg.value / WEI_PER_BRIDGE_UNIT;
         (uint256 feeBU, uint256 netBU) = _splitFee(grossBU, queueFeeWei);
@@ -263,14 +249,13 @@ contract NoriTokenBridge is ReentrancyGuard {
         // ===============================
         lockedTokens[codeChallenge] += netBU;
         totalLockedBU += netBU;
-        // The treasury keeps only the rate portion; the rest funds the proof.
+        // The treasury keeps only the rate portion
         accumulatedFees += feeWei - queueFeeWei;
 
         // ===============================
         // PROOF REQUEST
-        // Bind this deposit's storage slot to its codeChallenge. Both are
-        // derived here from the same input, so the pairing cannot be forged:
-        // the queue records this contract as the request's target.
+        // slotKey and collectionKeys are both derived from codeChallenge here,
+        // so the pairing cannot be forged by the caller.
         // ===============================
         bytes32 slotKey = keccak256(
             abi.encode(codeChallenge, LOCKED_TOKENS_SLOT_INDEX)
@@ -288,9 +273,8 @@ contract NoriTokenBridge is ReentrancyGuard {
     }
 
     /// @notice Quote what a deposit of `grossAmount` wei would cost and lock.
-    /// @dev The inverse of `calcGrossLockAmount`, which goes from a desired net
-    ///      to the required gross. Reverts on any amount `lockTokens` would
-    ///      itself reject, so a successful quote is also a validity check.
+    /// @dev The inverse of `calcGrossLockAmount`. Reverts on any amount
+    ///      `lockTokens` would reject.
     /// @param grossAmount The msg.value the caller intends to send.
     /// @return feeWei Total fee: the flat queue fee plus the rate portion.
     /// @return netWei Amount that would be credited to the codeChallenge.
@@ -309,9 +293,8 @@ contract NoriTokenBridge is ReentrancyGuard {
         netWei = netBU * WEI_PER_BRIDGE_UNIT;
     }
 
-    /// @dev The whole fee model in one place: a flat queue fee plus the
-    ///      configured rate. Shared by `lockTokens` and `previewLock` so a
-    ///      quote can never disagree with what the deposit is actually charged.
+    /// @dev Shared by `lockTokens` and `previewLock` so a quote cannot
+    ///      disagree with what the deposit is charged.
     function _splitFee(
         uint256 grossBU,
         uint256 queueFeeWei
@@ -322,8 +305,7 @@ contract NoriTokenBridge is ReentrancyGuard {
 
         // Exact: the queue only accepts a bridge-unit-aligned fee
         feeBU = (queueFeeWei / WEI_PER_BRIDGE_UNIT) + rateFeeBU;
-        // A deposit must never be consumed entirely by its own fee. Only
-        // reachable if the queue fee is set near MIN_LOCK_AMOUNT_WEI.
+        // A deposit must never be consumed entirely by its own fee
         if (feeBU >= grossBU) revert FeeExceedsLockAmount();
 
         netBU = grossBU - feeBU;
@@ -518,7 +500,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     /// @dev The returned grossAmount is clamped to at least MIN_LOCK_AMOUNT_WEI so it
     ///      will always pass lockTokens() validation. If the caller's desiredNetAmount
     ///      is tiny, actualNetAmount may exceed it due to the minimum gross constraint.
-    ///      The quote covers both fee parts: the flat proof request queue fee and the rate.
+    ///      Covers both fee parts: the flat queue fee and the rate.
     /// @param desiredNetAmount The net amount (in wei) the caller wants locked.
     /// @return grossAmount The msg.value to send (includes fee).
     /// @return fee The fee portion that will be deducted.
@@ -537,8 +519,7 @@ contract NoriTokenBridge is ReentrancyGuard {
         uint256 desiredNetBU = (desiredNetAmount + WEI_PER_BRIDGE_UNIT - 1) /
             WEI_PER_BRIDGE_UNIT;
 
-        // The proof request queue fee is flat, so it simply raises the target the rate has
-        // to be solved against.
+        // The queue fee is flat, so it raises the target the rate is solved against
         uint256 targetBU = desiredNetBU + queueFeeBU;
 
         uint256 grossBU;
