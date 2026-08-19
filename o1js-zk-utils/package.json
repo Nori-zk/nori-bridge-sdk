@@ -66,7 +66,7 @@
     },
     "dependencies": {
         "@nori-zk/proof-conversion": "0.8.28",
-        "@nori-zk/pts-types": "6.0.1",
+        "@nori-zk/pts-types": "7.0.0",
         "dotenv": "^17.2.4",
         "esm-iso-logger": "1.0.2",
         "@nori-zk/mina-attestations": "0.6.6"
