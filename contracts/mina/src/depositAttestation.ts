@@ -35,6 +35,7 @@ export class MerkleTreeContractDepositAttestorInput extends Struct({
 }) { }
 
 /** One entry of a proven batch, as carried by the proof bundle. */
+// FIXME get this from pts-types its called 'VerifiedRequest' so you may need an alias
 export type VerifiedRequestJson = {
     target: string;
     collectionKeysCount: number;

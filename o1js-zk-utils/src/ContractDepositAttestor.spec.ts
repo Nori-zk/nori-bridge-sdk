@@ -7,7 +7,8 @@ import {
     ContractDeposit,
     provableStorageSlotLeafHash,
 } from './ContractDepositAttestor.js';
-import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
+// FIXME this needs to actually be update to contain a proof request!
+import { sp1ConsensusMPTPlonkProof as _sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 import { Bytes32 } from './types.js';
 import {
     computeMerkleTreeDepthAndSize,
@@ -21,6 +22,9 @@ import {
     fieldToHexLE,
     uint8ArrayToBigIntBE,
 } from './utils.js';
+import { VerifiedRequest } from '@nori-zk/pts-types';
+
+const sp1ConsensusMPTPlonkProof = _sp1ConsensusMPTPlonkProof as typeof _sp1ConsensusMPTPlonkProof & {verified_requests: VerifiedRequest};
 
 const logger = new Logger('ContractDepositAttestor');
 new LogPrinter('TestO1JsZkUtils');
@@ -44,7 +48,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
 
         // Build contractStorageSlot from sp1 mpt message.
         const contractStorageSlots =
-            sp1ConsensusMPTPlonkProof.contract_storage_slots.map((slot) => {
+            sp1ConsensusMPTPlonkProof.verified_requests.map((slot) => {
                 const codeChallenge = Bytes32.fromHex(
                     slot.slot_key_code_challenge
                         .slice(2)
@@ -63,7 +67,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         const leaves = buildContractDepositLeaves(contractStorageSlots);
 
         // Pick an index
-        let index = sp1ConsensusMPTPlonkProof.contract_storage_slots.length - 1;
+        let index = sp1ConsensusMPTPlonkProof.verified_requests.length - 1;
 
         // Find Value
         const slotToFind = contractStorageSlots.find((_, idx) => idx === index);
