@@ -1,89 +1,24 @@
 import {
-    Bool,
     type Cache,
     Field,
-    Provable,
     Poseidon,
     type SmartContract,
     UInt64,
     type UInt8,
     type VerificationKey,
 } from 'o1js';
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { wordToBytesCanonical } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
 import { Bytes20, Bytes32, type CompilableZkProgram, type CreateProofArgument } from './types.js';
 import { type Logger } from 'esm-iso-logger';
 
 // Bytes32 Field utils
 
-export function isLessThanFieldPrimeLE(bytes: UInt8[]): Bool {
-    // Mina field prime p in LE as Fields
-    const P_LE: Field[] = [
-        1n,
-        0n,
-        0n,
-        0n,
-        237n,
-        48n,
-        45n,
-        153n,
-        27n,
-        249n,
-        76n,
-        9n,
-        252n,
-        152n,
-        70n,
-        34n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        64n,
-    ].map((b) => new Field(b));
-    // Scan from bytes[31] (MSB) down to bytes[0] (LSB).
-    // `strictlyLess` starts false and can only ever flip true — never reset.
-    // `different` latches true the moment any byte differs from p's byte.
-    // Once `different` is true, `different.not()` is false, so no future byte
-    // can update `strictlyLess` — it is frozen at whatever it was set to.
-    // Therefore: `strictlyLess` becomes true if at the first differing byte
-    // position (from MSB), the input byte was less than p's byte.
-    // If all bytes match (input == p), `different` never latches and
-    // `strictlyLess` stays false — correctly rejecting p itself.
-    let strictlyLess = Bool(false);
-    let different = Bool(false);
-    for (let i = 31; i >= 0; i--) {
-        const pField = P_LE[i] as Field;
-        const byteField = (bytes[i] as UInt8).value;
-        const lt = byteField.lessThan(pField);
-        const eq = byteField.equals(pField);
-        strictlyLess = Provable.if(
-            different.not().and(lt),
-            Bool,
-            Bool(true),
-            strictlyLess
-        );
-        different = different.or(eq.not());
-    }
-    return strictlyLess;
-}
-
 export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
     // What if the Bytes32 represents a value greater than P - 1? We should do some
     // assertion that it isnt CHECKME
     // See 'Field order wrapping bytes 32 validation'
-    /*isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
+    /*isCanonicalFieldBytesLE(uint8ArrayLength32).assertTrue(
         'Given a uint8ArrayLength32 which exceeded p - 1'
     );*/
     // CHECKME removing this for now.... I think it may be redundant as the FixedBytes are constructed
@@ -107,7 +42,7 @@ export function uint8ArrayToBigIntLE(bytes: Uint8Array): bigint {
 }
 
 export function fieldToHexBE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
     return `0x${bytesBE
         .map((byte) => byte.toBigInt().toString(16).padStart(2, '0'))
@@ -115,20 +50,20 @@ export function fieldToHexBE(field: Field) {
 }
 
 export function fieldToBigIntBE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
     return bytesBE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
 }
 
 export function fieldToHexLE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     return `0x${bytesLE
         .map((byte) => byte.toBigInt().toString(16).padStart(2, '0'))
         .join('')}`;
 }
 
 export function fieldToBigIntLE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     return bytesLE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
 }
 

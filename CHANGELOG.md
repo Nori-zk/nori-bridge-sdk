@@ -1,5 +1,10 @@
 # Changelog
 
+## 20/8/26 - Updating proof-conversion to 0.8.29
+
+- Bumping proof-conversion to 0.8.29. Finding 1f602 commit 2 added a guard to `wordToBytes` that throws for `bytesPerWord >= 32`, which broke every 32-byte call site in this repo (`scram.ts`, `utils.ts`, and their tests). Commit 3 added `wordToBytesCanonical` as the sound replacement for those widths, so we ported all of them to it, including `scram.ts`.
+- Removed `isLessThanFieldPrimeLE` (`o1js-zk-utils/src/utils.ts`) and its test in `utils.spec.ts` as redundant now that upstream `isCanonicalFieldBytesLE` does the same check.
+
 ## 4/8/26 - Updating o1js, proof-conversion and mina-attestations
 
 - Bumping o1js to 3.0.0-mesa.rc2

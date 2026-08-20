@@ -1,4 +1,4 @@
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { wordToBytesCanonical } from '@nori-zk/proof-conversion/min';
 import { Bytes, CircuitString, fetchAccount, Field, Mina, PrivateKey, PublicKey, Signature, UInt64 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import {
@@ -142,7 +142,7 @@ export async function lockTokens(codeChallenge: Field, amount: number) {
     expect(amount).toBeLessThan(0.001);
 
     // Ensure we can do the field -> hex -> field round trip
-    const beBytes = Bytes.from(wordToBytes(codeChallenge, 32).reverse());
+    const beBytes = Bytes.from(wordToBytesCanonical(codeChallenge, 32).reverse());
     const codeChallengeHex = beBytes.toHex();
     logger.log('codeChallengeHex', codeChallengeHex);
     const bytesFromHex = Bytes.fromHex(codeChallengeHex); // this is be
