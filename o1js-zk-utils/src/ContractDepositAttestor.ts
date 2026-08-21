@@ -101,10 +101,8 @@ export class VerifiedRequest extends Struct({
 }) {}
 
 /**
- * Hashes one verified request into a Merkle leaf.
- *
  * Packs 117 bytes into four field elements, each held under the 254-bit field
- * size, then applies Poseidon:
+ * size:
  *
  * - field 1: `target` (20) ‖ `collectionKeysCount` ‖ `key0[0]` ‖ `key1[0]` ‖ `value[0]`
  * - field 2: `key0[1..32]`
@@ -115,7 +113,7 @@ export class VerifiedRequest extends Struct({
  * {@link provableStorageSlotLeafHash}. The SP1 guest's `hash_request_leaf`
  * packs identically; `request-leaf-vectors.json` pins the two together.
  */
-export function provableRequestLeafHash(request: VerifiedRequest) {
+export function packRequestLeafFields(request: VerifiedRequest): Field[] {
     const targetBytes = request.target.bytes; // UInt8[20]
     const keyBytes = request.collectionKeys.map((key) => key.bytes); // UInt8[32][]
     const valueBytes = request.value.bytes; // UInt8[32]
@@ -152,17 +150,26 @@ export function provableRequestLeafHash(request: VerifiedRequest) {
     ];
 
     // Little endian
-    const fields = packed.map((bytes) => {
+    return packed.map((bytes) => {
         let field = new Field(0);
         for (let i = 31; i >= 0; i--) {
             field = field.mul(256).add(bytes.bytes[i].value);
         }
         return field;
     });
-
-    return Poseidon.hash(fields);
 }
 
+/**
+ * Hashes one verified request into a Merkle leaf: packs it via
+ * {@link packRequestLeafFields}, then applies Poseidon to the four fields.
+ */
+export function provableRequestLeafHash(request: VerifiedRequest) {
+    return Poseidon.hash(packRequestLeafFields(request));
+}
+
+// FIXME deprecated, superseded by VerifiedRequestAttestor,
+// VerifiedRequestAttestorInput, VerifiedRequestAttestorProof,
+// buildVerifiedRequestLeaves, and getVerifiedRequestWitness below.
 const {
     MerkleTreeLeafAttestorInput: ContractDepositAttestorInput,
     MerkleTreeLeafAttestor: ContractDepositAttestor,
@@ -189,12 +196,16 @@ const {
     provableRequestLeafHash
 );
 
+// FIXME deprecated, superseded by the VerifiedRequestAttestor exports below.
 export {
     ContractDepositAttestorInput,
     ContractDepositAttestor,
     ContractDepositAttestorProof,
     buildContractDepositLeaves,
     getContractDepositWitness,
+};
+
+export {
     VerifiedRequestAttestorInput,
     VerifiedRequestAttestor,
     VerifiedRequestAttestorProof,

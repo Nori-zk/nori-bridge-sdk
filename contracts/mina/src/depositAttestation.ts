@@ -268,7 +268,7 @@ async function fetchContractWindowSlotProofs(
     const {
         consensusMPTProof: {
             proof: consensusMPTProofProof,
-            contract_storage_slots: consensusMPTProofContractStorageSlots,
+            verified_requests: consensusMPTProofContractStorageSlots,
         },
         consensusMPTProofVerification: consensusMPTProofVerification,
     } = await proofConversionServiceRequest(depositBlockNumber, domain);
@@ -283,11 +283,7 @@ async function fetchContractWindowSlotProofs(
 
     return {
         consensusMPTProofProof,
-        // Cast pending a @nori-zk/pts-types bump: the bundle entries follow the
-        // proof request queue shape (target, collectionKeysCount,
-        // collectionKeys, value), which the package does not yet declare.
-        consensusMPTProofContractStorageSlots:
-            consensusMPTProofContractStorageSlots as unknown as VerifiedRequestJson[],
+        consensusMPTProofContractStorageSlots,
         consensusMPTProofVerification,
     };
 }
@@ -311,9 +307,9 @@ export async function computeDepositAttestationWitness(
         return {
             //prettier-ignore
             target: `0x${request.target.slice(2).padStart(40, '0').toLowerCase()}`,
-            collectionKeysCount: request.collectionKeysCount,
+            collectionKeysCount: request.collection_keys_count,
             //prettier-ignore
-            collectionKeys: request.collectionKeys.map(
+            collectionKeys: request.collection_keys.map(
                 (key) => `0x${key.slice(2).padStart(64, '0')}`
             ),
             //prettier-ignore

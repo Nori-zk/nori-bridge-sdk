@@ -1,86 +1,95 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import {
-    ContractDepositAttestorInput,
-    ContractDepositAttestor,
-    buildContractDepositLeaves,
-    getContractDepositWitness,
-    ContractDeposit,
-    provableStorageSlotLeafHash,
+    VerifiedRequestAttestorInput,
+    VerifiedRequestAttestor,
+    buildVerifiedRequestLeaves,
+    getVerifiedRequestWitness,
+    VerifiedRequest,
+    provableRequestLeafHash,
+    MAX_COLLECTION_KEYS,
 } from './ContractDepositAttestor.js';
 // FIXME this needs to actually be update to contain a proof request!
 import { sp1ConsensusMPTPlonkProof as _sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
-import { Bytes32 } from './types.js';
+import { Bytes20, Bytes32 } from './types.js';
 import {
     computeMerkleTreeDepthAndSize,
     foldMerkleLeft,
     getMerkleZeros,
 } from './merkle-attestor/merkleTree.js';
-import { Field, UInt64 } from 'o1js';
+import { Field, UInt64, UInt8 } from 'o1js';
 import {
     createTimer,
     decodeConsensusMptProof,
     fieldToHexLE,
     uint8ArrayToBigIntBE,
 } from './utils.js';
-import { VerifiedRequest } from '@nori-zk/pts-types';
+import { type VerifiedRequest as VerifiedRequestJson } from '@nori-zk/pts-types';
 
-const sp1ConsensusMPTPlonkProof = _sp1ConsensusMPTPlonkProof as typeof _sp1ConsensusMPTPlonkProof & {verified_requests: VerifiedRequest};
+const sp1ConsensusMPTPlonkProof = _sp1ConsensusMPTPlonkProof as typeof _sp1ConsensusMPTPlonkProof & {verified_requests: VerifiedRequestJson[]};
 
-const logger = new Logger('ContractDepositAttestor');
+const logger = new Logger('VerifiedRequestAttestor');
 new LogPrinter('TestO1JsZkUtils');
 
-describe('Contract Storage Slot Deposit Attestor Test', () => {
-    test('contract_deposit_pipeline', async () => {
+describe('Verified Request Attestor Test', () => {
+    test('verified_request_pipeline', async () => {
         // Analyse zk program
-        const contractDepositAttestorAnalysis =
-            await ContractDepositAttestor.analyzeMethods();
+        const verifiedRequestAttestorAnalysis =
+            await VerifiedRequestAttestor.analyzeMethods();
         logger.log(
-            `ContractDepositAttestor analyze methods gates length '${contractDepositAttestorAnalysis.compute.gates.length}'.`
+            `VerifiedRequestAttestor analyze methods gates length '${verifiedRequestAttestorAnalysis.compute.gates.length}'.`
         );
 
         // Build zk program
-        const { verificationKey } = await ContractDepositAttestor.compile({
+        const { verificationKey } = await VerifiedRequestAttestor.compile({
             forceRecompile: true,
         });
         logger.log(
-            `ContractDepositAttestor contract compiled vk: '${verificationKey.hash}'.`
+            `VerifiedRequestAttestor contract compiled vk: '${verificationKey.hash}'.`
         );
 
-        // Build contractStorageSlot from sp1 mpt message.
-        const contractStorageSlots =
-            sp1ConsensusMPTPlonkProof.verified_requests.map((slot) => {
-                const codeChallenge = Bytes32.fromHex(
-                    slot.slot_key_code_challenge
-                        .slice(2)
-                        .padStart(64, '0')
+        // Build VerifiedRequest structs from sp1 mpt message.
+        const verifiedRequests = sp1ConsensusMPTPlonkProof.verified_requests.map(
+            (slot) => {
+                const collectionKeys = Array.from(
+                    { length: MAX_COLLECTION_KEYS },
+                    (_unused, i) =>
+                        Bytes32.fromHex(
+                            (slot.collection_keys[i] ?? `0x${'0'.repeat(64)}`)
+                                .slice(2)
+                                .padStart(64, '0')
+                        )
                 );
-                const valuePad = slot.value.slice(2).padStart(64, '0');
-                console.log('padded value', valuePad);
-                const value = Bytes32.fromHex(valuePad);
-                return new ContractDeposit({
-                    codeChallenge,
-                    value,
+                return new VerifiedRequest({
+                    target: Bytes20.fromHex(
+                        slot.target.slice(2).padStart(40, '0')
+                    ),
+                    collectionKeysCount: UInt8.from(slot.collection_keys_count),
+                    collectionKeys,
+                    value: Bytes32.fromHex(
+                        slot.value.slice(2).padStart(64, '0')
+                    ),
                 });
-            });
+            }
+        );
 
         // Build leaves
-        const leaves = buildContractDepositLeaves(contractStorageSlots);
+        const leaves = buildVerifiedRequestLeaves(verifiedRequests);
 
         // Pick an index
         let index = sp1ConsensusMPTPlonkProof.verified_requests.length - 1;
 
         // Find Value
-        const slotToFind = contractStorageSlots.find((_, idx) => idx === index);
+        const slotToFind = verifiedRequests.find((_, idx) => idx === index);
 
         if (!slotToFind) throw new Error(`Slot at ${index} not found`);
 
         console.log(
-            'provableStorageSlotLeafHash',
-            provableStorageSlotLeafHash(slotToFind).toBigInt().toString(16)
+            'provableRequestLeafHash',
+            provableRequestLeafHash(slotToFind).toBigInt().toString(16)
         );
 
         // Compute path
-        const path = getContractDepositWitness([...leaves], index);
+        const path = getVerifiedRequestWitness([...leaves], index);
 
         //console.log('path', path._dummyMask());
 
@@ -96,7 +105,7 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
         );
 
         // Build ZK input
-        const input = new ContractDepositAttestorInput({
+        const input = new VerifiedRequestAttestorInput({
             path,
             index: UInt64.from(index),
             value: slotToFind,
@@ -106,8 +115,8 @@ describe('Contract Storage Slot Deposit Attestor Test', () => {
 
         // Prove deposit with sample data.
         const timer = createTimer();
-        const output = await ContractDepositAttestor.compute(input);
-        logger.log(`ContractDepositAttestor.compute took ${timer()}`);
+        const output = await VerifiedRequestAttestor.compute(input);
+        logger.log(`VerifiedRequestAttestor.compute took ${timer()}`);
 
         const decodedProof = decodeConsensusMptProof(
             sp1ConsensusMPTPlonkProof.proof
