@@ -8,7 +8,6 @@ import {
     provableRequestLeafHash,
     MAX_COLLECTION_KEYS,
 } from './ContractDepositAttestor.js';
-// FIXME this needs to actually be update to contain a proof request!
 import { sp1ConsensusMPTPlonkProof as _sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 import { Bytes20, Bytes32 } from './types.js';
 import {
@@ -16,11 +15,10 @@ import {
     foldMerkleLeft,
     getMerkleZeros,
 } from './merkle-attestor/merkleTree.js';
-import { Field, UInt64, UInt8 } from 'o1js';
+import { UInt64, UInt8 } from 'o1js';
 import {
     createTimer,
     decodeConsensusMptProof,
-    fieldToHexLE,
     uint8ArrayToBigIntBE,
 } from './utils.js';
 import { type VerifiedRequest as VerifiedRequestJson } from '@nori-zk/pts-types';
@@ -134,29 +132,5 @@ describe('Verified Request Attestor Test', () => {
 
         expect(output.proof.publicOutput.toBigInt()).toBe(rootHash.toBigInt());
         expect(decodedProofContractDepositRootBigInt).toEqual(output.proof.publicOutput.toBigInt());
-    });
-
-    test('attestation_hash_calculation', () => {
-        const dummyAttestationField = new Field(101);
-        // Convert this field into words
-        let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
-        console.log('dummyAttestationHex', dummyAttestationHex);
-    });
-
-    test('attestation_hash_calculation_2', () => {
-        const dummyAttestationField = new Field(1000000500000000);
-        // Convert this field into words
-        let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
-        console.log('dummyAttestationHex', dummyAttestationHex);
-    });
-
-    test('attestation_hash_calculation_3', () => {
-        const dummyAttestationField = new Field(
-            21664331661517759511819594545016066304824539159186122091565436915814825459759n
-        );
-        // Convert this field into words
-        let dummyAttestationHex = fieldToHexLE(dummyAttestationField);
-        console.log('dummyAttestationHex', dummyAttestationHex);
-        // 0x2f000000000000000000000000000000000000000000000000038d7ec293e52f
     });
 });
