@@ -39,11 +39,11 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-// MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
+// VerifiedRequestWitnessInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
-    MerkleTreeContractDepositAttestorInput, extractCodeChallengeAndTotalLocked,
-    getContractDepositSlotRootFromContractDepositAndWitness,
+    VerifiedRequestWitnessInput, extractCodeChallengeAndTotalLocked,
+    getVerifiedRequestSlotRootFromWitness,
 } from './depositAttestation.js';
 // SCRAMWitness must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -180,11 +180,11 @@ export class NoriTokenBridge
     @state(Field) proofConversionPO2 = State<Field>();
 
     /** Chain-linkage hash (high byte) — the next proof's `inputStoreHash` must match this + lower bytes. */
-    @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
-    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliusStoreInputHashHighByte`. */
-    @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
-    /** Deposits root from the most recent successful `update` (exposed for off-chain consumers). */
-    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
+    @state(Field) latestHeliosStoreInputHashHighByte = State<Field>();
+    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliosStoreInputHashHighByte`. */
+    @state(Field) latestHeliosStoreInputHashLowerBytes = State<Field>();
+    /** Verified requests root from the most recent successful `update` (exposed for off-chain consumers). */
+    @state(Field) latestVerifiedRequestsRoot = State<Field>();
     /** The Ethereum contract address associated with this token bridge. */
     @state(Field) ethTokenBridgeAddress = State<Field>();
 
@@ -237,10 +237,10 @@ export class NoriTokenBridge
         // Set inital state of store hash.
         // await this.updateStoreHash(newStoreHash); // Reintroduce this instead of the immediate below when we can
         // verify that this.admin.getAndRequireEquals() == adminPublicKey immediately after this.admin.set(adminPublicKey);
-        this.latestHeliusStoreInputHashHighByte.set(
+        this.latestHeliosStoreInputHashHighByte.set(
             props.newStoreHash.highByteField
         );
-        this.latestHeliusStoreInputHashLowerBytes.set(
+        this.latestHeliosStoreInputHashLowerBytes.set(
             props.newStoreHash.lowerBytesField
         );
 
@@ -325,9 +325,9 @@ export class NoriTokenBridge
      *     `queueCursor` advances to `input.outputQueueCursor`
      *   - `latestHead` is set to `input.outputSlot` (must strictly increase)
      *   - `verifiedStateRoot` is set to Poseidon(`input.executionStateRoot`)
-     *   - `latestHeliusStoreInputHash{HighByte,LowerBytes}` advance to the
+     *   - `latestHeliosStoreInputHash{HighByte,LowerBytes}` advance to the
      *     new store hash (prior values must match the proof's `inputStoreHash`)
-     *   - `input.verifiedContractDepositsRoot` is dispatched into the rolling
+     *   - `input.verifiedRequestsRoot` is dispatched into the rolling
      *     window; when the window is full, the oldest action is evicted —
      *     its identity is derived in-circuit via the reducer (no caller witness).
      */
@@ -372,29 +372,29 @@ export class NoriTokenBridge
 
         // Verification of the previous store hash higher byte.
         prevStoreHash.highByteField.assertEquals(
-            this.latestHeliusStoreInputHashHighByte.getAndRequireEquals(),
+            this.latestHeliosStoreInputHashHighByte.getAndRequireEquals(),
             'The latest transition proofs\' input helios store hash higher byte, must match the contracts\' helios store hash higher byte.'
         );
 
         Provable.asProver(() => {
             Provable.log(
-                'ethProof.prevStoreHashHighByteField vs this.latestHeliusStoreInputHashHighByte',
+                'ethProof.prevStoreHashHighByteField vs this.latestHeliosStoreInputHashHighByte',
                 prevStoreHash.highByteField.toString(),
-                this.latestHeliusStoreInputHashHighByte.get().toString()
+                this.latestHeliosStoreInputHashHighByte.get().toString()
             );
         });
 
         // Verification of previous store hash lower bytes.
         prevStoreHash.lowerBytesField.assertEquals(
-            this.latestHeliusStoreInputHashLowerBytes.getAndRequireEquals(),
+            this.latestHeliosStoreInputHashLowerBytes.getAndRequireEquals(),
             'The latest transition proofs\' input helios store hash lower bytes, must match the contracts\' helios store hash lower bytes.'
         );
 
         Provable.asProver(() => {
             Provable.log(
-                'ethProof.prevStoreHashLowerBytesField vs this.latestHeliusStoreInputHashLowerBytes',
+                'ethProof.prevStoreHashLowerBytesField vs this.latestHeliosStoreInputHashLowerBytes',
                 prevStoreHash.lowerBytesField.toString(),
-                this.latestHeliusStoreInputHashLowerBytes.get().toString()
+                this.latestHeliosStoreInputHashLowerBytes.get().toString()
             );
         });
 
@@ -413,9 +413,9 @@ export class NoriTokenBridge
         }
         nextSyncCommitteeZeroAcc.assertNotEquals(new Field(0));
 
-        // Extract the verifiedContractDepositsRoot and convert it to a Field
-        const verifiedContractDepositsRootField = bytes32LEToFieldProvable(
-            input.verifiedContractDepositsRoot.bytes
+        // Extract the verifiedRequestsRoot and convert it to a Field
+        const verifiedRequestsRootField = bytes32LEToFieldProvable(
+            input.verifiedRequestsRoot.bytes
         );
 
         // Update contract values
@@ -423,17 +423,17 @@ export class NoriTokenBridge
         this.verifiedStateRoot.set(
             Poseidon.hashPacked(Bytes32.provable, executionStateRoot)
         );
-        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
-        this.latestHeliusStoreInputHashLowerBytes.set(
+        this.latestHeliosStoreInputHashHighByte.set(newStoreHash.highByteField);
+        this.latestHeliosStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
-        this.latestVerifiedContractDepositsRoot.set(
-            verifiedContractDepositsRootField
+        this.latestVerifiedRequestsRoot.set(
+            verifiedRequestsRootField
         );
         this.queueCursor.set(input.outputQueueCursor);
 
         // Dispatch + window eviction
-        this.dispatchAndEvict(verifiedContractDepositsRootField);
+        this.dispatchAndEvict(verifiedRequestsRootField);
     }
     /**
      * Dispatch a new deposit root action and evict the oldest if the window is full.
@@ -515,7 +515,7 @@ export class NoriTokenBridge
         );
     }
     @method public async noriMint(
-        merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
+        merkleTreeContractDepositAttestorInput: VerifiedRequestWitnessInput,
         SCRAMWitness: SCRAMWitness,
         windowStartWitness: Field
     ) {
@@ -526,7 +526,7 @@ export class NoriTokenBridge
         // This just proves that the index and value with the witness yield a root
         // Aka some value exists at some index and yields a certain root
         const contractDepositSlotRoot =
-            getContractDepositSlotRootFromContractDepositAndWitness(
+            getVerifiedRequestSlotRootFromWitness(
                 merkleTreeContractDepositAttestorInput
             );
 
@@ -673,8 +673,8 @@ export class NoriTokenBridge
     // we need it in case Helios changes it's store structure 
     @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
         await this.ensureAdminSignature();
-        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
-        this.latestHeliusStoreInputHashLowerBytes.set(
+        this.latestHeliosStoreInputHashHighByte.set(newStoreHash.highByteField);
+        this.latestHeliosStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
     }

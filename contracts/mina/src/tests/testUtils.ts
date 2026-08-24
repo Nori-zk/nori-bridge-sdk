@@ -4,7 +4,7 @@ import { Logger } from 'esm-iso-logger';
 import {
     buildContractDepositSlotLeaves,
     VerifiedRequest,
-    MerkleTreeContractDepositAttestorInput,
+    VerifiedRequestWitnessInput,
     MerklePath,
 } from '../depositAttestation.js';
 import {
@@ -267,7 +267,7 @@ export function buildSyntheticDeposit(
     totalLockedBU: bigint = 2n,
     targetHex: string = TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX
 ): {
-    merkleInput: MerkleTreeContractDepositAttestorInput;
+    merkleInput: VerifiedRequestWitnessInput;
     scramWitness: SCRAMWitness;
 } {
     const msgCS = CircuitString.fromString(messageSCRAMStr);
@@ -295,7 +295,7 @@ export function buildSyntheticDeposit(
     const merklePath = MerklePath.from([]);
     path.forEach((p) => merklePath.push(p));
 
-    const merkleInput = new MerkleTreeContractDepositAttestorInput({
+    const merkleInput = new VerifiedRequestWitnessInput({
         path: merklePath,
         index: UInt64.fromValue(0),
         value: deposit,

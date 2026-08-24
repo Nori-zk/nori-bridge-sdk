@@ -29,7 +29,7 @@ class EthInput extends Struct({
     outputSlot: UInt64,
     outputStoreHash: Bytes32.provable,
     executionStateRoot: Bytes32.provable,
-    verifiedContractDepositsRoot: Bytes32.provable,
+    verifiedRequestsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
     proofRequestQueueAddress: Bytes20.provable,
     inputQueueCursor: UInt64,
@@ -48,7 +48,7 @@ function ethInputToBytes(input: EthInput): UInt8[] {
     bytes = bytes.concat(input.outputSlot.toBytesBE());
     bytes = bytes.concat(input.outputStoreHash.bytes);
     bytes = bytes.concat(input.executionStateRoot.bytes);
-    bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
+    bytes = bytes.concat(input.verifiedRequestsRoot.bytes);
     bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
     bytes = bytes.concat(input.proofRequestQueueAddress.bytes);
     bytes = bytes.concat(input.inputQueueCursor.toBytesBE());

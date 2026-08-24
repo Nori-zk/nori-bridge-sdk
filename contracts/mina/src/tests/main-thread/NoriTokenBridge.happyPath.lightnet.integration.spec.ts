@@ -28,7 +28,7 @@ import assert from 'node:assert';
 import { FungibleToken } from '../../TokenBase.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
-import { getContractDepositSlotRootFromContractDepositAndWitness } from '../../depositAttestation.js';
+import { getVerifiedRequestSlotRootFromWitness } from '../../depositAttestation.js';
 import {
     EthInput,
     NodeProofLeft,
@@ -279,7 +279,7 @@ describe('NoriTokenBridge Happy Path', () => {
         );
 
         // Seed the deposit root into the contract window
-        const depositRoot = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
+        const depositRoot = getVerifiedRequestSlotRootFromWitness(merkleInput);
         void depositRoot;
         // adminSetDepositRoot disabled in production — see test-level note above.
         // await txSend({

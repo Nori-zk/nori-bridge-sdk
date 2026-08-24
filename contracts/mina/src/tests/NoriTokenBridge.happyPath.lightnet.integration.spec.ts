@@ -32,9 +32,9 @@ import { FungibleToken } from '../TokenBase.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../NoriTokenBridge.js';
 import {
-    type MerkleTreeContractDepositAttestorInput,
-    type MerkleTreeContractDepositAttestorInputJson,
-    getContractDepositSlotRootFromContractDepositAndWitness,
+    type VerifiedRequestWitnessInput,
+    type VerifiedRequestWitnessInputJson,
+    getVerifiedRequestSlotRootFromWitness,
 } from '../depositAttestation.js';
 import {
     EthInput,
@@ -122,11 +122,11 @@ async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
 
-// Convert an in-memory MerkleTreeContractDepositAttestorInput into the JSON
+// Convert an in-memory VerifiedRequestWitnessInput into the JSON
 // form expected by tester.mint().
 function merkleInputToJson(
-    input: MerkleTreeContractDepositAttestorInput
-): MerkleTreeContractDepositAttestorInputJson {
+    input: VerifiedRequestWitnessInput
+): VerifiedRequestWitnessInputJson {
     const len = Number(input.path.length.toBigInt());
     const path = input.path.array
         .slice(0, len)
@@ -459,7 +459,7 @@ describe('NoriTokenBridge (Worker-driven)', () => {
             );
 
             const depositRoot =
-                getContractDepositSlotRootFromContractDepositAndWitness(
+                getVerifiedRequestSlotRootFromWitness(
                     merkleInput
                 );
             void depositRoot;

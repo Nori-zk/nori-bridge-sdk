@@ -7,7 +7,7 @@ import {
     VerifiedRequest,
     provableRequestLeafHash,
     MAX_COLLECTION_KEYS,
-} from './ContractDepositAttestor.js';
+} from './VerifiedRequestAttestor.js';
 import { sp1ConsensusMPTPlonkProof as _sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 import { Bytes20, Bytes32 } from './types.js';
 import {
@@ -120,17 +120,17 @@ describe('Verified Request Attestor Test', () => {
             sp1ConsensusMPTPlonkProof.proof
         );
 
-        const decodedProofContractDepositRootBigInt = uint8ArrayToBigIntBE( // Could do LE without the reverse FIXME
-            decodedProof.verifiedContractDepositsRoot.toBytes().reverse()
+        const decodedProofVerifiedRequestsRootBigInt = uint8ArrayToBigIntBE( // Could do LE without the reverse FIXME
+            decodedProof.verifiedRequestsRoot.toBytes().reverse()
         );
 
         console.log(
-            decodedProofContractDepositRootBigInt,//.toString(16),
+            decodedProofVerifiedRequestsRootBigInt,//.toString(16),
             output.proof.publicOutput.toBigInt(),//.toString(16),
             rootHash.toBigInt(),//.toString(16)
         );
 
         expect(output.proof.publicOutput.toBigInt()).toBe(rootHash.toBigInt());
-        expect(decodedProofContractDepositRootBigInt).toEqual(output.proof.publicOutput.toBigInt());
+        expect(decodedProofVerifiedRequestsRootBigInt).toEqual(output.proof.publicOutput.toBigInt());
     });
 });

@@ -31,7 +31,7 @@ import assert from 'node:assert';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../NoriTokenBridge.js';
-import { getContractDepositSlotRootFromContractDepositAndWitness } from '../depositAttestation.js';
+import { getVerifiedRequestSlotRootFromWitness } from '../depositAttestation.js';
 import {
     EthInput,
     decodeConsensusMptProof,
@@ -224,7 +224,7 @@ describe.skip('NoriTokenBridge — in-flight mint invalidation (lightnet green p
             'NoriZK',
             totalLocked,
         );
-        const depositRoot = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
+        const depositRoot = getVerifiedRequestSlotRootFromWitness(merkleInput);
 
         await txSend({
             body: async () => {

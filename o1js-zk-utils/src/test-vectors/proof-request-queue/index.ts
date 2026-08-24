@@ -24,7 +24,7 @@ export type ProofOutputsVector = {
     outputSlot: string;
     outputStoreHash: string;
     executionStateRoot: string;
-    verifiedContractDepositsRoot: string;
+    verifiedRequestsRoot: string;
     nextSyncCommitteeHash: string;
     proofRequestQueueAddress: string;
     inputQueueCursor: string;

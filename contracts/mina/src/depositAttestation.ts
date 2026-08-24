@@ -3,17 +3,15 @@ import {
     Bytes20,
     Bytes32,
     computeMerkleTreeDepthAndSize,
-    ContractDeposit,
     getMerklePathFromLeaves,
     getMerkleZeros,
     MAX_COLLECTION_KEYS,
     provableRequestLeafHash,
-    provableStorageSlotLeafHash,
     VerifiedRequest,
 } from '@nori-zk/o1js-zk-utils';
 import { DynamicArray } from '@nori-zk/mina-attestations/dynamic/array';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
-import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
+import { Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 // ------- Deposit attestation ---------------------------------
 
@@ -22,20 +20,19 @@ const logger = new Logger('DepositAttestation');
 // The leaf struct and its hash are defined once in o1js-zk-utils; both must
 // stay byte-identical to the SP1 guest, so they have a single owner. Re-exported
 // here because the mint path and its tests consume them through this module.
-export { ContractDeposit, provableStorageSlotLeafHash, VerifiedRequest, provableRequestLeafHash };
+export { VerifiedRequest, provableRequestLeafHash };
 
 const treeDepth = 16;
 
 export const MerklePath = DynamicArray(Field, { maxLength: treeDepth });
 
-export class MerkleTreeContractDepositAttestorInput extends Struct({
+export class VerifiedRequestWitnessInput extends Struct({
     path: MerklePath,
     index: UInt64,
     value: VerifiedRequest,
 }) { }
 
 /** One entry of a proven batch, as carried by the proof bundle. */
-// FIXME get this from pts-types its called 'VerifiedRequest' so you may need an alias
 export type VerifiedRequestJson = {
     target: string;
     collectionKeysCount: number;
@@ -43,7 +40,7 @@ export type VerifiedRequestJson = {
     value: string;
 };
 
-export type MerkleTreeContractDepositAttestorInputJson = {
+export type VerifiedRequestWitnessInputJson = {
     depositIndex: number;
     despositSlotRaw: VerifiedRequestJson;
     path: string[];
@@ -67,80 +64,22 @@ export function verifiedRequestFromJson(json: VerifiedRequestJson) {
     });
 }
 
-export function buildMerkleTreeContractDepositAttestorInput(
-    jsonInputs: MerkleTreeContractDepositAttestorInputJson
+export function buildVerifiedRequestWitnessInput(
+    jsonInputs: VerifiedRequestWitnessInputJson
 ) {
     const merklePath = MerklePath.from([]);
     jsonInputs.path.forEach((element) =>
         merklePath.push(new Field(BigInt(element)))
     );
-    return new MerkleTreeContractDepositAttestorInput({
+    return new VerifiedRequestWitnessInput({
         path: merklePath,
         index: UInt64.fromValue(jsonInputs.depositIndex),
         value: verifiedRequestFromJson(jsonInputs.despositSlotRaw),
     });
 }
 
-/**
- * @deprecated Superseded by `provableStorageSlotLeafHash` from
- * `@nori-zk/o1js-zk-utils`, which this reproduces. Nothing calls it; it is
- * retained only as a reference copy of the packing.
- */
-function provableStorageSlotLeafHashLocal(contractDeposit: ContractDeposit) {
-    const codeChallengeBytes = contractDeposit.codeChallenge.bytes; // UInt8[]
-    const valueBytes = contractDeposit.value.bytes; // UInt8[]
-
-    // 64 bytes total (32 + 32), max 31 bytes per field → 3 fields
-    // Strip high byte off each, pack into firstField; remaining 31 bytes each in secondField/thirdField
-
-    // firstFieldBytes: 1 byte from codeChallengeBytes and 1 byte from valueBytes
-    const firstFieldBytes: UInt8[] = [];
-
-    firstFieldBytes.push(codeChallengeBytes[0]);
-    firstFieldBytes.push(valueBytes[0]);
-
-    for (let i = 2; i < 32; i++) {
-        firstFieldBytes.push(UInt8.zero); // static pad to 32
-    }
-
-    // secondFieldBytes: remaining 31 bytes from codeChallengeBytes (1 to 31)
-    const secondFieldBytes: UInt8[] = [];
-    for (let i = 1; i < 32; i++) {
-        secondFieldBytes.push(codeChallengeBytes[i]);
-    }
-
-    // already 31 elements; add 1 zero to reach 32
-    secondFieldBytes.push(UInt8.zero);
-
-    // thirdFieldBytes: remaining 31 bytes from valueBytes (1 to 31)
-    const thirdFieldBytes: UInt8[] = [];
-    for (let i = 1; i < 32; i++) {
-        thirdFieldBytes.push(valueBytes[i]);
-    }
-
-    // already 31 elements; add 1 zero to reach 32
-    thirdFieldBytes.push(UInt8.zero);
-
-    // Convert UInt8[] to Bytes (provable bytes)
-    const firstBytes = Bytes.from(firstFieldBytes);
-    const secondBytes = Bytes.from(secondFieldBytes);
-    const thirdBytes = Bytes.from(thirdFieldBytes);
-
-    // Little endian
-    let firstField = new Field(0);
-    let secondField = new Field(0);
-    let thirdField = new Field(0);
-    for (let i = 31; i >= 0; i--) {
-        firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
-        secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
-        thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
-    }
-
-    return Poseidon.hash([firstField, secondField, thirdField]);
-}
-
-export function getContractDepositSlotRootFromContractDepositAndWitness(
-    input: MerkleTreeContractDepositAttestorInput
+export function getVerifiedRequestSlotRootFromWitness(
+    input: VerifiedRequestWitnessInput
 ) {
     let { index, path } = input;
 
@@ -185,7 +124,7 @@ export function getContractDepositSlotRootFromContractDepositAndWitness(
  * bridge rather than from another queue consumer.
  */
 export function extractCodeChallengeAndTotalLocked(
-    merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput
+    merkleTreeContractDepositAttestorInput: VerifiedRequestWitnessInput
 ) {
     // Unpack deposit
     const deposit = merkleTreeContractDepositAttestorInput.value;

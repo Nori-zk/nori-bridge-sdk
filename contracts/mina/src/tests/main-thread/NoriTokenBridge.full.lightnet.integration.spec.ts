@@ -34,8 +34,8 @@ import { FungibleToken } from '../../TokenBase.js';
 import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
-    type MerkleTreeContractDepositAttestorInput,
-    getContractDepositSlotRootFromContractDepositAndWitness,
+    type VerifiedRequestWitnessInput,
+    getVerifiedRequestSlotRootFromWitness,
 } from '../../depositAttestation.js';
 import type { SCRAMWitness } from '../../scram.js';
 import {
@@ -291,9 +291,9 @@ describe('NoriTokenBridge', () => {
             );
 
             const highByte =
-                await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
+                await noriTokenBridge.latestHeliosStoreInputHashHighByte.fetch();
             const lowerBytes =
-                await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
+                await noriTokenBridge.latestHeliosStoreInputHashLowerBytes.fetch();
             assert.equal(
                 highByte.toBigInt(),
                 initialStoreHash.highByteField.toBigInt(),
@@ -482,9 +482,9 @@ describe('NoriTokenBridge', () => {
                     ethInput1.outputStoreHash
                 );
                 const hb =
-                    await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
+                    await noriTokenBridge.latestHeliosStoreInputHashHighByte.fetch();
                 const lb =
-                    await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
+                    await noriTokenBridge.latestHeliosStoreInputHashLowerBytes.fetch();
                 assert.equal(
                     hb.toBigInt(),
                     expectedPair.highByteField.toBigInt(),
@@ -598,14 +598,14 @@ describe('NoriTokenBridge', () => {
                 );
             }, 1_000_000);
 
-            test('latestVerifiedContractDepositsRoot should match last proof output', async () => {
+            test('latestVerifiedRequestsRoot should match last proof output', async () => {
                 await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
                 // const hb =
-                //     await noriTokenBridge.latestVerifiedContractDepositsRootHighByte.fetch();
+                //     await noriTokenBridge.latestVerifiedRequestsRootHighByte.fetch();
                 // const lb =
-                //     await noriTokenBridge.latestVerifiedContractDepositsRootLowerBytes.fetch();
+                //     await noriTokenBridge.latestVerifiedRequestsRootLowerBytes.fetch();
                 // const expected = Bytes32FieldPair.fromBytes32(
-                //     ethInput4.verifiedContractDepositsRoot
+                //     ethInput4.verifiedRequestsRoot
                 // );
                 // assert.equal(
                 //     hb.toBigInt(),
@@ -618,13 +618,13 @@ describe('NoriTokenBridge', () => {
                 //     'deposits root lower bytes'
                 // );
 
-                const latestVerifiedContractDepositsRoot =
-                    await noriTokenBridge.latestVerifiedContractDepositsRoot.fetch();
+                const latestVerifiedRequestsRoot =
+                    await noriTokenBridge.latestVerifiedRequestsRoot.fetch();
                 const expected = bytes32LEToFieldProvable(
-                    ethInput4.verifiedContractDepositsRoot.bytes
+                    ethInput4.verifiedRequestsRoot.bytes
                 );
                 assert.equal(
-                    latestVerifiedContractDepositsRoot.toBigInt(),
+                    latestVerifiedRequestsRoot.toBigInt(),
                     expected.toBigInt(),
                     'deposits root'
                 );
@@ -785,7 +785,7 @@ describe('NoriTokenBridge', () => {
     // (`workers/tokenBridgeTester/worker.ts`), and the call sites below.
     // -----------------------------------------------------------------------
     describe.skip('noriMint()', () => {
-        let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
+        let aliceDepositAttestationInput: VerifiedRequestWitnessInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
         const aliceScramMsg = 'NoriZK';
@@ -814,7 +814,7 @@ describe('NoriTokenBridge', () => {
             // adminSetDepositRoot is commented out on the production contract;
             // the body of this beforeAll is therefore neutralised and the
             // suite is `.skip`-ed (see top-of-suite note).
-            const aliceRoot = getContractDepositSlotRootFromContractDepositAndWitness(aliceDepositAttestationInput);
+            const aliceRoot = getVerifiedRequestSlotRootFromWitness(aliceDepositAttestationInput);
             void aliceRoot;
             // await txSend({
             //     body: async () => {
@@ -867,7 +867,7 @@ describe('NoriTokenBridge', () => {
                 );
 
                 // Seed the new deposit root into the window
-                const aliceRoot2 = getContractDepositSlotRootFromContractDepositAndWitness(aliceDeposit2);
+                const aliceRoot2 = getVerifiedRequestSlotRootFromWitness(aliceDeposit2);
                 void aliceRoot2;
                 // adminSetDepositRoot disabled in production — see top-of-suite note.
                 // await txSend({
@@ -915,19 +915,19 @@ describe('NoriTokenBridge', () => {
             test('window rotation: setup dave and seed prior roots', async () => {
                 // Reconstruct the 6 roots already dispatched by prior tests.
                 // 4 from update():
-                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput1.verifiedContractDepositsRoot.bytes));
-                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedContractDepositsRoot.bytes));
-                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedContractDepositsRoot.bytes));
-                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedContractDepositsRoot.bytes));
+                allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput1.verifiedRequestsRoot.bytes));
+                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput2.verifiedRequestsRoot.bytes));
+                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput3.verifiedRequestsRoot.bytes));
+                // allDispatchedRoots.push(bytes32LEToFieldProvable(ethInput4.verifiedRequestsRoot.bytes));
                 // 1 from alice first deposit root seed:
                 const aliceResult1 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 200n);
                 allDispatchedRoots.push(
-                    getContractDepositSlotRootFromContractDepositAndWitness(aliceResult1.merkleInput)
+                    getVerifiedRequestSlotRootFromWitness(aliceResult1.merkleInput)
                 );
                 // 1 from alice second deposit root seed:
                 const aliceResult2 = buildSyntheticDeposit(alice.privateKey, 'NoriZK', 500n);
                 allDispatchedRoots.push(
-                    getContractDepositSlotRootFromContractDepositAndWitness(aliceResult2.merkleInput)
+                    getVerifiedRequestSlotRootFromWitness(aliceResult2.merkleInput)
                 );
 
                 // Create dave and set up storage
@@ -957,7 +957,7 @@ describe('NoriTokenBridge', () => {
                             'NoriZK',
                             daveTotalLocked
                         );
-                        const root = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
+                        const root = getVerifiedRequestSlotRootFromWitness(merkleInput);
 
                         // adminSetDepositRoot disabled in production — see top-of-suite note.
                         // await txSend({
@@ -1185,9 +1185,9 @@ describe('NoriTokenBridge', () => {
 
             await fetchAccount({ publicKey: noriTokenBridgeKeypair.publicKey });
             const hb =
-                await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
+                await noriTokenBridge.latestHeliosStoreInputHashHighByte.fetch();
             const lb =
-                await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
+                await noriTokenBridge.latestHeliosStoreInputHashLowerBytes.fetch();
             assert.equal(
                 hb.toBigInt(),
                 newStoreHash.highByteField.toBigInt(),

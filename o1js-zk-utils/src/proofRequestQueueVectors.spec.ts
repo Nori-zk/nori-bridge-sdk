@@ -2,7 +2,7 @@ import { Bytes, UInt64, UInt8 } from 'o1js';
 import {
     provableRequestLeafHash,
     VerifiedRequest,
-} from './ContractDepositAttestor.js';
+} from './VerifiedRequestAttestor.js';
 import { EthInput, ethInputToBytes } from './ethVerifier.js';
 import { Bytes20, Bytes32 } from './types.js';
 import { decodeConsensusMptProof } from './utils.js';
@@ -41,8 +41,8 @@ function ethInputFromVector(vector: ProofOutputsVector) {
         executionStateRoot: Bytes32.fromHex(
             stripHexPrefix(vector.executionStateRoot)
         ),
-        verifiedContractDepositsRoot: Bytes32.fromHex(
-            stripHexPrefix(vector.verifiedContractDepositsRoot)
+        verifiedRequestsRoot: Bytes32.fromHex(
+            stripHexPrefix(vector.verifiedRequestsRoot)
         ),
         nextSyncCommitteeHash: Bytes32.fromHex(
             stripHexPrefix(vector.nextSyncCommitteeHash)

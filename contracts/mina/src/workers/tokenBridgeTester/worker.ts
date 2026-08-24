@@ -33,8 +33,8 @@ import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
-    buildMerkleTreeContractDepositAttestorInput,
-    type MerkleTreeContractDepositAttestorInputJson,
+    buildVerifiedRequestWitnessInput,
+    type VerifiedRequestWitnessInputJson,
 } from '../../depositAttestation.js';
 import { SCRAMWitness } from '../../scram.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
@@ -544,7 +544,7 @@ export class TokenBridgeTester {
     async mint(
         senderPrivateKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
-        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
+        merkleTreeContractDepositAttestorInputJson: VerifiedRequestWitnessInputJson,
         messageSCRAMStr: string,
         signatureSCRAMBase58: string,
         fundNewAccount: boolean,
@@ -556,7 +556,7 @@ export class TokenBridgeTester {
             noriTokenBridgeAddressBase58
         );
 
-        const merkleInput = buildMerkleTreeContractDepositAttestorInput(
+        const merkleInput = buildVerifiedRequestWitnessInput(
             merkleTreeContractDepositAttestorInputJson
         );
 

@@ -173,7 +173,7 @@ const proofOffsets = {
     outputSlot: 40,
     outputStoreHash: 48,
     executionStateRoot: 80,
-    verifiedContractStorageSlotsRoot: 112,
+    verifiedRequestsRoot: 112,
     nextSyncCommitteeHash: 144,
     proofRequestQueueAddress: 176,
     inputQueueCursor: 196,
@@ -221,11 +221,11 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 
     const executionStateRootSlice = proofData.slice(
         proofOffsets.executionStateRoot,
-        proofOffsets.verifiedContractStorageSlotsRoot
+        proofOffsets.verifiedRequestsRoot
     );
 
-    const verifiedContractStorageSlotsRootSlice = proofData.slice(
-        proofOffsets.verifiedContractStorageSlotsRoot,
+    const verifiedRequestsRootSlice = proofData.slice(
+        proofOffsets.verifiedRequestsRoot,
         proofOffsets.nextSyncCommitteeHash
     );
 
@@ -266,8 +266,8 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
         outputSlot: UInt64.from(outputSlot),
         outputStoreHash: Bytes32.from(outputStoreHashSlice),
         executionStateRoot: Bytes32.from(executionStateRootSlice),
-        verifiedContractDepositsRoot: Bytes32.from(
-            verifiedContractStorageSlotsRootSlice
+        verifiedRequestsRoot: Bytes32.from(
+            verifiedRequestsRootSlice
         ),
         nextSyncCommitteeHash: Bytes32.from(nextSyncCommitteeHashSlice),
         proofRequestQueueAddress: Bytes20.from(proofRequestQueueAddressSlice),

@@ -18,7 +18,7 @@ import {
 import {
     VerifiedRequest,
     provableRequestLeafHash,
-} from '../ContractDepositAttestor.js';
+} from '../VerifiedRequestAttestor.js';
 
 const logger = new Logger('TestMerkle');
 new LogPrinter('TestO1JsZkUtils');
@@ -45,7 +45,6 @@ describe('Merkle Attestor Test', () => {
 
         console.log(slot);
 
-        // FIXME probably all need to be padded
         const codeChallenge = Bytes32.fromHex(
             slot.slot_key_code_challenge.slice(2).padStart(64, '0')
         );
@@ -85,6 +84,8 @@ describe('Merkle Attestor Test', () => {
                 .map((byte) => byte.toNumber().toString(16).padStart(2, '0'))
                 .join('')}`
         );
+
+        expect(hash2.toBigInt().toString()).toEqual(hash.toBigInt().toString());
     });
 
     test('test_all_leaf_counts_and_indices_with_pipeline', async () => {

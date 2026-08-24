@@ -23,13 +23,6 @@ export { EthVerifier, EthProof, EthInput, EthProofType, ethInputToBytes } from '
 export * from './types.js';
 
 export {
-    ContractDepositAttestorInput,
-    ContractDepositAttestor,
-    ContractDepositAttestorProof,
-    buildContractDepositLeaves,
-    getContractDepositWitness,
-    ContractDeposit,
-    provableStorageSlotLeafHash,
     MAX_COLLECTION_KEYS,
     VerifiedRequest,
     provableRequestLeafHash,
@@ -38,7 +31,7 @@ export {
     VerifiedRequestAttestorProof,
     buildVerifiedRequestLeaves,
     getVerifiedRequestWitness,
-} from './ContractDepositAttestor.js';
+} from './VerifiedRequestAttestor.js';
 
 export * from './nodeProofLeft.patch.js';
 
