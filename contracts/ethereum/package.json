@@ -54,7 +54,7 @@
         "dotenv": "^17.2.4",
         "dotenv-cli": "^8.0.0",
         "hardhat": "^3.1.11",
-        "npm-workspaces-publish-tool": "0.0.17",
+        "npm-workspaces-publish-tool": "0.0.18",
         "typechain": "^8.3.2"
     },
     "files": [
