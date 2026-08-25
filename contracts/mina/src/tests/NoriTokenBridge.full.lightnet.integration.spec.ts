@@ -32,9 +32,9 @@ import { FungibleToken } from '../TokenBase.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../NoriTokenBridge.js';
 import {
-    type MerkleTreeContractDepositAttestorInput,
-    type MerkleTreeContractDepositAttestorInputJson,
-    getContractDepositSlotRootFromContractDepositAndWitness,
+    type VerifiedRequestWitnessInput,
+    type VerifiedRequestWitnessInputJson,
+    getVerifiedRequestSlotRootFromWitness,
 } from '../depositAttestation.js';
 import type { SCRAMWitness } from '../scram.js';
 import {
@@ -53,6 +53,7 @@ import {
     getNewMinaLiteNetAccountKeyPair,
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
+    TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX,
 } from './testUtils.js';
 import { getTokenBridgeTester } from '../workers/tokenBridgeTester/node/parent.js';
 
@@ -177,11 +178,11 @@ async function fetchAccounts(addrs: PublicKey[]) {
     await Promise.all(addrs.map((addr) => fetchAccount({ publicKey: addr })));
 }
 
-// Convert an in-memory MerkleTreeContractDepositAttestorInput into the JSON
+// Convert an in-memory VerifiedRequestWitnessInput into the JSON
 // form expected by tester.mint().
 function merkleInputToJson(
-    input: MerkleTreeContractDepositAttestorInput
-): MerkleTreeContractDepositAttestorInputJson {
+    input: VerifiedRequestWitnessInput
+): VerifiedRequestWitnessInputJson {
     const len = Number(input.path.length.toBigInt());
     const path = input.path.array
         .slice(0, len)
@@ -189,7 +190,9 @@ function merkleInputToJson(
     return {
         depositIndex: Number(input.index.toBigInt()),
         despositSlotRaw: {
-            slot_key_code_challenge: '0x' + input.value.codeChallenge.toHex(),
+            target: '0x' + input.value.target.toHex(),
+            collectionKeysCount: Number(input.value.collectionKeysCount.toBigInt()),
+            collectionKeys: input.value.collectionKeys.map((key) => '0x' + key.toHex()),
             value: '0x' + input.value.value.toHex(),
         },
         path,
@@ -271,10 +274,10 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
         test('should deploy NoriTokenBridge and FungibleToken via worker', async () => {
             const inputStoreHashHex = ethInput1.inputStoreHash.toHex();
             const decoded = decodeConsensusMptProof(examples[0].sp1PlonkProof);
-            const ethTokenBridgeAddressHex = new Bytes20(
-                decoded.contractAddress.bytes
+            const ethTokenBridgeAddressHex = TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX;
+            const ethProofQueueAddressHex = new Bytes20(
+                decoded.proofRequestQueueAddress.bytes
             ).toHex();
-            const genesisRootHex = decoded.genesisRoot.toHex();
 
             await tester.deployContracts(
                 deployer.privateKey.toBase58(),
@@ -283,7 +286,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 tokenBaseKeypair.privateKey.toBase58(),
                 inputStoreHashHex,
                 ethTokenBridgeAddressHex,
-                genesisRootHex,
+                ethProofQueueAddressHex,
                 storageInterfaceVerificationKeySafe,
                 bridgeHeadNoriSP1HeliosProgramPi0,
                 proofConversionSP1ToPlonkPO2,
@@ -340,9 +343,9 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             );
 
             const highByte =
-                await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
+                await noriTokenBridge.latestHeliosStoreInputHashHighByte.fetch();
             const lowerBytes =
-                await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
+                await noriTokenBridge.latestHeliosStoreInputHashLowerBytes.fetch();
             assert.equal(
                 highByte.toBigInt(),
                 initialStoreHash.highByteField.toBigInt(),
@@ -580,9 +583,9 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     ethInput1.outputStoreHash
                 );
                 const hb =
-                    await noriTokenBridge.latestHeliusStoreInputHashHighByte.fetch();
+                    await noriTokenBridge.latestHeliosStoreInputHashHighByte.fetch();
                 const lb =
-                    await noriTokenBridge.latestHeliusStoreInputHashLowerBytes.fetch();
+                    await noriTokenBridge.latestHeliosStoreInputHashLowerBytes.fetch();
                 assert.equal(
                     hb.toBigInt(),
                     expectedPair.highByteField.toBigInt(),
@@ -677,17 +680,17 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
             }, 1_000_000);
 
-            test('latestVerifiedContractDepositsRoot should match last proof output', async () => {
+            test('latestVerifiedRequestsRoot should match last proof output', async () => {
                 await fetchAccount({
                     publicKey: noriTokenBridgeKeypair.publicKey,
                 });
-                const latestVerifiedContractDepositsRoot =
-                    await noriTokenBridge.latestVerifiedContractDepositsRoot.fetch();
+                const latestVerifiedRequestsRoot =
+                    await noriTokenBridge.latestVerifiedRequestsRoot.fetch();
                 const expected = bytes32LEToFieldProvable(
-                    ethInput4.verifiedContractDepositsRoot.bytes
+                    ethInput4.verifiedRequestsRoot.bytes
                 );
                 assert.equal(
-                    latestVerifiedContractDepositsRoot.toBigInt(),
+                    latestVerifiedRequestsRoot.toBigInt(),
                     expected.toBigInt(),
                     'deposits root'
                 );
@@ -849,7 +852,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
     // (`workers/tokenBridgeTester/worker.ts`), and the call sites below.
     // -----------------------------------------------------------------------
     describe.skip('noriMint()', () => {
-        let aliceDepositAttestationInput: MerkleTreeContractDepositAttestorInput;
+        let aliceDepositAttestationInput: VerifiedRequestWitnessInput;
         let aliceSCRAMWitness: SCRAMWitness;
 
         const aliceScramMsg = 'NoriZK';
@@ -883,7 +886,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
             // the body of this beforeAll is therefore neutralised and the
             // suite is `.skip`-ed (see top-of-suite note).
             const aliceRoot =
-                getContractDepositSlotRootFromContractDepositAndWitness(
+                getVerifiedRequestSlotRootFromWitness(
                     aliceDepositAttestationInput
                 );
             void aliceRoot;
@@ -956,7 +959,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 );
 
                 const aliceRoot2 =
-                    getContractDepositSlotRootFromContractDepositAndWitness(
+                    getVerifiedRequestSlotRootFromWitness(
                         aliceDeposit2
                     );
                 void aliceRoot2;
@@ -1019,7 +1022,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                 // Reconstruct the roots already dispatched by prior tests.
                 allDispatchedRoots.push(
                     bytes32LEToFieldProvable(
-                        ethInput1.verifiedContractDepositsRoot.bytes
+                        ethInput1.verifiedRequestsRoot.bytes
                     )
                 );
                 // 1 from alice first deposit root seed:
@@ -1029,7 +1032,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     200n
                 );
                 allDispatchedRoots.push(
-                    getContractDepositSlotRootFromContractDepositAndWitness(
+                    getVerifiedRequestSlotRootFromWitness(
                         aliceResult1.merkleInput
                     )
                 );
@@ -1040,7 +1043,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                     500n
                 );
                 allDispatchedRoots.push(
-                    getContractDepositSlotRootFromContractDepositAndWitness(
+                    getVerifiedRequestSlotRootFromWitness(
                         aliceResult2.merkleInput
                     )
                 );
@@ -1073,7 +1076,7 @@ describe('NoriTokenBridge (Worker-driven, full)', () => {
                                 daveTotalLocked
                             );
                         const root =
-                            getContractDepositSlotRootFromContractDepositAndWitness(
+                            getVerifiedRequestSlotRootFromWitness(
                                 merkleInput
                             );
 

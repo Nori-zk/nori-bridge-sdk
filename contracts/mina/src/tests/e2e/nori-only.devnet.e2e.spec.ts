@@ -267,6 +267,7 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
                     depositBlockNumber,
+                    noriETHBridgeAddressHex,
                     noriPcsUrl
                 );
             logger.log('Computed deposit witness.');

@@ -1,6 +1,6 @@
-import { UInt64 } from 'o1js';
+import { UInt64, UInt8 } from 'o1js';
 import { merkleLeafAttestorGenerator } from './merkleLeafAttestor.js';
-import { Bytes32 } from '../types.js';
+import { Bytes20, Bytes32 } from '../types.js';
 import { Logger, LogPrinter } from 'esm-iso-logger';
 import { wordToBytesCanonical } from '@nori-zk/proof-conversion';
 import {
@@ -9,13 +9,16 @@ import {
     getMerkleZeros,
 } from './merkleTree.js';
 import {
-    buildLeavesNonProvable,
-    dummyCodeChallenge,
-    dummyValue,
-    nonProvableStorageSlotLeafHash,
-    provableLeafContentsHash,
-    ProvableLeafObject,
+    buildVerifiedRequestLeavesNonProvable,
+    dummyRequest,
+    nonProvableRequestLeafHash,
+    toVerifiedRequest,
+    type DummyRequest,
 } from './testUtils.js';
+import {
+    VerifiedRequest,
+    provableRequestLeafHash,
+} from '../VerifiedRequestAttestor.js';
 
 const logger = new Logger('TestMerkle');
 new LogPrinter('TestO1JsZkUtils');
@@ -28,12 +31,12 @@ const {
 } = merkleLeafAttestorGenerator(
     16,
     'MyMerkleVerifier',
-    ProvableLeafObject,
-    provableLeafContentsHash
+    VerifiedRequest,
+    provableRequestLeafHash
 );
 
 describe('Merkle Attestor Test', () => {
-    test('compute_non_provable_storage_slot_leaf_hash', () => {
+    test('compute_non_provable_request_leaf_hash', () => {
         const slot = {
             slot_key_code_challenge:
                 '0x2f000000000000000000000000000000000000000000000000038d7ec293e52f',
@@ -42,7 +45,6 @@ describe('Merkle Attestor Test', () => {
 
         console.log(slot);
 
-        // FIXME probably all need to be padded
         const codeChallenge = Bytes32.fromHex(
             slot.slot_key_code_challenge.slice(2).padStart(64, '0')
         );
@@ -50,7 +52,10 @@ describe('Merkle Attestor Test', () => {
         console.log('padded value', valuePad);
         const value = Bytes32.fromHex(valuePad);
 
-        const hash = nonProvableStorageSlotLeafHash(codeChallenge, value);
+        const target = Bytes20.zero;
+        const collectionKeys: [Bytes32, Bytes32] = [codeChallenge, Bytes32.zero];
+
+        const hash = nonProvableRequestLeafHash(target, 1, collectionKeys, value);
 
         console.log(`Hash result big int: ${hash.toBigInt()}`);
         console.log(
@@ -64,8 +69,13 @@ describe('Merkle Attestor Test', () => {
                 .join('')}`
         );
 
-        const hash2 = provableLeafContentsHash(
-            new ProvableLeafObject({ codeChallenge, value })
+        const hash2 = provableRequestLeafHash(
+            new VerifiedRequest({
+                target,
+                collectionKeysCount: UInt8.from(1),
+                collectionKeys,
+                value,
+            })
         );
 
         console.log('Provable hash result', hash2.toBigInt().toString());
@@ -74,6 +84,8 @@ describe('Merkle Attestor Test', () => {
                 .map((byte) => byte.toNumber().toString(16).padStart(2, '0'))
                 .join('')}`
         );
+
+        expect(hash2.toBigInt().toString()).toEqual(hash.toBigInt().toString());
     });
 
     test('test_all_leaf_counts_and_indices_with_pipeline', async () => {
@@ -103,23 +115,14 @@ describe('Merkle Attestor Test', () => {
         for (let nLeaves = 0; nLeaves <= maxLeaves; nLeaves++) {
             console.log(`→ Testing with ${nLeaves} leaves`);
 
-            const pairs: Array<[Bytes32, Bytes32]> = [];
+            const requests: DummyRequest[] = [];
             for (let i = 0; i < nLeaves; i++) {
-                pairs.push([
-                    dummyCodeChallenge(i),
-                    dummyValue(i),
-                ]);
+                requests.push(dummyRequest(i));
             }
 
-            const leafObjects: ProvableLeafObject[] = [];
-            for (let i = 0; i < nLeaves; i++) {
-                leafObjects.push(
-                    new ProvableLeafObject({
-                        codeChallenge: pairs[i][0],
-                        value: pairs[i][1],
-                    })
-                );
-            }
+            const leafObjects: VerifiedRequest[] = requests.map(
+                toVerifiedRequest
+            );
 
             const leaves = buildLeaves(leafObjects);
 
@@ -129,17 +132,12 @@ describe('Merkle Attestor Test', () => {
                 )}`
             );
 
-            const rustLeaves = buildLeavesNonProvable(pairs);
+            const rustLeaves = buildVerifiedRequestLeavesNonProvable(requests);
 
             const { depth, paddedSize } =
                 computeMerkleTreeDepthAndSize(nLeaves);
             console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
 
-            /*console.log(
-                    'LEAVES COMPARISON',
-                    JSON.stringify(leaves),
-                    JSON.stringify(rustLeaves)
-                );*/
             expect(leaves).toEqual(rustLeaves);
 
             const rootViaFold = foldMerkleLeft(
@@ -190,17 +188,14 @@ describe('Merkle Attestor Test', () => {
             `Building ${nLeaves} provable leaves (this may use significant memory)...`
         );
 
-        const pairs = new Array(nLeaves);
+        const requests: DummyRequest[] = new Array(nLeaves);
         for (let i = 0; i < nLeaves; i++) {
-            pairs[i] = [dummyCodeChallenge(i), dummyValue(i)];
+            requests[i] = dummyRequest(i);
         }
 
-        const leafObjects = new Array(nLeaves);
+        const leafObjects: VerifiedRequest[] = new Array(nLeaves);
         for (let i = 0; i < nLeaves; i++) {
-            leafObjects[i] = new ProvableLeafObject({
-                codeChallenge: pairs[i][0],
-                value: pairs[i][1],
-            });
+            leafObjects[i] = toVerifiedRequest(requests[i]);
         }
 
         const leaves = buildLeaves(leafObjects);
@@ -209,7 +204,7 @@ describe('Merkle Attestor Test', () => {
 
         console.log(`   depth=${depth}, paddedSize=${paddedSize}`);
 
-        const rustLeaves = buildLeavesNonProvable(pairs);
+        const rustLeaves = buildVerifiedRequestLeavesNonProvable(requests);
         const rootViaFold = foldMerkleLeft(
             rustLeaves,
             paddedSize,

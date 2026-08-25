@@ -1,5 +1,5 @@
 import { Logger, LogPrinter } from 'esm-iso-logger';
-import { decodeConsensusMptProof } from './utils.js';
+import { decodeConsensusMptProof, fieldToBytesLE } from './utils.js';
 import { sp1ConsensusMPTPlonkProof } from './test-examples/sp1-mpt-proof/sp1ProofMessage.js';
 
 new LogPrinter('TestO1jsZkUtils');

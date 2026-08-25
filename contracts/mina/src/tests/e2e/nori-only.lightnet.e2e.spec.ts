@@ -31,7 +31,7 @@ const logger = new Logger('E2ELitenetSpec');
 
 const {
     NORI_ETH_TOKEN_BRIDGE_ADDRESS: ethTokenBridgeAddress,
-    NORI_ETH_GENESIS_ROOT: ethGenesisRoot,
+    NORI_ETH_PROOF_QUEUE_ADDRESS: ethProofQueueAddress,
 } = getStagingEnv();
 
 describe('e2e', () => {
@@ -70,7 +70,7 @@ describe('e2e', () => {
                 tokenBasePrivateKey.toBase58(),
                 "FIXMETHISISTHEWRONGSTOREHASH",
                 ethTokenBridgeAddress.slice(2),
-                ethGenesisRoot.slice(2),
+                ethProofQueueAddress.slice(2),
                 noriStorageInterfaceVerificationKeySafe,
                 bridgeHeadNoriSP1HeliosProgramPi0,
                 proofConversionSP1ToPlonkPO2,
@@ -241,7 +241,8 @@ describe('e2e', () => {
             const depositAttestationInput =
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
-                    depositBlockNumber
+                    depositBlockNumber,
+                    ethTokenBridgeAddress
                 );
             logger.log('Computed deposit witness.');
 

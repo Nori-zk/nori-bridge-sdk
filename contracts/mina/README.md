@@ -184,7 +184,7 @@ An optional `FileSystemCacheConfig` argument can be passed to use an on-disk o1j
 - **`compileContracts()`** — compiles `NoriStorageInterface`, `FungibleToken`, and `NoriTokenBridge` in dependency order, verifying each against the baked integrity hashes. Populates `noriStorageInterfaceVerificationKey`, `fungibleTokenVerificationKey`, and `noriTokenBridgeVerificationKey` on the instance.
 - **`createProof(arg: CreateProofArgument)`** — decodes a `sp1PlonkProof` (raw SP1/Plonk consensus proof) and `conversionOutputProof` (converted node proof) into `{ ethInput, rawProof }`. No ZK computation — `ethVerify` is inlined into `NoriTokenBridge.update`.
 - **`submit({ ethInput, rawProof })`** — fetches on-chain accounts, builds and proves the `NoriTokenBridge.update` transaction, signs with `MINA_SENDER_PRIVATE_KEY`, and sends it. Returns `{ txId, txHash }`.
-- **`deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field)`** — lightnet only. Deploys `NoriTokenBridge` in a single transaction. `ethTokenBridgeAddress` is the Ethereum token bridge contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthTokenBridgeAddressFromSP1Proof`. Throws if `MINA_NETWORK` is not `lightnet` — see [How to deploy](#how-to-deploy) for non-test deployments.
+- **`deployContract(storeHash: Bytes32, ethTokenBridgeAddress: Field, ethProofQueueAddress: Field)`** — lightnet only. Deploys `NoriTokenBridge` in a single transaction. `ethTokenBridgeAddress` is the Ethereum token bridge contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthTokenBridgeAddressFromSP1Proof`. `ethProofQueueAddress` is the deployed `NoriProofRequestQueue` contract address as a `Field` — in integration tests this can be extracted from proof fixtures using `extractEthProofQueueAddressFromSP1Proof`. Throws if `MINA_NETWORK` is not `lightnet` — see [How to deploy](#how-to-deploy) for non-test deployments.
 - **`updateNoriHeliosProgramPi0(pi0: FrC)`** — updates the on-chain `noriHeliosProgramPi0` state. Admin-gated. Must be called after deploy and before `submit()`.
 - **`updateProofConversionPO2(po2: Field)`** — updates the on-chain `proofConversionPO2` state. Admin-gated. Must be called after deploy and before `submit()`.
 - **`updateIntegrityParams(pi0: FrC, po2: Field)`** — updates both `noriHeliosProgramPi0` and `proofConversionPO2` in a single transaction. Admin-gated. Preferred over calling the individual setters separately.
@@ -300,11 +300,12 @@ rm -rf ~/.cache/o1js/
 Run:
 
 ```bash
-npm run deploy <storeHashInHex> <ethTokenBridgeAddressHex> [adminPublicKeyBase58]
+npm run deploy <storeHashInHex> <ethTokenBridgeAddressHex> <ethProofQueueAddressHex> [adminPublicKeyBase58]
 ```
 
 - `<storeHashInHex>`: must match the `input_store_hash` of the first store you expect as a checkpoint, **omitting** the `0x` prefix.
 - `<ethTokenBridgeAddressHex>`: the Ethereum contract address of the token bridge, **omitting** the `0x` prefix.
+- `<ethProofQueueAddressHex>`: the Ethereum contract address of the deployed `NoriProofRequestQueue`, **omitting** the `0x` prefix.
 - `[adminPublicKeyBase58]`: optional. The public key of the account with admin permissions over the contract (admin-gated methods: `setVerificationKey`, `updateStoreHash`, `updateNoriHeliosProgramPi0`, `updateProofConversionPO2`). If omitted, defaults to the public key derived from `MINA_SENDER_PRIVATE_KEY`.
 
 You can find sensible values by running the bridge head and inspecting the checkpoint you want to start from in the proof output message directory:

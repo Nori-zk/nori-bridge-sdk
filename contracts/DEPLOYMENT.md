@@ -199,13 +199,11 @@ values that aren't produced by the deploy itself and writes them to
 | Output                                | Source                                                                          | Used by                              |
 | ------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------ |
 | `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS` | `aligned_layer` repo's `alignedlayer_deployment_output.json` for `ETH_NETWORK`  | §9 Ethereum deploy                   |
-| `NORI_ETH_GENESIS_ROOT`               | `eth/v1/beacon/genesis` on `ETH_CONSENSUS_RPC` (`genesis_validators_root` field) | §10 Mina-side deploy (positional arg) |
 
 ### Required env
 
 ```bash
 ETH_NETWORK=<network>           # one of: hardhat, sepolia, hoodi, mainnet
-ETH_CONSENSUS_RPC=<beacon URL>  # consensus-layer RPC for the same network
 ```
 
 ### Run
@@ -219,7 +217,6 @@ cat .env.nori-eth-pre-deploy >> .env   # fold the values into your .env for §9
 ### Record (also written to `.env.nori-eth-pre-deploy`)
 
 - [ ] `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS`: `0x...`
-- [ ] `NORI_ETH_GENESIS_ROOT`: `0x...` (32-byte hex; consumed by §10)
 
 ---
 
@@ -330,7 +327,7 @@ NORI_MINA_TOKEN_BASE_PRIVATE_KEY=<Base58>
 # Bridge integrity inputs
 NORI_INITIAL_STORE_HASH=<32-byte hex>     # §5 — `0x`-prefix tolerated
 NORI_ETH_TOKEN_BRIDGE_ADDRESS=<0x…>       # §9 — written to .env.nori-eth-token-bridge
-NORI_ETH_GENESIS_ROOT=<0x…>               # §8 — written to .env.nori-eth-pre-deploy
+NORI_ETH_PROOF_QUEUE_ADDRESS=<0x…>        # §9 — written to .env.nori-eth-token-bridge
 
 # Optional — defaults to the public key of MINA_SENDER_PRIVATE_KEY
 NORI_MINA_TOKEN_BRIDGE_ADMIN=<Base58>     # the §2 NoriTokenAdminAddress
@@ -370,9 +367,9 @@ Parameters fed into the transaction:
 | `storageVKHash`                     | `NoriStorageInterfaceVerificationKey.hash` (Poseidon, Mina-side) |
 | `newStoreHash`                      | `Bytes32FieldPair.fromBytes32(initialStoreHash)` (§5)            |
 | `ethTokenBridgeAddress`             | `EthereumNoriTokenBridge` (§9)                                   |
+| `ethProofQueueAddress`              | `NORI_ETH_PROOF_QUEUE_ADDRESS` (§9) — passed as argv[4] to `bin/deploy.ts`, folded to a Field via `Bytes20.fromHex(...).toField()` inside the script |
 | `noriHeliosProgramPi0`              | `FrC.from(noriHeliosProgramPi0)` (§5)                            |
 | `proofConversionPO2`                | `Field.from(proofConversionPO2)` (§5)                            |
-| `genesisRoot`                       | `NORI_ETH_GENESIS_ROOT` (§8) — passed as argv[4] to `bin/deploy.ts`, hashed via Poseidon over `Bytes32.fromHex(...).toFields()` inside the script |
 | `tokenBase.deploy.symbol`           | `'nETH'`                                                         |
 | `tokenBase.deploy.src`              | `https://github.com/Nori-zk/nori-bridge-sdk`                     |
 | `tokenBase.deploy.allowUpdates`     | `true`                                                           |
@@ -436,7 +433,7 @@ Parameters fed into the transaction:
 | `noriHeliosProgramPi0`                          |       |
 | `proofConversionPO2`                            |       |
 | `initialStoreHash`                              |       |
-| `NORI_ETH_GENESIS_ROOT`                         |       |
+| `NORI_ETH_PROOF_QUEUE_ADDRESS`                  |       |
 | Initial `feeRecipient`                          |       |
 | Initial `lockFeeRate`                           |       |
 | Initial `unlockFeeRate`                         |       |
