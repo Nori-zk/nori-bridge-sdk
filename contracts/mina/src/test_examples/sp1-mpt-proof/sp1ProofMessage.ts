@@ -1,5 +1,5 @@
 import type { NoriSP1ProofInput } from '@nori-zk/pts-types';
-import sp1ConsensusMPTPlonkProofRaw from './10950400-v6.1.0.json' with { type: 'json' };
+import sp1ConsensusMPTPlonkProofRaw from './10995104-v6.1.0.json' with { type: 'json' };
 
 const sp1ConsensusMPTPlonkProof = {
     ...sp1ConsensusMPTPlonkProofRaw,
