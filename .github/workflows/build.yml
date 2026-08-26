@@ -34,7 +34,7 @@ jobs:
     # Define lightnet service
     services:
       mina-lightnet:
-        image: o1labs/mina-local-network@sha256:31b20692e0fbf9004aa6ae6b351ded0e4a1a396a5d2cb6135ed6724a7a9506ff # mesa-latest-devnet-mesa-preflight 
+        image: o1labs/mina-local-network@sha256:9efc443d368370eb522b7c08b612499ae75b87fa62a7b1076a6e529b40748902 # mesa-latest-devnet-mesa-preflight 
         env:
           RUN_ARCHIVE_NODE: true
           SLOT_TIME: 20000

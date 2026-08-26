@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "depositKeyToEthAddress" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "previewLock" | "proofQueue" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "FeeRecipientSet" | "FeesWithdrawn" | "LockFeeRateSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked" | "UnlockFeeRateSet"): EventFragment;
 
@@ -23,12 +23,13 @@ encodeFunctionData(functionFragment: 'accountValidation', values?: undefined): s
 encodeFunctionData(functionFragment: 'accumulatedFees', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bridgeOperator', values?: undefined): string;
 encodeFunctionData(functionFragment: 'calcGrossLockAmount', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'depositKeyToEthAddress', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'feeRecipient', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isConfigured', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lockFeeRate', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lockTokens', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'lockedTokens', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'previewLock', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'proofQueue', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setAlignedContracts', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBridgeOperator', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setFeeRecipient', values: [AddressLike]): string;
@@ -54,12 +55,13 @@ decodeFunctionResult(functionFragment: 'accountValidation', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'accumulatedFees', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'calcGrossLockAmount', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'depositKeyToEthAddress', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'feeRecipient', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isConfigured', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockFeeRate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'previewLock', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'proofQueue', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAlignedContracts', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBridgeOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFeeRecipient', data: BytesLike): Result;
@@ -320,14 +322,6 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
     
 
     
-    depositKeyToEthAddress: TypedContractMethod<
-      [arg0: BigNumberish, ],
-      [string],
-      'view'
-    >
-    
-
-    
     feeRecipient: TypedContractMethod<
       [],
       [string],
@@ -363,6 +357,22 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
     lockedTokens: TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
+      'view'
+    >
+    
+
+    
+    previewLock: TypedContractMethod<
+      [grossAmount: BigNumberish, ],
+      [[bigint, bigint] & {feeWei: bigint, netWei: bigint }],
+      'view'
+    >
+    
+
+    
+    proofQueue: TypedContractMethod<
+      [],
+      [string],
       'view'
     >
     
@@ -523,11 +533,6 @@ getFunction(nameOrSignature: 'calcGrossLockAmount'): TypedContractMethod<
       [[bigint, bigint, bigint] & {grossAmount: bigint, fee: bigint, actualNetAmount: bigint }],
       'view'
     >;
-getFunction(nameOrSignature: 'depositKeyToEthAddress'): TypedContractMethod<
-      [arg0: BigNumberish, ],
-      [string],
-      'view'
-    >;
 getFunction(nameOrSignature: 'feeRecipient'): TypedContractMethod<
       [],
       [string],
@@ -551,6 +556,16 @@ getFunction(nameOrSignature: 'lockTokens'): TypedContractMethod<
 getFunction(nameOrSignature: 'lockedTokens'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'previewLock'): TypedContractMethod<
+      [grossAmount: BigNumberish, ],
+      [[bigint, bigint] & {feeWei: bigint, netWei: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'proofQueue'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'setAlignedContracts'): TypedContractMethod<

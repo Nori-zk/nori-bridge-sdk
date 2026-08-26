@@ -1,5 +1,208 @@
 # Changelog
 
+## 20/8/26 - Updating proof-conversion to 0.8.29
+
+- Bumping proof-conversion to 0.8.29. Finding 1f602 commit 2 added a guard to `wordToBytes` that throws for `bytesPerWord >= 32`, which broke every 32-byte call site in this repo (`scram.ts`, `utils.ts`, and their tests). Commit 3 added `wordToBytesCanonical` as the sound replacement for those widths, so we ported all of them to it, including `scram.ts`.
+- Removed `isLessThanFieldPrimeLE` (`o1js-zk-utils/src/utils.ts`) and its test in `utils.spec.ts` as redundant now that upstream `isCanonicalFieldBytesLE` does the same check.
+- Bumping `@nori-zk/pts-types` from 6.0.1 to 7.0.1, which exposes `VerifiedRequest` on the wire type.
+
+## 25/8/26 - Finding a3850: The committed deposit root is not constrained to be complete
+
+### Finding (verbatim)
+
+#### Description
+
+To bridge from Ethereum to Mina, a user locks funds on the Ethereum `NoriTokenBridge`, which records the deposit in the cumulative mapping `lockedTokens[codeChallenge]` and emits a `TokensLocked` event. On the Mina side, `noriMint` lets that user mint, gated on the user's deposit being a member of a rolling window of up to `maxWindow` (32) verified deposit roots. Each root is committed to Mina by an `update` call carrying an SP1 proof whose output `verified_contract_storage_slots_root` (surfaced on Mina as `verifiedContractDepositsRoot`) is dispatched into that window.
+
+The issue discussed in this finding stems centrally from the fact that this deposit root need not include all deposits. Instead, it is a freshly built Poseidon Merkle tree over whatever storage slots the prover supplies, and the SP1 guest verifies only the inclusion of those slots; it never enforces that the tree is complete.
+
+The root is produced by `verify_storage_slot_proofs`. After verifying the contract account against the execution state root, it builds the tree purely from the supplied `contract_storage.storage_slots`, returning the all-zero hash when the prover supplies none:
+
+```rust
+// nori-bridge-head/nori-program/src/mpt.rs
+// (source excerpt elided — see verify_storage_slot_proofs)
+```
+
+Each supplied slot is checked to exist under the contract's storage root, but nothing constrains what is omitted, so a proof carrying zero deposit slots, and hence the zero-hash root, is valid.
+
+As `update` is permissionless, any party, not only the operator, can advance the bridge head with a valid proof carrying an empty or pruned deposit root.
+
+#### Impact
+
+**Active preemption of the mint path.**
+Each `update` must advance the Ethereum slot (`latestHead`):
+
+```ts
+// nori-bridge-sdk/contracts/mina/src/NoriTokenBridge.ts
+// (source excerpt elided — see the slot progress assertion in update)
+```
+
+Thus if an attacker frontruns the legitimate operator's update that would advance `latestHead` to \( N \) with an update advancing `latestHead` to \( N \) or a larger value, the operator's transaction will be rejected.
+Note that construction of a proof with an empty deposit root will require less compute than a proof with a non-empty deposit root. Furthermore, the attacker can begin working on a proof that will update `latestHead` from \( N - 1 \) to \( N \) before the `update` that advances the on-chain state of `latestHead` to \( N - 1 \) got finalized on Mina. Indeed, if they anticipate that the next `update` will advance `latestHead` to \( N - 1 \) and slot \( N \) has been finalized on Ethereum, they can already begin computing the proof.
+It thus appears plausible that a determined attacker can preempt legitimate updates and persist in landing `update` calls with empty deposit root on-chain, preventing the legitimate operator or other parties from placing non-empty deposit roots.
+
+Under such a sustained attack, the mint path is denied to all users for as long as the attack continues. The funds are not permanently burned, however.
+The Ethereum contract's `lockedTokens[codeChallenge]` is cumulative and never deleted: the deposit still exists in Ethereum storage at any later output block, and the guest checks each slot against the output block's storage root rather than the block at which it was locked.
+Because of this, once the attacker stops, an unopposed self-rescue or the operator can drain the backlog. Thus the impact is an attacker-controlled outage of the mint path rather than irreversible loss.
+
+**Passive omission.** Even without an attacker there is no guarantee that any given deposit is ever committed. A selectively censoring, buggy, or offline operator can omit a deposit, so that it is never mintable via updates submitted by the operator. The user's only recourse is a self-rescue run in which they race the operator with an `update` of their own that includes their deposit, a high bar for an ordinary user, though possible when unopposed.
+
+**Data-availability dependency.** To mint against an update, a user needs the exact leaf set and order of that update's tree. Data availability is thus a point to consider, though out of scope for this audit.
+
+#### Recommendations
+
+The root cause is that the committed deposit root is not required to encompass all intended deposits as reflected by the Ethereum state. The fix is to enforce such a requirement in the SP1 guest program, so that any valid `update` must carry the deposits that Ethereum state records.
+
+How to adjust the design of the guest program and potentially also the Ethereum contract is a significant design question. There is however one concrete footgun to be aware of. Completeness must be enforced incrementally rather than all-at-once. A rule of "include everything since the last update" is itself a denial-of-service vector: by spamming cheap locks, an attacker can either exceed the Merkle tree's \( 2^{16} \)-leaf limit for a single update, or produce deposits faster than the operator can prove them.
+
+### Response
+
+The finding is correct and the recommendation is accepted. The guest no longer accepts a prover-chosen set of storage slots. The deposit set is now an on-chain, append-only **proof request queue** on Ethereum (`NoriProofRequestQueue`), which the guest is required to drain in order.
+
+`verify_storage_slot_proofs` is replaced by `verify_queue`. The queue holds a monotonic `head` counter and a mapping of numbered request records; the destination chain holds a `queueCursor` recording how many requests have been settled. From those two values the batch is fully determined:
+
+- the start is the cursor, which the destination chain asserts against its own stored value,
+- `head` is read out of the queue's storage by Merkle-Patricia proof against the execution state root the same proof commits,
+- the size is `min(head - cursor, MAX_BATCH)`, and a witness whose entry count disagrees is rejected with `BatchSizeMismatch`,
+- each entry's five storage words are located from its index by Solidity's mapping and struct-member rules, not read from the witness.
+
+Requests that forms a batch supplied by the prover has to be derived from on-chain data. The all-zero root is reachable only when `head == cursor`, and that equality is itself proven — at genesis by an exclusion proof that the head slot is absent from the storage trie.
+
+Completeness is total rather than best-effort: every entry in the range contributes exactly one leaf. A populated slot is pinned by an inclusion proof of its true value; an empty slot, or a target account that does not exist, by an exclusion proof, contributing a leaf with value zero. In a Merkle-Patricia trie "holds zero" and "absent from the trie" are the same fact, and for a given root and key exactly one of the two proofs can verify, so the claim is pinned in either direction. A junk request therefore proves as zero and the queue advances past it — it can neither stall the queue nor be silently dropped. A proof that verifies as neither aborts the entire run: a committable failure outcome would reintroduce exactly the omission this finding describes.
+
+This also addresses the footgun raised in the recommendation. Completeness is enforced **incrementally**, not all-at-once: a batch is the outstanding backlog, capped at `MAX_BATCH`, and anything beyond that cap drains across consecutive updates, in order, with no entry skipped. `MAX_BATCH` currently is set to 2^16, the same as the Merkle tree's leaf limit. 2^16 is fesable in the o1js circuts but this value is a parameter that must be lower based on what is possible for SP1 circuit to handle (given constraints, circuit size etc).
+
+Forcing a large batch is bounded by what enqueueing costs. Every `requestProof` writes three to five cold storage words and pays `proofRequestQueueFee` on top, a fee that accrues to the protocol rather than being burned. That fee is the economic guard against spamming the queue: entries cannot be added cheaply (fee monitored and controlled by the admin), and an attacker pays the protocol for the proving work each one causes.
+
+On the preemption scenario, a frontrunner must resume from the same cursor and carry the same entries, so a competing proof can no longer advance the head while omitting deposits. On the data-availability point the audit places out of scope, the queue is append-only and never deleted, so the leaf set of any committed batch is reconstructible from Ethereum state by any party; the proof pipeline additionally publishes the verified request set in cursor order.
+
+### Changes
+
+- **`NoriProofRequestQueue.sol`** (`contracts/ethereum/contracts/`): new append-only queue contract. Storage layout is consensus-critical: `head` at slot 0 and the `_requests` mapping at slot 1 are read by the circuit; `proofRequestQueueFee`, `operator`, `feeRecipient` and `accumulatedFees` occupy slots 2-5, below the provable region. Request `i` occupies five consecutive words from `keccak256(abi.encode(i, uint256(1)))`: `target`, `slotKey`, `collectionKeysCount`, `collectionKeys[0]`, `collectionKeys[1]` — one field per word, deliberately unpacked so the layout is respecified identically in Solidity, Rust and TypeScript. Unused key words are never written, so they are absent from the storage trie and read as zero via an exclusion proof. `requestProof(bytes32 slotKey, bytes32[] calldata collectionKeys)` stamps `target = msg.sender`. `MAX_COLLECTION_KEYS = 2`; the fee is bounded by `MAX_PROOF_REQUEST_QUEUE_FEE` (0.05 ETH) and must align to `PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI` (10^12). `operator` is expected to be the existing `TimelockController`, so fee and recipient changes inherit its delay.
+- **`NoriTokenBridge.sol`** (`contracts/ethereum/contracts/`): holds the queue as `NoriProofRequestQueue public immutable proofQueue`. Immutable rather than storage, so it consumes no slot and `lockedTokens` stays at slot 2 (`LOCKED_TOKENS_SLOT_INDEX`), leaving the layout the circuit reads bit-identical; it also has no setter, so both sides of the bridge pin the same queue at deploy time or not at all. `lockTokens` now enqueues one request per lock, deriving `slotKey = keccak256(abi.encode(codeChallenge, LOCKED_TOKENS_SLOT_INDEX))` and a single collection key `bytes32(codeChallenge)` from the same validated input, so the pairing cannot be forged by the caller.
+- **Lock fee is additive** (`contracts/ethereum/contracts/NoriTokenBridge.sol`): `_splitFee` charges the flat queue fee plus the existing percentage rate, with `MIN_FEE_BU` continuing to floor the rate portion only. The queue fee is forwarded to the queue in the same call and the treasury keeps the remainder. New error `FeeExceedsLockAmount` rejects a deposit the combined fee would consume. `MIN_LOCK_AMOUNT_WEI` raised from 0.0001 to 0.001 ETH so the flat component stays a modest share of the smallest deposit. New `previewLock(uint256) → (feeWei, netWei)` view shares `_splitFee` with `lockTokens`, so a quote cannot disagree with what is charged; `calcGrossLockAmount` was reworked to match.
+- **Mina `NoriTokenBridge`** (`contracts/mina/src/NoriTokenBridge.ts`): added `@state(UInt64) queueCursor` and `@state(Field) ethProofQueueAddress`. `update` now asserts the proof's committed queue address against `ethProofQueueAddress`, asserts `input.inputQueueCursor == queueCursor`, and on success sets `queueCursor = input.outputQueueCursor`. Both new fields are deploy-time only with no setter, matching the treatment of `ethTokenBridgeAddress`.
+- **`noriMint` pins the leaf origin** (`contracts/mina/src/NoriTokenBridge.ts`): the queue is shared between consumer contracts, so the deposit leaf's `target` is now asserted to equal `ethTokenBridgeAddress`. This is where that address is checked — the check moved from `update` to `noriMint`, since the address the proof anchors on is now the queue rather than the bridge.
+- **`EthInput` and the proof byte layout** (`o1js-zk-utils/src/ethVerifier.ts`): `contractAddress` replaced by `proofRequestQueueAddress`, and `inputQueueCursor`, `outputQueueCursor` and `outputBlockNumber` appended. The byte assembly is now a single exported helper, `ethInputToBytes`, called by both the `EthVerifier` zkProgram and the Mina contract's `ethVerify`, replacing two separately maintained concatenations of a consensus-critical byte order. `decodeConsensusMptProof` (`o1js-zk-utils/src/utils.ts`) was updated to the new offsets and length.
+- **New leaf format** (`o1js-zk-utils/src/VerifiedRequestAttestor.ts`): `VerifiedRequest { target, collectionKeysCount, collectionKeys[2], value }` and `provableRequestLeafHash`, which packs 117 bytes into four field elements — `target` (20 bytes) with `collectionKeysCount` and the leading byte of each of the two keys and the value, then the three 31-byte tails. Hashing the count prevents an unused trailing key, which is zero, from colliding with a request that supplied a zero key. Namespacing the leaf by `target` is what lets `noriMint` reject leaves enqueued by another consumer. The superseded `ContractDeposit` and `provableStorageSlotLeafHash` are deleted rather than kept as deprecated aliases, and `contracts/mina/src/depositAttestation.ts` now takes the single definitions from `o1js-zk-utils` rather than keeping its own copies.
+- **Cross-language test vectors** (`o1js-zk-utils/src/test-vectors/proof-request-queue/`): three fixtures generated by the Rust implementation and vendored here — `request-leaf-vectors.json` (Poseidon leaf packing), `proof-outputs-vectors.json` (the public-output byte encoding) and `entry-location-vectors.json` (the storage slot of `head` and of each entry's five words). A divergence between the SP1 guest and the Mina circuit produces proofs that verify on one side and not the other, so these three encodings are pinned rather than independently reimplemented.
+- **Commitments regenerated**: `NoriTokenBridge.VkHash.json`/`.VkData.json`, `EthVerifier.VkHash.json` and `nori-sp1-helios-program.pi0.json`, covering the circuit and guest changes recorded here and under Finding d3034. `noriHeliosProgramPi0` is admin-pinned on-chain, so deploying this needs the admin-gated update d3034 documents.
+- **Test-example proofs regenerated**: the example proof series and both `sp1-mpt-proof` fixtures are updated to the current guest, the previous ones carrying the old 228-byte outputs. The current fixture carries a non-empty batch, so the cross-language pipeline is exercised against real request data rather than an empty root.
+- **Deploy pipeline** (`contracts/ethereum/tasks/deploy.ts`): the queue is deployed before the bridge, since the bridge takes its address as an immutable constructor argument, and its operator is set to the bridge operator. `NORI_ETH_PROOF_QUEUE_ADDRESS` is written to `.env.nori-eth-token-bridge` and consumed by the Mina deploy. New optional `NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI`, validated against the ceiling and granularity before anything is deployed. New tasks `setProofRequestQueueFee`, `withdrawProofRequestQueueFees` and `previewFees`; `getFeeInfo` now reports the effective lock fee as the queue fee plus the rate.
+
+### Results
+
+- Ethereum contract suite: **136 passing** — `npm test` in `contracts/ethereum`.
+- Cross-language vectors: **139 passing** — `npm test -- -t "Proof request queue cross-language vectors"` in `o1js-zk-utils`. Covers the leaf hash against every one of the 125 Rust vectors, the count-versus-zero-key disambiguation, target namespacing, the byte encoding in both directions, and rejection of a wrong-length public-output buffer.
+- The layout the circuit depends on has a dedicated consensus-critical block, asserting by raw storage read that `head` is at slot 0, that an entry occupies five words at its index-derived location, that an unused collection-key word is never written and reads zero, and that configuration stays in slots 2-5. Two further tests assert `setOperator` and `withdrawFees` leave the provable slots untouched. The block also cross-checks the shared entry-location vectors, so the slot derivation is verified against the Rust implementation rather than only against itself.
+
+## 25/8/26 - Finding d3034: Compromised admin is not prevented from minting or unlocking illegitimately
+
+### Finding (verbatim)
+
+#### Description
+
+The Mina bridge is designed to hold up even against a compromised or malicious governance: a compromised admin should not be able to mint tokens that are not backed by real Ethereum deposits. The project describes the intended assumptions as follows:
+
+> Using AdminKey (multisig), [the admin account] can update the values here: [...]. Worst case, [the admin] could maliciously set these to wrong values and "brick" the bridge. The Ethereum smart contract address is set at deployment and can't be modified, and since the Solidity contract is not upgradable, [they] can't create fake locks, so [..] shouldn't be able to mint tokens maliciously on the Mina side.
+> In the code, this intent is also stated, most explicitly in the doc comment on the immutable `genesisRoot` field, which singles out one way a compromised governance could otherwise mint unbacked tokens --- redirecting the bridge to an attacker-controlled chain --- and aims to prevent it:
+
+```ts
+// nori-bridge-sdk: contracts/mina/src/NoriTokenBridge.ts
+// (doc comment on the immutable genesisRoot field elided)
+```
+
+The claimed guarantee is that, although the store hash must stay admin-upgradable and is opaque, `update` checks the genesis validators root emitted by each proof against the immutable `genesisRoot`, so a rotated store hash cannot point the bridge at a different chain.
+
+This protection does not work: the genesis root is not an anchor to the real chain. The bridge-head guest program performs an incremental store-to-store transition and never verifies that the store descends from genesis. The store, the genesis root, and the previous store hash are all witness inputs; the only check binding the store is its hash against the chained value:
+
+```rust
+// nori-bridge-head: nori-program/src/consensus.rs (consensus_mpt_program)
+// (source excerpt elided — witness destructuring, store hash chain check,
+//  verify_update / verify_finality_update calls, and the ProofOutputs packing)
+```
+
+Both `verify_update` and `verify_finality_update` only pass `genesis_root` onwards to `verify_generic_update`, where the genesis root is used purely to derive the BLS signing domain.
+
+The real root of trust is therefore the store-hash chain, seeded once at deploy. The genesis root only fixes the signing domain; it does not establish that the store's sync committees or headers belong to the real Ethereum chain. That trust would normally come from bootstrapping the store from a trusted checkpoint, which this program does not do --- it accepts the store as an unauthenticated input.
+
+**Store-hash rotation.**
+
+A compromised admin can weaponize this directly, using only the power the comment considers safe. `updateStoreHash` sets the on-chain store hash to any value on an admin signature:
+
+```ts
+// nori-bridge-sdk: contracts/mina/src/NoriTokenBridge.ts
+// (source excerpt elided — see updateStoreHash)
+```
+
+A compromised admin generates their own BLS sync committee, builds a `LightClientStore` containing it together with a fabricated finalized header carrying an attacker-chosen execution state root, and sets the on-chain store hash to that store's hash. They then submit an `update` whose finality update (and any sync-committee updates) are signed by the fabricated committee, using the genuine `genesis_root` for the domain. As the attacker controls the fabricated committee's keys, they can produce the required signatures, and can thus produce a proof for the guest program with arbitrary deposit root contents. Using such a proof in an `update` transaction, the on-chain `genesisRoot` check will be passed, and `latestVerifiedContractDepositsRoot` updated to contain the fake deposits of their choosing. This is precisely the redirect to a fake chain that `genesisRoot` immutability was meant to prevent.
+
+**Program and recursion verification key swap.**
+
+The genesis-root failure is not even required for a takeover. Separately from it, the admin holds powers that were presumably not meant to allow unbacked minting but do. One is that the identity of the accepted guest program is itself admin-mutable, giving a more direct route:
+
+```ts
+// nori-bridge-sdk: contracts/mina/src/NoriTokenBridge.ts
+// (source excerpt elided — see updateNoriHeliosProgramPi0 and updateProofConversionPO2)
+```
+
+In `ethVerify` the converted proof is verified against a fixed verification key, which is intended to be for the `node` compressor circuit in `src/compressor/compressor.ts` in `proof-conversion`. However, this circuit bakes in neither the verification keys it recursively verifies proofs against, nor which guest program the SP1 proof is ultimately verified against. Only commitments are exposed, which need to be pinned on-chain. This is done against `noriHeliosProgramPi0` for pinning the guest program and against `proofConversionPO2` for pinning the recursion verification keys.
+
+An admin can change both commitments. Changing either lets the on-chain checks accept a constraint-less recursion circuit or guest program, allowing a compromised admin to produce accepted `update`s carrying deposit roots with arbitrary contents.
+
+By any of these routes a compromised admin can produce an `update` carrying a deposit root with contents of their choosing, then use `noriMint` to mint an arbitrary amount, for the invented deposits, to an address they control. Those tokens could then be withdrawn on the Ethereum side using the usual mechanism, draining the bridge.
+
+This list is not exhaustive: a compromised admin may have further avenues to mint themselves illegitimate tokens, for instance by changing the `FungibleToken` verification key.
+
+**Ethereum side.**
+
+The same structural pattern exists on the Ethereum bridge. The function `unlockTokens` trusts two contracts for verification, `stateSettlement` and `accountValidation`, and `setAlignedContracts` lets the operator repoint the bridge at replacements, which could include contracts that approve any input, which would then allow the compromised admin to drain the locked pool.
+
+#### Impact
+
+The intention that a compromised admin should not be able to drain the bridge on the Ethereum side, or mint illegitimately on the Mina side, but at worst can only brick the bridge, is not achieved by the current design. The admin account/contract has several independent avenues to drain the bridge.
+
+#### Recommendations
+
+Document for the project and for users what trust assumptions are made regarding the admin. To achieve the intended threat model, in which the admin account/contract should not be able to mint/unlock illegitimately, design changes are necessary.
+
+### Response
+
+The finding is correct, including that the list is not exhaustive. We are taking the first of the two recommended paths: documenting the trust assumptions that govern the admin role.
+
+Three on-chain commitments have to remain updatable for the bridge to stay operable. `noriHeliosProgramPi0` and `proofConversionPO2` pin the accepted guest program and the recursion verification keys; the guest program changes as the Helios light client evolves, and the conversion keys rotate on major SP1 upgrades. `latestHeliusStoreInputHash*` pins the Helios store, which must be replaceable because the store and/or its' serialization can change - that depends on Helios internals that we inherit, as well as changes to Ethereum consensus layer spec that Helios itself inherits. An extended finality failure on Ethereum may itself require a forced store reconstruction. Freezing any of the three would turn a routine upgrade into a redeployment and state migration of the whole bridge.
+
+Each of those commitments is also, as the finding sets out, a route by which a compromised admin could have an `update` accepted that carries a deposit root of their choosing, and mint against it. The bridge consequently does not guarantee that a compromised admin can only halt it; it can mint unbacked tokens and drain the locked pool with current design of Aligned Layer
+
+What constrains the role is procedural rather than cryptographic. The admin is FROST-based multisig, so a change to any of these values requires commitment from a quorum of the signers. The project has a governance process for approving upgrades, and the multisig is held by a set of parties that are expected to be independent and to follow that process. The trust assumption is that the multisig signers will not collude to approve an upgrade that would allow them to mint unbacked tokens or unlock illegitimately.
+
+Two admin surfaces named in the finding are not live routes to minting. `updateVerificationKey` cannot succeed: the bridge account is deployed with `setVerificationKey` set to `impossibleDuringCurrentVersion()` and `setPermissions` set to `impossible()`, so the account's own verification key is fixed for the current protocol version and the permission cannot be relaxed. `canChangeAdmin` returns `Bool(false)`, and `canMint` is gated on the single-use `mintLock` flag that `noriMint` clears immediately before calling `token.mint`, not on an admin signature. The `FungibleToken` verification key is governed by that token's own deploy-time `allowUpdates` setting.
+
+`genesis_root` is a guest input. It is passed to `verify_update` and `verify_finality_update`, which use it to derive the BLS signing domain; it is not compared against the store, and the store is bound instead by the store-hash chain. It is not committed as a public output anymore (as it wasn't fit for purpose as envisaged) and the corresponding on-chain field and assertion are removed.
+
+As part of a solution to this finding, a standalone document is being prepared to record the trust assumptions that govern the admin role, and to describe the procedures that are expected to be followed to maintain the bridge's integrity. This document will serve as a reference for users and developers, clarifying the limits of what a compromised admin can do and the safeguards in place to prevent abuse.
+
+### Changes
+
+- **`genesisRoot` removed** (`contracts/mina/src/NoriTokenBridge.ts`): the `@state(Field) genesisRoot` field, its doc comment, the `genesisRoot` deploy prop on `NoriTokenControllerDeployProps`, the assignment in `deploy()`, and the `update()` assertion against the proof's committed genesis root are all deleted. `ethVerify` no longer returns `ethGenesisRootBytes`.
+- **Public-output layout** (`o1js-zk-utils/src/ethVerifier.ts`, `utils.ts`): `genesisRoot` dropped from the `EthInput` struct, from the byte assembly and from `decodeConsensusMptProof`'s offsets. Combined with the queue changes recorded above under Finding a3850, the committed public outputs move from 228 to 220 bytes.
+- **Helper removed** (`o1js-zk-utils/src/utils.ts`): `extractGenesisRootFromSP1Proof`, which decoded the genesis root from a proof and returned its Poseidon hash, has no remaining consumer. `extractEthProofQueueAddressFromSP1Proof` replaces `extractEthTokenBridgeAddressFromSP1Proof` for the address the proof now anchors on.
+- **Deploy pipeline** (`contracts/ethereum/bin/preDeploy.ts`, `contracts/mina/src/env.ts`, `contracts/mina/src/bin/`): `fetchGenesisValidatorsRoot` and the `ETH_CONSENSUS_RPC` requirement are removed from the pre-deploy step, which no longer queries the beacon chain. `NORI_ETH_GENESIS_ROOT` is dropped from the environment and from the Mina deploy arguments, replaced by `NORI_ETH_PROOF_QUEUE_ADDRESS`.
+- **Documentation**: the doc comment on the removed `genesisRoot` field from Mina contract, which described it as an immutable chain anchor preventing store-hash rotation from redirecting the bridge. `contracts/DEPLOYMENT.md` and the Ethereum README drop the genesis-root inputs, the pre-deploy record and the ledger row, and carry the proof request queue address in their place. The admin trust assumptions set out in the response above are recorded in this entry, which is the reference for them until they are carried into the deployment documentation.
+- **Corresponding changes to bridge-head** : the changelog entry for this finding is added to the nori-bridge-head repo at `nori-bridge-head/CHANGELOG.md`
+
+### Results
+
+- Ethereum contract suite: **136 passing** — `npm test` in `contracts/ethereum`.
+- Cross-language vectors: **139 passing** — `npm test -- -t "Proof request queue cross-language vectors"` in `o1js-zk-utils`, including the round-trip of the 220-byte encoding and rejection of a wrong-length buffer.
+- No behavioural test accompanies the trust statement itself; it records an accepted assumption, not a code constraint.
+
+## 4/8/26 - Updating o1js, proof-conversion and mina-attestations
+
+- Bumping o1js to 3.0.0-mesa.rc2
+- Bumping mina-attestations to 0.6.6
+- Bumping proof-conversion to 0.8.27
+
 ## 23/6/26 - Finding 7f3a1: codeChallenge is unnecessarily bound to msg.sender in lockTokens
 
 ### Finding (verbatim)
@@ -44,7 +247,7 @@ Result:
 ### Commit 2 - Fix applied
 
 - `contracts/ethereum/contracts/NoriTokenBridge.sol`
-    - Removed `depositKeyToEthAddress` mapping from  which captures the binding from a `codeChallenge` to an ETH address
+    - Removed `depositKeyToEthAddress` mapping from which captures the binding from a `codeChallenge` to an ETH address
     - Removed `MinaAccountLinkedToDifferentDepositor` bespoke error.
     - Removed `Enforce one ETH depositor per Mina account` validation logic.
 - `contracts/mina/src/scram.ts`
@@ -142,12 +345,19 @@ Results:
 ### Commit 3 - Restore test-only method for production
 
 - **`adminSetDepositRoot` re-commented** (`contracts/mina/src/NoriTokenBridge.ts`): the test-only seeding method enabled in commit 1 is disabled again so it is not part of the production contract. Its call sites in `full.lightnet` / `happyPath.lightnet` are re-commented and those `noriMint()` blocks re-`describe.skip`-ed; the `41428.inflightMint.lightnet` regression suite is `describe.skip`-ed (it depends on `adminSetDepositRoot`).  
-  **Bridge verification key regenerated** (`integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.  
-
+  **Bridge verification key regenerated** (`integrity/NoriTokenBridge.VkData.json`, `NoriTokenBridge.VkHash.json`): reflects the production contract without `adminSetDepositRoot`.
 
 Results:
 
 - The regression suite is `describe.skip`-ed by default (depends on the test-only `adminSetDepositRoot`); re-enable per the in-file note and run against lightnet to reproduce.
+
+## 19/5/26 - CHORE: Update proof-conversion to 0.8.21 (FIX: Audit B1114 Nori-zk/proof-conversion#34)
+
+Bumped `@nori-zk/proof-conversion` from 0.8.20 to 0.8.21 in `contracts/mina`, `minimal-client`, and `o1js-zk-utils`.
+
+## 18/5/26 - CHORE: Update ProofConversion.sp1ToPlonk.po2.json integrity file
+
+Updated `o1js-zk-utils/src/integrity/ProofConversion.sp1ToPlonk.po2.json` integrity hash to reflect upstream FIX: Audit B1114 (Nori-zk/proof-conversion#34).
 
 ## 15/5/26 - Audit 4279a: `dispatchAndEvict` does not verify `oldestAction`
 

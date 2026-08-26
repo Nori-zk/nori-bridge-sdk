@@ -31,13 +31,13 @@ import assert from 'node:assert';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../NoriTokenBridge.js';
-import { getContractDepositSlotRootFromContractDepositAndWitness } from '../depositAttestation.js';
+import { getVerifiedRequestSlotRootFromWitness } from '../depositAttestation.js';
 import {
     EthInput,
     decodeConsensusMptProof,
     Bytes32FieldPair,
-    extractEthTokenBridgeAddressFromSP1Proof,
-    extractGenesisRootFromSP1Proof,
+    Bytes20,
+    extractEthProofQueueAddressFromSP1Proof,
     bridgeHeadNoriSP1HeliosProgramPi0,
     proofConversionSP1ToPlonkPO2,
 } from '@nori-zk/o1js-zk-utils';
@@ -47,6 +47,7 @@ import {
     getNewMinaLiteNetAccountKeyPair,
     keyPairBase58ToKeyPair,
     buildSyntheticDeposit,
+    TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX,
 } from './testUtils.js';
 import { maxWindow } from '../NoriTokenBridge.const.js';
 
@@ -168,8 +169,8 @@ describe.skip('NoriTokenBridge — in-flight mint invalidation (lightnet green p
         const examples = buildExampleProofSeriesCreateArguments();
         const ethInput1 = new EthInput(decodeConsensusMptProof(examples[0].sp1PlonkProof));
         const initialStoreHash = Bytes32FieldPair.fromBytes32(ethInput1.inputStoreHash);
-        const ethTokenBridgeAddress = extractEthTokenBridgeAddressFromSP1Proof(examples[0]);
-        const genesisRoot = extractGenesisRootFromSP1Proof(examples[0]);
+        const ethTokenBridgeAddress = Bytes20.fromHex(TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX).toField();
+        const ethProofQueueAddress = extractEthProofQueueAddressFromSP1Proof(examples[0]);
 
         await txSend({
             body: async () => {
@@ -180,9 +181,9 @@ describe.skip('NoriTokenBridge — in-flight mint invalidation (lightnet green p
                     storageVKHash: storageInterfaceVK.hash,
                     newStoreHash: initialStoreHash,
                     ethTokenBridgeAddress,
+                    ethProofQueueAddress,
                     noriHeliosProgramPi0: FrC.from(bridgeHeadNoriSP1HeliosProgramPi0),
                     proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
-                    genesisRoot,
                 });
                 await tokenBase.deploy({
                     symbol: 'nETH',
@@ -223,7 +224,7 @@ describe.skip('NoriTokenBridge — in-flight mint invalidation (lightnet green p
             'NoriZK',
             totalLocked,
         );
-        const depositRoot = getContractDepositSlotRootFromContractDepositAndWitness(merkleInput);
+        const depositRoot = getVerifiedRequestSlotRootFromWitness(merkleInput);
 
         await txSend({
             body: async () => {

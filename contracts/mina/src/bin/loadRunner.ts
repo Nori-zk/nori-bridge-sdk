@@ -1263,6 +1263,7 @@ async function runUserFlow(
             await worker.computeDepositAttestationWitness(
                 codeChallengeSCRAMStr,
                 receipt.blockNumber,
+                script.noriEthBridgeAddressHex,
                 script.noriPcsUrl
             );
 

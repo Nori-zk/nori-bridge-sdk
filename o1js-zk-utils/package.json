@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/o1js-zk-utils",
-    "version": "0.1.24",
+    "version": "0.1.34",
     "description": "o1js-zk-utils supporting Nori Bridge",
     "author": "Nori",
     "license": "Apache-2.0",
@@ -56,20 +56,20 @@
         "ts-jest": "^29.4.6",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.55.0",
-        "npm-workspaces-publish-tool": "0.0.17"
+        "npm-workspaces-publish-tool": "0.0.18"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.698ca"
+        "o1js": "3.0.0-mesa.rc2"
     },
     "engines": {
         "node": ">=22.0.0"
     },
     "dependencies": {
-        "@nori-zk/proof-conversion": "0.8.20",
-        "@nori-zk/pts-types": "6.0.1",
+        "@nori-zk/proof-conversion": "0.8.29",
+        "@nori-zk/pts-types": "7.0.2",
         "dotenv": "^17.2.4",
         "esm-iso-logger": "1.0.2",
-        "@nori-zk/mina-attestations": "0.6.4"
+        "@nori-zk/mina-attestations": "0.6.6"
     },
     "files": [
         "build"

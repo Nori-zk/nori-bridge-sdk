@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/cache-server",
-    "version": "0.0.5",
+    "version": "0.0.9",
     "description": "",
     "author": "",
     "license": "Apache-2.0",
@@ -37,7 +37,7 @@
         "eslint": "^9.39.2",
         "eslint-plugin-o1js": "^0.4.0",
         "jest": "^30.2.0",
-        "npm-workspaces-publish-tool": "0.0.17",
+        "npm-workspaces-publish-tool": "0.0.18",
         "prettier": "^3.8.1",
         "rimraf": "^6.1.2",
         "ts-jest": "^29.4.6",
@@ -47,7 +47,7 @@
         "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.57.0"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.698ca"
+        "o1js": "3.0.0-mesa.rc2"
     },
     "engines": {
         "node": ">=18.14.0"

@@ -1,0 +1,193 @@
+{
+  "entries": [
+    {
+      "base": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
+      "index": "0",
+      "words": [
+        {
+          "name": "target",
+          "slot": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
+          "wordIndex": 0
+        },
+        {
+          "name": "slotKey",
+          "slot": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb4a",
+          "wordIndex": 1
+        },
+        {
+          "name": "collectionKeysCount",
+          "slot": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb4b",
+          "wordIndex": 2
+        },
+        {
+          "name": "collectionKeys0",
+          "slot": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb4c",
+          "wordIndex": 3
+        },
+        {
+          "name": "collectionKeys1",
+          "slot": "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb4d",
+          "wordIndex": 4
+        }
+      ]
+    },
+    {
+      "base": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b688792f",
+      "index": "1",
+      "words": [
+        {
+          "name": "target",
+          "slot": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b688792f",
+          "wordIndex": 0
+        },
+        {
+          "name": "slotKey",
+          "slot": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b6887930",
+          "wordIndex": 1
+        },
+        {
+          "name": "collectionKeysCount",
+          "slot": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b6887931",
+          "wordIndex": 2
+        },
+        {
+          "name": "collectionKeys0",
+          "slot": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b6887932",
+          "wordIndex": 3
+        },
+        {
+          "name": "collectionKeys1",
+          "slot": "0xcc69885fda6bcc1a4ace058b4a62bf5e179ea78fd58a1ccd71c22cc9b6887933",
+          "wordIndex": 4
+        }
+      ]
+    },
+    {
+      "base": "0xd9ae7388d2083c2e208c0dfdf9b10bc72bbfb00d63d88b3c7fd7c315bfc1cf40",
+      "index": "42",
+      "words": [
+        {
+          "name": "target",
+          "slot": "0xd9ae7388d2083c2e208c0dfdf9b10bc72bbfb00d63d88b3c7fd7c315bfc1cf40",
+          "wordIndex": 0
+        },
+        {
+          "name": "slotKey",
+          "slot": "0xd9ae7388d2083c2e208c0dfdf9b10bc72bbfb00d63d88b3c7fd7c315bfc1cf41",
+          "wordIndex": 1
+        },
+        {
+          "name": "collectionKeysCount",
+          "slot": "0xd9ae7388d2083c2e208c0dfdf9b10bc72bbfb00d63d88b3c7fd7c315bfc1cf42",
+          "wordIndex": 2
+        },
+        {
+          "name": "collectionKeys0",
+          "slot": "0xd9ae7388d2083c2e208c0dfdf9b10bc72bbfb00d63d88b3c7fd7c315bfc1cf43",
+          "wordIndex": 3
+        },
+        {
+          "name": "collectionKeys1",
+          "slot": "0xd9ae7388d2083c2e208c0dfdf9b10bc72bbfb00d63d88b3c7fd7c315bfc1cf44",
+          "wordIndex": 4
+        }
+      ]
+    },
+    {
+      "base": "0xfb4dd2a19dc0f57e5d771fd256abae0a23167828cfd83b8d5013bed276791219",
+      "index": "4294967295",
+      "words": [
+        {
+          "name": "target",
+          "slot": "0xfb4dd2a19dc0f57e5d771fd256abae0a23167828cfd83b8d5013bed276791219",
+          "wordIndex": 0
+        },
+        {
+          "name": "slotKey",
+          "slot": "0xfb4dd2a19dc0f57e5d771fd256abae0a23167828cfd83b8d5013bed27679121a",
+          "wordIndex": 1
+        },
+        {
+          "name": "collectionKeysCount",
+          "slot": "0xfb4dd2a19dc0f57e5d771fd256abae0a23167828cfd83b8d5013bed27679121b",
+          "wordIndex": 2
+        },
+        {
+          "name": "collectionKeys0",
+          "slot": "0xfb4dd2a19dc0f57e5d771fd256abae0a23167828cfd83b8d5013bed27679121c",
+          "wordIndex": 3
+        },
+        {
+          "name": "collectionKeys1",
+          "slot": "0xfb4dd2a19dc0f57e5d771fd256abae0a23167828cfd83b8d5013bed27679121d",
+          "wordIndex": 4
+        }
+      ]
+    },
+    {
+      "base": "0xf96a472bdfe5b2a759c12ef9eaac602e223d6505b9b6a2b2dcce10ef8c8be639",
+      "index": "18446744073709551615",
+      "words": [
+        {
+          "name": "target",
+          "slot": "0xf96a472bdfe5b2a759c12ef9eaac602e223d6505b9b6a2b2dcce10ef8c8be639",
+          "wordIndex": 0
+        },
+        {
+          "name": "slotKey",
+          "slot": "0xf96a472bdfe5b2a759c12ef9eaac602e223d6505b9b6a2b2dcce10ef8c8be63a",
+          "wordIndex": 1
+        },
+        {
+          "name": "collectionKeysCount",
+          "slot": "0xf96a472bdfe5b2a759c12ef9eaac602e223d6505b9b6a2b2dcce10ef8c8be63b",
+          "wordIndex": 2
+        },
+        {
+          "name": "collectionKeys0",
+          "slot": "0xf96a472bdfe5b2a759c12ef9eaac602e223d6505b9b6a2b2dcce10ef8c8be63c",
+          "wordIndex": 3
+        },
+        {
+          "name": "collectionKeys1",
+          "slot": "0xf96a472bdfe5b2a759c12ef9eaac602e223d6505b9b6a2b2dcce10ef8c8be63d",
+          "wordIndex": 4
+        }
+      ]
+    },
+    {
+      "base": "0xc39d774f18115b85b81494d65e588b565d73abc969333d1da7b0a0eb0729accd",
+      "index": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+      "words": [
+        {
+          "name": "target",
+          "slot": "0xc39d774f18115b85b81494d65e588b565d73abc969333d1da7b0a0eb0729accd",
+          "wordIndex": 0
+        },
+        {
+          "name": "slotKey",
+          "slot": "0xc39d774f18115b85b81494d65e588b565d73abc969333d1da7b0a0eb0729acce",
+          "wordIndex": 1
+        },
+        {
+          "name": "collectionKeysCount",
+          "slot": "0xc39d774f18115b85b81494d65e588b565d73abc969333d1da7b0a0eb0729accf",
+          "wordIndex": 2
+        },
+        {
+          "name": "collectionKeys0",
+          "slot": "0xc39d774f18115b85b81494d65e588b565d73abc969333d1da7b0a0eb0729acd0",
+          "wordIndex": 3
+        },
+        {
+          "name": "collectionKeys1",
+          "slot": "0xc39d774f18115b85b81494d65e588b565d73abc969333d1da7b0a0eb0729acd1",
+          "wordIndex": 4
+        }
+      ]
+    }
+  ],
+  "entryWords": 5,
+  "headSlot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "requestsMappingSlotIndex": 1
+}

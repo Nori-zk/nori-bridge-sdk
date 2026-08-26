@@ -1,120 +1,89 @@
 import {
     createTimer,
+    Bytes20,
     Bytes32,
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
     getMerkleZeros,
+    MAX_COLLECTION_KEYS,
+    provableRequestLeafHash,
+    VerifiedRequest,
 } from '@nori-zk/o1js-zk-utils';
 import { DynamicArray } from '@nori-zk/mina-attestations/dynamic/array';
 import { type Sp1ProofAndConvertedProofBundle } from '@nori-zk/pts-types';
-import { Bytes, Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
+import { Field, Poseidon, Provable, Struct, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 // ------- Deposit attestation ---------------------------------
 
 const logger = new Logger('DepositAttestation');
 
-export class ContractDeposit extends Struct({
-    codeChallenge: Bytes32.provable,
-    value: Bytes32.provable,
-}) { }
+// The leaf struct and its hash are defined once in o1js-zk-utils; both must
+// stay byte-identical to the SP1 guest, so they have a single owner. Re-exported
+// here because the mint path and its tests consume them through this module.
+export { VerifiedRequest, provableRequestLeafHash };
 
 const treeDepth = 16;
 
 export const MerklePath = DynamicArray(Field, { maxLength: treeDepth });
 
-export class MerkleTreeContractDepositAttestorInput extends Struct({
+export class VerifiedRequestWitnessInput extends Struct({
     path: MerklePath,
     index: UInt64,
-    value: ContractDeposit,
+    value: VerifiedRequest,
 }) { }
 
-export type MerkleTreeContractDepositAttestorInputJson = {
+/** One entry of a proven batch, as carried by the proof bundle. */
+export type VerifiedRequestJson = {
+    target: string;
+    collectionKeysCount: number;
+    collectionKeys: string[];
+    value: string;
+};
+
+export type VerifiedRequestWitnessInputJson = {
     depositIndex: number;
-    despositSlotRaw: {
-        slot_key_code_challenge: string;
-        value: string;
-    };
+    despositSlotRaw: VerifiedRequestJson;
     path: string[];
 };
 
-export function buildMerkleTreeContractDepositAttestorInput(
-    jsonInputs: MerkleTreeContractDepositAttestorInputJson
+/** Pads `collectionKeys` out to the fixed width the leaf hash expects. */
+export function verifiedRequestFromJson(json: VerifiedRequestJson) {
+    const collectionKeys = Array.from(
+        { length: MAX_COLLECTION_KEYS },
+        (_unused, i) =>
+            Bytes32.fromHex(
+                (json.collectionKeys[i] ?? `0x${'0'.repeat(64)}`).slice(2)
+            )
+    );
+
+    return new VerifiedRequest({
+        target: Bytes20.fromHex(json.target.slice(2)),
+        collectionKeysCount: UInt8.from(json.collectionKeysCount),
+        collectionKeys,
+        value: Bytes32.fromHex(json.value.slice(2)),
+    });
+}
+
+export function buildVerifiedRequestWitnessInput(
+    jsonInputs: VerifiedRequestWitnessInputJson
 ) {
     const merklePath = MerklePath.from([]);
     jsonInputs.path.forEach((element) =>
         merklePath.push(new Field(BigInt(element)))
     );
-    return new MerkleTreeContractDepositAttestorInput({
+    return new VerifiedRequestWitnessInput({
         path: merklePath,
         index: UInt64.fromValue(jsonInputs.depositIndex),
-        value: new ContractDeposit({
-            codeChallenge: Bytes32.fromHex(
-                jsonInputs.despositSlotRaw.slot_key_code_challenge.slice(2)
-            ),
-            value: Bytes32.fromHex(jsonInputs.despositSlotRaw.value.slice(2)),
-        }),
+        value: verifiedRequestFromJson(jsonInputs.despositSlotRaw),
     });
 }
 
-export function provableStorageSlotLeafHash(contractDeposit: ContractDeposit) {
-    const codeChallengeBytes = contractDeposit.codeChallenge.bytes; // UInt8[]
-    const valueBytes = contractDeposit.value.bytes; // UInt8[]
-
-    // 64 bytes total (32 + 32), max 31 bytes per field → 3 fields
-    // Strip high byte off each, pack into firstField; remaining 31 bytes each in secondField/thirdField
-
-    // firstFieldBytes: 1 byte from codeChallengeBytes and 1 byte from valueBytes
-    const firstFieldBytes: UInt8[] = [];
-
-    firstFieldBytes.push(codeChallengeBytes[0]);
-    firstFieldBytes.push(valueBytes[0]);
-
-    for (let i = 2; i < 32; i++) {
-        firstFieldBytes.push(UInt8.zero); // static pad to 32
-    }
-
-    // secondFieldBytes: remaining 31 bytes from codeChallengeBytes (1 to 31)
-    const secondFieldBytes: UInt8[] = [];
-    for (let i = 1; i < 32; i++) {
-        secondFieldBytes.push(codeChallengeBytes[i]);
-    }
-
-    // already 31 elements; add 1 zero to reach 32
-    secondFieldBytes.push(UInt8.zero);
-
-    // thirdFieldBytes: remaining 31 bytes from valueBytes (1 to 31)
-    const thirdFieldBytes: UInt8[] = [];
-    for (let i = 1; i < 32; i++) {
-        thirdFieldBytes.push(valueBytes[i]);
-    }
-
-    // already 31 elements; add 1 zero to reach 32
-    thirdFieldBytes.push(UInt8.zero);
-
-    // Convert UInt8[] to Bytes (provable bytes)
-    const firstBytes = Bytes.from(firstFieldBytes);
-    const secondBytes = Bytes.from(secondFieldBytes);
-    const thirdBytes = Bytes.from(thirdFieldBytes);
-
-    // Little endian
-    let firstField = new Field(0);
-    let secondField = new Field(0);
-    let thirdField = new Field(0);
-    for (let i = 31; i >= 0; i--) {
-        firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
-        secondField = secondField.mul(256).add(secondBytes.bytes[i].value);
-        thirdField = thirdField.mul(256).add(thirdBytes.bytes[i].value);
-    }
-
-    return Poseidon.hash([firstField, secondField, thirdField]);
-}
-
-export function getContractDepositSlotRootFromContractDepositAndWitness(
-    input: MerkleTreeContractDepositAttestorInput
+export function getVerifiedRequestSlotRootFromWitness(
+    input: VerifiedRequestWitnessInput
 ) {
     let { index, path } = input;
 
-    let currentHash = provableStorageSlotLeafHash(input.value);
+    let currentHash = provableRequestLeafHash(input.value);
 
     const bitPath = index.value.toBits(path.maxLength);
     path.forEach((sibling, isDummy, i) => {
@@ -146,14 +115,22 @@ export function getContractDepositSlotRootFromContractDepositAndWitness(
     return currentHash;
 }
 
+/**
+ * Reads the bridge deposit carried by a proven request.
+ *
+ * The bridge enqueues one collection key per lock, so the code challenge is
+ * `collectionKeys[0]` and the proven storage word is the running total locked.
+ * `target` is returned so the caller can require the leaf originated from the
+ * bridge rather than from another queue consumer.
+ */
 export function extractCodeChallengeAndTotalLocked(
-    merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput
+    merkleTreeContractDepositAttestorInput: VerifiedRequestWitnessInput
 ) {
     // Unpack deposit
     const deposit = merkleTreeContractDepositAttestorInput.value;
 
-    // Convert deposit.codeChallenge from Bytes32 into a Field
-    const codeChallengeBytes = deposit.codeChallenge.bytes;
+    // Convert the code challenge from Bytes32 into a Field
+    const codeChallengeBytes = deposit.collectionKeys[0].bytes;
     let codeChallenge = new Field(0);
     for (let i = 0; i < 32; i++) {
         codeChallenge = codeChallenge.mul(256).add(codeChallengeBytes[i].value);
@@ -176,13 +153,14 @@ export function extractCodeChallengeAndTotalLocked(
     return {
         totalLocked,
         codeChallenge,
+        target: new Bytes20(deposit.target.bytes).toField(),
     };
 }
 
 export function buildContractDepositSlotLeaves(
-    contractDeposits: ContractDeposit[]
+    verifiedRequests: VerifiedRequest[]
 ): Field[] {
-    return contractDeposits.map((leaf) => provableStorageSlotLeafHash(leaf));
+    return verifiedRequests.map((leaf) => provableRequestLeafHash(leaf));
 }
 
 export function getMerklePathFromContractDeposits(
@@ -229,7 +207,7 @@ async function fetchContractWindowSlotProofs(
     const {
         consensusMPTProof: {
             proof: consensusMPTProofProof,
-            contract_storage_slots: consensusMPTProofContractStorageSlots,
+            verified_requests: consensusMPTProofContractStorageSlots,
         },
         consensusMPTProofVerification: consensusMPTProofVerification,
     } = await proofConversionServiceRequest(depositBlockNumber, domain);
@@ -252,6 +230,7 @@ async function fetchContractWindowSlotProofs(
 export async function computeDepositAttestationWitness(
     depositBlockNumber: number,
     codeChallengeBEHex: string,
+    ethTokenBridgeAddressHex: string,
     domain = 'https://pcs.nori.it.com'
 ) {
     const { consensusMPTProofContractStorageSlots } =
@@ -261,23 +240,36 @@ export async function computeDepositAttestationWitness(
     logger.log(
         `Finding deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const paddedConsensusMPTProofContractStorageSlots = (
+    const paddedVerifiedRequests: VerifiedRequestJson[] = (
         consensusMPTProofContractStorageSlots
-    ).map((slot) => {
+    ).map((request) => {
         return {
             //prettier-ignore
-            slot_key_code_challenge: `0x${slot.slot_key_code_challenge.slice(2).padStart(64, '0')}`,
+            target: `0x${request.target.slice(2).padStart(40, '0').toLowerCase()}`,
+            collectionKeysCount: request.collection_keys_count,
             //prettier-ignore
-            value: `0x${slot.value.slice(2).padStart(64, '0')}`,
+            collectionKeys: request.collection_keys.map(
+                (key) => `0x${key.slice(2).padStart(64, '0')}`
+            ),
+            //prettier-ignore
+            value: `0x${request.value.slice(2).padStart(64, '0')}`,
         };
     });
-    const depositIndex = paddedConsensusMPTProofContractStorageSlots.findIndex(
-        (slot) => slot.slot_key_code_challenge === codeChallengeBEHex
+    // The queue is shared between consumers; only leaves the token bridge
+    // enqueued carry this deposit's code challenge under its address.
+    const bridgeTargetHex = `0x${ethTokenBridgeAddressHex
+        .slice(2)
+        .padStart(40, '0')
+        .toLowerCase()}`;
+    const depositIndex = paddedVerifiedRequests.findIndex(
+        (request) =>
+            request.target === bridgeTargetHex &&
+            request.collectionKeys[0] === codeChallengeBEHex
     );
     if (depositIndex === -1)
         throw new Error(
-            `Could not find deposit index with codeChallengeBEHex: ${codeChallengeBEHex} in slots ${JSON.stringify(
-                paddedConsensusMPTProofContractStorageSlots,
+            `Could not find deposit index with codeChallengeBEHex: ${codeChallengeBEHex} and target ${bridgeTargetHex} in requests ${JSON.stringify(
+                paddedVerifiedRequests,
                 null,
                 4
             )}`
@@ -285,28 +277,17 @@ export async function computeDepositAttestationWitness(
     logger.log(
         `Found deposit within bundle.consensusMPTProof.contract_storage_slots`
     );
-    const despositSlotRaw =
-        paddedConsensusMPTProofContractStorageSlots[depositIndex];
+    const despositSlotRaw = paddedVerifiedRequests[depositIndex];
     const totalDespositedValue = despositSlotRaw.value;
     logger.log(`Total deposited to date (hex): ${totalDespositedValue}`);
-
-    // Build contract storage slots (to be hashed)
-    const contractStorageSlots =
-        paddedConsensusMPTProofContractStorageSlots.map((slot) => {
-            const codeChallenge = slot.slot_key_code_challenge;
-            const value = slot.value;
-            logger.log({ codeChallenge, value });
-            return new ContractDeposit({
-                codeChallenge: Bytes32.fromHex(codeChallenge.slice(2)),
-                value: Bytes32.fromHex(value.slice(2)),
-            });
-        });
 
     // Build deposit witness
 
     // Build leaves
     const buildLeavesTimer = createTimer();
-    const leaves = buildContractDepositSlotLeaves(contractStorageSlots);
+    const leaves = buildContractDepositSlotLeaves(
+        paddedVerifiedRequests.map(verifiedRequestFromJson)
+    );
     logger.log(`buildContractDepositLeaves: ${buildLeavesTimer()}`);
     logger.log(
         'leaves',

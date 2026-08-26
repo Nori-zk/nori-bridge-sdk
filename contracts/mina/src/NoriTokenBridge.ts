@@ -32,18 +32,18 @@ import {
 // EthInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
-    EthInput, bytes32LEToFieldProvable, Bytes20,
+    EthInput, ethInputToBytes, bytes32LEToFieldProvable, Bytes20,
     Bytes32,
     Bytes32FieldPair,
     proofConversionSP1ToPlonkVkData,
 } from '@nori-zk/o1js-zk-utils';
 import { NoriStorageInterface } from './NoriStorageInterface.js';
 import { FungibleToken } from './TokenBase.js';
-// MerkleTreeContractDepositAttestorInput must be a value import for @method decorator runtime validation
+// VerifiedRequestWitnessInput must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
-    MerkleTreeContractDepositAttestorInput, extractCodeChallengeAndTotalLocked,
-    getContractDepositSlotRootFromContractDepositAndWitness,
+    VerifiedRequestWitnessInput, extractCodeChallengeAndTotalLocked,
+    getVerifiedRequestSlotRootFromWitness,
 } from './depositAttestation.js';
 // SCRAMWitness must be a value import for @method decorator runtime validation
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -108,9 +108,9 @@ export interface NoriTokenControllerDeployProps extends Exclude<
     storageVKHash: Field;
     newStoreHash: Bytes32FieldPair;
     ethTokenBridgeAddress: Field;
+    ethProofQueueAddress: Field;
     noriHeliosProgramPi0: FrC;
     proofConversionPO2: Field;
-    genesisRoot: Field;
 }
 
 export class BurnEvent extends Struct({
@@ -179,32 +179,12 @@ export class NoriTokenBridge
      */
     @state(Field) proofConversionPO2 = State<Field>();
 
-    /**
-     * Poseidon hash of the Ethereum chain genesis validators root.
-     * Immutable after deploy — no admin setter exists by design.
-     *
-     * The Helios store hash (latestHeliusStoreInputHash*) is an opaque commitment over a
-     * serialized light client store containing finalized headers, sync committees, and
-     * optionally a next sync committee / best valid update. It must be upgradable because:
-     *   1. The store serialization format may need to change as Helios evolves.
-     *   2. A best-valid-update scenario (e.g. extended finality failure on Ethereum) would
-     *      require a forced Helios store reconstruction and therefore a new store hash.
-     *
-     * That necessary upgradability is a governance attack surface: because the store hash is
-     * opaque, a compromised governance update could swap it to one rooted on a different chain
-     * with no visible on-chain evidence or verification. This field prevents that — `update`
-     * verifies the proof's genesis root against this value, so governance can rotate the
-     * store hash (subject to the strictly-increasing slot constraint) but cannot redirect
-     * the bridge to a different chain. The genesis validators root is a
-     * fixed, well-known constant that does not change across non-contentious hard forks.
-     */
-    @state(Field) genesisRoot = State<Field>();
     /** Chain-linkage hash (high byte) — the next proof's `inputStoreHash` must match this + lower bytes. */
-    @state(Field) latestHeliusStoreInputHashHighByte = State<Field>();
-    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliusStoreInputHashHighByte`. */
-    @state(Field) latestHeliusStoreInputHashLowerBytes = State<Field>();
-    /** Deposits root from the most recent successful `update` (exposed for off-chain consumers). */
-    @state(Field) latestVerifiedContractDepositsRoot = State<Field>();
+    @state(Field) latestHeliosStoreInputHashHighByte = State<Field>();
+    /** Chain-linkage hash (lower 31 bytes), pair with `latestHeliosStoreInputHashHighByte`. */
+    @state(Field) latestHeliosStoreInputHashLowerBytes = State<Field>();
+    /** Verified requests root from the most recent successful `update` (exposed for off-chain consumers). */
+    @state(Field) latestVerifiedRequestsRoot = State<Field>();
     /** The Ethereum contract address associated with this token bridge. */
     @state(Field) ethTokenBridgeAddress = State<Field>();
 
@@ -213,6 +193,19 @@ export class NoriTokenBridge
     @state(Field) windowStart = State<Field>();
     /** Number of deposit-root actions currently in the window (max maxWindow). */
     @state(Field) windowSize = State<Field>();
+    /**
+     * Number of proof request queue entries settled so far. Every `update`
+     * must resume exactly here (`input.inputQueueCursor`) and advances it to
+     * `input.outputQueueCursor`, so no proof can skip queued entries.
+     * Moves only through proven updates — no admin setter.
+     */
+    @state(UInt64) queueCursor = State<UInt64>();
+    /**
+     * The NoriProofRequestQueue address every proof anchors its storage
+     * witnesses on. Immutable after deploy — no setter; a queue redeploy
+     * implies a bridge redeploy.
+     */
+    @state(Field) ethProofQueueAddress = State<Field>();
 
     readonly events = {
         Burn: BurnEvent
@@ -244,10 +237,10 @@ export class NoriTokenBridge
         // Set inital state of store hash.
         // await this.updateStoreHash(newStoreHash); // Reintroduce this instead of the immediate below when we can
         // verify that this.admin.getAndRequireEquals() == adminPublicKey immediately after this.admin.set(adminPublicKey);
-        this.latestHeliusStoreInputHashHighByte.set(
+        this.latestHeliosStoreInputHashHighByte.set(
             props.newStoreHash.highByteField
         );
-        this.latestHeliusStoreInputHashLowerBytes.set(
+        this.latestHeliosStoreInputHashLowerBytes.set(
             props.newStoreHash.lowerBytesField
         );
 
@@ -255,10 +248,12 @@ export class NoriTokenBridge
         this.windowStart.set(Reducer.initialActionState);
         this.windowSize.set(Field(0));
 
-        // Ethereum token bridge contract address — verified against the proof in update().
+        // Ethereum token bridge contract address — mint leaves must carry it as `target`.
         this.ethTokenBridgeAddress.set(props.ethTokenBridgeAddress);
-        // Immutable chain anchor — prevents governance store hash rotations from redirecting the bridge to a different chain.
-        this.genesisRoot.set(props.genesisRoot);
+        // Proof request queue address — verified against the proof in update(). No setter.
+        this.ethProofQueueAddress.set(props.ethProofQueueAddress);
+        // Queue starts undrained; only proven updates advance this.
+        this.queueCursor.set(UInt64.from(0));
 
         // SP1 program identifier — updatable via updateNoriHeliosProgramPi0() as Helios evolves.
         this.noriHeliosProgramPi0.set(props.noriHeliosProgramPi0);
@@ -292,18 +287,8 @@ export class NoriTokenBridge
         proof.publicOutput.subtreeVkDigest.assertEquals(ethNodeVk);
         Provable.log('newHead slot', input.outputSlot);
 
-        // Verification of the input
-        let bytes: UInt8[] = [];
-        bytes = bytes.concat(input.inputSlot.toBytesBE());
-        bytes = bytes.concat(input.inputStoreHash.bytes);
-        bytes = bytes.concat(input.outputSlot.toBytesBE());
-        bytes = bytes.concat(input.outputStoreHash.bytes);
-        bytes = bytes.concat(input.executionStateRoot.bytes);
-        bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
-        bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
-        bytes = bytes.concat(input.contractAddress.bytes);
-        bytes = bytes.concat(input.genesisRoot.bytes);
-
+        // Re-encode the input to the exact bytes the SP1 program committed.
+        const bytes = ethInputToBytes(input);
 
         // Check that zkprograminput is same as passed to the SP1 program
         const pi0 = ethPlonkVK;
@@ -322,8 +307,7 @@ export class NoriTokenBridge
 
         piDigest.assertEquals(proof.publicOutput.rightOut);
         return {
-            ethGenesisRootBytes: input.genesisRoot.bytes,
-            ethTokenBridgeAddressBytes: input.contractAddress.bytes
+            ethProofQueueAddressBytes: input.proofRequestQueueAddress.bytes
         };
     }
 
@@ -335,34 +319,30 @@ export class NoriTokenBridge
      *
      * Verify an SP1 consensus MPT transition proof and advance the bridge
      * head. On success:
-     *   - `input.genesisRoot` is verified against the immutable on-chain `genesisRoot`
-     *     (rejects proofs from a different chain)
-     *   - `input.contractAddress` is verified against `ethTokenBridgeAddress`
+     *   - `input.proofRequestQueueAddress` is verified against the immutable
+     *     on-chain `ethProofQueueAddress`
+     *   - `input.inputQueueCursor` must equal `queueCursor`; on success
+     *     `queueCursor` advances to `input.outputQueueCursor`
      *   - `latestHead` is set to `input.outputSlot` (must strictly increase)
      *   - `verifiedStateRoot` is set to Poseidon(`input.executionStateRoot`)
-     *   - `latestHeliusStoreInputHash{HighByte,LowerBytes}` advance to the
+     *   - `latestHeliosStoreInputHash{HighByte,LowerBytes}` advance to the
      *     new store hash (prior values must match the proof's `inputStoreHash`)
-     *   - `input.verifiedContractDepositsRoot` is dispatched into the rolling
+     *   - `input.verifiedRequestsRoot` is dispatched into the rolling
      *     window; when the window is full, the oldest action is evicted —
      *     its identity is derived in-circuit via the reducer (no caller witness).
      */
     @method async update(input: EthInput, proof: NodeProofLeft) {
         // Verify transition proof.
-        const {
-            ethGenesisRootBytes,
-            ethTokenBridgeAddressBytes
-        } = this.ethVerify(input, proof);
+        const { ethProofQueueAddressBytes } = this.ethVerify(input, proof);
 
-        // Verify ethereum proof is of the correct address
-        const ethTokenBridgeAddress = new Bytes20(ethTokenBridgeAddressBytes).toField();
-        const expectedEthTokenBridgeAddress = this.ethTokenBridgeAddress.getAndRequireEquals();
-        expectedEthTokenBridgeAddress.assertEquals(ethTokenBridgeAddress, 'The contract address extracted from the proof must match the one set in the bridge head contract.');
+        // Verify the proof anchors its storage witnesses on the expected queue
+        const ethProofQueueAddress = new Bytes20(ethProofQueueAddressBytes).toField();
+        const expectedEthProofQueueAddress = this.ethProofQueueAddress.getAndRequireEquals();
+        expectedEthProofQueueAddress.assertEquals(ethProofQueueAddress, 'The proof request queue address extracted from the proof must match the one set at deploy.');
 
-        // Verify ethereum proof is on the correct chain
-        const ethGenesisRoot = new Bytes32(ethGenesisRootBytes).toFields();
-        const ethGenesisRootHash = Poseidon.hash(ethGenesisRoot);
-        const expectedGenesisRootHash = this.genesisRoot.getAndRequireEquals();
-        expectedGenesisRootHash.assertEquals(ethGenesisRootHash, 'The genesis validators root extracted from the proof must match the one set at deploy.');
+        // Cursor continuity: the proof must resume exactly where the last one settled
+        const expectedQueueCursor = this.queueCursor.getAndRequireEquals();
+        input.inputQueueCursor.assertEquals(expectedQueueCursor);
 
         const proofHead = input.outputSlot;
         const executionStateRoot = input.executionStateRoot;
@@ -392,29 +372,29 @@ export class NoriTokenBridge
 
         // Verification of the previous store hash higher byte.
         prevStoreHash.highByteField.assertEquals(
-            this.latestHeliusStoreInputHashHighByte.getAndRequireEquals(),
+            this.latestHeliosStoreInputHashHighByte.getAndRequireEquals(),
             'The latest transition proofs\' input helios store hash higher byte, must match the contracts\' helios store hash higher byte.'
         );
 
         Provable.asProver(() => {
             Provable.log(
-                'ethProof.prevStoreHashHighByteField vs this.latestHeliusStoreInputHashHighByte',
+                'ethProof.prevStoreHashHighByteField vs this.latestHeliosStoreInputHashHighByte',
                 prevStoreHash.highByteField.toString(),
-                this.latestHeliusStoreInputHashHighByte.get().toString()
+                this.latestHeliosStoreInputHashHighByte.get().toString()
             );
         });
 
         // Verification of previous store hash lower bytes.
         prevStoreHash.lowerBytesField.assertEquals(
-            this.latestHeliusStoreInputHashLowerBytes.getAndRequireEquals(),
+            this.latestHeliosStoreInputHashLowerBytes.getAndRequireEquals(),
             'The latest transition proofs\' input helios store hash lower bytes, must match the contracts\' helios store hash lower bytes.'
         );
 
         Provable.asProver(() => {
             Provable.log(
-                'ethProof.prevStoreHashLowerBytesField vs this.latestHeliusStoreInputHashLowerBytes',
+                'ethProof.prevStoreHashLowerBytesField vs this.latestHeliosStoreInputHashLowerBytes',
                 prevStoreHash.lowerBytesField.toString(),
-                this.latestHeliusStoreInputHashLowerBytes.get().toString()
+                this.latestHeliosStoreInputHashLowerBytes.get().toString()
             );
         });
 
@@ -433,9 +413,9 @@ export class NoriTokenBridge
         }
         nextSyncCommitteeZeroAcc.assertNotEquals(new Field(0));
 
-        // Extract the verifiedContractDepositsRoot and convert it to a Field
-        const verifiedContractDepositsRootField = bytes32LEToFieldProvable(
-            input.verifiedContractDepositsRoot.bytes
+        // Extract the verifiedRequestsRoot and convert it to a Field
+        const verifiedRequestsRootField = bytes32LEToFieldProvable(
+            input.verifiedRequestsRoot.bytes
         );
 
         // Update contract values
@@ -443,16 +423,17 @@ export class NoriTokenBridge
         this.verifiedStateRoot.set(
             Poseidon.hashPacked(Bytes32.provable, executionStateRoot)
         );
-        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
-        this.latestHeliusStoreInputHashLowerBytes.set(
+        this.latestHeliosStoreInputHashHighByte.set(newStoreHash.highByteField);
+        this.latestHeliosStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
-        this.latestVerifiedContractDepositsRoot.set(
-            verifiedContractDepositsRootField
+        this.latestVerifiedRequestsRoot.set(
+            verifiedRequestsRootField
         );
+        this.queueCursor.set(input.outputQueueCursor);
 
         // Dispatch + window eviction
-        this.dispatchAndEvict(verifiedContractDepositsRootField);
+        this.dispatchAndEvict(verifiedRequestsRootField);
     }
     /**
      * Dispatch a new deposit root action and evict the oldest if the window is full.
@@ -534,7 +515,7 @@ export class NoriTokenBridge
         );
     }
     @method public async noriMint(
-        merkleTreeContractDepositAttestorInput: MerkleTreeContractDepositAttestorInput,
+        merkleTreeContractDepositAttestorInput: VerifiedRequestWitnessInput,
         SCRAMWitness: SCRAMWitness,
         windowStartWitness: Field
     ) {
@@ -545,7 +526,7 @@ export class NoriTokenBridge
         // This just proves that the index and value with the witness yield a root
         // Aka some value exists at some index and yields a certain root
         const contractDepositSlotRoot =
-            getContractDepositSlotRootFromContractDepositAndWitness(
+            getVerifiedRequestSlotRootFromWitness(
                 merkleTreeContractDepositAttestorInput
             );
 
@@ -585,8 +566,15 @@ export class NoriTokenBridge
         const {
             totalLocked: totalLockedBridgeUnits,
             codeChallenge: codeChallengeSCRAM,
+            target: depositTarget,
         } = extractCodeChallengeAndTotalLocked(
             merkleTreeContractDepositAttestorInput
+        );
+
+        // The queue is shared: only leaves the token bridge enqueued may mint
+        depositTarget.assertEquals(
+            this.ethTokenBridgeAddress.getAndRequireEquals(),
+            'The deposit leaf must originate from the Ethereum token bridge.'
         );
 
         // Verify the code challenge
@@ -685,8 +673,8 @@ export class NoriTokenBridge
     // we need it in case Helios changes it's store structure 
     @method async updateStoreHash(newStoreHash: Bytes32FieldPair) {
         await this.ensureAdminSignature();
-        this.latestHeliusStoreInputHashHighByte.set(newStoreHash.highByteField);
-        this.latestHeliusStoreInputHashLowerBytes.set(
+        this.latestHeliosStoreInputHashHighByte.set(newStoreHash.highByteField);
+        this.latestHeliosStoreInputHashLowerBytes.set(
             newStoreHash.lowerBytesField
         );
     }

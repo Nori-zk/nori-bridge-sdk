@@ -48,9 +48,34 @@ export const getFeeInfo = task('getFeeInfo', 'Get current fee configuration and 
 
             const accumulatedFeesWei = accumulatedFees;
             const accumulatedFeesBU = accumulatedFeesWei / WEI_PER_BRIDGE_UNIT;
-            logger.log(`Accumulated fees:`);
+            logger.log(`Accumulated fees (treasury, rate portion only):`);
             logger.log(`  WEI: ${accumulatedFeesWei.toString()}`);
             logger.log(`  BU: ${accumulatedFeesBU.toString()}`);
             logger.log(`  ETH: ${ethers.formatEther(accumulatedFeesWei)}`);
+
+            // Proof request queue — the other half of every lock fee. Read the
+            // address off the bridge rather than the environment: it is
+            // immutable, so the bridge is the authority on which queue is live.
+            const proofQueueAddress = await tokenBridge.proofQueue();
+            const proofQueue = await ethers.getContractAt(
+                'NoriProofRequestQueue',
+                proofQueueAddress
+            );
+
+            const proofRequestQueueFee = await proofQueue.proofRequestQueueFee();
+            const maxProofRequestQueueFee = await proofQueue.MAX_PROOF_REQUEST_QUEUE_FEE();
+            const queueFees = await proofQueue.accumulatedFees();
+            const head = await proofQueue.head();
+            const minLockAmountWei = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
+
+            logger.log(`Proof request queue: ${proofQueueAddress}`);
+            logger.log(`  Operator: ${await proofQueue.operator()}`);
+            logger.log(`  Fee recipient: ${await proofQueue.feeRecipient()}`);
+            logger.log(`  Proof request queue fee: ${ethers.formatEther(proofRequestQueueFee)} ETH (max ${ethers.formatEther(maxProofRequestQueueFee)} ETH)`);
+            logger.log(`  Requests enqueued to date: ${head.toString()}`);
+            logger.log(`  Accumulated fees: ${ethers.formatEther(queueFees)} ETH`);
+
+            logger.log(`Effective lock fee: ${ethers.formatEther(proofRequestQueueFee)} ETH + ${(Number(lockFeeRate) / Number(FEE_DENOMINATOR) * 100).toFixed(3)}% of the deposit`);
+            logger.log(`Minimum deposit: ${ethers.formatEther(minLockAmountWei)} ETH`);
         },
     })).build();

@@ -12,7 +12,12 @@ const logger = new Logger("Deploy");
 
 const DEVNET_NETWORKS = new Set(["hardhat"]);
 
-export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSettlement, and NoriTokenBridge")
+// Mirrors NoriProofRequestQueue; validated here so a bad value fails before
+// anything is deployed.
+const PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI = 10n ** 12n;
+const MAX_PROOF_REQUEST_QUEUE_FEE_WEI = 5n * 10n ** 16n; // 0.05 ETH
+
+export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSettlement, NoriProofRequestQueue, and NoriTokenBridge")
   .setAction(async () => ({
     default: async (_args, hre) => {
       const { ethers } = await hre.network.getOrCreate();
@@ -35,6 +40,18 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       else if (!bytes32Re.test(possibleZkappTokenId)) issues.push("NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID must be a 0x-prefixed 32-byte hex string");
       if (!possibleZkappVkHash) issues.push("Missing required env: NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH (keccak256 of the ABI-encoded NoriStorage zkApp verification key)");
       else if (!bytes32Re.test(possibleZkappVkHash)) issues.push("NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH must be a 0x-prefixed 32-byte hex string");
+
+      const possibleProofRequestQueueFeeWei = process.env.NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI;
+      let proofRequestQueueFeeWei = 0n;
+      if (possibleProofRequestQueueFeeWei) {
+        try {
+          proofRequestQueueFeeWei = BigInt(possibleProofRequestQueueFeeWei);
+        } catch {
+          issues.push(`NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI must be an integer amount of wei, got: ${possibleProofRequestQueueFeeWei}`);
+        }
+        if (proofRequestQueueFeeWei > MAX_PROOF_REQUEST_QUEUE_FEE_WEI) issues.push(`NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI exceeds MAX_PROOF_REQUEST_QUEUE_FEE of ${MAX_PROOF_REQUEST_QUEUE_FEE_WEI.toString()} wei`);
+        if (proofRequestQueueFeeWei % PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI !== 0n) issues.push(`NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI must be a multiple of ${PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI.toString()} wei`);
+      }
 
       if (issues.length) {
         logger.error("Deploy encountered errors:");
@@ -64,6 +81,7 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       logger.log(`  NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS: ${process.env.NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS || "(not set)"}`);
       logger.log(`  NORI_ETH_BRIDGE_LOCK_FEE_RATE: ${process.env.NORI_ETH_BRIDGE_LOCK_FEE_RATE || "(not set)"}`);
       logger.log(`  NORI_ETH_BRIDGE_UNLOCK_FEE_RATE: ${process.env.NORI_ETH_BRIDGE_UNLOCK_FEE_RATE || "(not set)"}`);
+      logger.log(`  NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI: ${possibleProofRequestQueueFeeWei || "(not set, defaulting to 0)"}`);
 
 
       // Deploy MinaAccountValidation
@@ -88,6 +106,25 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       logger.log(`MinaStateSettlement deployed to: ${stateSettlement.target}`);
       logger.log(`Gas used: ${stateSettlementReceipt.gasUsed.toString()}`);
 
+      // Deploy NoriProofRequestQueue
+      // Must precede the bridge: the bridge takes the queue address as an
+      // immutable constructor argument. Governance is shared — the queue's
+      // operator is the same address as the bridge operator.
+      logger.log("Deploying NoriProofRequestQueue...");
+      const NoriProofRequestQueue = await ethers.getContractFactory("NoriProofRequestQueue");
+      const proofQueue = await NoriProofRequestQueue.deploy(
+        bridgeOperator,
+        feeRecipient,
+        proofRequestQueueFeeWei
+      );
+      const proofQueueDeployTx = proofQueue.deploymentTransaction();
+      if (!proofQueueDeployTx) throw new Error("NoriProofRequestQueue did not deploy");
+      const proofQueueReceipt = await proofQueueDeployTx.wait();
+      if (!proofQueueReceipt) throw new Error("NoriProofRequestQueue receipt invalid");
+      logger.log(`NoriProofRequestQueue deployed to: ${proofQueue.target}`);
+      logger.log(`Proof request queue fee: ${ethers.formatEther(proofRequestQueueFeeWei)} ETH`);
+      logger.log(`Gas used: ${proofQueueReceipt.gasUsed.toString()}`);
+
       // Deploy NoriTokenBridge
       logger.log("Deploying NoriTokenBridge...");
       const NoriTokenBridge = await ethers.getContractFactory("NoriTokenBridge");
@@ -95,6 +132,7 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
         bridgeOperator,
         stateSettlement.target,
         accountValidation.target,
+        proofQueue.target,
         zkappTokenId,
         zkappVkHash,
         feeRecipient
@@ -125,6 +163,7 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       const envFilePath = path.resolve(__dirname, "..", ".env.nori-eth-token-bridge");
       const env = {
         NORI_ETH_TOKEN_BRIDGE_ADDRESS: tokenBridge.target,
+        NORI_ETH_PROOF_QUEUE_ADDRESS: proofQueue.target,
         NORI_ETH_MINA_STATE_SETTLEMENT_ADDRESS: stateSettlement.target,
         NORI_ETH_MINA_ACCOUNT_VALIDATION_ADDRESS: accountValidation.target,
         NORI_ETH_BRIDGE_OPERATOR_ADDRESS: bridgeOperator,

@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/ethereum-token-bridge",
-    "version": "0.0.12",
+    "version": "0.0.16",
     "description": "NoriTokenBridge contract",
     "main": "build/index.js",
     "publishConfig": {
@@ -9,7 +9,7 @@
     },
     "type": "module",
     "scripts": {
-        "build": "mkdir -p lib && (test -d lib/aligned_layer || git clone https://github.com/yetanotherco/aligned_layer --recursive lib/aligned_layer) && ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && tsc -p tsconfig.package.json",
+        "build": "mkdir -p lib && (test -d lib/aligned_layer || git clone https://github.com/yetanotherco/aligned_layer --recursive lib/aligned_layer) && ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && node stabilize-types.mjs . && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
@@ -24,9 +24,12 @@
         "test:lock-loop": "dotenv -e .env -- sh -c 'while true; do npx hardhat --network \"$ETH_NETWORK\" lockTokens \"$@\" || break; sleep 384; done' --",
         "get-deposited": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK getTotalDeposited \"$@\"' --",
         "get-fee-info": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK getFeeInfo'",
+        "preview-fees": "ETH_NETWORK=hardhat npx hardhat previewFees",
         "set-fee-rate": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setFeeRate \"$@\"' --",
         "set-fee-recipient": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setFeeRecipient \"$@\"' --",
         "withdraw-fees": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK withdrawFees'",
+        "set-proof-request-queue-fee": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setProofRequestQueueFee \"$@\"' --",
+        "withdraw-proof-request-queue-fees": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK withdrawProofRequestQueueFees'",
         "set-bridge-operator": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK setBridgeOperator \"$@\"' --"
     },
     "author": "",
@@ -51,7 +54,7 @@
         "dotenv": "^17.2.4",
         "dotenv-cli": "^8.0.0",
         "hardhat": "^3.1.11",
-        "npm-workspaces-publish-tool": "0.0.17",
+        "npm-workspaces-publish-tool": "0.0.18",
         "typechain": "^8.3.2"
     },
     "files": [
