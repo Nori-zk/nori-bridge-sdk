@@ -24,16 +24,16 @@ export const env: Partial<Record<NetworkName, Partial<Record<EnvName, Env>>>> =
         mina: {
             staging: {
                 NORI_MINA_TOKEN_BRIDGE_ADDRESS:
-                    'B62qmMvzQNSCnZ4qH1N9uJByov9EyGushzv1jV7Cqg8UwS6BrRgHGzk',
+                    'B62qizrJ4qfYbG17RmotjiUqpHytH1Z7DdrcGLoj6RSGxVjaJQrFnWK',
                 NORI_MINA_TOKEN_BASE_ADDRESS:
-                    'B62qjF2S71pPfMyiSBXscHVmsHtBReRzXB1DkMg6HxZUbPW2a1bYSQH',
-                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0xa2817F30a73B32860184E444Fc80018A45aD2CF6',
+                    'B62qpZfxhosJ1wZQNnLDZ2BpNUvdFuxZg4muTUkhgq9gAnTRVagTpmW',
+                NORI_ETH_TOKEN_BRIDGE_ADDRESS: '0xE2e295F75e268B1feDb2C43291C33a932adaf2b8',
                 // Placeholder until the NoriProofRequestQueue is deployed; written by ethereum `npm run deploy`.
-                NORI_ETH_PROOF_QUEUE_ADDRESS: '0x0000000000000000000000000000000000000000',
+                NORI_ETH_PROOF_QUEUE_ADDRESS: '0x528A504FA206e775646149038dfF80DE58089031',
                 NORI_MINA_TOKEN_BASE_TOKEN_ID:
-                    '24076995954020199447973315155258633096183592652675591033300568109713209038362',
+                    '213061865830418241245201927967830558224901847789464716973027458036009560597',
                 NORI_MINA_TOKEN_BRIDGE_TOKEN_ID:
-                    '13777098415199831791531080343181889531730769260227911933839499395711118342003',
+                    '14684789014999748479725234456661936089652887713185506839687779272403773390411',
                 MINA_ARCHIVE_RPC_URL: 'https://archive-node-api.mesa-rc.minaprotocol.com',
                 MINA_RPC_NETWORK_URL:
                     'https://plain-1-graphql.mesa-rc.minaprotocol.com/graphql',
