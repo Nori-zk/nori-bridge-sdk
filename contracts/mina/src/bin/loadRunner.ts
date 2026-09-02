@@ -7,7 +7,8 @@
  *
  * Per flow:
  *   - Fresh TokenBridgeWorker (spawned and signalTerminate'd each run).
- *   - Dedicated WSS connection per user (not shared).
+ *   - Dedicated WSS connection per user, opened on that user's first flow
+ *     and reused for every later one (see the UserSockets docstring).
  *   - Full flow mirrors minimal-client/src/index.spec.ts.
  *   - Randomised post-canMint delay (see pickClaimDelayUpdates).
  *
@@ -18,12 +19,14 @@
  *
  * Common optional env:
  *   LOAD_USER_LABELS=alice,bob,carol
- *   LOAD_LOCK_AMOUNTS_ETH=0.0001
+ *   LOAD_LOCK_AMOUNTS_ETH=0.001
  *   LOAD_BASE_TICK_MINUTES=2
  *   LOAD_MAX_CONCURRENT=2
  *   LOAD_MAX_CONCURRENT_COMPILES=5
  *   LOAD_PER_USER_COOLDOWN_MINUTES=5
  *   LOAD_MINT_GATE_TIMEOUT_MINUTES=120
+ *   LOAD_MINA_SEND_TIMEOUT_MINUTES=45
+ *   LOAD_MINA_TX_FEE_MINA=0.1
  *   LOAD_LOG_DIR=./logs/loadRunner
  *
  * See parseEnv() for the full list and defaults.
@@ -66,6 +69,7 @@ import {
 } from '../rx/deposit.js';
 import { getTokenBridgeWorker } from '../workers/tokenBridgeWorker/node/parent.js';
 import { getStagingEnv } from '../tests/testUtils.js';
+import { maxWindow } from '../NoriTokenBridge.const.js';
 
 new LogPrinter('LoadRunner');
 const logger = new Logger('LoadRunner');
@@ -82,9 +86,15 @@ const ETH_GAS_BUFFER_ETH = 0.001;
 // starts. Covers setup (1 MINA new-account fee) + mint + retry headroom.
 const MINA_MIN_BALANCE_DEFAULT = 2;
 
-// Contract retains 32 deposit roots. We never lag more than this to keep a
-// safety margin below eviction.
-const MAX_CLAIM_LAG_UPDATES = 28;
+// NoriTokenBridge retains `maxWindow` deposit roots before evicting the
+// oldest. We never lag more than this, less a safety margin, so a randomised
+// claim delay can't push a deposit past real eviction. Imported rather than
+// hardcoded so a contract-side window change lands here too.
+//
+// Note this is the *contract's* window, which is wider than the window
+// rx/deposit.ts uses to declare MissedMintingOpportunity — see the canMint
+// catch in runUserFlow for why we don't trust that classification.
+const MAX_CLAIM_LAG_UPDATES = maxWindow - 4;
 
 // Stall watchdog for the claim-lag wait: we don't cap TOTAL time, we cap
 // silence between advances. A single mesa update can take 15–60min (avg ~30);
@@ -111,15 +121,32 @@ const BRIDGE_READY_TIMEOUT_MINUTES_DEFAULT = 30;
 // enough to absorb one or two rolls without giving up on a flow.
 const MINT_RETRY_ATTEMPTS = 3;
 
+// Hard cap on a single Mina send (setupStorage, or one mint attempt). Both
+// end in `tx.wait()`, which has no timeout of its own — an under-priced or
+// dropped tx would otherwise pin a worker child and a concurrency slot for
+// the life of the process. Generous enough to cover proving plus several
+// Mina blocks; on expiry the mint retry loop rebuilds and tries again.
+const MINA_SEND_TIMEOUT_MINUTES_DEFAULT = 45;
+
 // ---- Env defaults (kept here so tuning is a one-file edit) ----
 
-// LOAD_LOCK_AMOUNTS_ETH — ETH amount per lock. Sepolia is cheap; 0.0001 keeps
-// 1000s of runs affordable while staying above the contract's min unit.
-const LOCK_AMOUNT_ETH_DEFAULT = 0.0001;
+// NoriTokenBridge.MIN_LOCK_AMOUNT_WEI — deposits below this revert with
+// BelowMinLockAmount. Sepolia is cheap, so sitting exactly on the minimum
+// keeps 1000s of runs affordable.
+const MIN_LOCK_AMOUNT_ETH = 0.001;
+
+// NoriTokenBridge.WEI_PER_BRIDGE_UNIT — deposits must be a whole number of
+// bridge units, else InvalidBridgeUnitMultiple.
+const WEI_PER_BRIDGE_UNIT = 10n ** 12n;
+
+// LOAD_LOCK_AMOUNTS_ETH — ETH amount per lock.
+const LOCK_AMOUNT_ETH_DEFAULT = MIN_LOCK_AMOUNT_ETH;
 
 // LOAD_ETH_MIN_BALANCES — floor wallet balance before a flow is allowed to
-// run. Acts as operator-mandated headroom beyond a single lock+gas.
-const ETH_MIN_BALANCE_DEFAULT = 0.001;
+// run. Acts as operator-mandated headroom beyond a single lock+gas. Default
+// covers a few minimum locks plus their gas so a wallet doesn't strand
+// mid-campaign.
+const ETH_MIN_BALANCE_DEFAULT = 0.005;
 
 // LOAD_BASE_TICK_MINUTES — scheduler's base period between launch decisions.
 const BASE_TICK_MINUTES_DEFAULT = 2;
@@ -140,7 +167,10 @@ const MAX_CONCURRENT_COMPILES_DEFAULT = 5;
 const PER_USER_COOLDOWN_MINUTES_DEFAULT = 5;
 
 // LOAD_MINA_TX_FEE_MINA — fee paid on every Mina tx this script sends.
-const MINA_TX_FEE_MINA_DEFAULT = 0.01;
+// Matches the 0.1 the reference e2e flow (minimal-client/src/index.spec.ts)
+// uses for both setupStorage and mint. Both sends block on tx.wait(), so an
+// under-priced tx costs a whole flow's worth of stall rather than a retry.
+const MINA_TX_FEE_MINA_DEFAULT = 0.1;
 
 // LOAD_LOG_DIR — where the three log streams are written.
 const LOG_DIR_DEFAULT = './logs/loadRunner';
@@ -185,6 +215,7 @@ interface ScriptConfig {
     workerSettleMs: number;
     mintGateTimeoutMs: number;
     bridgeReadyTimeoutMs: number;
+    minaSendTimeoutMs: number;
     minaTxFeeNanomina: number;
 
     logDir: string;
@@ -228,9 +259,33 @@ interface PhaseRec {
     finishedAt?: number;
 }
 
+/**
+ * A user's bridge socket and the three topics derived from it.
+ *
+ * `ReconnectingWebSocketSubject` connects in its constructor and reconnects on
+ * every close for the life of the process; downstream unsubscribes don't close
+ * it and there is no public teardown. Opening one per flow would therefore
+ * strand a live socket plus its 3s heartbeat on every run, so each user opens
+ * exactly one on their first flow and reuses it thereafter — N connections
+ * total rather than N × runs.
+ *
+ * Reuse also helps the flow itself: the topics are `shareReplay(1)` with no
+ * ref-counting, so later flows see current bridge state immediately instead of
+ * waiting for the next frame.
+ */
+interface UserSockets {
+    connectionState$: ReturnType<
+        typeof getReconnectingBridgeSocket$
+    >['bridgeSocketConnectionState$'];
+    ethStateTopic$: ReturnType<typeof getEthStateTopic$>;
+    bridgeStateTopic$: ReturnType<typeof getBridgeStateTopic$>;
+    bridgeTimingsTopic$: ReturnType<typeof getBridgeTimingsTopic$>;
+}
+
 interface UserState {
     cfg: UserConfig;
     status: UserStatus;
+    sockets?: UserSockets;
     nextEligibleAt: number;
     stats: {
         runs: number;
@@ -445,11 +500,25 @@ function parseEnv(): ScriptConfig {
                 `LOAD_LOCK_AMOUNTS_ETH[${i}] ("${labels[i]}") must be positive (got ${amt})`
             );
         }
+        let wei: bigint;
         try {
-            ethers.parseEther(formatEthAmount(amt));
+            wei = ethers.parseEther(formatEthAmount(amt));
         } catch (err) {
             throw new Error(
                 `LOAD_LOCK_AMOUNTS_ETH[${i}] ("${labels[i]}") is not a valid ETH amount: ${String(err)}`
+            );
+        }
+        if (amt < MIN_LOCK_AMOUNT_ETH) {
+            throw new Error(
+                `LOAD_LOCK_AMOUNTS_ETH[${i}] ("${labels[i]}") = ${amt} ETH is below the contract minimum ` +
+                `of ${MIN_LOCK_AMOUNT_ETH} ETH; lockTokens would revert with BelowMinLockAmount`
+            );
+        }
+        if (wei % WEI_PER_BRIDGE_UNIT !== 0n) {
+            throw new Error(
+                `LOAD_LOCK_AMOUNTS_ETH[${i}] ("${labels[i]}") = ${amt} ETH is not a whole multiple of ` +
+                `${ethers.formatEther(WEI_PER_BRIDGE_UNIT)} ETH (one bridge unit); ` +
+                `lockTokens would revert with InvalidBridgeUnitMultiple`
             );
         }
     });
@@ -515,6 +584,12 @@ function parseEnv(): ScriptConfig {
         'LOAD_BRIDGE_READY_TIMEOUT_MINUTES',
         { min: 1 }
     );
+    const minaSendTimeoutMinutes = parseNumberEnv(
+        process.env.LOAD_MINA_SEND_TIMEOUT_MINUTES,
+        MINA_SEND_TIMEOUT_MINUTES_DEFAULT,
+        'LOAD_MINA_SEND_TIMEOUT_MINUTES',
+        { min: 1 }
+    );
 
     return {
         users,
@@ -568,6 +643,7 @@ function parseEnv(): ScriptConfig {
         ),
         mintGateTimeoutMs: mintGateTimeoutMinutes * 60_000,
         bridgeReadyTimeoutMs: bridgeReadyTimeoutMinutes * 60_000,
+        minaSendTimeoutMs: minaSendTimeoutMinutes * 60_000,
         minaTxFeeNanomina:
             parseNumberEnv(
                 process.env.LOAD_MINA_TX_FEE_MINA,
@@ -651,21 +727,38 @@ class Semaphore {
 }
 
 /**
+ * Raised only by `withCancelableTimeout` when its own deadline expires.
+ * Distinguishable from anything the wrapped work threw, which is what lets
+ * the mint gates tell "we waited too long" apart from "the bridge stream said
+ * something we don't trust".
+ */
+class FlowTimeoutError extends Error {
+    constructor(label: string, timeoutMs: number) {
+        super(`${label} timed out after ${formatMs(timeoutMs)}`);
+        this.name = 'FlowTimeoutError';
+    }
+}
+
+/**
  * Wraps a promise in a hard timeout. On fire, runs `onTimeout` (used to
  * cancel the upstream rxjs chain via a Subject) BEFORE rejecting, so the
  * underlying subscription is torn down instead of leaking a live WSS.
+ *
+ * Omit `onTimeout` for work with nothing to cancel — a worker RPC call, say,
+ * where the losing promise is abandoned and the worker child is killed by the
+ * flow's `signalTerminate`.
  */
 async function withCancelableTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number,
     label: string,
-    onTimeout: () => void
+    onTimeout?: () => void
 ): Promise<T> {
     let handle: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
         handle = setTimeout(() => {
-            onTimeout();
-            reject(new Error(`${label} timed out after ${formatMs(timeoutMs)}`));
+            onTimeout?.();
+            reject(new FlowTimeoutError(label, timeoutMs));
         }, timeoutMs);
     });
     try {
@@ -1025,18 +1118,31 @@ async function runUserFlow(
         // signalTerminate in finally will propagate a rejection here.
         tokenBridgeWorkerReady.catch((): void => undefined);
 
-        uLog.log(`Opening WSS ${script.noriWssUrl}`);
-        const { bridgeSocket$, bridgeSocketConnectionState$ } =
-            getReconnectingBridgeSocket$(script.noriWssUrl);
+        // Opened once per user and reused — see UserSockets for why this is
+        // not per-flow. The state subscription stays per-flow so each flow's
+        // log gets its own [WS] trail; connectionState$ replays the current
+        // state on subscribe.
+        if (!userState.sockets) {
+            uLog.log(`Opening WSS ${script.noriWssUrl}`);
+            const { bridgeSocket$, bridgeSocketConnectionState$ } =
+                getReconnectingBridgeSocket$(script.noriWssUrl);
+            userState.sockets = {
+                connectionState$: bridgeSocketConnectionState$,
+                ethStateTopic$: getEthStateTopic$(bridgeSocket$),
+                bridgeStateTopic$: getBridgeStateTopic$(bridgeSocket$),
+                bridgeTimingsTopic$: getBridgeTimingsTopic$(bridgeSocket$),
+            };
+        } else {
+            uLog.log('Reusing this user\'s WSS connection');
+        }
+        const { ethStateTopic$, bridgeStateTopic$, bridgeTimingsTopic$ } =
+            userState.sockets;
         subs.add(
-            bridgeSocketConnectionState$.subscribe({
+            userState.sockets.connectionState$.subscribe({
                 next: (state) => uLog.log(`[WS] ${state}`),
                 error: (err) => uLog.log(`[WS ERROR] ${String(err)}`),
             })
         );
-        const ethStateTopic$ = getEthStateTopic$(bridgeSocket$);
-        const bridgeStateTopic$ = getBridgeStateTopic$(bridgeSocket$);
-        const bridgeTimingsTopic$ = getBridgeTimingsTopic$(bridgeSocket$);
 
         // SCRAM sign + codeChallenge don't need compiled circuits.
         const signatureSCRAMBase58 =
@@ -1214,24 +1320,20 @@ async function runUserFlow(
                 () => cancelMintGate$.next()
             );
         } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            // Same rationale as the canMint catch below: the observable's
-            // "missed" heuristic is unreliable. Only a true timeout (from
-            // withCancelableTimeout) should bail — anything else, log and
-            // fall through to setup + attempt mint.
-            const isMissedHeuristic =
-                /miss/i.test(msg) && !msg.includes('timed out');
-            if (!isMissedHeuristic) {
-                uLog.log(`readyToComputeMintProof threw (timeout): ${msg}`);
+            // Same rationale as the canMint catch below. Only our own deadline
+            // bails; anything the rx layer raised is advisory.
+            if (err instanceof FlowTimeoutError) {
+                uLog.log(`readyToComputeMintProof timed out: ${err.message}`);
                 return {
                     status: 'failure',
-                    reason: `missed mint window (pre-proof): ${msg}`,
+                    reason: `mint gate timeout (pre-proof): ${err.message}`,
                     lockTxHash: txResp.hash,
                     totalDurationMs: Date.now() - flowStart,
                 };
             }
+            const msg = err instanceof Error ? err.message : String(err);
             uLog.log(
-                `readyToComputeMintProof reports missed (heuristic): ${msg} — attempting mint anyway`
+                `readyToComputeMintProof reports not-ready (advisory): ${msg} — attempting mint anyway`
             );
         }
 
@@ -1246,13 +1348,18 @@ async function runUserFlow(
         if (setupRequired) {
             uLog.log('Running MOCK_setupStorage...');
             const setupStart = Date.now();
-            const { txHash: setupTxHash } =
-                await worker.MOCK_setupStorage(
+            // MOCK_setupStorage ends in tx.wait(), which has no timeout of its
+            // own — cap it so an unincluded tx can't pin the worker forever.
+            const { txHash: setupTxHash } = await withCancelableTimeout(
+                worker.MOCK_setupStorage(
                     minaPubKeyBase58,
                     script.noriMinaBridgeAddressBase58,
                     script.minaTxFeeNanomina,
                     noriStorageInterfaceVerificationKeySafe
-                );
+                ),
+                script.minaSendTimeoutMs,
+                'MOCK_setupStorage'
+            );
             uLog.log(
                 `Storage setup tx ${setupTxHash} in ${formatMs(Date.now() - setupStart)}`
             );
@@ -1275,25 +1382,27 @@ async function runUserFlow(
                 () => cancelMintGate$.next()
             );
         } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            // The observable's "MissedMintingOpportunity" classification uses
-            // a narrow window heuristic that often fires before the on-chain
-            // window actually closes. We've already paid for compile + setup
-            // + attestation witness — let the on-chain mint call decide.
-            // Real timeouts (cancelMintGate$ fired) still bail.
-            const isMissedHeuristic =
-                /miss/i.test(msg) && !msg.includes('timed out');
-            if (!isMissedHeuristic) {
-                uLog.log(`canMint threw (timeout): ${msg}`);
+            // rx/deposit.ts classifies MissedMintingOpportunity from a window
+            // heuristic that is narrower than the contract's real retention
+            // (NoriTokenBridge keeps `maxWindow` deposit roots), so it calls
+            // "missed" well before the root is actually evicted. It also
+            // completes the stream when it does, which makes later gate
+            // subscriptions fail in their own ways. None of that is
+            // authoritative — the on-chain mint is, and we've already paid for
+            // compile + setup + attestation witness. So bail only on our own
+            // deadline; treat every other error here as advisory and try.
+            if (err instanceof FlowTimeoutError) {
+                uLog.log(`canMint timed out: ${err.message}`);
                 return {
                     status: 'failure',
-                    reason: `missed mint window (pre-send): ${msg}`,
+                    reason: `mint gate timeout (pre-send): ${err.message}`,
                     lockTxHash: txResp.hash,
                     totalDurationMs: Date.now() - flowStart,
                 };
             }
+            const msg = err instanceof Error ? err.message : String(err);
             uLog.log(
-                `canMint reports missed (heuristic): ${msg} — attempting mint anyway`
+                `canMint reports not-ready (advisory): ${msg} — attempting mint anyway`
             );
         }
 
@@ -1357,7 +1466,12 @@ async function runUserFlow(
                     script.minaTxFeeNanomina,
                     needsToFundNow
                 );
-                const sent = await worker.WALLET_MOCK_signAndSendMintProofCache();
+                // Ends in tx.wait(); cap it as for setup above.
+                const sent = await withCancelableTimeout(
+                    worker.WALLET_MOCK_signAndSendMintProofCache(),
+                    script.minaSendTimeoutMs,
+                    'WALLET_MOCK_signAndSendMintProofCache'
+                );
                 mintTxHash = sent.txHash;
                 uLog.log(
                     `Mint attempt ${attempt} succeeded: tx ${mintTxHash}`
@@ -1369,6 +1483,13 @@ async function runUserFlow(
                 uLog.log(
                     `Mint attempt ${attempt}/${MINT_RETRY_ATTEMPTS} failed: ${msg}`
                 );
+                // A timeout means the worker is still proving or still waiting
+                // on a tx we abandoned. Retrying on top of that races two
+                // sends from one key, so stop and let teardown kill the child.
+                if (err instanceof FlowTimeoutError) {
+                    uLog.log('Mint timed out — not retrying on a busy worker.');
+                    break;
+                }
             }
         }
         if (!mintTxHash) {
@@ -1588,7 +1709,10 @@ async function main() {
         `max concurrent     : ${script.maxConcurrent}`,
         `max concurrent cc  : ${script.maxConcurrentCompiles}`,
         `mint gate timeout  : ${(script.mintGateTimeoutMs / 60_000).toFixed(1)}min`,
+        `mina send timeout  : ${(script.minaSendTimeoutMs / 60_000).toFixed(1)}min`,
         `per-user cooldown  : ${(script.perUserCooldownMs / 60_000).toFixed(1)}min`,
+        `lock amounts       : ${[...new Set(script.users.map((u) => u.lockAmountEth))].join(', ')} ETH (min ${MIN_LOCK_AMOUNT_ETH})`,
+        `mina tx fee        : ${script.minaTxFeeNanomina / 1e9} MINA`,
         `eth rpc            : ${script.ethRpcUrl}`,
         `mina rpc           : ${script.minaRpcUrl}`,
         `wss                : ${script.noriWssUrl}`,
