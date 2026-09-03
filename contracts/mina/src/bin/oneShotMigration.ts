@@ -333,19 +333,19 @@ async function deploy() {
             logger.log(
                 `oneShotMigration NoriTokenBridge with verification key hash: '${NoriTokenBridgeVerificationKey.hash}'`
             );
-            await tokenBridge.oneShotMigration({
+            await tokenBridge.oneShotMigration(
                 // verificationKey: NoriTokenBridgeVerificationKey,
                 // adminPublicKey,
                 tokenBaseAddress,
-                storageVKHash: NoriStorageInterfaceVerificationKey.hash,
-                newStoreHash: initialStoreHash,
+                NoriStorageInterfaceVerificationKey.hash,
+                initialStoreHash,
                 ethTokenBridgeAddress,
                 ethProofQueueAddress,
-                noriHeliosProgramPi0: FrC.from(
+                FrC.from(
                     bridgeHeadNoriSP1HeliosProgramPi0
                 ),
-                proofConversionPO2: Field.from(proofConversionSP1ToPlonkPO2),
-            });
+                Field.from(proofConversionSP1ToPlonkPO2),
+            );
             // logger.log('Deploying FungibleToken.');
             // await tokenBase.deploy({
             //     symbol: 'nETH',

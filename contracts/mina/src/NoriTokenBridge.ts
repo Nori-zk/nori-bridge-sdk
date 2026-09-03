@@ -218,61 +218,61 @@ export class NoriTokenBridge
      * was technically infeasible.
      */
     @method
-    async oneShotMigration(props: {
+    async oneShotMigration(
         // adminPublicKey: PublicKey;
-        tokenBaseAddress: PublicKey;
-        storageVKHash: Field;
-        newStoreHash: Bytes32FieldPair;
-        ethTokenBridgeAddress: Field;
-        ethProofQueueAddress: Field;
-        noriHeliosProgramPi0: FrC;
-        proofConversionPO2: Field;
-    }) {
+        tokenBaseAddress: PublicKey,
+        storageVKHash: Field,
+        newStoreHash: Bytes32FieldPair,
+        ethTokenBridgeAddress: Field,
+        ethProofQueueAddress: Field,
+        noriHeliosProgramPi0: FrC,
+        proofConversionPO2: Field,
+    ) {
         // Ensure this method can only be used once
-        const latestHead = this.latestHead.getAndRequireEquals();
-        const verifiedStateRoot = this.verifiedStateRoot.getAndRequireEquals();
-        const latestVerifiedRequestsRoot = this.latestVerifiedRequestsRoot.getAndRequireEquals();
-        const ethTokenBridgeAddress = this.ethTokenBridgeAddress.getAndRequireEquals();
-        const queueCursor = this.queueCursor.getAndRequireEquals();
-        const ethProofQueueAddress = this.ethProofQueueAddress.getAndRequireEquals();
-        const storageVKHash = this.storageVKHash.getAndRequireEquals();
-        latestHead.assertEquals(UInt64.from(0));
-        verifiedStateRoot.assertEquals(0);
-        latestVerifiedRequestsRoot.assertEquals(0);
-        ethTokenBridgeAddress.assertEquals(0);
-        queueCursor.assertEquals(UInt64.from(0));
-        ethProofQueueAddress.assertEquals(0);
-        storageVKHash.assertEquals(0);
+        const getLatestHead = this.latestHead.getAndRequireEquals();
+        const getVerifiedStateRoot = this.verifiedStateRoot.getAndRequireEquals();
+        const getLatestVerifiedRequestsRoot = this.latestVerifiedRequestsRoot.getAndRequireEquals();
+        const getEthTokenBridgeAddress = this.ethTokenBridgeAddress.getAndRequireEquals();
+        const getQueueCursor = this.queueCursor.getAndRequireEquals();
+        const getEthProofQueueAddress = this.ethProofQueueAddress.getAndRequireEquals();
+        const getStorageVKHash = this.storageVKHash.getAndRequireEquals();
+        getLatestHead.assertEquals(UInt64.from(0));
+        getVerifiedStateRoot.assertEquals(0);
+        getLatestVerifiedRequestsRoot.assertEquals(0);
+        getEthTokenBridgeAddress.assertEquals(0);
+        getQueueCursor.assertEquals(UInt64.from(0));
+        getEthProofQueueAddress.assertEquals(0);
+        getStorageVKHash.assertEquals(0);
 
         // Set the one of state migration
 
         //      this.adminPublicKey.set();
-        this.tokenBaseAddress.set(props.tokenBaseAddress);
-        this.storageVKHash.set(props.storageVKHash);
+        this.tokenBaseAddress.set(tokenBaseAddress);
+        this.storageVKHash.set(storageVKHash);
         this.mintLock.set(Bool(true));
         this.latestHead.set(UInt64.from(0));
         this.verifiedStateRoot.set(Field(1));
         this.latestHeliosStoreInputHashHighByte.set(
-            props.newStoreHash.highByteField
+            newStoreHash.highByteField
         );
         this.latestHeliosStoreInputHashLowerBytes.set(
-            props.newStoreHash.lowerBytesField
+            newStoreHash.lowerBytesField
         );
 
         this.windowStart.set(Reducer.initialActionState);
         this.windowSize.set(Field(0));
 
         // Ethereum token bridge contract address — mint leaves must carry it as `target`.
-        this.ethTokenBridgeAddress.set(props.ethTokenBridgeAddress);
+        this.ethTokenBridgeAddress.set(ethTokenBridgeAddress);
         // Proof request queue address — verified against the proof in update(). No setter.
-        this.ethProofQueueAddress.set(props.ethProofQueueAddress);
+        this.ethProofQueueAddress.set(ethProofQueueAddress);
         // Queue starts undrained; only proven updates advance this.
         this.queueCursor.set(UInt64.from(0));
 
         // SP1 program identifier — updatable via updateNoriHeliosProgramPi0() as Helios evolves.
-        this.noriHeliosProgramPi0.set(props.noriHeliosProgramPi0);
+        this.noriHeliosProgramPi0.set(noriHeliosProgramPi0);
         // Proof conversion public output — updatable via updateProofConversionPO2() on SP1 major upgrades.
-        this.proofConversionPO2.set(props.proofConversionPO2);
+        this.proofConversionPO2.set(proofConversionPO2);
     }
 
     readonly events = {
