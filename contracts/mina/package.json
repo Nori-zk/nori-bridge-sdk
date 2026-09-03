@@ -77,6 +77,7 @@
         "bake-vk-hashes": "npm run build && node --max-old-space-size=8192 --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/bakeVkHashes.js && npm run build",
         "poll-deposits-root": "npm run build && node --experimental-vm-modules --experimental-wasm-modules build/bin/pollDepositsRoot.js",
         "derive-token-id": "npm run build && node --experimental-vm-modules --experimental-wasm-modules build/bin/deriveTokenId.js",
+        "one-shot": "npm run build && node --max-old-space-size=8192 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/oneShotMigration.js",
         "load-runner": "npm run build && node --max-old-space-size=16384 --max-semi-space-size=128 --no-liftoff --no-wasm-tier-up --experimental-vm-modules --experimental-wasm-modules build/bin/loadRunner.js"
     },
     "devDependencies": {
