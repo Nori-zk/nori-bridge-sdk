@@ -207,6 +207,65 @@ export class NoriTokenBridge
      */
     @state(Field) ethProofQueueAddress = State<Field>();
 
+    /**
+     * HACK! A pre mesa contract was deployed on devnet to test future hard fork
+     * upgrade paths. The contract has insufficient slots pre devnet that are needed
+     * for the nori bridge zkApp. Thus a one-shot method is need to appropriately
+     * set the expanded contract state to a configuration which can be tested against.
+     * 
+     * This function is never to be commited mainline! It is just to facilitate testing
+     * migrations in this bespoke scenario where pre launching the token on the old version
+     * was technically infeasible.
+     */
+    @method
+    async oneShotMigration() {
+        // Ensure this method can only be used once
+        const latestHead = this.latestHead.getAndRequireEquals();
+        const verifiedStateRoot = this.verifiedStateRoot.getAndRequireEquals();
+        const latestVerifiedRequestsRoot = this.latestVerifiedRequestsRoot.getAndRequireEquals();
+        const ethTokenBridgeAddress = this.ethTokenBridgeAddress.getAndRequireEquals();
+        const queueCursor = this.queueCursor.getAndRequireEquals();
+        const ethProofQueueAddress = this.ethProofQueueAddress.getAndRequireEquals();
+        const storageVKHash = this.storageVKHash.getAndRequireEquals();
+        latestHead.assertEquals(UInt64.from(0));
+        verifiedStateRoot.assertEquals(0);
+        latestVerifiedRequestsRoot.assertEquals(0);
+        ethTokenBridgeAddress.assertEquals(0);
+        queueCursor.assertEquals(UInt64.from(0));
+        ethProofQueueAddress.assertEquals(0);
+        storageVKHash.assertEquals(0);
+
+        // Set the one of state migration
+
+//      this.adminPublicKey.set();
+        this.tokenBaseAddress.set(props.tokenBaseAddress);
+        this.storageVKHash.set(props.storageVKHash);
+
+        this.latestHead.set(UInt64.from(0));
+        this.verifiedStateRoot.set(Field(1));
+        this.latestHeliosStoreInputHashHighByte.set(
+            props.newStoreHash.highByteField
+        );
+        this.latestHeliosStoreInputHashLowerBytes.set(
+            props.newStoreHash.lowerBytesField
+        );
+
+        this.windowStart.set(Reducer.initialActionState);
+        this.windowSize.set(Field(0));
+
+        // Ethereum token bridge contract address — mint leaves must carry it as `target`.
+        this.ethTokenBridgeAddress.set(props.ethTokenBridgeAddress);
+        // Proof request queue address — verified against the proof in update(). No setter.
+        this.ethProofQueueAddress.set(props.ethProofQueueAddress);
+        // Queue starts undrained; only proven updates advance this.
+        this.queueCursor.set(UInt64.from(0));
+
+        // SP1 program identifier — updatable via updateNoriHeliosProgramPi0() as Helios evolves.
+        this.noriHeliosProgramPi0.set(props.noriHeliosProgramPi0);
+        // Proof conversion public output — updatable via updateProofConversionPO2() on SP1 major upgrades.
+        this.proofConversionPO2.set(props.proofConversionPO2);
+    }
+
     readonly events = {
         Burn: BurnEvent
     };
