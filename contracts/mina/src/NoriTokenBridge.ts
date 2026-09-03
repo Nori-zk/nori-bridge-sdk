@@ -218,7 +218,16 @@ export class NoriTokenBridge
      * was technically infeasible.
      */
     @method
-    async oneShotMigration() {
+    async oneShotMigration(props: {
+        // adminPublicKey: PublicKey;
+        tokenBaseAddress: PublicKey;
+        storageVKHash: Field;
+        newStoreHash: Bytes32FieldPair;
+        ethTokenBridgeAddress: Field;
+        ethProofQueueAddress: Field;
+        noriHeliosProgramPi0: FrC;
+        proofConversionPO2: Field;
+    }) {
         // Ensure this method can only be used once
         const latestHead = this.latestHead.getAndRequireEquals();
         const verifiedStateRoot = this.verifiedStateRoot.getAndRequireEquals();
@@ -237,10 +246,10 @@ export class NoriTokenBridge
 
         // Set the one of state migration
 
-//      this.adminPublicKey.set();
+        //      this.adminPublicKey.set();
         this.tokenBaseAddress.set(props.tokenBaseAddress);
         this.storageVKHash.set(props.storageVKHash);
-
+        this.mintLock.set(Bool(true));
         this.latestHead.set(UInt64.from(0));
         this.verifiedStateRoot.set(Field(1));
         this.latestHeliosStoreInputHashHighByte.set(
