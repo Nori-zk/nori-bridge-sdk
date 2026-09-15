@@ -82,11 +82,11 @@ const emptyActionsHash = poseidonSalt('MinaZkappActionsEmpty')[0];
 
 /**
  * Compute the inner action-list hash for a single-action transaction.
- * Matches: Actions.pushEvent(Actions.empty(), [actionField])
- *   = hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, hashWithPrefix('MinaZkappEvent******', [action])])
+ * Matches: Actions.pushEvent(Actions.empty(), actionFields)
+ *   = hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, hashWithPrefix('MinaZkappEvent******', actionFields)])
  */
-function singleActionInnerHash(action: Field): Field {
-    const eventHash = hashWithPrefix('MinaZkappEvent******', [action]);
+function singleActionInnerHash(actionFields: Field[]): Field {
+    const eventHash = hashWithPrefix('MinaZkappEvent******', actionFields);
     return hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, eventHash]);
 }
 
@@ -120,10 +120,10 @@ export class BurnEvent extends Struct({
     receiverEth: Field
 }) { }
 
-class DepositRootAction extends Field { }
+class DepositRootAction extends Struct({ root: Field, outputBlockNumber: UInt64, inputQueueCursor: UInt64, outputQueueCursor: UInt64 }) { }
 
 /** Accumulator for capturing the first action in a reducer pass. */
-class FirstActionAcc extends Struct({ found: Bool, value: Field }) { }
+class FirstActionAcc extends Struct({ found: Bool, value: DepositRootAction }) { }
 
 /**
  * NoriTokenBridge — Mina anchor for the Nori ETH ↔ Mina token bridge.
@@ -433,7 +433,12 @@ export class NoriTokenBridge
         this.queueCursor.set(input.outputQueueCursor);
 
         // Dispatch + window eviction
-        this.dispatchAndEvict(verifiedRequestsRootField);
+        this.dispatchAndEvict(new DepositRootAction({
+            root: verifiedRequestsRootField,
+            outputBlockNumber: input.outputBlockNumber,
+            inputQueueCursor: input.inputQueueCursor,
+            outputQueueCursor: input.outputBlockNumber
+        }));
     }
     /**
      * Dispatch a new deposit root action and evict the oldest if the window is full.
@@ -447,7 +452,7 @@ export class NoriTokenBridge
      * Order matters: reduce runs over the current window BEFORE the new root is
      * dispatched, so the new root is not part of the reduction scope.
      */
-    private dispatchAndEvict(depositRoot: Field) {
+    private dispatchAndEvict(depositRootAction: DepositRootAction) {
         const windowStart = this.windowStart.getAndRequireEquals();
         const windowSize = this.windowSize.getAndRequireEquals();
         const isFull = windowSize.greaterThanOrEqual(maxWindow);
@@ -461,13 +466,16 @@ export class NoriTokenBridge
             FirstActionAcc,
             ({ found, value }, action) => new FirstActionAcc({
                 found: Bool(true),
-                value: Provable.if(found, value, action),
+                value: Provable.if(found, DepositRootAction, value, action),
             }),
-            new FirstActionAcc({ found: Bool(false), value: Field(0) }),
+            new FirstActionAcc({
+                found: Bool(false),
+                value: new DepositRootAction({ root: Field(0), outputBlockNumber: UInt64.from(0), inputQueueCursor: UInt64.from(0), outputQueueCursor: UInt64.from(0) }),
+            }),
             { maxUpdatesWithActions: maxWindow, maxActionsPerUpdate: 1 }
         );
 
-        const innerHash = singleActionInnerHash(oldest.value);
+        const innerHash = singleActionInnerHash(DepositRootAction.toFields(oldest.value));
         const advancedStart = advanceActionState(windowStart, innerHash);
 
         // Conditionally advance: if full, slide the window; otherwise keep start.
@@ -476,7 +484,7 @@ export class NoriTokenBridge
         this.windowSize.set(Provable.if(isFull, windowSize, windowSize.add(1)));
 
         // Dispatch AFTER reduce so the new root isn't pulled into the eviction scope.
-        this.reducer.dispatch(depositRoot);
+        this.reducer.dispatch(depositRootAction);
     }
 
     @method async setUpStorage(user: PublicKey, vk: VerificationKey) {
@@ -552,7 +560,7 @@ export class NoriTokenBridge
         const depositInWindow: Bool = this.reducer.reduce(
             actions,
             Bool,
-            (found: Bool, action: Field) => found.or(action.equals(contractDepositSlotRoot)),
+            (found: Bool, action: DepositRootAction) => found.or(action.root.equals(contractDepositSlotRoot)),
             Bool(false),
             { maxUpdatesWithActions: maxWindow }
         );
