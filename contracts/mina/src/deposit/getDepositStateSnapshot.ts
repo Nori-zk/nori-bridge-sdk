@@ -20,6 +20,38 @@ export interface CommittedProofRequests {
     inputQueueCursor: UInt64;
     outputQueueCursor: UInt64;
     actionStateHash: string;
+    previousActionStateHash: string;
+}
+
+function decodeJob(
+    actionState: { actionStateOne: string; actionStateTwo: string },
+    actionData: { data: string[] }[]
+): CommittedProofRequests {
+    if (actionData.length !== 1) {
+        throw new Error(
+            `Expected exactly one settlement action per block, found ${actionData.length}.`
+        );
+    }
+    const [rootStr, outputBlockNumberStr, inputQueueCursorStr, outputQueueCursorStr] =
+        actionData[0].data;
+    const fields = actionData[0].data.map((value) => Field(value));
+    const derivedActionState = advanceActionState(
+        Field(actionState.actionStateTwo),
+        singleActionInnerHash(fields)
+    );
+    if (!derivedActionState.equals(Field(actionState.actionStateOne)).toBoolean()) {
+        throw new Error(
+            `Derived action state does not match archive-reported action state (expected ${actionState.actionStateOne}, derived ${derivedActionState.toString()}).`
+        );
+    }
+    return {
+        root: Field(rootStr),
+        outputBlockNumber: UInt64.from(BigInt(outputBlockNumberStr)),
+        inputQueueCursor: UInt64.from(BigInt(inputQueueCursorStr)),
+        outputQueueCursor: UInt64.from(BigInt(outputQueueCursorStr)),
+        actionStateHash: actionState.actionStateOne,
+        previousActionStateHash: actionState.actionStateTwo,
+    };
 }
 
 async function decodeJobsInRange(
@@ -33,36 +65,7 @@ async function decodeJobsInRange(
         fromHeight,
         toHeight
     );
-    return actions.map(({ actionState, actionData }) => {
-        if (actionData.length !== 1) {
-            throw new Error(
-                `Expected exactly one settlement action per block, found ${actionData.length}.`
-            );
-        }
-        const [rootStr, outputBlockNumberStr, inputQueueCursorStr, outputQueueCursorStr] =
-            actionData[0].data;
-        const fields = actionData[0].data.map((value) => Field(value));
-        const derivedActionState = advanceActionState(
-            Field(actionState.actionStateTwo),
-            singleActionInnerHash(fields)
-        );
-        if (
-            !derivedActionState
-                .equals(Field(actionState.actionStateOne))
-                .toBoolean()
-        ) {
-            throw new Error(
-                `Derived action state does not match archive-reported action state (expected ${actionState.actionStateOne}, derived ${derivedActionState.toString()}).`
-            );
-        }
-        return {
-            root: Field(rootStr),
-            outputBlockNumber: UInt64.from(BigInt(outputBlockNumberStr)),
-            inputQueueCursor: UInt64.from(BigInt(inputQueueCursorStr)),
-            outputQueueCursor: UInt64.from(BigInt(outputQueueCursorStr)),
-            actionStateHash: actionState.actionStateOne,
-        };
-    });
+    return actions.map(({ actionState, actionData }) => decodeJob(actionState, actionData));
 }
 
 interface DepositStateSnapshotRequest {
@@ -158,6 +161,22 @@ function findCommittedProofRequestPositionInDepositActionWindow(
         }
     }
     return -1;
+}
+
+async function findPreviousJob(
+    minaRpcProvider: MinaRpc,
+    bridgeAddress: PublicKey,
+    previousActionStateHash: string
+): Promise<CommittedProofRequests> {
+    const { actions } = await minaRpcProvider.fetchWindowActions(
+        bridgeAddress,
+        Field(previousActionStateHash)
+    );
+    const { actionState, actionData } = actions[0] ?? {};
+    if (!actionState || actionState.actionStateOne !== previousActionStateHash) {
+        throw new Error(`No settlement job found for action state ${previousActionStateHash}`);
+    }
+    return decodeJob(actionState, actionData);
 }
 
 async function classifyProcessedDeposit(
@@ -287,6 +306,16 @@ async function classifyProcessedDeposit(
     }
 
     const remainingUpdates = Number(windowSize.toBigInt() - BigInt(position) - 1n);
+    const previousOutputBlockNumber =
+        inputCursor === 0n
+            ? -1n // sentinel: no previous settlement job (first-ever batch)
+            : (
+                  await findPreviousJob(
+                      request.minaRpcProvider,
+                      request.bridgeAddress,
+                      aboveJob.previousActionStateHash
+                  )
+              ).outputBlockNumber.toBigInt();
     return {
         state: DepositState.ReadyToMint,
         depositRequestId,
@@ -296,6 +325,7 @@ async function classifyProcessedDeposit(
         inputQueueCursor: inputCursor,
         outputQueueCursor: outputCursor,
         outputBlockNumber,
+        previousOutputBlockNumber,
         remainingUpdates,
         minaBlockNumber: aboveBlock,
         indexInBatch,

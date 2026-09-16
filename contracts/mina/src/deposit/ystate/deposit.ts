@@ -24,6 +24,7 @@ export const DepositStateGraph = define({
             inputQueueCursor: 0n as bigint,
             outputQueueCursor: 0n as bigint,
             outputBlockNumber: 0n as bigint,
+            previousOutputBlockNumber: -1n as bigint, // sentinel: no previous settlement job (first-ever batch)
             remainingUpdates: 0,
             minaBlockNumber: 0,
             indexInBatch: 0n as bigint,
