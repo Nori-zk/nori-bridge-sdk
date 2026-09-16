@@ -1,8 +1,5 @@
 import { Contract } from 'ethers';
-import {
-    NoriProofRequestQueue__factory,
-    NoriTokenBridge__factory,
-} from '@nori-zk/ethereum-token-bridge';
+import { NoriProofRequestQueue__factory } from '@nori-zk/ethereum-token-bridge';
 import {
     getEthereumProvider,
     type EthereumProvider,
@@ -10,7 +7,6 @@ import {
 import {
     EthCallFailedError,
     EthRpcTransportError,
-    MalformedProofRequestError,
     ProofRequestBatchFetchError,
     type ProofRequestBatchFailure,
     type ProofRequestFailureCause,
@@ -41,14 +37,14 @@ interface Multicall3Result {
 const RECORDS_PER_MULTICALL = 200;
 
 /**
- * Concurrency for the raw-storage fallback path (queue consumers other than
- * the bridge). This can't be folded into Multicall3, since a contract can
- * only read its own storage, not an arbitrary target's, so it goes through
- * the provider's own transport one call at a time. Kept low since this is
- * expected to run against a wallet's default provider, not a dedicated
- * endpoint.
+ * Concurrency for reading each request's value. A request's `target` can be
+ * any contract, and there's no way to read another contract's storage from
+ * within a contract call, so this can't be folded into Multicall3 and goes
+ * through the provider's own transport one call at a time. Kept low since
+ * this is expected to run against a wallet's default provider, not a
+ * dedicated endpoint.
  */
-const FALLBACK_CONCURRENCY = 8;
+const VALUE_READ_CONCURRENCY = 8;
 
 const MAX_RETRIES = 5;
 const BASE_BACKOFF_MS = 500;
@@ -149,13 +145,11 @@ async function mapWithConcurrency<T, R>(
 /**
  * Reads every `NoriProofRequestQueue` entry with id in
  * `[inputQueueCursor, outputQueueCursor)`, plus the raw storage word each
- * one's `slotKey` points at, at `outputBlockNumber`.
+ * one's `slotKey` points at on its own `target`, at `outputBlockNumber`. Makes
+ * no assumption about who `target` is or what its storage layout means; the
+ * queue itself treats `slotKey` as opaque, and so does this function.
  *
  * @param proofQueueAddress The `NoriProofRequestQueue` address.
- * @param bridgeAddress The `NoriTokenBridge` address. Requests whose `target`
- *   matches this address have their value read via `lockedTokens`, batched
- *   into the same Multicall3 call as the request record. Every other target
- *   falls back to a raw per-entry storage read.
  * @param inputQueueCursor Inclusive lower bound of the batch (queue request id).
  * @param outputQueueCursor Exclusive upper bound of the batch.
  * @param outputBlockNumber The Ethereum block to read at.
@@ -166,7 +160,6 @@ async function mapWithConcurrency<T, R>(
  */
 export async function fetchProofRequestBatch(
     proofQueueAddress: string,
-    bridgeAddress: string,
     inputQueueCursor: bigint,
     outputQueueCursor: bigint,
     outputBlockNumber: number,
@@ -176,7 +169,6 @@ export async function fetchProofRequestBatch(
     if (count <= 0n) return [];
 
     const queue = NoriProofRequestQueue__factory.connect(proofQueueAddress, provider);
-    const bridge = NoriTokenBridge__factory.connect(bridgeAddress, provider);
     const multicall = new Contract(MULTICALL3_ADDRESS, MULTICALL3_ABI, provider);
 
     const ids = Array.from(
@@ -204,16 +196,6 @@ export async function fetchProofRequestBatch(
                 const id = idChunk[i];
                 const [request] = queue.interface.decodeFunctionResult('requests', returnData);
                 const collectionKeysCount = Number(request.collectionKeysCount);
-                if (collectionKeysCount === 0) {
-                    failures.push({
-                        requestIds: [id],
-                        error: new MalformedProofRequestError(
-                            id,
-                            `Proof request ${id} has no collection keys.`
-                        ),
-                    });
-                    return;
-                }
                 records.push({
                     id,
                     target: request.target as string,
@@ -230,60 +212,17 @@ export async function fetchProofRequestBatch(
         }
     }
 
-    // Read every value. Bridge-owned requests batch through Multicall3 by
-    // folding a `lockedTokens` read into the same call shape as above;
-    // everything else falls back to a raw per-entry storage read.
-    const values = new Array<string>(records.length);
-    const bridgeIndices: number[] = [];
-    const foreignIndices: number[] = [];
-    records.forEach((record, index) => {
-        if (record.target.toLowerCase() === bridgeAddress.toLowerCase()) {
-            bridgeIndices.push(index);
-        } else {
-            foreignIndices.push(index);
-        }
-    });
-
-    for (const indexChunk of chunk(bridgeIndices, RECORDS_PER_MULTICALL)) {
-        try {
-            const calls = indexChunk.map((index) => ({
-                target: bridgeAddress,
-                allowFailure: false,
-                callData: bridge.interface.encodeFunctionData('lockedTokens', [
-                    BigInt(records[index].collectionKeys[0]),
-                ]),
-            }));
-            const aggregated: Multicall3Result[] = await withBackoff(() =>
-                multicall.aggregate3.staticCall(calls, { blockTag: outputBlockNumber })
-            );
-            aggregated.forEach(({ returnData }, i) => {
-                const [locked] = bridge.interface.decodeFunctionResult('lockedTokens', returnData);
-                values[indexChunk[i]] = `0x${(locked as bigint).toString(16).padStart(64, '0')}`;
-            });
-        } catch (error) {
-            failures.push({
-                requestIds: indexChunk.map((index) => records[index].id),
-                error: error as ProofRequestFailureCause,
-            });
-        }
-    }
-
-    const foreignValues = await mapWithConcurrency(
-        foreignIndices,
-        FALLBACK_CONCURRENCY,
-        (index) =>
-            provider.getStorage(records[index].target, records[index].slotKey, outputBlockNumber),
-        (index, error) => {
-            failures.push({
-                requestIds: [records[index].id],
-                error: error as ProofRequestFailureCause,
-            });
+    // Read every value directly off its own target's storage. No target's
+    // ABI is assumed, so this can't be folded into the queue's Multicall3
+    // batch above.
+    const values = await mapWithConcurrency(
+        records,
+        VALUE_READ_CONCURRENCY,
+        (record) => provider.getStorage(record.target, record.slotKey, outputBlockNumber),
+        (record, error) => {
+            failures.push({ requestIds: [record.id], error: error as ProofRequestFailureCause });
         }
     );
-    foreignIndices.forEach((index, i) => {
-        const value = foreignValues[i];
-        if (value !== undefined) values[index] = value;
-    });
 
     if (failures.length > 0) {
         throw new ProofRequestBatchFetchError(failures);
@@ -293,6 +232,6 @@ export async function fetchProofRequestBatch(
         target: record.target,
         collectionKeysCount: record.collectionKeysCount,
         collectionKeys: record.collectionKeys,
-        value: values[index],
+        value: values[index] as string,
     }));
 }
