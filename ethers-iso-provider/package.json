@@ -1,0 +1,48 @@
+{
+    "name": "@nori-zk/ethers-iso-provider",
+    "version": "0.0.1",
+    "description": "An isomorphic ethers Provider resolver.",
+    "license": "MIT",
+    "type": "module",
+    "main": "./build/index.node.js",
+    "types": "./build/index.node.d.ts",
+    "exports": {
+        ".": {
+            "node": {
+                "import": "./build/index.node.js",
+                "types": "./build/index.node.d.ts"
+            },
+            "browser": {
+                "import": "./build/index.browser.js",
+                "types": "./build/index.browser.d.ts"
+            },
+            "default": {
+                "import": "./build/index.browser.js",
+                "types": "./build/index.browser.d.ts"
+            }
+        },
+        "./node": {
+            "import": "./build/index.node.js",
+            "types": "./build/index.node.d.ts"
+        },
+        "./browser": {
+            "import": "./build/index.browser.js",
+            "types": "./build/index.browser.d.ts"
+        }
+    },
+    "scripts": {
+        "clean": "rimraf build",
+        "build": "npm run clean && tsc",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "ethers": "^6.16.0"
+    },
+    "devDependencies": {
+        "rimraf": "^6.1.2",
+        "typescript": "^5.9.3"
+    },
+    "engines": {
+        "node": ">=18.14.0"
+    }
+}

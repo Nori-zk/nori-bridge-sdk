@@ -1,17 +1,25 @@
-import { getInjectedEthProvider } from './getInjectedProvider.js';
+import {
+    getEthereumProvider,
+    type EthereumProvider,
+} from '@nori-zk/ethers-iso-provider';
+import { EthDataNotFoundError } from './errors.js';
 
 /**
- * Estimates the age (in milliseconds) of a deposit based on its block number.
+ * Estimated age (milliseconds) of a deposit, based on its block number.
  *
- * @param blockNumber - The block number in which the deposit was committed.
- * @returns The elapsed time since this block as created in milliseconds.
+ * @param blockNumber The Ethereum block number that contains the deposit.
+ * @param provider The Ethereum provider used to retrieve the block.
+ * @returns The elapsed time between the block timestamp and the current clock,
+ * expressed in milliseconds.
  */
-export async function depositAge(blockNumber: bigint): Promise<number> {
-    const provider = getInjectedEthProvider();
+export async function depositAge(
+    blockNumber: bigint,
+    provider: EthereumProvider = getEthereumProvider()
+): Promise<number> {
 
     const block = await provider.getBlock(blockNumber);
     if (!block) {
-        throw new Error(`Failed to fetch block #${blockNumber}.`);
+        throw new EthDataNotFoundError(`Failed to fetch block #${blockNumber}.`);
     }
 
     const blockTimestampSeconds = block.timestamp;

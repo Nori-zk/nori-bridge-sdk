@@ -6,6 +6,7 @@
     "workspaces": [
         "workers",
         "o1js-zk-utils",
+        "ethers-iso-provider",
         "contracts/ethereum",
         "contracts/mina",
         "cache-server",

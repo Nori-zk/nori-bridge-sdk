@@ -25,7 +25,6 @@ import {
     Poseidon,
     PrivateKey,
     type PublicKey,
-    Reducer,
     UInt64,
     UInt8,
 } from 'o1js';
@@ -36,6 +35,7 @@ import assert from 'node:assert';
 import { FungibleToken } from '../TokenBase.js';
 import { NoriStorageInterface } from '../NoriStorageInterface.js';
 import { NoriTokenBridge } from '../NoriTokenBridge.js';
+import { fetchAllDispatchedRoots, fetchWindowRoots } from '../NoriTokenBridge.utils.js';
 import type { VerifiedRequestWitnessInput } from '../depositAttestation.js';
 import { getVerifiedRequestSlotRootFromWitness } from '../depositAttestation.js';
 import type { SCRAMWitness } from '../scram.js';
@@ -113,33 +113,6 @@ let daveMintCount = 0;
 // ---------------------------------------------------------------------------
 // Deposit-root window helpers (reusable for client code)
 // ---------------------------------------------------------------------------
-
-/**
- * Fetch the deposit-root actions currently in the contract's active window.
- * Reads `windowStart` from on-chain state and fetches actions from that
- * action-state hash forward to the current tip.
- * Returns a flat array of Field values in dispatch order.
- */
-async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]> {
-    await fetchAccount({ publicKey: bridge.address });
-    const windowStart = bridge.windowStart.get();
-    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
-        fromActionState: windowStart,
-    });
-    return actionBatches.flat();
-}
-
-/**
- * Fetch ALL dispatched deposit-root actions from genesis.
- * Useful for debugging / full history, but prefer `fetchWindowRoots`
- * for normal operation.
- */
-async function fetchAllDispatchedRoots(bridge: NoriTokenBridge): Promise<Field[]> {
-    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
-        fromActionState: Reducer.initialActionState,
-    });
-    return actionBatches.flat();
-}
 
 /**
  * Dispatch a deposit root via adminSetDepositRoot.

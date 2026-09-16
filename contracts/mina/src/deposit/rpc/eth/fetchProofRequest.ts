@@ -1,6 +1,9 @@
-import { type Provider } from 'ethers';
 import { NoriProofRequestQueue__factory } from '@nori-zk/ethereum-token-bridge';
-import { getInjectedEthProvider } from './getInjectedProvider.js';
+import {
+    getEthereumProvider,
+    type EthereumProvider,
+} from '@nori-zk/ethers-iso-provider';
+import { EthDataNotFoundError } from './errors.js';
 
 export interface ProofRequest {
     requestId: bigint;
@@ -11,49 +14,25 @@ export interface ProofRequest {
 }
 
 /**
- * Fetches `ProofRequested` entries from the NoriProofRequestQueue in a block
- * range, filtered to one `target` (the NoriTokenBridge's Ethereum address
- * every bridge deposit enqueues under that target, since `requestProof`
- * stamps `target = msg.sender`).
- */
-/*export async function fetchProofRequest(
-    proofQueueAddress: string,
-    targetAddress: string,
-    fromBlock: number,
-    toBlock: number | 'latest',
-    provider: Provider = getInjectedEthProvider()
-): Promise<ProofRequest[]> {
-    const queue = NoriProofRequestQueue__factory.connect(proofQueueAddress, provider);
-    const events = await queue.queryFilter(
-        queue.filters.ProofRequested(undefined, targetAddress),
-        fromBlock,
-        toBlock
-    );
-    return events.map((event) => ({
-        requestId: event.args.requestId,
-        target: event.args.target,
-        slotKey: event.args.slotKey,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-    }));
-}*/ // REDUNDANT
-
-
-/**
- * Finds our own request's requestId directly from the
- * deposit's transaction hash the `ProofRequested` log is emitted in the
- * same transaction as the deposit, so this needs no range scan or matching
- * heuristic when the tx hash is already known.
+ * Finds the proof request emitted by a deposit transaction. The
+ * `ProofRequested` log is emitted in the deposit transaction, so no range
+ * scan or matching heuristic is required when its hash is known.
+ *
+ * @param proofQueueAddress The address of the Nori proof request queue.
+ * @param depositTxHash The hash of the Ethereum deposit transaction.
+ * @param provider The Ethereum provider used to retrieve the transaction receipt.
+ * @returns The proof request decoded from the matching `ProofRequested` log.
+ * @throws When the transaction receipt is unavailable or contains no matching log.
  */
 export async function findRequestIdByTxHash(
     proofQueueAddress: string,
     depositTxHash: string,
-    provider: Provider = getInjectedEthProvider()
+    provider: EthereumProvider = getEthereumProvider()
 ): Promise<ProofRequest> {
     const queue = NoriProofRequestQueue__factory.connect(proofQueueAddress, provider);
     const receipt = await provider.getTransactionReceipt(depositTxHash);
     if (!receipt) {
-        throw new Error(`No transaction receipt found for ${depositTxHash}.`);
+        throw new EthDataNotFoundError(`No transaction receipt found for ${depositTxHash}.`);
     }
     for (const log of receipt.logs) {
         if (log.address.toLowerCase() !== proofQueueAddress.toLowerCase()) continue;
@@ -67,7 +46,7 @@ export async function findRequestIdByTxHash(
             transactionHash: log.transactionHash,
         };
     }
-    throw new Error(
+    throw new EthDataNotFoundError(
         `No ProofRequested log found for queue ${proofQueueAddress} in tx ${depositTxHash}.`
     );
 }

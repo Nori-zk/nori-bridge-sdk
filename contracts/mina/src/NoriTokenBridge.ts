@@ -85,7 +85,7 @@ const emptyActionsHash = poseidonSalt('MinaZkappActionsEmpty')[0];
  * Matches: Actions.pushEvent(Actions.empty(), actionFields)
  *   = hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, hashWithPrefix('MinaZkappEvent******', actionFields)])
  */
-function singleActionInnerHash(actionFields: Field[]): Field {
+export function singleActionInnerHash(actionFields: Field[]): Field {
     const eventHash = hashWithPrefix('MinaZkappEvent******', actionFields);
     return hashWithPrefix('MinaZkappSeqEvents**', [emptyActionsHash, eventHash]);
 }
@@ -95,7 +95,7 @@ function singleActionInnerHash(actionFields: Field[]): Field {
  * Matches: Actions.updateSequenceState(state, innerHash)
  *   = hashWithPrefix('MinaZkappSeqEvents**', [state, innerHash])
  */
-function advanceActionState(state: Field, innerHash: Field): Field {
+export function advanceActionState(state: Field, innerHash: Field): Field {
     return hashWithPrefix('MinaZkappSeqEvents**', [state, innerHash]);
 }
 

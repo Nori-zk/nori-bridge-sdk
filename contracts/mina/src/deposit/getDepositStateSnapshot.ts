@@ -1,14 +1,10 @@
-import {
-    Field,
-    UInt64,
-    Mina,
-    fetchLastBlock as fetchLatestBlockMina,
-    type PublicKey,
-} from 'o1js';
+import { Field, UInt64, type PublicKey } from 'o1js';
 import { Observable } from 'rxjs';
+import { type EthereumProvider } from '@nori-zk/ethers-iso-provider';
 import { depositAge as depositAgeEth } from './rpc/eth/depositAge.js';
 import { findRequestIdByTxHash } from './rpc/eth/fetchProofRequest.js';
-import { getLatestActionState } from './rpc/mina/getLatestActionState.js';
+import { MinaRpc } from './rpc/mina/index.js';
+import { singleActionInnerHash, advanceActionState } from '../NoriTokenBridge.js';
 import { DepositState } from './types.js';
 import {
     DepositStateGraph,
@@ -27,33 +23,44 @@ export interface CommittedProofRequests {
 }
 
 async function decodeJobsInRange(
+    minaRpcProvider: MinaRpc,
     bridgeAddress: PublicKey,
     fromHeight: number,
     toHeight: number
 ): Promise<CommittedProofRequests[]> {
-    const result = await Mina.fetchActions(
+    const { actions } = await minaRpcProvider.fetchCommittedProofRequestsByBlockRange(
         bridgeAddress,
-        undefined,
-        undefined,
         fromHeight,
         toHeight
     );
-    if ('error' in result) {
-        throw new Error(`fetchActions failed: ${JSON.stringify(result.error)}`);
-    }
-    return result.map(({ actions, hash }) => {
-        const [
-            rootStr,
-            outputBlockNumberStr,
-            inputQueueCursorStr,
-            outputQueueCursorStr,
-        ] = actions[0];
+    return actions.map(({ actionState, actionData }) => {
+        if (actionData.length !== 1) {
+            throw new Error(
+                `Expected exactly one settlement action per block, found ${actionData.length}.`
+            );
+        }
+        const [rootStr, outputBlockNumberStr, inputQueueCursorStr, outputQueueCursorStr] =
+            actionData[0].data;
+        const fields = actionData[0].data.map((value) => Field(value));
+        const derivedActionState = advanceActionState(
+            Field(actionState.actionStateTwo),
+            singleActionInnerHash(fields)
+        );
+        if (
+            !derivedActionState
+                .equals(Field(actionState.actionStateOne))
+                .toBoolean()
+        ) {
+            throw new Error(
+                `Derived action state does not match archive-reported action state (expected ${actionState.actionStateOne}, derived ${derivedActionState.toString()}).`
+            );
+        }
         return {
             root: Field(rootStr),
             outputBlockNumber: UInt64.from(BigInt(outputBlockNumberStr)),
             inputQueueCursor: UInt64.from(BigInt(inputQueueCursorStr)),
             outputQueueCursor: UInt64.from(BigInt(outputQueueCursorStr)),
-            actionStateHash: hash,
+            actionStateHash: actionState.actionStateOne,
         };
     });
 }
@@ -62,8 +69,9 @@ interface DepositStateSnapshotRequest {
     bridgeAddress: PublicKey;
     depositTxHash: string;
     proofQueueAddress: string;
-    archiveUrl: string;
+    minaRpcProvider: MinaRpc;
     bridgeTimeHeuristicMs?: number;
+    provider: EthereumProvider;
 }
 
 interface CurrentBridgeWindow {
@@ -75,57 +83,25 @@ interface CurrentBridgeWindow {
     tipJob: CommittedProofRequests;
 }
 
-const ACTIONS_QUERY = `
-  query GetWindowActions($accountAddress: String!, $fromActionState: String!) {
-    actions(
-      query: {
-        accountAddress: { equalTo: $accountAddress }
-        actionState: { greaterOrEqual: $fromActionState }
-      }
-      orderBy: ACTION_STATE_ASC
-      first: 32
-    ) {
-      nodes {
-        actionState
-        actionsData
-        transactionInfo {
-          blockHeight
-        }
-      }
-    }
-  }
-`;
-
-async function fetchWindowActionsGraphQL(
-    accountAddress: string,
-    fromActionState: string,
-    archiveUrl: string
-) {
-    const response = await fetch(archiveUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            query: ACTIONS_QUERY,
-            variables: { accountAddress, fromActionState },
-        }),
-    });
-    const json = await response.json();
-    if (json.errors)
-        throw new Error(`GraphQL error: ${JSON.stringify(json.errors)}`);
-    return json.data.actions.nodes;
-}
-
 async function getCurrentBridgeWindow(
+    minaRpcProvider: MinaRpc,
     bridgeAddress: PublicKey
 ): Promise<CurrentBridgeWindow> {
-    const latestState = await getLatestActionState(bridgeAddress);
+    const latestState = await minaRpcProvider.getLatestActionState(bridgeAddress);
     const queueCursor = latestState.queueCursor.toBigInt();
     const windowStart = latestState.windowStart;
     const windowSize = latestState.windowSize;
 
-    const lastBlockMina = await fetchLatestBlockMina();
-    const currentMinaHeight = Number(lastBlockMina.blockchainLength.toBigint());
+    const { bestChain } = await minaRpcProvider.fetchLatestBlock();
+    const latestBlock = bestChain[0];
+    if (!latestBlock) {
+        throw new Error('No best chain block returned by the Mina node');
+    }
+    const currentMinaHeight = Number(
+        latestBlock.protocolState.consensusState.blockHeight
+    );
     const tipActions = await decodeJobsInRange(
+        minaRpcProvider,
         bridgeAddress,
         currentMinaHeight,
         currentMinaHeight
@@ -145,7 +121,7 @@ async function getCurrentBridgeWindow(
 }
 
 function findCommittedProofRequestPositionInDepositActionWindow(
-    windowNodes: { actionsData?: string[] }[],
+    windowActions: { actionData: { data: string[] }[] }[],
     committedProofRequest: {
         root: Field;
         outputBlockNumber: bigint;
@@ -153,16 +129,15 @@ function findCommittedProofRequestPositionInDepositActionWindow(
         outputQueueCursor: bigint;
     }
 ) {
-    for (let i = 0; i < windowNodes.length; i++) {
-        const node = windowNodes[i];
-        const actionsData = node.actionsData;
-        if (!actionsData || actionsData.length === 0) continue;
+    for (let i = 0; i < windowActions.length; i++) {
+        const actionData = windowActions[i].actionData;
+        if (!actionData || actionData.length !== 1) continue;
         const [
             rootStr,
             outputBlockNumberStr,
             inputQueueCursorStr,
             outputQueueCursorStr,
-        ] = actionsData;
+        ] = actionData[0].data;
         const root = Field(rootStr);
         const outputBlockNumberField = UInt64.from(BigInt(outputBlockNumberStr));
         const inputQueueCursorField = UInt64.from(BigInt(inputQueueCursorStr));
@@ -206,7 +181,10 @@ async function classifyProcessedDeposit(
     } = currentWindow;
 
     const avgInterval = request.bridgeTimeHeuristicMs ?? 15 * 60 * 1000;
-    const depositAgeMs = await depositAgeEth(depositBlockNumber);
+    const depositAgeMs = await depositAgeEth(
+        depositBlockNumber,
+        request.provider
+    );
     const estimatedUpdates = Math.round(depositAgeMs / avgInterval);
     const requestsBehind = queueCursor - depositRequestId;
     const estimatedByRequests = Math.floor(
@@ -230,6 +208,7 @@ async function classifyProcessedDeposit(
     let gap = estimatedBlocksBack;
     while (low > 1) {
         const actions = await decodeJobsInRange(
+            request.minaRpcProvider,
             request.bridgeAddress,
             low,
             low
@@ -252,6 +231,7 @@ async function classifyProcessedDeposit(
     while (hi - lo > 1) {
         const mid = Math.floor((lo + hi) / 2);
         const midActions = await decodeJobsInRange(
+            request.minaRpcProvider,
             request.bridgeAddress,
             mid,
             mid
@@ -276,14 +256,12 @@ async function classifyProcessedDeposit(
     const indexInBatch = depositRequestId - inputCursor;
     const outputBlockNumber = aboveJob.outputBlockNumber.toBigInt();
 
-    const accountAddress = request.bridgeAddress.toBase58();
-    const windowNodes = await fetchWindowActionsGraphQL(
-        accountAddress,
-        windowStart.toString(),
-        request.archiveUrl
+    const { actions: windowActions } = await request.minaRpcProvider.fetchWindowActions(
+        request.bridgeAddress,
+        windowStart
     );
 
-    const position = findCommittedProofRequestPositionInDepositActionWindow(windowNodes, {
+    const position = findCommittedProofRequestPositionInDepositActionWindow(windowActions, {
         root: aboveJob.root,
         outputBlockNumber,
         inputQueueCursor: inputCursor,
@@ -338,15 +316,17 @@ async function recheckReadyToMintDepositStateSnapshot(
         | 'missedMintingOpportunity'
     ]
 > {
-    const currentWindow = await getCurrentBridgeWindow(request.bridgeAddress);
-    const windowNodes = await fetchWindowActionsGraphQL(
-        request.bridgeAddress.toBase58(),
-        currentWindow.windowStart.toString(),
-        request.archiveUrl
+    const currentWindow = await getCurrentBridgeWindow(
+        request.minaRpcProvider,
+        request.bridgeAddress
+    );
+    const { actions: windowActions } = await request.minaRpcProvider.fetchWindowActions(
+        request.bridgeAddress,
+        currentWindow.windowStart
     );
     const position =
         findCommittedProofRequestPositionInDepositActionWindow(
-            windowNodes,
+            windowActions,
             previous
         );
 
@@ -390,7 +370,10 @@ async function recheckUnprocessedDepositStateSnapshot(
         | 'missedMintingOpportunity'
     ]
 > {
-    const currentWindow = await getCurrentBridgeWindow(request.bridgeAddress);
+    const currentWindow = await getCurrentBridgeWindow(
+        request.minaRpcProvider,
+        request.bridgeAddress
+    );
     if (previous.depositRequestId >= currentWindow.queueCursor) {
         return {
             ...previous,
@@ -410,11 +393,23 @@ async function recheckUnprocessedDepositStateSnapshot(
     );
 }
 
+/**
+ * Discovers the current minting state of an Ethereum deposit.
+ *
+ * @param bridgeAddress The Mina token bridge address.
+ * @param depositTxHash The Ethereum transaction hash containing the deposit.
+ * @param proofQueueAddress The Ethereum proof request queue address.
+ * @param minaRpcProvider The Mina RPC/archive client used for all Mina reads.
+ * @param provider The Ethereum provider used for receipt and block reads.
+ * @param bridgeTimeHeuristicMs The estimated interval between bridge updates.
+ * @returns Data for the unprocessed, ready to mint, or missed deposit state.
+ */
 export async function getDepositStateSnapshot(
     bridgeAddress: PublicKey,
     depositTxHash: string,
     proofQueueAddress: string,
-    archiveUrl: string,
+    minaRpcProvider: MinaRpc,
+    provider: EthereumProvider,
     bridgeTimeHeuristicMs?: number
 ): Promise<
     (typeof DepositStateGraph.nodes)[
@@ -425,7 +420,8 @@ export async function getDepositStateSnapshot(
 > {
     const requestData = await findRequestIdByTxHash(
         proofQueueAddress,
-        depositTxHash
+        depositTxHash,
+        provider
     );
     const depositRequestId = requestData.requestId;
     const depositBlockNumber = BigInt(requestData.blockNumber);
@@ -433,11 +429,12 @@ export async function getDepositStateSnapshot(
         bridgeAddress,
         depositTxHash,
         proofQueueAddress,
-        archiveUrl,
+        minaRpcProvider,
         bridgeTimeHeuristicMs,
+        provider,
     };
 
-    const currentWindow = await getCurrentBridgeWindow(bridgeAddress);
+    const currentWindow = await getCurrentBridgeWindow(minaRpcProvider, bridgeAddress);
 
     if (depositRequestId >= currentWindow.queueCursor) {
         return {
@@ -460,12 +457,25 @@ export async function getDepositStateSnapshot(
     );
 }
 
+/**
+ * Refreshes a previously discovered deposit state using the same deposit data.
+ *
+ * @param current The current node and its state data.
+ * @param bridgeAddress The Mina token bridge address.
+ * @param depositTxHash The Ethereum transaction hash containing the deposit.
+ * @param proofQueueAddress The Ethereum proof request queue address.
+ * @param minaRpcProvider The Mina RPC/archive client used for all Mina reads.
+ * @param provider The Ethereum provider used for any required Ethereum reads.
+ * @param bridgeTimeHeuristicMs The estimated interval between bridge updates.
+ * @returns The refreshed unprocessed, ready to mint, or missed state data.
+ */
 export async function recheckDepositStateSnapshot(
     current: DepositStateNodeUnion,
     bridgeAddress: PublicKey,
     depositTxHash: string,
     proofQueueAddress: string,
-    archiveUrl: string,
+    minaRpcProvider: MinaRpc,
+    provider: EthereumProvider,
     bridgeTimeHeuristicMs?: number
 ): Promise<
     (typeof DepositStateGraph.nodes)[
@@ -478,8 +488,9 @@ export async function recheckDepositStateSnapshot(
         bridgeAddress,
         depositTxHash,
         proofQueueAddress,
-        archiveUrl,
+        minaRpcProvider,
         bridgeTimeHeuristicMs,
+        provider,
     };
 
     if (current.node === DepositState.Undetermined) {
@@ -487,7 +498,8 @@ export async function recheckDepositStateSnapshot(
             bridgeAddress,
             depositTxHash,
             proofQueueAddress,
-            archiveUrl,
+            minaRpcProvider,
+            provider,
             bridgeTimeHeuristicMs
         );
     }
@@ -578,11 +590,25 @@ function waitForDepositStateChange(
     });
 }
 
+/**
+ * Creates a cold polling transition factory for one deposit.
+ *
+ * @param bridgeAddress The Mina token bridge address.
+ * @param depositTxHash The Ethereum transaction hash containing the deposit.
+ * @param proofQueueAddress The Ethereum proof request queue address.
+ * @param minaRpcProvider The Mina RPC/archive client used for all Mina reads.
+ * @param provider The Ethereum provider shared by every poll of this transition.
+ * @param bridgeTimeHeuristicMs The estimated interval between bridge updates.
+ * @param initial The node from which the first transition begins.
+ * @param pollIntervalMs The delay between unchanged state checks in milliseconds.
+ * @returns A function that accepts a deposit node and emits its next state change.
+ */
 export function createDepositStateSnapshotTransition$(
     bridgeAddress: PublicKey,
     depositTxHash: string,
     proofQueueAddress: string,
-    archiveUrl: string,
+    minaRpcProvider: MinaRpc,
+    provider: EthereumProvider,
     bridgeTimeHeuristicMs?: number,
     initial: DepositStateNodeUnion = { node: 'undetermined', data: {} },
     pollIntervalMs = 15_000
@@ -591,8 +617,9 @@ export function createDepositStateSnapshotTransition$(
         bridgeAddress,
         depositTxHash,
         proofQueueAddress,
-        archiveUrl,
+        minaRpcProvider,
         bridgeTimeHeuristicMs,
+        provider,
     };
     let latest = initial;
     const setLatest = (
@@ -614,7 +641,8 @@ export function createDepositStateSnapshotTransition$(
                         bridgeAddress,
                         depositTxHash,
                         proofQueueAddress,
-                        archiveUrl,
+                        minaRpcProvider,
+                        provider,
                         bridgeTimeHeuristicMs
                     ),
                 setLatest,

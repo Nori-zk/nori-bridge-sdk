@@ -4,6 +4,7 @@ export {
     recheckDepositStateSnapshot,
     type CommittedProofRequests,
 } from './getDepositStateSnapshot.js';
+export { MinaRpc } from './rpc/mina/index.js';
 export { DepositState } from './types.js';
 export {
     DepositStateGraph,
@@ -15,4 +16,4 @@ export {
     type UnprocessedDepositStateNodeUnion,
     type UnprocessedDepositTopics,
 } from './ystate/unprocessed.js';
-export { createDepositStateMachine as createUnprocessedDepositStateMachine } from './ystate/unprocessed.impl.js';
+export { createUnprocessedDepositStateMachine } from './ystate/unprocessed.impl.js';

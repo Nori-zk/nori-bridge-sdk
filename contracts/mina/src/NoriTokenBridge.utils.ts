@@ -14,10 +14,10 @@ import type { NoriTokenBridge } from './NoriTokenBridge.js';
 export async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]> {
     await fetchAccount({ publicKey: bridge.address });
     const windowStart = bridge.windowStart.get();
-    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
+    const actionBatches = await bridge.reducer.fetchActions({
         fromActionState: windowStart,
     });
-    return actionBatches.flat();
+    return actionBatches.flat().map((action) => action.root);
 }
 
 /**
@@ -28,8 +28,8 @@ export async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]
 export async function fetchAllDispatchedRoots(
     bridge: NoriTokenBridge
 ): Promise<Field[]> {
-    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
+    const actionBatches = await bridge.reducer.fetchActions({
         fromActionState: Reducer.initialActionState,
     });
-    return actionBatches.flat();
+    return actionBatches.flat().map((action) => action.root);
 }

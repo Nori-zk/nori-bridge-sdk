@@ -83,10 +83,10 @@ let allAccounts: PublicKey[];
 async function fetchWindowRoots(bridge: NoriTokenBridge): Promise<Field[]> {
     await fetchAccount({ publicKey: bridge.address });
     const windowStart = bridge.windowStart.get();
-    const actionBatches: Field[][] = await bridge.reducer.fetchActions({
+    const actionBatches = await bridge.reducer.fetchActions({
         fromActionState: windowStart,
     });
-    return actionBatches.flat();
+    return actionBatches.flat().map((action) => action.root);
 }
 
 /** Dispatch a deposit root via adminSetDepositRoot with an explicit oldestAction.

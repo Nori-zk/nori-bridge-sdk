@@ -97,10 +97,10 @@ async function fetchAccounts(addrs: PublicKey[]) {
 async function fetchWindowRoots(): Promise<Field[]> {
     const windowStart = await noriTokenBridge.windowStart.fetch();
     if (windowStart === undefined) throw new Error('could not fetch windowStart');
-    const actionBatches: Field[][] = await noriTokenBridge.reducer.fetchActions({
+    const actionBatches = await noriTokenBridge.reducer.fetchActions({
         fromActionState: windowStart,
     });
-    return actionBatches.flat();
+    return actionBatches.flat().map((action) => action.root);
 }
 
 /** The real oldest action to evict: Field(0) until full, else the first window root.

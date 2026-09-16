@@ -106,6 +106,7 @@
         "node": ">=18.14.0"
     },
     "dependencies": {
+        "@nori-zk/ethers-iso-provider": "*",
         "@nori-zk/mina-attestations": "0.6.6",
         "@nori-zk/o1js-zk-utils": "*",
         "@nori-zk/proof-conversion": "0.8.29",
