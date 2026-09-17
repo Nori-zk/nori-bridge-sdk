@@ -362,6 +362,7 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
                     depositBlockNumber,
+                    noriETHBridgeAddressHex,
                     'http://localhost:4003'
                 );
             logger.log(`Deposit witness computed in ${depositWitnessTimer()}`);

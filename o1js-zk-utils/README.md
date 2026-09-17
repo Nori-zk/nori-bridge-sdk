@@ -42,16 +42,16 @@ import {
 **Example Usage**
 
 ```typescript
-import { Bytes, Field, Poseidon, Struct, UInt8 } from 'o1js';
+import { Field, Poseidon, Struct, UInt8 } from 'o1js';
 import { Bytes32 } from '@nori-zk/o1js-zk-utils';
-import { merkleAttestorGenerator } from '@nori-zk/o1js-zk-utils';
+import { merkleLeafAttestorGenerator } from '@nori-zk/o1js-zk-utils';
 
 export class YourLeafType extends Struct({
     value: Bytes32.provable,
 }) {}
 
-export function leafHashFunction(contractDeposit: YourLeafType) {
-    const valueBytes = contractDeposit.value.bytes; // UInt8[]
+export function leafHashFunction(leaf: YourLeafType) {
+    const valueBytes = leaf.value.bytes; // UInt8[]
     const leafBytes: UInt8[] = [];
 
     for (let i = 0; i < 32; i++) {
@@ -60,21 +60,21 @@ export function leafHashFunction(contractDeposit: YourLeafType) {
 
     let firstField = new Field(0);
     for (let i = 31; i >= 0; i--) {
-        firstField = firstField.mul(256).add(firstBytes.bytes[i].value);
+        firstField = firstField.mul(256).add(leafBytes[i].value);
     }
 
     return Poseidon.hash([firstField]);
 }
 
 const {
-    MerkleTreeAttestorInput: LeafInclusionAttestorInput,
-    MerkleTreeAttestor: LeafInclusionAttestor,
+    MerkleTreeLeafAttestorInput: LeafInclusionAttestorInput,
+    MerkleTreeLeafAttestor: LeafInclusionAttestor,
     buildLeaves,
     getMerklePathFromLeaves: getLeafInclusionWitness,
-} = merkleAttestorGenerator(
+} = merkleLeafAttestorGenerator(
     16,
     'YourLeafInclusionAttestor',
-    ContractDeposit,
+    YourLeafType,
     leafHashFunction
 );
 
@@ -86,16 +86,62 @@ export {
 };
 ```
 
-## Contract Deposit Attestor
+## Verified Request Attestor
 
-A zk-program to prove that a user's deposit is included within a consensus MPT transition proof window.
+`NoriProofRequestQueue` lets any Ethereum contract request a proof of the value currently held at one of
+its own storage locations. What can be proven:
+
+- A plain storage slot.
+- A value inside a collection, such as one entry of a mapping or array.
+- A value inside a nested collection, such as one entry of a mapping of mappings.
+
+Each request carries `collectionKeysCount` and `collectionKeys`, which record the type of data structure
+the proven value belongs to: `collectionKeysCount` is 0 for a top-level plain slot, 1 for a collection
+(a mapping or array), or 2 for a nested structure (for example, an array of arrays, or a mapping of
+mappings).
+
+Ethereum resolves a mapping entry to its actual storage slot by hashing the collection's base slot
+together with its key (nested, its keys); the resolved slot doesn't carry those keys back out, so a
+request also supplies `slotKey`, computed the same way Solidity would compute it:
+
+```solidity
+// slot 0, plain value
+uint256 public totalSupply;
+
+// slot 1, collection
+mapping(address => uint256) public balances;
+
+// slot 2, nested collection
+mapping(address => mapping(bytes32 => uint256)) public locked;
+```
+
+| Value | `slotKey` | `collectionKeysCount` | `collectionKeys` |
+| --- | --- | --- | --- |
+| `totalSupply` | `bytes32(uint256(0))` | 0 | unused |
+| `balances[user]` | `keccak256(abi.encode(user, uint256(1)))` | 1 | `[bytes32(uint256(uint160(user)))]` |
+| `locked[user][challenge]` | `keccak256(abi.encode(challenge, keccak256(abi.encode(user, uint256(2)))))` | 2 | `[bytes32(uint256(uint160(user))), challenge]` |
+
+The queue stores the request under a sequential id, with `target` set to the calling contract's own
+address.
+
+The Nori SP1 consensus and MPT program later processes these requests in order. For each one it proves
+the value at the storage slot `slotKey` points to against the Ethereum execution state root. The output
+is a `VerifiedRequest`: the proven value, together with the `target` and `collectionKeys` the request
+was queued with. `slotKey` itself is only used to locate the slot; it is not carried into the
+`VerifiedRequest`.
+
+This zk-program (the "attestor") proves that one specific `VerifiedRequest` is a leaf of the Merkle tree
+whose root the consensus proof commits to. Nori's bridge is one consumer of the queue, using it to
+prove a user's locked balance, but any contract can enqueue a request for any slot of its own storage.
 
 **Leaf format:**
 
 ```typescript
-export class ContractDeposit extends Struct({
-    codeChallenge: Bytes32.provable, // SCRAM code challenge (Poseidon hash of Mina signature)
-    value: Bytes32.provable, // Total locked amount (cumulative)
+export class VerifiedRequest extends Struct({
+    target: Bytes20.provable, // The contract that owns the proven storage slot; set by the queue to the requester's own address
+    collectionKeysCount: UInt8, // 0 for a plain slot, 1 for a collection value, 2 for a nested-collection value
+    collectionKeys: Provable.Array(Bytes32.provable, MAX_COLLECTION_KEYS), // The key(s) that locate the value, in nesting order, as supplied at enqueue time
+    value: Bytes32.provable, // The proven value of the request's storage slot
 }) {}
 ```
 
@@ -103,15 +149,15 @@ export class ContractDeposit extends Struct({
 
 ```typescript
 import {
-    ContractDepositAttestorInput,
-    ContractDepositAttestor,
-    buildContractDepositLeaves,
-    getContractDepositWitness,
-    ContractDeposit,
+    VerifiedRequestAttestorInput,
+    VerifiedRequestAttestor,
+    buildVerifiedRequestLeaves,
+    getVerifiedRequestWitness,
+    VerifiedRequest,
 } from '@nori-zk/o1js-zk-utils';
 ```
 
-For example usage see the [test](./src/contractDepositAttestor.spec.ts).
+For example usage see the [test](./src/VerifiedRequestAttestor.spec.ts).
 
 ## Utils
 

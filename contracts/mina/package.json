@@ -1,6 +1,6 @@
 {
     "name": "@nori-zk/mina-token-bridge",
-    "version": "0.3.33",
+    "version": "0.3.43",
     "description": "Nori ethereum state settelment and nETH token bridge zkApp",
     "author": "",
     "license": "Apache-2.0",
@@ -83,7 +83,7 @@
         "@babel/preset-env": "^7.29.0",
         "@babel/preset-typescript": "^7.28.5",
         "@nori-zk/ethereum-token-bridge": "*",
-        "@nori-zk/pts-types": "6.0.1",
+        "@nori-zk/pts-types": "7.0.2",
         "@types/jest": "^30.0.0",
         "@typescript-eslint/eslint-plugin": "^8.55.0",
         "@typescript-eslint/parser": "^8.55.0",
@@ -91,7 +91,7 @@
         "eslint-plugin-o1js": "^0.4.0",
         "ethers": "^6.16.0",
         "jest": "^30.2.0",
-        "npm-workspaces-publish-tool": "0.0.17",
+        "npm-workspaces-publish-tool": "0.0.18",
         "prettier": "^3.8.1",
         "rimraf": "^6.1.2",
         "ts-jest": "^29.4.6",
@@ -100,7 +100,7 @@
         "typescript-eslint": "^8.55.0"
     },
     "peerDependencies": {
-        "o1js": "3.0.0-mesa.698ca"
+        "o1js": "3.0.0-mesa.rc2"
     },
     "engines": {
         "node": ">=18.14.0"
@@ -108,10 +108,10 @@
     "dependencies": {
         "@nori-zk/o1js-zk-utils": "*",
         "@nori-zk/workers": "*",
-        "@nori-zk/proof-conversion": "0.8.20",
+        "@nori-zk/proof-conversion": "0.8.29",
         "dotenv": "^17.2.4",
         "esm-iso-logger": "1.0.2",
-        "@nori-zk/mina-attestations": "0.6.4",
+        "@nori-zk/mina-attestations": "0.6.6",
         "rxjs": "^7.8.2"
     }
 }

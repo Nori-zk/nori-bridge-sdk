@@ -2,7 +2,10 @@
 /// <reference types="@nomicfoundation/hardhat-ethers-chai-matchers" />
 import { expect } from 'chai';
 import { getRandomValues } from 'crypto';
-import { NoriTokenBridge__factory } from 'types/ethers-contracts/index.js';
+import {
+    NoriProofRequestQueue__factory,
+    NoriTokenBridge__factory,
+} from 'types/ethers-contracts/index.js';
 import hre from 'hardhat';
 const { ethers } = await hre.network.getOrCreate();
 
@@ -20,22 +23,55 @@ console.log('codeChallengeBigInt', codeChallengeBigInt);
 console.log('codeChallengeHex', codeChallengeHex);
 
 const WEI_PER_BRIDGE_UNIT = 10n ** 12n;
+/// Storage slot index of `lockedTokens`, mirrored by the SP1 guest program.
+const LOCKED_TOKENS_SLOT_INDEX = 2n;
+/// Per-request queue fee used by the queue-fee test blocks. 0.0002 ETH,
+/// matching the deployment default.
+const PROOF_REQUEST_QUEUE_FEE = 200n * WEI_PER_BRIDGE_UNIT;
 const ZKAPP_ACCT_TOKEN_ID =
     '0x1b848805a3db129b6b41adca52c9b6f380d58dc9c283f73ce17466a01b90d361';
 const ZKAPP_ACCT_VERIFICATION_KEY_HASH =
     '0xdc9c283f73ce17466a01b90d36141b848805a3db129b6b80d581adca52c9b6f3';
 
+/**
+ * Deploy a proof request queue and return its address.
+ *
+ * Deposits enqueue a storage-proof request on every lock, so the bridge needs
+ * a queue to point at. Unless a test is exercising the proof request queue fee itself the
+ * queue is deployed with `proofRequestQueueFee = 0`, under which the bridge's fee
+ * arithmetic reduces exactly to its pre-queue behaviour — which is what lets
+ * the suite below stand as a regression check.
+ */
+async function deployProofQueueAddress(proofRequestQueueFee = 0n): Promise<string> {
+    const [deployer, , , , , treasury] = await ethers.getSigners();
+    const Queue = new NoriProofRequestQueue__factory(deployer);
+    const queue = await Queue.deploy(
+        deployer.address,
+        treasury.address,
+        proofRequestQueueFee
+    );
+    return queue.getAddress();
+}
+
 describe('NoriTokenBridge', () => {
-    async function deployTokenBridgeFixture() {
+    async function deployTokenBridgeFixture(proofRequestQueueFee = 0n) {
         const [owner, user1, user2, dummyState, dummyAccount, treasury] = await ethers.getSigners();
+
+        const Queue = new NoriProofRequestQueue__factory(owner);
+        const proofQueue = await Queue.deploy(
+            owner.address,
+            treasury.address,
+            proofRequestQueueFee
+        );
 
         const TokenBridge = new NoriTokenBridge__factory(owner);
 
-        // Constructor now requires explicit bridgeOperator, zkApp tokenID, and (optional) feeRecipient
+        // Constructor now requires explicit bridgeOperator, proof queue, zkApp tokenID, and (optional) feeRecipient
         const tokenBridge = await TokenBridge.deploy(
             owner.address,
             dummyState.address,
             dummyAccount.address,
+            await proofQueue.getAddress(),
             ZKAPP_ACCT_TOKEN_ID,
             ZKAPP_ACCT_VERIFICATION_KEY_HASH,
             ethers.ZeroAddress
@@ -44,7 +80,7 @@ describe('NoriTokenBridge', () => {
         // Configure with dummy aligned contract addresses so onlyConfigured passes
         await tokenBridge.setAlignedContracts(dummyState.address, dummyAccount.address);
 
-        return { tokenBridge, owner, user1, user2, dummyState, dummyAccount, treasury };
+        return { tokenBridge, proofQueue, owner, user1, user2, dummyState, dummyAccount, treasury };
     }
 
     // -----------------------------------------------------------
@@ -63,6 +99,7 @@ describe('NoriTokenBridge', () => {
                 operator.address,
                 dummyState.address,
                 dummyAccount.address,
+                await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                 ethers.ZeroAddress
@@ -87,6 +124,7 @@ describe('NoriTokenBridge', () => {
                     ethers.ZeroAddress,
                     dummyState.address,
                     dummyAccount.address,
+                    await deployProofQueueAddress(),
                     ZKAPP_ACCT_TOKEN_ID,
                     ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                     ethers.ZeroAddress
@@ -101,6 +139,7 @@ describe('NoriTokenBridge', () => {
                 deployer.address,
                 dummyState.address,
                 dummyAccount.address,
+                await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                 ethers.ZeroAddress
@@ -136,6 +175,7 @@ describe('NoriTokenBridge', () => {
                 deployer.address,
                 dummyState.address,
                 dummyAccount.address,
+                await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                 treasury.address
@@ -150,6 +190,7 @@ describe('NoriTokenBridge', () => {
                 deployer.address,
                 dummyState.address,
                 dummyAccount.address,
+                await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                 treasury.address
@@ -166,9 +207,9 @@ describe('NoriTokenBridge', () => {
             expect(await tokenBridge.feeRecipient()).to.equal(ethers.ZeroAddress);
         });
 
-        it('Should have MIN_LOCK_AMOUNT of 0.0001 ETH', async function () {
+        it('Should have MIN_LOCK_AMOUNT of 0.001 ETH', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
-            expect(await tokenBridge.MIN_LOCK_AMOUNT_WEI()).to.equal(100n * WEI_PER_BRIDGE_UNIT);
+            expect(await tokenBridge.MIN_LOCK_AMOUNT_WEI()).to.equal(1000n * WEI_PER_BRIDGE_UNIT);
         });
     });
 
@@ -396,14 +437,14 @@ describe('NoriTokenBridge', () => {
         it('Should succeed at exactly MIN_LOCK_AMOUNT', async function () {
             const { tokenBridge, owner } = await deployTokenBridgeFixture();
 
-            const minAmount = 100n * WEI_PER_BRIDGE_UNIT; // 0.0001 ETH
+            const minAmount = 1000n * WEI_PER_BRIDGE_UNIT; // 0.001 ETH
 
             await tokenBridge
                 .connect(owner)
                 .lockTokens(codeChallengeBigInt, { value: minAmount });
 
             const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
-            expect(locked).to.equal(100n); // 100 bridge units
+            expect(locked).to.equal(1000n); // 1000 bridge units
         });
 
         it('Should allow multiple locks from same address', async function () {
@@ -524,17 +565,17 @@ describe('NoriTokenBridge', () => {
             // Set 1 rate units = 0.001% fee
             await tokenBridge.connect(owner).setLockFeeRate(1);
 
-            // Send MIN_LOCK_AMOUNT = 100 bridge units
-            // feeBU = 100 * 1 / 100000 = 0 (truncated) → rounds up to MIN_FEE_BU = 10
-            // netBU = 100 - 10 = 90
-            const minAmount = 100n * WEI_PER_BRIDGE_UNIT;
+            // Send MIN_LOCK_AMOUNT = 1000 bridge units
+            // feeBU = 1000 * 1 / 100000 = 0 (truncated) → rounds up to MIN_FEE_BU = 10
+            // netBU = 1000 - 10 = 990
+            const minAmount = 1000n * WEI_PER_BRIDGE_UNIT;
 
             await tokenBridge
                 .connect(user1)
                 .lockTokens(codeChallengeBigInt, { value: minAmount });
 
             const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
-            expect(locked).to.equal(90n); // 90 bridge units (10 taken as MIN_FEE_BU)
+            expect(locked).to.equal(990n); // 990 bridge units (10 taken as MIN_FEE_BU)
 
             const fees = await tokenBridge.accumulatedFees();
             expect(fees).to.equal(10n * WEI_PER_BRIDGE_UNIT); // MIN_FEE_BU in wei
@@ -607,7 +648,7 @@ describe('NoriTokenBridge', () => {
             const { tokenBridge, user1 } = await deployTokenBridgeFixture();
 
             // Must be >= MIN_LOCK_AMOUNT AND not aligned
-            const invalidAmount = 100n * WEI_PER_BRIDGE_UNIT + 1n;
+            const invalidAmount = 1000n * WEI_PER_BRIDGE_UNIT + 1n;
             await expect(
                 tokenBridge
                     .connect(user1)
@@ -830,16 +871,16 @@ describe('NoriTokenBridge', () => {
         it('Should handle MIN_FEE_BU edge case for small amounts', async function () {
             const { tokenBridge, owner, user1 } = await deployTokenBridgeFixture();
 
-            // Set 1 rate unit — at 110 BU deposit, feeBU = 110*1/100000 = 0 → rounds up to MIN_FEE_BU = 10
+            // Set 1 rate unit — at 1010 BU deposit, feeBU = 1010*1/100000 = 0 → rounds up to MIN_FEE_BU = 10
             await tokenBridge.connect(owner).setLockFeeRate(1);
 
-            const desiredNet = 100n * WEI_PER_BRIDGE_UNIT; // want 100 BU net (= MIN_LOCK_AMOUNT_WEI)
+            const desiredNet = 1000n * WEI_PER_BRIDGE_UNIT; // want 1000 BU net (= MIN_LOCK_AMOUNT_WEI)
             const [grossAmount, fee, actualNetAmount] = await tokenBridge.calcGrossLockAmount(desiredNet);
 
-            // grossBU should be desiredNetBU + MIN_FEE_BU = 100 + 10 = 110
-            expect(grossAmount).to.equal(110n * WEI_PER_BRIDGE_UNIT);
+            // grossBU should be desiredNetBU + MIN_FEE_BU = 1000 + 10 = 1010
+            expect(grossAmount).to.equal(1010n * WEI_PER_BRIDGE_UNIT);
             expect(fee).to.equal(10n * WEI_PER_BRIDGE_UNIT); // MIN_FEE_BU
-            expect(actualNetAmount).to.equal(100n * WEI_PER_BRIDGE_UNIT);
+            expect(actualNetAmount).to.equal(1000n * WEI_PER_BRIDGE_UNIT);
 
             // Verify it actually works with lockTokens
             await tokenBridge
@@ -847,7 +888,7 @@ describe('NoriTokenBridge', () => {
                 .lockTokens(codeChallengeBigInt, { value: grossAmount });
 
             const locked = await tokenBridge.lockedTokens(codeChallengeBigInt);
-            expect(locked).to.equal(100n); // 100 BU net
+            expect(locked).to.equal(1000n); // 1000 BU net
         });
 
         it('Should clamp gross to MIN_LOCK_AMOUNT when desired net is tiny', async function () {
@@ -915,6 +956,7 @@ describe('NoriTokenBridge', () => {
                 owner.address,
                 dummyState.address,
                 dummyAccount.address,
+                await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                 ethers.ZeroAddress
@@ -944,6 +986,7 @@ describe('NoriTokenBridge', () => {
                 owner.address,
                 dummyState.address,
                 dummyAccount.address,
+                await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
                 ethers.ZeroAddress
@@ -955,6 +998,516 @@ describe('NoriTokenBridge', () => {
         it('Should return true after aligned contracts are set', async function () {
             const { tokenBridge } = await deployTokenBridgeFixture();
             expect(await tokenBridge.isConfigured()).to.equal(true);
+        });
+    });
+
+    // -----------------------------------------------------------
+    // Proof request enqueueing
+    // -----------------------------------------------------------
+    describe('Proof requests', function () {
+        it('Should enqueue exactly one request per lock', async function () {
+            const { tokenBridge, proofQueue, user1 } = await deployTokenBridgeFixture();
+
+            expect(await proofQueue.head()).to.equal(0n);
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, {
+                    value: ethers.parseEther('1.0'),
+                });
+            expect(await proofQueue.head()).to.equal(1n);
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, {
+                    value: ethers.parseEther('1.0'),
+                });
+            expect(await proofQueue.head()).to.equal(2n);
+        });
+
+        it('Should record the bridge as target and the codeChallenge as the only collection key', async function () {
+            const { tokenBridge, proofQueue, user1 } = await deployTokenBridgeFixture();
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, {
+                    value: ethers.parseEther('1.0'),
+                });
+
+            const request = await proofQueue.requests(0n);
+            // The depositor is user1, but the request belongs to the bridge:
+            // the queue stamps msg.sender, which namespaces the proven leaf.
+            expect(request.target).to.equal(await tokenBridge.getAddress());
+            expect(request.collectionKeysCount).to.equal(1);
+            expect(request.collectionKeys[0]).to.equal(codeChallengeHex);
+            expect(request.collectionKeys[1]).to.equal(ethers.ZeroHash);
+        });
+
+        it('Should enqueue the storage key that actually holds lockedTokens[codeChallenge]', async function () {
+            const { tokenBridge, proofQueue, user1 } = await deployTokenBridgeFixture();
+
+            const sendValue = ethers.parseEther('1.0');
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
+
+            const request = await proofQueue.requests(0n);
+
+            // Recompute the mapping location independently of the contract.
+            const expectedSlotKey = ethers.keccak256(
+                ethers.AbiCoder.defaultAbiCoder().encode(
+                    ['uint256', 'uint256'],
+                    [codeChallengeBigInt, LOCKED_TOKENS_SLOT_INDEX]
+                )
+            );
+            expect(request.slotKey).to.equal(expectedSlotKey);
+
+            // ...and prove it really is the deposit's slot: the word stored
+            // there must equal the cumulative balance the circuit will read.
+            const storedValue = BigInt(
+                await ethers.provider.getStorage(
+                    await tokenBridge.getAddress(),
+                    request.slotKey
+                )
+            );
+            expect(storedValue).to.equal(
+                await tokenBridge.lockedTokens(codeChallengeBigInt)
+            );
+            expect(storedValue).to.equal(sendValue / WEI_PER_BRIDGE_UNIT);
+        });
+
+        it('Should keep lockedTokens at slot 2 (circuit-visible layout)', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, {
+                    value: ethers.parseEther('1.0'),
+                });
+
+            const slot = ethers.keccak256(
+                ethers.AbiCoder.defaultAbiCoder().encode(
+                    ['uint256', 'uint256'],
+                    [codeChallengeBigInt, 2n]
+                )
+            );
+            const stored = BigInt(
+                await ethers.provider.getStorage(
+                    await tokenBridge.getAddress(),
+                    slot
+                )
+            );
+            expect(stored).to.equal(
+                await tokenBridge.lockedTokens(codeChallengeBigInt)
+            );
+            expect(stored).to.be.gt(0n);
+        });
+
+        it('Should enqueue a separate request per deposit for the same codeChallenge', async function () {
+            const { tokenBridge, proofQueue, user1, user2 } = await deployTokenBridgeFixture();
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, {
+                    value: ethers.parseEther('1.0'),
+                });
+            await tokenBridge
+                .connect(user2)
+                .lockTokens(codeChallengeBigInt, {
+                    value: ethers.parseEther('2.0'),
+                });
+
+            expect(await proofQueue.head()).to.equal(2n);
+
+            // Duplicates are harmless: both name the same slot, whose value is
+            // the cumulative balance at proving time.
+            const first = await proofQueue.requests(0n);
+            const second = await proofQueue.requests(1n);
+            expect(second.slotKey).to.equal(first.slotKey);
+            expect(second.collectionKeys[0]).to.equal(first.collectionKeys[0]);
+        });
+    });
+
+    // -----------------------------------------------------------
+    // Lock fee with a non-zero proof request queue fee
+    //
+    // fee = proofRequestQueueFee (forwarded to the queue) + lockFeeRate applied to the
+    // deposit (kept by the treasury).
+    // -----------------------------------------------------------
+    describe('Locking Tokens (with proof request queue fee)', function () {
+        it('Should charge exactly the proof request queue fee when no rate is configured', async function () {
+            const { tokenBridge, proofQueue, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const sendValue = ethers.parseEther('1.0');
+            const grossBU = sendValue / WEI_PER_BRIDGE_UNIT;
+            const proofRequestQueueFeeBU = PROOF_REQUEST_QUEUE_FEE / WEI_PER_BRIDGE_UNIT;
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                grossBU - proofRequestQueueFeeBU
+            );
+            // Nothing left over for the treasury — the whole fee funded the proof.
+            expect(await tokenBridge.accumulatedFees()).to.equal(0n);
+            expect(
+                await ethers.provider.getBalance(await proofQueue.getAddress())
+            ).to.equal(PROOF_REQUEST_QUEUE_FEE);
+            expect(await proofQueue.accumulatedFees()).to.equal(PROOF_REQUEST_QUEUE_FEE);
+        });
+
+        it('Should add the rate on top of the proof request queue fee and keep only the rate', async function () {
+            const { tokenBridge, proofQueue, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
+
+            const sendValue = ethers.parseEther('1.0');
+            const grossBU = sendValue / WEI_PER_BRIDGE_UNIT;
+            const rateFeeBU = (grossBU * 1000n) / 100000n;
+            const proofRequestQueueFeeBU = PROOF_REQUEST_QUEUE_FEE / WEI_PER_BRIDGE_UNIT;
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                grossBU - rateFeeBU - proofRequestQueueFeeBU
+            );
+            // Treasury keeps the rate portion only.
+            expect(await tokenBridge.accumulatedFees()).to.equal(
+                rateFeeBU * WEI_PER_BRIDGE_UNIT
+            );
+            expect(
+                await ethers.provider.getBalance(await proofQueue.getAddress())
+            ).to.equal(PROOF_REQUEST_QUEUE_FEE);
+        });
+
+        it('Should report the combined fee in TokensLocked', async function () {
+            const { tokenBridge, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
+
+            const sendValue = ethers.parseEther('1.0');
+            const grossBU = sendValue / WEI_PER_BRIDGE_UNIT;
+            const rateFeeBU = (grossBU * 1000n) / 100000n;
+            const proofRequestQueueFeeBU = PROOF_REQUEST_QUEUE_FEE / WEI_PER_BRIDGE_UNIT;
+            const feeWei = (rateFeeBU + proofRequestQueueFeeBU) * WEI_PER_BRIDGE_UNIT;
+            const netWei = (grossBU - rateFeeBU - proofRequestQueueFeeBU) * WEI_PER_BRIDGE_UNIT;
+
+            await expect(
+                tokenBridge
+                    .connect(user1)
+                    .lockTokens(codeChallengeBigInt, { value: sendValue })
+            )
+                .to.emit(tokenBridge, 'TokensLocked')
+                .withArgs(user1.address, codeChallengeBigInt, netWei, feeWei);
+        });
+
+        it('Should leave the bridge holding exactly the locked funds plus treasury fees', async function () {
+            const { tokenBridge, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
+
+            const sendValue = ethers.parseEther('1.0');
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
+
+            const lockedWei =
+                (await tokenBridge.totalLockedBU()) * WEI_PER_BRIDGE_UNIT;
+            const balance = await ethers.provider.getBalance(
+                await tokenBridge.getAddress()
+            );
+
+            expect(balance).to.equal(
+                lockedWei + (await tokenBridge.accumulatedFees())
+            );
+            expect(balance).to.equal(sendValue - PROOF_REQUEST_QUEUE_FEE);
+        });
+
+        it('Should track a proof request queue fee change on the next deposit', async function () {
+            const { tokenBridge, proofQueue, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const newProofRequestQueueFee = PROOF_REQUEST_QUEUE_FEE * 2n;
+            await proofQueue.connect(owner).setProofRequestQueueFee(newProofRequestQueueFee);
+
+            const sendValue = ethers.parseEther('1.0');
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: sendValue });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                (sendValue - newProofRequestQueueFee) / WEI_PER_BRIDGE_UNIT
+            );
+            expect(
+                await ethers.provider.getBalance(await proofQueue.getAddress())
+            ).to.equal(newProofRequestQueueFee);
+        });
+    });
+
+    // -----------------------------------------------------------
+    // Minimum deposit
+    //
+    // Two independent rules: the deposit clears MIN_LOCK_AMOUNT_WEI, and the
+    // fee does not consume it entirely.
+    // -----------------------------------------------------------
+    describe('Minimum deposit', function () {
+        it('Should not move the minimum when a queue fee is configured', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            expect(await tokenBridge.MIN_LOCK_AMOUNT_WEI()).to.equal(
+                1000n * WEI_PER_BRIDGE_UNIT
+            );
+        });
+
+        it('Should reject a deposit below MIN_LOCK_AMOUNT_WEI', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const minimum = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
+
+            await expect(
+                tokenBridge.connect(user1).lockTokens(codeChallengeBigInt, {
+                    value: minimum - WEI_PER_BRIDGE_UNIT,
+                })
+            ).to.be.revertedWithCustomError(tokenBridge, 'BelowMinLockAmount');
+        });
+
+        it('Should accept the smallest deposit that covers the queue fee', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const minimum = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: minimum });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                (minimum - PROOF_REQUEST_QUEUE_FEE) / WEI_PER_BRIDGE_UNIT
+            );
+        });
+
+        it('Should reject a deposit the queue fee would consume entirely', async function () {
+            const { tokenBridge, proofQueue, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            // MAX_PROOF_REQUEST_QUEUE_FEE sits well above MIN_LOCK_AMOUNT_WEI
+            // to leave headroom for extreme gas conditions, so a fee set that
+            // high makes minimum-sized deposits unpayable. Keeping the live
+            // fee below the minimum deposit is an operational rule; this is
+            // the backstop that makes breaking it a clean revert.
+            const minimum = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
+            await proofQueue.connect(owner).setProofRequestQueueFee(minimum);
+
+            await expect(
+                tokenBridge
+                    .connect(user1)
+                    .lockTokens(codeChallengeBigInt, { value: minimum })
+            ).to.be.revertedWithCustomError(tokenBridge, 'FeeExceedsLockAmount');
+        });
+
+        it('Should still lock at a queue fee just under the minimum deposit', async function () {
+            const { tokenBridge, proofQueue, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const minimum = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
+            await proofQueue
+                .connect(owner)
+                .setProofRequestQueueFee(minimum - WEI_PER_BRIDGE_UNIT);
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: minimum });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(1n);
+        });
+    });
+
+    // -----------------------------------------------------------
+    // calcGrossLockAmount with a proof request queue fee
+    // -----------------------------------------------------------
+    describe('calcGrossLockAmount (with proof request queue fee)', function () {
+        it('Should quote a gross that lockTokens reproduces exactly at 0%', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const desiredNet = ethers.parseEther('1.0');
+            const [grossAmount, fee, actualNetAmount] =
+                await tokenBridge.calcGrossLockAmount(desiredNet);
+
+            expect(fee).to.equal(PROOF_REQUEST_QUEUE_FEE);
+            expect(grossAmount).to.equal(desiredNet + PROOF_REQUEST_QUEUE_FEE);
+            expect(actualNetAmount).to.equal(desiredNet);
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: grossAmount });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                actualNetAmount / WEI_PER_BRIDGE_UNIT
+            );
+        });
+
+        it('Should quote a gross that lockTokens reproduces exactly with a rate', async function () {
+            const { tokenBridge, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
+
+            const desiredNet = ethers.parseEther('1.0');
+            const [grossAmount, fee, actualNetAmount] =
+                await tokenBridge.calcGrossLockAmount(desiredNet);
+
+            expect(fee + actualNetAmount).to.equal(grossAmount);
+            expect(actualNetAmount).to.be.gte(desiredNet);
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: grossAmount });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                actualNetAmount / WEI_PER_BRIDGE_UNIT
+            );
+        });
+
+        it('Should clamp the quote to the scaled minimum deposit', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const [grossAmount] = await tokenBridge.calcGrossLockAmount(
+                WEI_PER_BRIDGE_UNIT
+            );
+
+            expect(grossAmount).to.be.gte(await tokenBridge.MIN_LOCK_AMOUNT_WEI());
+
+            // The clamped quote is spendable.
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: grossAmount });
+        });
+    });
+
+    // -----------------------------------------------------------
+    // previewLock
+    // -----------------------------------------------------------
+    describe('previewLock', function () {
+        it('Should quote exactly what lockTokens charges at 0%', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const gross = ethers.parseEther('1.0');
+            const [fee, net] = await tokenBridge.previewLock(gross);
+
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(codeChallengeBigInt, { value: gross });
+
+            expect(await tokenBridge.lockedTokens(codeChallengeBigInt)).to.equal(
+                net / WEI_PER_BRIDGE_UNIT
+            );
+            expect(fee).to.equal(PROOF_REQUEST_QUEUE_FEE);
+            expect(fee + net).to.equal(gross);
+        });
+
+        it('Should quote exactly what lockTokens charges with a rate', async function () {
+            const { tokenBridge, owner, user1 } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
+
+            const gross = ethers.parseEther('1.0');
+            const [fee, net] = await tokenBridge.previewLock(gross);
+
+            await expect(
+                tokenBridge
+                    .connect(user1)
+                    .lockTokens(codeChallengeBigInt, { value: gross })
+            )
+                .to.emit(tokenBridge, 'TokensLocked')
+                .withArgs(user1.address, codeChallengeBigInt, net, fee);
+        });
+
+        it('Should round-trip with calcGrossLockAmount', async function () {
+            const { tokenBridge, owner } =
+                await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            await tokenBridge.connect(owner).setLockFeeRate(1000); // 1%
+
+            const desiredNet = ethers.parseEther('1.0');
+            const [grossAmount, quotedFee, quotedNet] =
+                await tokenBridge.calcGrossLockAmount(desiredNet);
+
+            const [fee, net] = await tokenBridge.previewLock(grossAmount);
+            expect(fee).to.equal(quotedFee);
+            expect(net).to.equal(quotedNet);
+        });
+
+        it('Should revert for a deposit below the minimum', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture(PROOF_REQUEST_QUEUE_FEE);
+
+            const minimum = await tokenBridge.MIN_LOCK_AMOUNT_WEI();
+
+            await expect(
+                tokenBridge.previewLock(minimum - WEI_PER_BRIDGE_UNIT)
+            ).to.be.revertedWithCustomError(tokenBridge, 'BelowMinLockAmount');
+        });
+
+        it('Should revert for an amount that is not bridge-unit-aligned', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture();
+
+            await expect(
+                tokenBridge.previewLock(ethers.parseEther('1.0') + 1n)
+            ).to.be.revertedWithCustomError(
+                tokenBridge,
+                'InvalidBridgeUnitMultiple'
+            );
+        });
+    });
+
+    // -----------------------------------------------------------
+    // Proof queue wiring
+    // -----------------------------------------------------------
+    describe('proofQueue', function () {
+        it('Should expose the queue it was constructed with', async function () {
+            const { tokenBridge, proofQueue } = await deployTokenBridgeFixture();
+
+            expect(await tokenBridge.proofQueue()).to.equal(
+                await proofQueue.getAddress()
+            );
+        });
+
+        it('Should revert deployment if the proof queue is the zero address', async function () {
+            const [deployer, , , dummyState, dummyAccount] = await ethers.getSigners();
+            const TokenBridge = new NoriTokenBridge__factory(deployer);
+
+            await expect(
+                TokenBridge.deploy(
+                    deployer.address,
+                    dummyState.address,
+                    dummyAccount.address,
+                    ethers.ZeroAddress,
+                    ZKAPP_ACCT_TOKEN_ID,
+                    ZKAPP_ACCT_VERIFICATION_KEY_HASH,
+                    ethers.ZeroAddress
+                )
+            ).to.be.revertedWithCustomError(TokenBridge, 'ZeroAddress');
+        });
+
+        it('Should have no setter for the proof queue', async function () {
+            const { tokenBridge } = await deployTokenBridgeFixture();
+
+            // Immutable by construction: the Mina bridge pins the same address
+            // with no setter, so both sides move together or not at all.
+            expect(
+                tokenBridge.interface.fragments.some(
+                    (fragment) =>
+                        fragment.type === 'function' &&
+                        'name' in fragment &&
+                        /proofQueue/i.test(fragment.name as string) &&
+                        fragment.name !== 'proofQueue'
+                )
+            ).to.equal(false);
         });
     });
 });

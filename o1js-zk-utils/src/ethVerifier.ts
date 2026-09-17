@@ -19,17 +19,43 @@ import { proofConversionSP1ToPlonkPO2 } from './integrity/ProofConversion.sp1ToP
 import { proofConversionSP1ToPlonkVkData } from './integrity/ProofConversion.sp1ToPlonk.vkData.js';
 import { Bytes20, Bytes32 } from './types.js';
 
+/**
+ * The SP1 program's public outputs, decoded.
+ *
+ */
 class EthInput extends Struct({
     inputSlot: UInt64,
     inputStoreHash: Bytes32.provable,
     outputSlot: UInt64,
     outputStoreHash: Bytes32.provable,
     executionStateRoot: Bytes32.provable,
-    verifiedContractDepositsRoot: Bytes32.provable,
+    verifiedRequestsRoot: Bytes32.provable,
     nextSyncCommitteeHash: Bytes32.provable,
-    contractAddress: Bytes20.provable,
-    genesisRoot: Bytes32.provable,
+    proofRequestQueueAddress: Bytes20.provable,
+    inputQueueCursor: UInt64,
+    outputQueueCursor: UInt64,
+    outputBlockNumber: UInt64,
 }) { }
+
+/**
+ * Re-encodes an {@link EthInput} to the 220 bytes the SP1 program committed.
+ * Field order and widths match the guest's `ProofOutputs::to_bytes`.
+ */
+function ethInputToBytes(input: EthInput): UInt8[] {
+    let bytes: UInt8[] = [];
+    bytes = bytes.concat(input.inputSlot.toBytesBE());
+    bytes = bytes.concat(input.inputStoreHash.bytes);
+    bytes = bytes.concat(input.outputSlot.toBytesBE());
+    bytes = bytes.concat(input.outputStoreHash.bytes);
+    bytes = bytes.concat(input.executionStateRoot.bytes);
+    bytes = bytes.concat(input.verifiedRequestsRoot.bytes);
+    bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
+    bytes = bytes.concat(input.proofRequestQueueAddress.bytes);
+    bytes = bytes.concat(input.inputQueueCursor.toBytesBE());
+    bytes = bytes.concat(input.outputQueueCursor.toBytesBE());
+    bytes = bytes.concat(input.outputBlockNumber.toBytesBE());
+    return bytes;
+}
 
 const EthVerifier = ZkProgram({
     name: 'EthVerifier',
@@ -66,16 +92,7 @@ const EthVerifier = ZkProgram({
                 Provable.log('newHead slot', input.outputSlot);
 
                 // Verification of the input
-                let bytes: UInt8[] = [];
-                bytes = bytes.concat(input.inputSlot.toBytesBE());
-                bytes = bytes.concat(input.inputStoreHash.bytes);
-                bytes = bytes.concat(input.outputSlot.toBytesBE());
-                bytes = bytes.concat(input.outputStoreHash.bytes);
-                bytes = bytes.concat(input.executionStateRoot.bytes);
-                bytes = bytes.concat(input.verifiedContractDepositsRoot.bytes);
-                bytes = bytes.concat(input.nextSyncCommitteeHash.bytes);
-                bytes = bytes.concat(input.contractAddress.bytes);
-                bytes = bytes.concat(input.genesisRoot.bytes);
+                const bytes = ethInputToBytes(input);
 
                 // Check that zkprograminput is same as passed to the SP1 program
                 const pi0 = ethPlonkVK; // It might be helpful for debugging to assert this seperately.
@@ -106,4 +123,4 @@ const EthProof = ZkProgram.Proof(EthVerifier);
 
 export class EthProofType extends EthProof { }
 
-export { EthVerifier, EthProof, EthInput };
+export { EthVerifier, EthProof, EthInput, ethInputToBytes };

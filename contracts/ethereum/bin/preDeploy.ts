@@ -52,34 +52,12 @@ async function fetchAlignedServiceManagerAddress(ethNetwork: string): Promise<st
 /**
  * Fetch the genesis validators root from the beacon chain consensus API.
  */
-async function fetchGenesisValidatorsRoot(ethConsensusRpc: string): Promise<string> {
-    const url = `${ethConsensusRpc}/eth/v1/beacon/genesis`;
-    logger.log(`Fetching genesis from ${url}`);
-
-    const res = await fetch(url);
-    if (!res.ok) {
-        throw new Error(`Failed to fetch genesis: ${res.status} ${res.statusText}`);
-    }
-
-    const json = await res.json();
-    const genesisValidatorsRoot = json?.data?.genesis_validators_root;
-    if (!genesisValidatorsRoot) {
-        throw new Error('genesis_validators_root not found in response');
-    }
-
-    logger.log(`NORI_ETH_GENESIS_ROOT=${genesisValidatorsRoot}`);
-    return genesisValidatorsRoot;
-}
-
 const possibleEthNetwork = process.env.ETH_NETWORK;
-const possibleEthConsensusRpc = process.env.ETH_CONSENSUS_RPC;
 
 const issues: string[] = [];
 
 if (!possibleEthNetwork)
     issues.push('Missing required env: ETH_NETWORK');
-if (!possibleEthConsensusRpc)
-    issues.push('Missing required env: ETH_CONSENSUS_RPC');
 
 if (issues.length) {
     const formatted = [
@@ -96,21 +74,17 @@ if (issues.length) {
 }
 
 const ethNetwork = possibleEthNetwork as string;
-const ethConsensusRpc = possibleEthConsensusRpc as string;
 
 logger.log(`ETH_NETWORK=${ethNetwork}`);
 
 async function preDeploy() {
     const alignedServiceManagerAddress = await fetchAlignedServiceManagerAddress(ethNetwork);
-    const genesisValidatorsRoot = await fetchGenesisValidatorsRoot(ethConsensusRpc);
 
     // Write output
     const envContent = [
         `# AlignedLayer service manager contract address for ${ethNetwork}`,
         `# Source: https://github.com/yetanotherco/aligned_layer`,
         `ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=${alignedServiceManagerAddress}`,
-        `# Ethereum chain genesis validators root`,
-        `NORI_ETH_GENESIS_ROOT=${genesisValidatorsRoot}`,
     ].join('\n') + '\n';
 
     const envFilePath = path.resolve(__dirname, '..', '.env.nori-eth-pre-deploy');

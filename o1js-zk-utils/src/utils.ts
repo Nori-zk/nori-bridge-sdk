@@ -1,89 +1,24 @@
 import {
-    Bool,
     type Cache,
     Field,
-    Provable,
     Poseidon,
     type SmartContract,
     UInt64,
-    type UInt8,
+    UInt8,
     type VerificationKey,
 } from 'o1js';
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { wordToBytesCanonical } from '@nori-zk/proof-conversion/min';
 import { type NoriSP1ProofInput } from '@nori-zk/pts-types';
 import { Bytes20, Bytes32, type CompilableZkProgram, type CreateProofArgument } from './types.js';
 import { type Logger } from 'esm-iso-logger';
 
 // Bytes32 Field utils
 
-export function isLessThanFieldPrimeLE(bytes: UInt8[]): Bool {
-    // Mina field prime p in LE as Fields
-    const P_LE: Field[] = [
-        1n,
-        0n,
-        0n,
-        0n,
-        237n,
-        48n,
-        45n,
-        153n,
-        27n,
-        249n,
-        76n,
-        9n,
-        252n,
-        152n,
-        70n,
-        34n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        0n,
-        64n,
-    ].map((b) => new Field(b));
-    // Scan from bytes[31] (MSB) down to bytes[0] (LSB).
-    // `strictlyLess` starts false and can only ever flip true — never reset.
-    // `different` latches true the moment any byte differs from p's byte.
-    // Once `different` is true, `different.not()` is false, so no future byte
-    // can update `strictlyLess` — it is frozen at whatever it was set to.
-    // Therefore: `strictlyLess` becomes true if at the first differing byte
-    // position (from MSB), the input byte was less than p's byte.
-    // If all bytes match (input == p), `different` never latches and
-    // `strictlyLess` stays false — correctly rejecting p itself.
-    let strictlyLess = Bool(false);
-    let different = Bool(false);
-    for (let i = 31; i >= 0; i--) {
-        const pField = P_LE[i] as Field;
-        const byteField = (bytes[i] as UInt8).value;
-        const lt = byteField.lessThan(pField);
-        const eq = byteField.equals(pField);
-        strictlyLess = Provable.if(
-            different.not().and(lt),
-            Bool,
-            Bool(true),
-            strictlyLess
-        );
-        different = different.or(eq.not());
-    }
-    return strictlyLess;
-}
-
 export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
     // What if the Bytes32 represents a value greater than P - 1? We should do some
     // assertion that it isnt CHECKME
     // See 'Field order wrapping bytes 32 validation'
-    /*isLessThanFieldPrimeLE(uint8ArrayLength32).assertTrue(
+    /*isCanonicalFieldBytesLE(uint8ArrayLength32).assertTrue(
         'Given a uint8ArrayLength32 which exceeded p - 1'
     );*/
     // CHECKME removing this for now.... I think it may be redundant as the FixedBytes are constructed
@@ -106,8 +41,26 @@ export function uint8ArrayToBigIntLE(bytes: Uint8Array): bigint {
     return bytes.reduceRight((acc, byte) => (acc << 8n) + BigInt(byte), 0n);
 }
 
+/**
+ * Little-endian byte decomposition of a Field, for off-chain formatting.
+ *
+ * Not a substitute for `wordToBytes`, which is provable. `wordToBytes` rejects
+ * 32 bytes per word because it witnesses the bytes and constrains only their
+ * recomposition, and 2^256 exceeds the field order, so a field element has more
+ * than one valid 32-byte witness. Outside a circuit the value is already known,
+ * so it is read directly and the ambiguity cannot arise.
+ */
+export function fieldToBytesLE(field: Field, length = 32): UInt8[] {
+    let word = field.toBigInt();
+    return Array.from({ length }, () => {
+        const byte = UInt8.from(word & 0xffn);
+        word >>= 8n;
+        return byte;
+    });
+}
+
 export function fieldToHexBE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
     return `0x${bytesBE
         .map((byte) => byte.toBigInt().toString(16).padStart(2, '0'))
@@ -115,20 +68,20 @@ export function fieldToHexBE(field: Field) {
 }
 
 export function fieldToBigIntBE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     const bytesBE = bytesLE.reverse();
     return bytesBE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
 }
 
 export function fieldToHexLE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     return `0x${bytesLE
         .map((byte) => byte.toBigInt().toString(16).padStart(2, '0'))
         .join('')}`;
 }
 
 export function fieldToBigIntLE(field: Field) {
-    const bytesLE = wordToBytes(field, 32); // This is LE
+    const bytesLE = wordToBytesCanonical(field, 32); // This is LE
     return bytesLE.reduce((acc, byte) => (acc << 8n) + byte.toBigInt(), 0n);
 }
 
@@ -151,19 +104,23 @@ function assertUint64(value: bigint): void {
 
 // Proof decoder
 
+// Byte offsets of the SP1 program's public outputs, mirroring the guest's
+// `ProofOutputs::to_bytes`.
 const proofOffsets = {
     inputSlot: 0,
     inputStoreHash: 8,
     outputSlot: 40,
     outputStoreHash: 48,
     executionStateRoot: 80,
-    verifiedContractStorageSlotsRoot: 112,
+    verifiedRequestsRoot: 112,
     nextSyncCommitteeHash: 144,
-    contractAddress: 176,
-    genesisRoot: 196,
+    proofRequestQueueAddress: 176,
+    inputQueueCursor: 196,
+    outputQueueCursor: 204,
+    outputBlockNumber: 212,
 };
 
-const proofTotalLength = 228;
+const proofTotalLength = 220;
 
 export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
     const proofData = new Uint8Array(
@@ -203,28 +160,44 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
 
     const executionStateRootSlice = proofData.slice(
         proofOffsets.executionStateRoot,
-        proofOffsets.verifiedContractStorageSlotsRoot
+        proofOffsets.verifiedRequestsRoot
     );
 
-    const verifiedContractStorageSlotsRootSlice = proofData.slice(
-        proofOffsets.verifiedContractStorageSlotsRoot,
+    const verifiedRequestsRootSlice = proofData.slice(
+        proofOffsets.verifiedRequestsRoot,
         proofOffsets.nextSyncCommitteeHash
     );
 
     const nextSyncCommitteeHashSlice = proofData.slice(
         proofOffsets.nextSyncCommitteeHash,
-        proofOffsets.contractAddress,
+        proofOffsets.proofRequestQueueAddress,
     );
 
-    const contractAddressSlice = proofData.slice(
-        proofOffsets.contractAddress,
-        proofOffsets.genesisRoot,
+    const proofRequestQueueAddressSlice = proofData.slice(
+        proofOffsets.proofRequestQueueAddress,
+        proofOffsets.inputQueueCursor,
     );
 
-    const genesisRootSlice = proofData.slice(
-        proofOffsets.genesisRoot,
+    const inputQueueCursorSlice = proofData.slice(
+        proofOffsets.inputQueueCursor,
+        proofOffsets.outputQueueCursor
+    );
+    const inputQueueCursor = toBigIntFromBytes(inputQueueCursorSlice);
+    assertUint64(inputQueueCursor);
+
+    const outputQueueCursorSlice = proofData.slice(
+        proofOffsets.outputQueueCursor,
+        proofOffsets.outputBlockNumber
+    );
+    const outputQueueCursor = toBigIntFromBytes(outputQueueCursorSlice);
+    assertUint64(outputQueueCursor);
+
+    const outputBlockNumberSlice = proofData.slice(
+        proofOffsets.outputBlockNumber,
         proofTotalLength
-    )
+    );
+    const outputBlockNumber = toBigIntFromBytes(outputBlockNumberSlice);
+    assertUint64(outputBlockNumber);
 
     const provables = {
         inputSlot: UInt64.from(inputSlot),
@@ -232,25 +205,26 @@ export function decodeConsensusMptProof(ethSP1Proof: NoriSP1ProofInput) {
         outputSlot: UInt64.from(outputSlot),
         outputStoreHash: Bytes32.from(outputStoreHashSlice),
         executionStateRoot: Bytes32.from(executionStateRootSlice),
-        verifiedContractDepositsRoot: Bytes32.from(
-            verifiedContractStorageSlotsRootSlice
+        verifiedRequestsRoot: Bytes32.from(
+            verifiedRequestsRootSlice
         ),
         nextSyncCommitteeHash: Bytes32.from(nextSyncCommitteeHashSlice),
-        contractAddress: Bytes20.from(contractAddressSlice),
-        genesisRoot: Bytes32.from(genesisRootSlice),
+        proofRequestQueueAddress: Bytes20.from(proofRequestQueueAddressSlice),
+        inputQueueCursor: UInt64.from(inputQueueCursor),
+        outputQueueCursor: UInt64.from(outputQueueCursor),
+        outputBlockNumber: UInt64.from(outputBlockNumber),
     };
 
     return provables;
 }
 
-export function extractEthTokenBridgeAddressFromSP1Proof(example: CreateProofArgument): Field {
+/**
+ * The address the proof anchors its storage witnesses on, which is the proof
+ * request queue rather than the token bridge.
+ */
+export function extractEthProofQueueAddressFromSP1Proof(example: CreateProofArgument): Field {
     const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
-    return new Bytes20(decoded.contractAddress.bytes).toField();
-}
-
-export function extractGenesisRootFromSP1Proof(example: CreateProofArgument): Field {
-    const decoded = decodeConsensusMptProof(example.sp1PlonkProof);
-    return Poseidon.hash(new Bytes32(decoded.genesisRoot.bytes).toFields());
+    return new Bytes20(decoded.proofRequestQueueAddress.bytes).toField();
 }
 
 // Compile and verify contracts utility

@@ -56,7 +56,7 @@ const possibleTokenBasePrivateKeyBase58 = process.env.NORI_MINA_TOKEN_BASE_PRIVA
 const fee = Number(process.env.MINA_TX_FEE || 0.1) * 1e9;
 const possibleStoreHashHexRaw = process.env.NORI_INITIAL_STORE_HASH;
 const possibleEthTokenBridgeAddressHexRaw = process.env.NORI_ETH_TOKEN_BRIDGE_ADDRESS;
-const possibleGenesisRootHexRaw = process.env.NORI_ETH_GENESIS_ROOT;
+const possibleEthProofQueueAddressHexRaw = process.env.NORI_ETH_PROOF_QUEUE_ADDRESS;
 const possibleAdminPublicKeyBase58 = process.env.NORI_MINA_TOKEN_BRIDGE_ADMIN;
 
 const possibleStoreHashHex = possibleStoreHashHexRaw
@@ -65,8 +65,8 @@ const possibleStoreHashHex = possibleStoreHashHexRaw
 const possibleEthTokenBridgeAddressHex = possibleEthTokenBridgeAddressHexRaw
     ? stripHex0x(possibleEthTokenBridgeAddressHexRaw)
     : undefined;
-const possibleGenesisRootHex = possibleGenesisRootHexRaw
-    ? stripHex0x(possibleGenesisRootHexRaw)
+const possibleEthProofQueueAddressHex = possibleEthProofQueueAddressHexRaw
+    ? stripHex0x(possibleEthProofQueueAddressHexRaw)
     : undefined;
 
 // Validate everything in one pass
@@ -85,8 +85,8 @@ if (!possibleStoreHashHexRaw)
     issues.push('Missing required env: NORI_INITIAL_STORE_HASH (32-byte hex; DEPLOYMENT.md §5)');
 if (!possibleEthTokenBridgeAddressHexRaw)
     issues.push('Missing required env: NORI_ETH_TOKEN_BRIDGE_ADDRESS (Ethereum bridge address; written by ethereum `npm run deploy`)');
-if (!possibleGenesisRootHexRaw)
-    issues.push('Missing required env: NORI_ETH_GENESIS_ROOT (32-byte hex; written by ethereum `npm run pre-deploy`)');
+if (!possibleEthProofQueueAddressHexRaw)
+    issues.push('Missing required env: NORI_ETH_PROOF_QUEUE_ADDRESS (Ethereum proof request queue address; written by ethereum `npm run deploy`)');
 
 let possibleDeployerKey: PrivateKey | undefined;
 if (possibleDeployerKeyBase58) {
@@ -168,18 +168,18 @@ if (possibleEthTokenBridgeAddressHex) {
     }
 }
 
-let possibleGenesisRoot: Field | undefined;
-if (possibleGenesisRootHex) {
-    if (possibleGenesisRootHex.length !== 64) {
+let possibleEthProofQueueAddress: Field | undefined;
+if (possibleEthProofQueueAddressHex) {
+    if (possibleEthProofQueueAddressHex.length !== 40) {
         issues.push(
-            `NORI_ETH_GENESIS_ROOT '${possibleGenesisRootHexRaw}' must be exactly 64 hex characters (32 bytes), got ${possibleGenesisRootHex.length}`
+            `NORI_ETH_PROOF_QUEUE_ADDRESS '${possibleEthProofQueueAddressHexRaw}' must be exactly 40 hex characters (20 bytes), got ${possibleEthProofQueueAddressHex.length}`
         );
     } else {
         try {
-            possibleGenesisRoot = Poseidon.hash(Bytes32.fromHex(possibleGenesisRootHex).toFields());
+            possibleEthProofQueueAddress = Bytes20.fromHex(possibleEthProofQueueAddressHex).toField();
         } catch (e) {
             issues.push(
-                `NORI_ETH_GENESIS_ROOT '${possibleGenesisRootHexRaw}' is not a valid 32-byte hex string: ${(e as Error).message}`
+                `NORI_ETH_PROOF_QUEUE_ADDRESS '${possibleEthProofQueueAddressHexRaw}' is not a valid 20-byte hex string: ${(e as Error).message}`
             );
         }
     }
@@ -222,7 +222,7 @@ if (
     !isPrivateKey(possibleTokenBasePrivateKey) ||
     !isBytes32(possibleStoreHash) ||
     !isField(possibleEthTokenBridgeAddress) ||
-    !isField(possibleGenesisRoot) ||
+    !isField(possibleEthProofQueueAddress) ||
     !isString(possibleNetworkUrl) ||
     !isString(possibleNetwork)
 ) {
@@ -237,7 +237,7 @@ const tokenBasePrivateKey = possibleTokenBasePrivateKey;
 const tokenBasePrivateKeyBase58 = tokenBasePrivateKey.toBase58();
 const storeHash = possibleStoreHash;
 const ethTokenBridgeAddress = possibleEthTokenBridgeAddress;
-const genesisRoot = possibleGenesisRoot;
+const ethProofQueueAddress = possibleEthProofQueueAddress;
 const networkUrl = possibleNetworkUrl;
 const networkId: NetworkId =
     possibleNetwork === 'mainnet' ? 'mainnet' : 'testnet';
@@ -259,7 +259,7 @@ if (isPublicKey(possibleAdminPublicKey)) {
 
 logger.log(`NORI_INITIAL_STORE_HASH provided: '${possibleStoreHashHexRaw}'`);
 logger.log(`NORI_ETH_TOKEN_BRIDGE_ADDRESS provided: '${possibleEthTokenBridgeAddressHexRaw}'`);
-logger.log(`NORI_ETH_GENESIS_ROOT provided: '${possibleGenesisRootHexRaw}'`);
+logger.log(`NORI_ETH_PROOF_QUEUE_ADDRESS provided: '${possibleEthProofQueueAddressHexRaw}'`);
 logger.log(`Bridge address (from NORI_MINA_TOKEN_BRIDGE_PRIVATE_KEY): '${tokenBridgePrivateKey.toPublicKey().toBase58()}'`);
 logger.log(`Base address (from NORI_MINA_TOKEN_BASE_PRIVATE_KEY):     '${tokenBasePrivateKey.toPublicKey().toBase58()}'`);
 
@@ -340,7 +340,7 @@ async function deploy() {
                 storageVKHash: NoriStorageInterfaceVerificationKey.hash,
                 newStoreHash: initialStoreHash,
                 ethTokenBridgeAddress,
-                genesisRoot,
+                ethProofQueueAddress,
                 noriHeliosProgramPi0: FrC.from(
                     bridgeHeadNoriSP1HeliosProgramPi0
                 ),

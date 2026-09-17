@@ -15,7 +15,7 @@ export interface TimelockController$Type {
   readonly deployedLinkReferences: {};
   readonly immutableReferences: {};
   readonly inputSourceName: "project/contracts/TimeLockController.sol";
-  readonly buildInfoId: "solc-0_8_28-c79fe8a9491c077983499e22fcbb5a5176406110";
+  readonly buildInfoId: "solc-0_8_28-4dc999b7638d9fa25094da97a4a30618244cd014";
 };
 
 import "hardhat/types/artifacts";

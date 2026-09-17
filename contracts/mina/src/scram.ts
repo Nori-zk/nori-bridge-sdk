@@ -60,7 +60,7 @@ import {
     Provable,
 } from 'o1js';
 
-import { wordToBytes } from '@nori-zk/proof-conversion/min';
+import { wordToBytesCanonical } from '@nori-zk/proof-conversion/min';
 
 const SCRAMMessage = Provable.Array(Field, 128);
 
@@ -143,7 +143,7 @@ export function verifyCodeChallenge(
  */
 export function codeChallengeFieldToBEHex(codeChallenge: Field) {
     const beCodeChallengeBytes = Bytes.from(
-        wordToBytes(codeChallenge, 32).reverse()
+        wordToBytesCanonical(codeChallenge, 32).reverse()
     );
     const codeChallengeBEHex = `0x${beCodeChallengeBytes.toHex()}`;
     return codeChallengeBEHex;

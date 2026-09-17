@@ -59,7 +59,7 @@ let lastValue: string | undefined;
 
 async function poll() {
     await fetchAccount({ publicKey: bridgeAddress });
-    const value = tokenBridge.latestVerifiedContractDepositsRoot.get().toBigInt().toString();
+    const value = tokenBridge.latestVerifiedRequestsRoot.get().toBigInt().toString();
     if (lastValue === undefined) {
         logger.log(`initial value: ${value}`);
         logToFile(`initial value: ${value}`);
