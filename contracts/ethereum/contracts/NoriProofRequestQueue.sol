@@ -180,9 +180,12 @@ contract NoriProofRequestQueue {
     /// @dev `target` is `msg.sender` by construction: a contract can only
     ///      request proofs of its own state. The circuit relays `slotKey` and
     ///      `collectionKeys` verbatim without checking them against the
-    ///      caller's layout, so consumers should derive both from the same
-    ///      validated input rather than letting untrusted callers choose them
-    ///      independently.
+    ///      caller's layout, and does not expose `slotKey` in its public
+    ///      outputs, so consumers cannot re-derive the two from one another.
+    ///      Any consistency requirement between them belongs to the
+    ///      enqueuing contract: NoriTokenBridge derives both from the same
+    ///      `codeChallenge`, and consumers rely on that transitively by
+    ///      checking the proven leaf's `target` is the bridge.
     ///
     ///      Send exactly `proofRequestQueueFee`; any excess is retained as
     ///      protocol fees rather than refunded. Read the fee in the same

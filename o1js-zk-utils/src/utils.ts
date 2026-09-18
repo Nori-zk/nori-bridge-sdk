@@ -14,16 +14,15 @@ import { type Logger } from 'esm-iso-logger';
 
 // Bytes32 Field utils
 
+/**
+ * Folds 32 little-endian bytes into a Field. Bytes representing `>= p` would
+ * alias mod p, so this is only sound for canonical inputs. The sole caller
+ * is `NoriTokenBridge.update`, which passes the proof's
+ * `verifiedRequestsRoot`: nori-program computes that as the Poseidon root of
+ * the verified-request leaf tree (the zero hash for an empty batch), an Fp
+ * element and therefore always `< p`. No in-circuit range check needed.
+ */
 export function bytes32LEToFieldProvable(uint8ArrayLength32: UInt8[]) {
-    // What if the Bytes32 represents a value greater than P - 1? We should do some
-    // assertion that it isnt CHECKME
-    // See 'Field order wrapping bytes 32 validation'
-    /*isCanonicalFieldBytesLE(uint8ArrayLength32).assertTrue(
-        'Given a uint8ArrayLength32 which exceeded p - 1'
-    );*/
-    // CHECKME removing this for now.... I think it may be redundant as the FixedBytes are constructed
-    // By the first zkprogram and it is always within the range of p - 1 by definition.
-
     // On the rust side we have fixed_bytes[..32].copy_from_slice(&root.to_bytes());
     // root.to_bytes() is in LE so reconstruct it as such.
     let field = new Field(0);

@@ -19,7 +19,9 @@ import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 ///      withdrawable by a separate `feeRecipient` address (treasury).
 ///
 ///      Every lock enqueues a storage-proof request on `proofQueue`, which
-///      forces the deposit into the next consensus proof. The lock fee is two
+///      orders the deposit: it must be covered by some consensus proof
+///      before any later deposit can be — but not necessarily the *next*
+///      proof. The lock fee is two
 ///      parts added together: the queue's flat per-request fee, forwarded to
 ///      the queue, plus `lockFeeRate` applied to the deposit, which is the
 ///      only part the treasury keeps. `previewLock` quotes both.
@@ -28,8 +30,20 @@ contract NoriTokenBridge is ReentrancyGuard {
     // Constants
     // -------------------------------
     uint8 public constant DECIMALS = 6;
-    uint256 public constant MAX_MAGNITUDE = (1 << 64) - 1; // 64-bit magnitude
+    // 64-bit magnitude. This cap is also what the Mina side relies on:
+    // `noriMint` converts the proven `lockedTokens` word to UInt64 without a
+    // range check, sound only because every such word (and totalLockedBU,
+    // their sum) stays below 2^64.
+    uint256 public constant MAX_MAGNITUDE = (1 << 64) - 1;
     uint256 public constant WEI_PER_BRIDGE_UNIT = 10 ** (18 - DECIMALS); // smallest bridge unit (BU) in wei
+    /// @notice The Mina field prime (Pallas base field; o1js `Field.ORDER`).
+    /// @dev codeChallenges are Poseidon hashes of the depositor's Mina
+    ///      signature, so honest ones are always below this. Rejecting larger
+    ///      values in `lockTokens` keeps the Mina-side bytes32->Field fold
+    ///      injective: `x` and `x + MINA_FIELD_PRIME` would alias to the same
+    ///      field element there.
+    uint256 public constant MINA_FIELD_PRIME =
+        0x40000000000000000000000000000000224698fc094cf91b992d30ed00000001;
     uint16 public constant MAX_FEE_RATE = 10_000; // 10% hard cap (1 unit = 0.001%)
     uint32 public constant FEE_DENOMINATOR = 100_000;
     uint256 public constant MIN_FEE_BU = 10;
@@ -65,6 +79,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     error FeeRecipientNotSet();
     error NoFeesToWithdraw();
     error FeeExceedsLockAmount();
+    error CodeChallengeNotInField();
 
     // -------------------------------
     // State Variables
@@ -231,6 +246,10 @@ contract NoriTokenBridge is ReentrancyGuard {
         if (msg.value < MIN_LOCK_AMOUNT_WEI) revert BelowMinLockAmount();
         if (msg.value % WEI_PER_BRIDGE_UNIT != 0)
             revert InvalidBridgeUnitMultiple();
+        // codeChallenges fold mod the Mina field prime on the Mina side, so
+        // a non-canonical key would alias with key - MINA_FIELD_PRIME there.
+        // Honest challenges are Poseidon outputs and never trip this.
+        if (codeChallenge >= MINA_FIELD_PRIME) revert CodeChallengeNotInField();
 
         uint256 queueFeeWei = proofQueue.proofRequestQueueFee();
 
@@ -274,7 +293,9 @@ contract NoriTokenBridge is ReentrancyGuard {
 
     /// @notice Quote what a deposit of `grossAmount` wei would cost and lock.
     /// @dev The inverse of `calcGrossLockAmount`. Reverts on any amount
-    ///      `lockTokens` would reject.
+    ///      `lockTokens` would reject — except `TotalLockedOverflow`, which
+    ///      depends on the cumulative locked supply rather than the quoted
+    ///      amount (and is unreachable at any realistic supply).
     /// @param grossAmount The msg.value the caller intends to send.
     /// @return feeWei Total fee: the flat queue fee plus the rate portion.
     /// @return netWei Amount that would be credited to the codeChallenge.
@@ -299,8 +320,10 @@ contract NoriTokenBridge is ReentrancyGuard {
         uint256 grossBU,
         uint256 queueFeeWei
     ) internal view returns (uint256 feeBU, uint256 netBU) {
+        // Rounds down to whole bridge units (bounded by the floor below)
         uint256 rateFeeBU = (grossBU * lockFeeRate) / FEE_DENOMINATOR;
-        // Round up: minimum MIN_FEE_BU treasury fee when a rate is configured
+        // Floor, not a round-up: charge at least MIN_FEE_BU when a rate is
+        // configured (worst case the treasury gets ~9.1% under the exact fee)
         if (lockFeeRate > 0 && rateFeeBU < MIN_FEE_BU) rateFeeBU = MIN_FEE_BU;
 
         // Exact: the queue only accepts a bridge-unit-aligned fee
@@ -392,7 +415,8 @@ contract NoriTokenBridge is ReentrancyGuard {
         // Fees and payout calculation
         // ===============================
         uint256 feeBU = (tokensToUnlock * unlockFeeRate) / FEE_DENOMINATOR;
-        // Round up: minimum 10 bridge unit fee when a rate is configured
+        // Floor: charge at least MIN_FEE_BU when a rate is
+        // configured (mirrors the lock side's _splitFee)
         if (unlockFeeRate > 0 && feeBU < MIN_FEE_BU) feeBU = MIN_FEE_BU;
 
         if (tokensToUnlock <= feeBU) revert InvalidUnlockAmount();

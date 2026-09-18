@@ -37,6 +37,16 @@ export class VerifiedRequest extends Struct({
  * packs identically; `request-leaf-vectors.json` pins the two together.
  */
 export function packRequestLeafFields(request: VerifiedRequest): Field[] {
+    // The layout below — and the SP1 guest's `pack_request_leaf_fields` it
+    // mirrors — hardcodes exactly two collection keys (four packed fields).
+    // Without this guard a changed constant would silently produce a
+    // first field that isn't 32 bytes and mismatching leaf hashes.
+    if (MAX_COLLECTION_KEYS !== 2) {
+        throw new Error(
+            `packRequestLeafFields hardcodes exactly 2 collection keys, matching the SP1 guest's pack_request_leaf_fields; got MAX_COLLECTION_KEYS=${MAX_COLLECTION_KEYS}. Changing this requires changing the guest too.`
+        );
+    }
+
     const targetBytes = request.target.bytes; // UInt8[20]
     const keyBytes = request.collectionKeys.map((key) => key.bytes); // UInt8[32][]
     const valueBytes = request.value.bytes; // UInt8[32]
