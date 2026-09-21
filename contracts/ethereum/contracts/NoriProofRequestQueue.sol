@@ -183,13 +183,15 @@ contract NoriProofRequestQueue {
     ///      caller's layout, and does not expose `slotKey` in its public
     ///      outputs, so consumers cannot re-derive the two from one another.
     ///      Any consistency requirement between them belongs to the
-    ///      enqueuing contract: NoriTokenBridge derives both from the same
-    ///      `codeChallenge`, and consumers rely on that transitively by
-    ///      checking the proven leaf's `target` is the bridge.
+    ///      enqueuing contract: `target`'s own code is what must derive
+    ///      both consistently, and consumers rely on that transitively by
+    ///      checking the proven leaf's `target` is the contract they trust.
     ///
     ///      Send exactly `proofRequestQueueFee`; any excess is retained as
     ///      protocol fees rather than refunded. Read the fee in the same
-    ///      transaction to avoid racing a change to it.
+    ///      transaction to avoid racing a change to it; only a contract
+    ///      caller can do this; `target` is only meaningful for a contract,
+    ///      since an EOA has no storage trie to prove.
     /// @param slotKey Raw 32-byte storage key to prove under `msg.sender`.
     /// @param collectionKeys Up to `MAX_COLLECTION_KEYS` identifiers locating
     ///        the value within its collection.

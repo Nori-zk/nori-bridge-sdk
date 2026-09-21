@@ -80,6 +80,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     error NoFeesToWithdraw();
     error FeeExceedsLockAmount();
     error CodeChallengeNotInField();
+    error GranularityMismatch();
 
     // -------------------------------
     // State Variables
@@ -193,6 +194,10 @@ contract NoriTokenBridge is ReentrancyGuard {
         stateSettlement = MinaStateSettlement(_stateSettlementAddr);
         accountValidation = MinaAccountValidation(_accountValidationAddr);
         proofQueue = NoriProofRequestQueue(payable(_proofQueueAddr));
+        // _splitFee assumes WEI_PER_BRIDGE_UNIT divides the queue's fee
+        // granularity exactly, verify this on deployment against the deployed queue.
+        if (proofQueue.PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI() % WEI_PER_BRIDGE_UNIT != 0)
+            revert GranularityMismatch();
         NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID = _zkappAcctTokenId;
         NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH = _zkappAcctVerificationKeyHash;
 

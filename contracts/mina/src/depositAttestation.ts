@@ -139,6 +139,12 @@ export function extractCodeChallengeAndTotalLocked(
     // Unpack deposit
     const deposit = merkleTreeContractDepositAttestorInput.value;
 
+    // collectionKeysCount records the storage shape a request proves: 0 for
+    // a plain slot, 1 for a single collection entry, 2 for a nested
+    // collection entry. lockedTokens[codeChallenge] is a plain mapping, so
+    // a genuine deposit is always shape 1. We verify that here.
+    deposit.collectionKeysCount.assertEquals(UInt8.from(1), 'Expected exactly one collection key.');
+
     // Convert the code challenge from Bytes32 into a Field
     const codeChallengeBytes = deposit.collectionKeys[0].bytes;
     let codeChallenge = new Field(0);
