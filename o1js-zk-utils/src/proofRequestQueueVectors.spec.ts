@@ -159,7 +159,7 @@ describe('Proof request queue cross-language vectors', () => {
             }
         );
 
-        test('decode rejects the previous 244-byte layout', () => {
+        test('decode rejects a wrong-length buffer', () => {
             const vector = proofOutputsVectors[0];
             const padded = Buffer.concat([
                 Buffer.from(stripHexPrefix(vector.bytes), 'hex'),

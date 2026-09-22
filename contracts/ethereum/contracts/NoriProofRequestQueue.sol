@@ -180,13 +180,18 @@ contract NoriProofRequestQueue {
     /// @dev `target` is `msg.sender` by construction: a contract can only
     ///      request proofs of its own state. The circuit relays `slotKey` and
     ///      `collectionKeys` verbatim without checking them against the
-    ///      caller's layout, so consumers should derive both from the same
-    ///      validated input rather than letting untrusted callers choose them
-    ///      independently.
+    ///      caller's layout, and does not expose `slotKey` in its public
+    ///      outputs, so consumers cannot re-derive the two from one another.
+    ///      Any consistency requirement between them belongs to the
+    ///      enqueuing contract: `target`'s own code is what must derive
+    ///      both consistently, and consumers rely on that transitively by
+    ///      checking the proven leaf's `target` is the contract they trust.
     ///
     ///      Send exactly `proofRequestQueueFee`; any excess is retained as
     ///      protocol fees rather than refunded. Read the fee in the same
-    ///      transaction to avoid racing a change to it.
+    ///      transaction to avoid racing a change to it; only a contract
+    ///      caller can do this; `target` is only meaningful for a contract,
+    ///      since an EOA has no storage trie to prove.
     /// @param slotKey Raw 32-byte storage key to prove under `msg.sender`.
     /// @param collectionKeys Up to `MAX_COLLECTION_KEYS` identifiers locating
     ///        the value within its collection.
