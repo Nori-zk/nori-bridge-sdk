@@ -1,5 +1,18 @@
 # Changelog
 
+## 22/9/26 - Merge path SDK: SCRAP/load-runner-trail into CHORE/integration-audit-fix-develop-18-9-26-final
+
+### Merge path
+
+- Merge `SCRAP/load-runner-trail`: `git merge origin/SCRAP/load-runner-trail`, one commit ahead of its merge base with `CHORE/integration-audit-fix-develop-18-9-26-final` (`46926f8`, "FEAT: update loadrunner, adjust keygen script for funding new keys"). Merged clean with no conflicts.
+
+### Changes
+
+- `contracts/mina/src/bin/loadRunner.ts`: takes `origin/SCRAP/load-runner-trail`'s updated load-testing flow.
+- `contracts/mina/src/tests/unit/keygen.unit.spec.ts`: takes `origin/SCRAP/load-runner-trail`'s expanded key-funding test coverage.
+
+Both files matched `origin/SCRAP/load-runner-trail`'s tip byte for byte after the merge, since neither had diverged on `CHORE/integration-audit-fix-develop-18-9-26-final` since the merge base.
+
 ## 22/9/26 - Merge path SDK: FIX/audit into CHORE/integration-audit-fix-develop-18-9-26-final
 
 ### Merge path
