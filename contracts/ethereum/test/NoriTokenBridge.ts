@@ -11,13 +11,16 @@ const { ethers } = await hre.network.getOrCreate();
 
 const codeChallengeBytes = new Uint8Array(32);
 getRandomValues(codeChallengeBytes);
-const codeChallengeBigInt = codeChallengeBytes.reduce(
-    (acc, byte) => (acc << 8n) + BigInt(byte),
-    0n
-);
-const codeChallengeHex = `0x${Array.from(codeChallengeBytes)
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')}`;
+// lockTokens rejects codeChallenges >= the Mina field prime (Pallas base
+// field). A uniform 32-byte value exceeds it with ~55% probability, so
+// reduce mod p to keep the fixture canonical — matching production, where
+// challenges are Poseidon outputs and always < p.
+const MINA_FIELD_PRIME =
+    0x40000000000000000000000000000000224698fc094cf91b992d30ed00000001n;
+const codeChallengeBigInt =
+    codeChallengeBytes.reduce((acc, byte) => (acc << 8n) + BigInt(byte), 0n) %
+    MINA_FIELD_PRIME;
+const codeChallengeHex = `0x${codeChallengeBigInt.toString(16).padStart(64, '0')}`;
 
 console.log('codeChallengeBigInt', codeChallengeBigInt);
 console.log('codeChallengeHex', codeChallengeHex);
@@ -703,6 +706,29 @@ describe('NoriTokenBridge', () => {
                     .connect(user1)
                     .lockTokens(codeChallengeBigInt, { value: hugeValue })
             ).to.be.revertedWithCustomError(tokenBridge, 'TotalLockedOverflow');
+        });
+
+        it('Should revert if codeChallenge is not canonical for the Mina field', async function () {
+            const { tokenBridge, user1 } = await deployTokenBridgeFixture();
+            const p = await tokenBridge.MINA_FIELD_PRIME();
+            const lockValue = ethers.parseEther('1.0');
+
+            await expect(
+                tokenBridge
+                    .connect(user1)
+                    .lockTokens(p, { value: lockValue })
+            ).to.be.revertedWithCustomError(
+                tokenBridge,
+                'CodeChallengeNotInField'
+            );
+
+            // Just below the prime is canonical and accepted
+            await tokenBridge
+                .connect(user1)
+                .lockTokens(p - 1n, { value: lockValue });
+            expect(await tokenBridge.lockedTokens(p - 1n)).to.equal(
+                lockValue / WEI_PER_BRIDGE_UNIT
+            );
         });
     });
 

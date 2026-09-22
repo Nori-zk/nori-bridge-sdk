@@ -122,12 +122,28 @@ export function getVerifiedRequestSlotRootFromWitness(
  * `collectionKeys[0]` and the proven storage word is the running total locked.
  * `target` is returned so the caller can require the leaf originated from the
  * bridge rather than from another queue consumer.
+ *
+ * Both folds below rebuild a Field from big-endian bytes, which is injective
+ * only below the field prime. That precondition is enforced Ethereum-side,
+ * not here:
+ *  - `codeChallenge`: `NoriTokenBridge.lockTokens` rejects values
+ *    `>= MINA_FIELD_PRIME` (honest ones are Poseidon outputs anyway), so `x`
+ *    and `x + p` cannot alias to the same field element.
+ *  - `totalLocked`: the word proven is `lockedTokens[codeChallenge]` in
+ *    bridge units, kept below 2^64 by the bridge's `MAX_MAGNITUDE` cap —
+ *    the same bound the unchecked UInt64 conversion in `noriMint` relies on.
  */
 export function extractCodeChallengeAndTotalLocked(
     merkleTreeContractDepositAttestorInput: VerifiedRequestWitnessInput
 ) {
     // Unpack deposit
     const deposit = merkleTreeContractDepositAttestorInput.value;
+
+    // collectionKeysCount records the storage shape a request proves: 0 for
+    // a plain slot, 1 for a single collection entry, 2 for a nested
+    // collection entry. lockedTokens[codeChallenge] is a plain mapping, so
+    // a genuine deposit is always shape 1. We verify that here.
+    deposit.collectionKeysCount.assertEquals(UInt8.from(1), 'Expected exactly one collection key.');
 
     // Convert the code challenge from Bytes32 into a Field
     const codeChallengeBytes = deposit.collectionKeys[0].bytes;

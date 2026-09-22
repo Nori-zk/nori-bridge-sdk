@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "previewLock" | "proofQueue" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MINA_FIELD_PRIME" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "previewLock" | "proofQueue" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "FeeRecipientSet" | "FeesWithdrawn" | "LockFeeRateSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked" | "UnlockFeeRateSet"): EventFragment;
 
@@ -14,6 +14,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
 encodeFunctionData(functionFragment: 'FEE_DENOMINATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_FEE_RATE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_MAGNITUDE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MINA_FIELD_PRIME', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MIN_FEE_BU', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MIN_LOCK_AMOUNT_WEI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID', values?: undefined): string;
@@ -46,6 +47,7 @@ encodeFunctionData(functionFragment: 'withdrawFees', values?: undefined): string
 decodeFunctionResult(functionFragment: 'FEE_DENOMINATOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_FEE_RATE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_MAGNITUDE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MINA_FIELD_PRIME', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MIN_FEE_BU', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MIN_LOCK_AMOUNT_WEI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID', data: BytesLike): Result;
@@ -243,6 +245,14 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
 
     
     MAX_MAGNITUDE: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    MINA_FIELD_PRIME: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -484,6 +494,11 @@ getFunction(nameOrSignature: 'MAX_FEE_RATE'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'MAX_MAGNITUDE'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MINA_FIELD_PRIME'): TypedContractMethod<
       [],
       [bigint],
       'view'
