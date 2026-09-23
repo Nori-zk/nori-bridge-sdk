@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { type HardhatUserConfig } from 'hardhat/config';
 import hardhatTypechain from '@nomicfoundation/hardhat-typechain';
 import hardhatEthers from '@nomicfoundation/hardhat-ethers';
-import hardhatToolboxMochaEthers from '@nomicfoundation/hardhat-toolbox-mocha-ethers';
 import hardhatEthersChaiMatchers from '@nomicfoundation/hardhat-ethers-chai-matchers';
 import hardhatMocha from '@nomicfoundation/hardhat-mocha';
 import fs from "fs";
@@ -116,7 +115,6 @@ const config: HardhatUserConfig = {
     hardhatMocha,
     hardhatTypechain,
     hardhatEthers,
-    hardhatToolboxMochaEthers,
     hardhatEthersChaiMatchers,
   ],
   solidity: {
