@@ -1,7 +1,0 @@
-export default {
-  test: {
-    mocha: {
-      timeout: 20_000, // set the timeout for tests to 20 seconds
-    },
-  },
-};

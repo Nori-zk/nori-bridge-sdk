@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {MinaStateSettlement} from './MinaStateSettlement.sol';
-import {MinaAccountValidation} from './MinaAccountValidation.sol';
 import {NoriProofRequestQueue} from './NoriProofRequestQueue.sol';
 import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
@@ -61,7 +59,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // Custom Errors
     // -------------------------------
-    error AlignedContractsNotConfigured();
     error ZeroAddress();
     error NotBridgeOperator();
     error BelowMinLockAmount();
@@ -93,11 +90,6 @@ contract NoriTokenBridge is ReentrancyGuard {
 
     // Total locked supply in bridge units
     uint256 public totalLockedBU;
-
-    /// @notice Mina bridge contract that validates and stores Mina states.
-    MinaStateSettlement public stateSettlement;
-    /// @notice Mina bridge contract that validates accounts
-    MinaAccountValidation public accountValidation;
 
     // Hash(publicKey, tokenId) -> burnSoFar (in bridge units, matches Mina appState)
     mapping(uint256 => uint256) public unlockedTokens;
@@ -134,8 +126,6 @@ contract NoriTokenBridge is ReentrancyGuard {
         uint256 fee,
         address receiver
     );
-    event StateSettlementSet(address indexed newAddress);
-    event AccountValidationSet(address indexed newAddress);
     event BridgeOperatorSet(
         address indexed oldOperator,
         address indexed newOperator
@@ -156,17 +146,10 @@ contract NoriTokenBridge is ReentrancyGuard {
         _;
     }
 
-    modifier onlyConfigured() {
-        if (!isConfigured()) revert AlignedContractsNotConfigured();
-        _;
-    }
-
     // -------------------------------
     // Constructor
     // -------------------------------
     /// @param _bridgeOperator The admin address (expected to be a Safe in production).
-    /// @param _stateSettlementAddr Mina state settlement contract address.
-    /// @param _accountValidationAddr Mina account validation contract address.
     /// @param _proofQueueAddr NoriProofRequestQueue address. Immutable once set.
     /// @param _zkappAcctTokenId The Mina zkApp account tokenID expected during unlock validation.
     /// @param _zkappAcctVerificationKeyHash The keccak256 of the ABI-encoded NoriStorage zkApp
@@ -175,8 +158,6 @@ contract NoriTokenBridge is ReentrancyGuard {
     ///        Pass `address(0)` to defer; it can be configured later via `setFeeRecipient`.
     constructor(
         address _bridgeOperator,
-        address _stateSettlementAddr,
-        address _accountValidationAddr,
         address _proofQueueAddr,
         bytes32 _zkappAcctTokenId,
         bytes32 _zkappAcctVerificationKeyHash,
@@ -185,14 +166,10 @@ contract NoriTokenBridge is ReentrancyGuard {
         assert(DECIMALS < 18);
         if (
             _bridgeOperator == address(0) ||
-            _stateSettlementAddr == address(0) ||
-            _accountValidationAddr == address(0) ||
             _proofQueueAddr == address(0)
         ) revert ZeroAddress();
         bridgeOperator = _bridgeOperator;
 
-        stateSettlement = MinaStateSettlement(_stateSettlementAddr);
-        accountValidation = MinaAccountValidation(_accountValidationAddr);
         proofQueue = NoriProofRequestQueue(payable(_proofQueueAddr));
         // _splitFee assumes WEI_PER_BRIDGE_UNIT divides the queue's fee
         // granularity exactly, verify this on deployment against the deployed queue.
@@ -205,46 +182,12 @@ contract NoriTokenBridge is ReentrancyGuard {
             feeRecipient = _feeRecipient;
             emit FeeRecipientSet(address(0), _feeRecipient);
         }
-
-        emit StateSettlementSet(_stateSettlementAddr);
-        emit AccountValidationSet(_accountValidationAddr);
-    }
-    // -------------------------------
-    // Configuration
-    //
-    // setAlignedContracts is gated by onlyBridgeOperator. In production the
-    // bridgeOperator is a TimelockController (proposed by the Safe multisig),
-    // so any rotation goes Safe -> Timelock (delay) -> setAlignedContracts.
-    // Expected use cases: a Mina hard fork or a change to the Mina zkApp
-    // architecture that requires re-pointing at new validator contracts.
-    // The Timelock delay gives downstream users time to react.
-    // -------------------------------
-    function setAlignedContracts(
-        address _stateSettlementAddr,
-        address _accountValidationAddr
-    ) external onlyBridgeOperator {
-        if (
-            _stateSettlementAddr == address(0) ||
-            _accountValidationAddr == address(0)
-        ) revert ZeroAddress();
-
-        stateSettlement = MinaStateSettlement(_stateSettlementAddr);
-        accountValidation = MinaAccountValidation(_accountValidationAddr);
-
-        emit StateSettlementSet(_stateSettlementAddr);
-        emit AccountValidationSet(_accountValidationAddr);
-    }
-
-    function isConfigured() public view returns (bool) {
-        return
-            address(stateSettlement) != address(0) &&
-            address(accountValidation) != address(0);
     }
     // -------------------------------
     // Lock ETH for a Mina account
     // -------------------------------
     // codeChallenge is the hash of the Mina signature
-    function lockTokens(uint256 codeChallenge) external payable onlyConfigured {
+    function lockTokens(uint256 codeChallenge) external payable {
         // ===============================
         // VALIDATION
         // ===============================
@@ -339,114 +282,9 @@ contract NoriTokenBridge is ReentrancyGuard {
         netBU = grossBU - feeBU;
     }
 
-    /// @notice Unlock tokens by bridging from Mina.
-    /// @dev Permissionless — anyone can submit a valid proof to unlock. Protected by
-    ///      `nonReentrant` since ETH is sent via low-level `call`.
-    ///      Fee is deducted from the payout right before the transfer.
-    ///      `unlockedTokens` tracks the full amount (inclusive of fee) to stay aligned
-    ///      with Mina-side burn accounting.
-    function unlockTokens(
-        bytes32 proofCommitment,
-        bytes32 provingSystemAuxDataCommitment,
-        bytes20 proofGeneratorAddr,
-        bytes32 batchMerkleRoot,
-        bytes memory merkleProof,
-        uint256 verificationDataBatchIndex,
-        bytes calldata pubInput,
-        address batcherPaymentService
-    ) external onlyConfigured nonReentrant {
-        bytes32 ledgerHash = bytes32(pubInput[:32]);
-        if (!stateSettlement.isLedgerVerified(ledgerHash))
-            revert InvalidLedger();
-
-        MinaAccountValidation.AlignedArgs memory args = MinaAccountValidation
-            .AlignedArgs(
-                proofCommitment,
-                provingSystemAuxDataCommitment,
-                proofGeneratorAddr,
-                batchMerkleRoot,
-                merkleProof,
-                verificationDataBatchIndex,
-                pubInput,
-                batcherPaymentService
-            );
-        if (!accountValidation.validateAccount(args))
-            revert InvalidZkappAccount();
-
-        bytes calldata encodedAccount = pubInput[32 + 8:];
-        MinaAccountValidation.Account memory account = abi.decode(
-            encodedAccount,
-            (MinaAccountValidation.Account)
-        );
-
-        // check that this account represents the circuit we expect
-        // VerificationKey is ABI-encoded then hashed with keccak256 (Solidity has no Poseidon).
-        bytes32 verificationKeyHash = keccak256(
-            abi.encode(account.zkapp.verificationKey)
-        );
-
-        if (
-            verificationKeyHash != NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH
-        ) revert IncorrectZkappVerificationKey();
-
-        // check if the tokenId is aligned
-        if (account.tokenIdKeyHash != NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID)
-            revert IncorrectTokenHolderAccount();
-
-        uint256 pubKeyTokenIdHash = uint256(
-            keccak256(abi.encode(account.publicKey, account.tokenIdKeyHash))
-        );
-        uint256 unlockedTokensSoFar = unlockedTokens[pubKeyTokenIdHash];
-        uint256 burntTokensSoFar = uint256(account.zkapp.appState[2]);
-        // check if burnedSoFar at Mina account is greater than the existing burnSoFar
-        if (burntTokensSoFar <= unlockedTokensSoFar)
-            revert BurnCounterNotIncreased();
-
-        // gas optimization: bypass built-in underflow check since we just verified this condition
-        uint256 tokensToUnlock;
-        unchecked {
-            tokensToUnlock = burntTokensSoFar - unlockedTokensSoFar;
-        }
-
-        // ===============================
-        // UNLOCK LOGIC (checks-effects-interactions)
-        // ===============================
-        unlockedTokens[pubKeyTokenIdHash] = burntTokensSoFar;
-        // Ensure we don't unlock more than we have locked (should never happen if proofs are valid)
-        if (tokensToUnlock > totalLockedBU) revert InvalidUnlockAmount();
-        totalLockedBU -= tokensToUnlock;
-
-        // ===============================
-        // Fees and payout calculation
-        // ===============================
-        uint256 feeBU = (tokensToUnlock * unlockFeeRate) / FEE_DENOMINATOR;
-        // Floor: charge at least MIN_FEE_BU when a rate is
-        // configured (mirrors the lock side's _splitFee)
-        if (unlockFeeRate > 0 && feeBU < MIN_FEE_BU) feeBU = MIN_FEE_BU;
-
-        if (tokensToUnlock <= feeBU) revert InvalidUnlockAmount();
-
-        uint256 netBU;
-        unchecked {
-            netBU = tokensToUnlock - feeBU; // Safe because of the line above
-        }
-        uint256 feeWei = feeBU * WEI_PER_BRIDGE_UNIT;
-        uint256 netWei = netBU * WEI_PER_BRIDGE_UNIT;
-        accumulatedFees += feeWei;
-
-        // Interaction: transfer net payout to the receiver
-        address receiver = address(uint160(uint256(account.zkapp.appState[3])));
-        if (receiver == address(0)) revert ZeroAddress();
-
-        (bool ok, ) = payable(receiver).call{value: netWei}('');
-        if (!ok) revert EthTransferFailed();
-
-        emit TokensUnlocked(
-            pubKeyTokenIdHash,
-            tokensToUnlock * WEI_PER_BRIDGE_UNIT,
-            feeWei,
-            receiver
-        );
+    /// @notice Always reverts. No unlock path is currently wired in.
+    function unlockTokens() external nonReentrant {
+        revert InvalidZkappAccount();
     }
 
     // -------------------------------
