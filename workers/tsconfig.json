@@ -2,12 +2,12 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "build",
+    "rootDir": "./src",
     "typeRoots": ["../node_modules/@types"],
-    "baseUrl": ".",
     "paths": {
-      "*": ["*", "src/*", "../node_modules/*"]
+      "*": ["./*", "./src/*", "../node_modules/*"]
     }
   },
-  "exclude": ["../node_modules", "node_modules", "build"],
+  "exclude": ["../node_modules", "node_modules", "build", "src/test", "**/*.spec.ts"],
   "include": ["src/**/*.ts"]
 }

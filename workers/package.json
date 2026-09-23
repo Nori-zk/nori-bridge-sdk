@@ -34,12 +34,15 @@
     },
     "scripts": {
         "clean": "rimraf build",
+        "clean:test-build": "rimraf .test-build",
         "build": "npm run clean && tsc",
+        "build:test": "npm run build && npm run clean:test-build && tsc -p src/tsconfig.json",
         "buildw": "tsc --watch",
+        "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
         "coverage": "node ../node_modules/jest/bin/jest.js --coverage",
         "format": "prettier --check --ignore-unknown **/*",
         "format:fix": "prettier --write --ignore-unknown **/*",
-        "test": "npm run build && node --experimental-vm-modules ../node_modules/jest/bin/jest.js",
+        "test": "npm run build:test && node --experimental-vm-modules ../node_modules/jest/bin/jest.js",
         "testw": "node ../node_modules/jest/bin/jest.js --watch",
         "lint": "npx eslint src/*",
         "lint:fix": "npx eslint src/* --fix"
@@ -58,7 +61,7 @@
         "rimraf": "^6.1.2",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
         "typescript-eslint": "^8.55.0"
     },
     "engines": {

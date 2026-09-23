@@ -19,6 +19,14 @@ import {
 
 const stripHexPrefix = (hex: string) => hex.slice(2);
 
+function getRequestLeafVector(name: string): RequestLeafVector {
+    const vector = requestLeafVectors.find((v) => v.name === name);
+    if (!vector) {
+        throw new Error(`No request leaf vector named '${name}'`);
+    }
+    return vector;
+}
+
 function verifiedRequestFromVector(vector: RequestLeafVector) {
     return new VerifiedRequest({
         target: Bytes20.fromHex(stripHexPrefix(vector.target)),
@@ -73,12 +81,8 @@ describe('Proof request queue cross-language vectors', () => {
         );
 
         test('the count disambiguates a supplied zero key from an absent one', () => {
-            const oneKey = requestLeafVectors.find(
-                (v) => v.name === 'one_key'
-            )!;
-            const twoKeys = requestLeafVectors.find(
-                (v) => v.name === 'two_keys_second_zero'
-            )!;
+            const oneKey = getRequestLeafVector('one_key');
+            const twoKeys = getRequestLeafVector('two_keys_second_zero');
 
             // Same target, keys and value; only collectionKeysCount differs.
             expect(twoKeys.target).toBe(oneKey.target);
@@ -100,9 +104,7 @@ describe('Proof request queue cross-language vectors', () => {
         });
 
         test('the target namespaces the leaf', () => {
-            const vector = requestLeafVectors.find(
-                (v) => v.name === 'one_key'
-            )!;
+            const vector = getRequestLeafVector('one_key');
             const request = verifiedRequestFromVector(vector);
             const foreign = new VerifiedRequest({
                 ...request,

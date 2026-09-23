@@ -2,12 +2,12 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "build",
+    "rootDir": "./src",
     "typeRoots": ["../node_modules/@types"],
-    "baseUrl": ".",
     "types": ["chai"],
     "paths": {
       "o1js": ["../node_modules/o1js"],
-      "*": ["*", "src/*", "../node_modules/*"]
+      "*": ["./*", "./src/*", "../node_modules/*"]
     }
   },
   "exclude": ["node_modules", "build"],
