@@ -17,6 +17,9 @@
     "type": "module",
     "main": "build/index.node.js",
     "types": "build/index.node.d.ts",
+    "files": [
+        "build"
+    ],
     "exports": {
         ".": {
             "import": "./build/index.node.js"
