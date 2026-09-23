@@ -9,10 +9,11 @@ import { PrivateKey } from 'o1js';
 import {
     CacheType,
     decodeConsensusMptProof,
-    extractEthTokenBridgeAddressFromSP1Proof,
-    extractGenesisRootFromSP1Proof,
+    Bytes20,
+    extractEthProofQueueAddressFromSP1Proof,
     type FileSystemCacheConfig,
 } from '@nori-zk/o1js-zk-utils';
+import { TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX } from './testUtils.js';
 import os from 'os';
 import { resolve } from 'path';
 import { mkdirSync, rmSync } from 'fs';
@@ -107,8 +108,8 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
 
             await proofSubmitter.deployContract(
                 decoded.inputStoreHash,
-                extractEthTokenBridgeAddressFromSP1Proof(proofArgument),
-                extractGenesisRootFromSP1Proof(proofArgument)
+                Bytes20.fromHex(TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX).toField(),
+                extractEthProofQueueAddressFromSP1Proof(proofArgument)
             );
 
             // Build proof.
@@ -157,8 +158,8 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             );
             await proofSubmitter.deployContract(
                 decoded.inputStoreHash,
-                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]),
-                extractGenesisRootFromSP1Proof(seriesExamples[0])
+                Bytes20.fromHex(TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX).toField(),
+                extractEthProofQueueAddressFromSP1Proof(seriesExamples[0])
             );
 
             // Build and submit proofs
@@ -217,8 +218,8 @@ describe('NoriTokenBridgeSubmitter Integration Test', () => {
             );
             await proofSubmitter.deployContract(
                 decoded.inputStoreHash,
-                extractEthTokenBridgeAddressFromSP1Proof(seriesExamples[0]),
-                extractGenesisRootFromSP1Proof(seriesExamples[0])
+                Bytes20.fromHex(TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX).toField(),
+                extractEthProofQueueAddressFromSP1Proof(seriesExamples[0])
             );
 
             // Build and submit proofs

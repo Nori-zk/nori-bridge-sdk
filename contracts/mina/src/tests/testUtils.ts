@@ -1,10 +1,10 @@
 import { wordToBytesCanonical } from '@nori-zk/proof-conversion/min';
-import { Bytes, CircuitString, fetchAccount, Field, Mina, PrivateKey, PublicKey, Signature, UInt64 } from 'o1js';
+import { Bytes, CircuitString, fetchAccount, Field, Mina, PrivateKey, PublicKey, Signature, UInt64, UInt8 } from 'o1js';
 import { Logger } from 'esm-iso-logger';
 import {
     buildContractDepositSlotLeaves,
-    ContractDeposit,
-    MerkleTreeContractDepositAttestorInput,
+    VerifiedRequest,
+    VerifiedRequestWitnessInput,
     MerklePath,
 } from '../depositAttestation.js';
 import {
@@ -12,6 +12,7 @@ import {
     SCRAMWitness,
 } from '../scram.js';
 import {
+    Bytes20,
     Bytes32,
     computeMerkleTreeDepthAndSize,
     getMerklePathFromLeaves,
@@ -249,6 +250,13 @@ export async function fetchAccounts(addrs: PublicKey[]) {
 }
 
 /**
+ * Fixed Ethereum token bridge address for synthetic-deposit tests. Deploy the
+ * bridge with it and build synthetic deposits against it so the noriMint
+ * target assertion passes.
+ */
+export const TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX = '42'.repeat(20);
+
+/**
  * Build a self-consistent synthetic deposit for noriMint() tests.
  * Signs a SCRAM message with the recipient's private key and builds
  * the deposit attestation from the resulting codeChallenge.
@@ -256,9 +264,10 @@ export async function fetchAccounts(addrs: PublicKey[]) {
 export function buildSyntheticDeposit(
     recipientPrivateKey: PrivateKey,
     messageSCRAMStr: string,
-    totalLockedBU: bigint = 2n
+    totalLockedBU: bigint = 2n,
+    targetHex: string = TEST_ETH_TOKEN_BRIDGE_ADDRESS_HEX
 ): {
-    merkleInput: MerkleTreeContractDepositAttestorInput;
+    merkleInput: VerifiedRequestWitnessInput;
     scramWitness: SCRAMWitness;
 } {
     const msgCS = CircuitString.fromString(messageSCRAMStr);
@@ -268,8 +277,13 @@ export function buildSyntheticDeposit(
     const codeChallengeHex = codeChallenge.toBigInt().toString(16).padStart(64, '0');
     const valueHex = totalLockedBU.toString(16).padStart(64, '0');
 
-    const deposit = new ContractDeposit({
-        codeChallenge: Bytes32.fromHex(codeChallengeHex),
+    const deposit = new VerifiedRequest({
+        target: Bytes20.fromHex(targetHex.replace(/^0x/, '').padStart(40, '0')),
+        collectionKeysCount: UInt8.from(1),
+        collectionKeys: [
+            Bytes32.fromHex(codeChallengeHex),
+            Bytes32.fromHex('0'.repeat(64)),
+        ],
         value: Bytes32.fromHex(valueHex),
     });
 
@@ -281,7 +295,7 @@ export function buildSyntheticDeposit(
     const merklePath = MerklePath.from([]);
     path.forEach((p) => merklePath.push(p));
 
-    const merkleInput = new MerkleTreeContractDepositAttestorInput({
+    const merkleInput = new VerifiedRequestWitnessInput({
         path: merklePath,
         index: UInt64.fromValue(0),
         value: deposit,

@@ -252,7 +252,7 @@ describe('e2e_testnet', () => {
             );*/
             const credentialAttestationBigNumberIsh: BigNumberish =
                 codeChallengeSCRAMBigInt;
-            const depositAmountStr = '0.0001'; // 100 BU (minimum lock amount)
+            const depositAmountStr = '0.001'; // 1000 BU (minimum lock amount)
             logger.log('depositAmountStr', depositAmountStr);
             const depositAmount = ethers.parseEther(depositAmountStr);
             const result: TransactionResponse = await contract.lockTokens(
@@ -362,6 +362,7 @@ describe('e2e_testnet', () => {
                 await tokenBridgeWorker.computeDepositAttestationWitness(
                     codeChallengeSCRAMStr,
                     depositBlockNumber,
+                    noriETHBridgeAddressHex,
                     'http://localhost:4003'
                 );
             logger.log(`Deposit witness computed in ${depositWitnessTimer()}`);

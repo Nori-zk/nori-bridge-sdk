@@ -4,4 +4,5 @@
 export * as timeLockControllerSol from './TimeLockController.sol/index.js';
 export { MinaAccountValidation__factory } from './MinaAccountValidation__factory.js';
 export { MinaStateSettlement__factory } from './MinaStateSettlement__factory.js';
+export { NoriProofRequestQueue__factory } from './NoriProofRequestQueue__factory.js';
 export { NoriTokenBridge__factory } from './NoriTokenBridge__factory.js';

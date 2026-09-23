@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface NoriTokenBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
+    getFunction(nameOrSignature: "DECIMALS" | "FEE_DENOMINATOR" | "MAX_FEE_RATE" | "MAX_MAGNITUDE" | "MINA_FIELD_PRIME" | "MIN_FEE_BU" | "MIN_LOCK_AMOUNT_WEI" | "NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID" | "NORI_STORAGE_ZKAPP_ACCT_VERIFICATION_KEY_HASH" | "WEI_PER_BRIDGE_UNIT" | "accountValidation" | "accumulatedFees" | "bridgeOperator" | "calcGrossLockAmount" | "feeRecipient" | "isConfigured" | "lockFeeRate" | "lockTokens" | "lockedTokens" | "previewLock" | "proofQueue" | "setAlignedContracts" | "setBridgeOperator" | "setFeeRecipient" | "setLockFeeRate" | "setUnlockFeeRate" | "stateSettlement" | "totalLockedBU" | "unlockFeeRate" | "unlockTokens" | "unlockedTokens" | "withdrawFees"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AccountValidationSet" | "BridgeOperatorSet" | "FeeRecipientSet" | "FeesWithdrawn" | "LockFeeRateSet" | "StateSettlementSet" | "TokensLocked" | "TokensUnlocked" | "UnlockFeeRateSet"): EventFragment;
 
@@ -14,6 +14,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
 encodeFunctionData(functionFragment: 'FEE_DENOMINATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_FEE_RATE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_MAGNITUDE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MINA_FIELD_PRIME', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MIN_FEE_BU', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MIN_LOCK_AMOUNT_WEI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID', values?: undefined): string;
@@ -28,6 +29,8 @@ encodeFunctionData(functionFragment: 'isConfigured', values?: undefined): string
 encodeFunctionData(functionFragment: 'lockFeeRate', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lockTokens', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'lockedTokens', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'previewLock', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'proofQueue', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setAlignedContracts', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBridgeOperator', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setFeeRecipient', values: [AddressLike]): string;
@@ -44,6 +47,7 @@ encodeFunctionData(functionFragment: 'withdrawFees', values?: undefined): string
 decodeFunctionResult(functionFragment: 'FEE_DENOMINATOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_FEE_RATE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_MAGNITUDE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MINA_FIELD_PRIME', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MIN_FEE_BU', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MIN_LOCK_AMOUNT_WEI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'NORI_BRIDGE_ZKAPP_ACCT_TOKEN_ID', data: BytesLike): Result;
@@ -58,6 +62,8 @@ decodeFunctionResult(functionFragment: 'isConfigured', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockFeeRate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lockedTokens', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'previewLock', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'proofQueue', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAlignedContracts', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBridgeOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFeeRecipient', data: BytesLike): Result;
@@ -246,6 +252,14 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
     
 
     
+    MINA_FIELD_PRIME: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     MIN_FEE_BU: TypedContractMethod<
       [],
       [bigint],
@@ -353,6 +367,22 @@ decodeFunctionResult(functionFragment: 'withdrawFees', data: BytesLike): Result;
     lockedTokens: TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
+      'view'
+    >
+    
+
+    
+    previewLock: TypedContractMethod<
+      [grossAmount: BigNumberish, ],
+      [[bigint, bigint] & {feeWei: bigint, netWei: bigint }],
+      'view'
+    >
+    
+
+    
+    proofQueue: TypedContractMethod<
+      [],
+      [string],
       'view'
     >
     
@@ -468,6 +498,11 @@ getFunction(nameOrSignature: 'MAX_MAGNITUDE'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'MINA_FIELD_PRIME'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'MIN_FEE_BU'): TypedContractMethod<
       [],
       [bigint],
@@ -536,6 +571,16 @@ getFunction(nameOrSignature: 'lockTokens'): TypedContractMethod<
 getFunction(nameOrSignature: 'lockedTokens'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'previewLock'): TypedContractMethod<
+      [grossAmount: BigNumberish, ],
+      [[bigint, bigint] & {feeWei: bigint, netWei: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'proofQueue'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'setAlignedContracts'): TypedContractMethod<

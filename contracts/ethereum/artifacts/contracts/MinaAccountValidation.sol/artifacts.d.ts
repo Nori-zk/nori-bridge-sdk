@@ -15,7 +15,7 @@ export interface MinaAccountValidation$Type {
   readonly deployedLinkReferences: {};
   readonly immutableReferences: {};
   readonly inputSourceName: "project/contracts/MinaAccountValidation.sol";
-  readonly buildInfoId: "solc-0_8_28-e603a12a5012f5a9217fea0e74cc966f210d4ba3";
+  readonly buildInfoId: "solc-0_8_28-12088c09ff8511c38db43ebeab31c99fa852e126";
 };
 
 import "hardhat/types/artifacts";

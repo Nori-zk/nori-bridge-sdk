@@ -33,8 +33,8 @@ import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
-    buildMerkleTreeContractDepositAttestorInput,
-    type MerkleTreeContractDepositAttestorInputJson,
+    buildVerifiedRequestWitnessInput,
+    type VerifiedRequestWitnessInputJson,
 } from '../../depositAttestation.js';
 import { SCRAMWitness } from '../../scram.js';
 import { noriStorageInterfaceVkHash } from '../../integrity/NoriStorageInterface.VkHash.js';
@@ -127,7 +127,7 @@ export class TokenBridgeTester {
         tokenBasePrivateKeyBase58: string,
         storeHashHex: string,
         ethTokenBridgeAddressHex: string,
-        genesisRootHex: string,
+        ethProofQueueAddressHex: string,
         storageInterfaceVerificationKeySafe: SafeVK,
         pi0: string,
         po2: string,
@@ -150,7 +150,9 @@ export class TokenBridgeTester {
         const ethTokenBridgeAddress = Bytes20.fromHex(
             ethTokenBridgeAddressHex
         ).toField();
-        const genesisRoot = Poseidon.hash(Bytes32.fromHex(genesisRootHex).toFields());
+        const ethProofQueueAddress = Bytes20.fromHex(
+            ethProofQueueAddressHex
+        ).toField();
 
         const noriTokenBridgePrivateKey = PrivateKey.fromBase58(
             noriTokenBridgePrivateKeyBase58
@@ -187,7 +189,7 @@ export class TokenBridgeTester {
                     storageVKHash: storageInterfaceVerificationKey.hash,
                     newStoreHash,
                     ethTokenBridgeAddress,
-                    genesisRoot,
+                    ethProofQueueAddress,
                     noriHeliosProgramPi0: FrC.from(pi0),
                     proofConversionPO2: Field.from(po2),
                 });
@@ -542,7 +544,7 @@ export class TokenBridgeTester {
     async mint(
         senderPrivateKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
-        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
+        merkleTreeContractDepositAttestorInputJson: VerifiedRequestWitnessInputJson,
         messageSCRAMStr: string,
         signatureSCRAMBase58: string,
         fundNewAccount: boolean,
@@ -554,7 +556,7 @@ export class TokenBridgeTester {
             noriTokenBridgeAddressBase58
         );
 
-        const merkleInput = buildMerkleTreeContractDepositAttestorInput(
+        const merkleInput = buildVerifiedRequestWitnessInput(
             merkleTreeContractDepositAttestorInputJson
         );
 

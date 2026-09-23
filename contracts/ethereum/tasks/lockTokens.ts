@@ -11,8 +11,8 @@ export const lockTokens = task('lockTokens', 'Lock tokens with code challenge an
     })
     .addPositionalArgument({
         name: 'amount',
-        description: 'Amount of Ether to lock (min 0.0001, max 0.001 ETH)',
-        defaultValue: '0.0001',
+        description: 'Amount of Ether to lock (min 0.001, max 0.005 ETH)',
+        defaultValue: '0.001',
     })
     .setAction(async () => ({
         default: async (args, hre) => {
@@ -39,8 +39,8 @@ export const lockTokens = task('lockTokens', 'Lock tokens with code challenge an
             if (isNaN(parsedAmount)) {
                 issues.push(`Invalid amount: ${amount} is not a number`);
             }
-            if (parsedAmount > 0.001) {
-                issues.push('Amount must not exceed 0.001 ETH');
+            if (parsedAmount > 0.005) {
+                issues.push('Amount must not exceed 0.005 ETH');
             }
 
             if (issues.length) {

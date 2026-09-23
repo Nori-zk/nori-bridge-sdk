@@ -43,9 +43,9 @@ import { NoriStorageInterface } from '../../NoriStorageInterface.js';
 import { FungibleToken } from '../../TokenBase.js';
 import { NoriTokenBridge } from '../../NoriTokenBridge.js';
 import {
-    buildMerkleTreeContractDepositAttestorInput,
+    buildVerifiedRequestWitnessInput,
     computeDepositAttestationWitness,
-    type MerkleTreeContractDepositAttestorInputJson,
+    type VerifiedRequestWitnessInputJson,
 } from '../../depositAttestation.js';
 import {
     codeChallengeFieldToBEHex,
@@ -516,17 +516,22 @@ export class TokenBridgeWorker {
      * @param depositBlockNumber Ethereum block number at which the
      *   deposit event was emitted. Used by the attestor to locate the
      *   deposit in the chain's action history.
+     * @param ethTokenBridgeAddressHex Ethereum token bridge address
+     *   (`0x`-prefixed, 20 bytes). The queue is shared between consumers,
+     *   so the witness search matches on `target` as well as the code
+     *   challenge.
      * @param domain Attestation-service domain used to look up the
      *   deposit proof. Defaults to the Nori production PCS endpoint;
      *   override for staging, local development, or test harnesses.
-     * @returns The `MerkleTreeContractDepositAttestorInputJson` that
+     * @returns The `VerifiedRequestWitnessInputJson` that
      *   serialises the witness for transport back over the RPC
      *   surface. Re-hydrated by `mint` / `MOCK_mint` via
-     *   `buildMerkleTreeContractDepositAttestorInput`.
+     *   `buildVerifiedRequestWitnessInput`.
      */
     async computeDepositAttestationWitness(
         codeChallengeSCRAM: string,
         depositBlockNumber: number,
+        ethTokenBridgeAddressHex: string,
         domain = 'https://pcs.nori.it.com'
     ) {
         const codeChallengeBigInt = BigInt(codeChallengeSCRAM);
@@ -536,6 +541,7 @@ export class TokenBridgeWorker {
         return computeDepositAttestationWitness(
             depositBlockNumber,
             codeChallengeFieldBEHex,
+            ethTokenBridgeAddressHex,
             domain
         );
     }
@@ -1321,7 +1327,7 @@ export class TokenBridgeWorker {
     async mint(
         userPublicKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
-        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
+        merkleTreeContractDepositAttestorInputJson: VerifiedRequestWitnessInputJson,
         messageSCRAMStr: string,
         signatureSCRAMBase58: string,
         txFee: number,
@@ -1334,7 +1340,7 @@ export class TokenBridgeWorker {
 
         // Reconstruct deposit input
         const merkleTreeContractDepositAttestorInput =
-            buildMerkleTreeContractDepositAttestorInput(
+            buildVerifiedRequestWitnessInput(
                 merkleTreeContractDepositAttestorInputJson
             );
 
@@ -1418,7 +1424,7 @@ export class TokenBridgeWorker {
     async MOCK_mint(
         userPublicKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
-        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
+        merkleTreeContractDepositAttestorInputJson: VerifiedRequestWitnessInputJson,
         messageSCRAMStr: string,
         signatureSCRAMBase58: string,
         txFee: number,
@@ -1431,7 +1437,7 @@ export class TokenBridgeWorker {
 
         // Reconstruct deposit input
         const merkleTreeContractDepositAttestorInput =
-            buildMerkleTreeContractDepositAttestorInput(
+            buildVerifiedRequestWitnessInput(
                 merkleTreeContractDepositAttestorInputJson
             );
 
@@ -1558,7 +1564,7 @@ export class TokenBridgeWorker {
     async MOCK_computeMintProofAndCache(
         userPublicKeyBase58: string,
         noriTokenBridgeAddressBase58: string,
-        merkleTreeContractDepositAttestorInputJson: MerkleTreeContractDepositAttestorInputJson,
+        merkleTreeContractDepositAttestorInputJson: VerifiedRequestWitnessInputJson,
         messageSCRAMStr: string,
         signatureSCRAMBase58: string,
         txFee: number,
@@ -1572,7 +1578,7 @@ export class TokenBridgeWorker {
 
         // Reconstruct deposit input
         const merkleTreeContractDepositAttestorInput =
-            buildMerkleTreeContractDepositAttestorInput(
+            buildVerifiedRequestWitnessInput(
                 merkleTreeContractDepositAttestorInputJson
             );
 
