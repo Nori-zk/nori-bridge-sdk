@@ -10,14 +10,12 @@ const __dirname = path.dirname(__filename);
 
 const logger = new Logger("Deploy");
 
-const DEVNET_NETWORKS = new Set(["hardhat"]);
-
 // Mirrors NoriProofRequestQueue; validated here so a bad value fails before
 // anything is deployed.
 const PROOF_REQUEST_QUEUE_FEE_GRANULARITY_WEI = 10n ** 12n;
 const MAX_PROOF_REQUEST_QUEUE_FEE_WEI = 5n * 10n ** 16n; // 0.05 ETH
 
-export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSettlement, NoriProofRequestQueue, and NoriTokenBridge")
+export const deploy = task("deploy", "Deploy NoriProofRequestQueue and NoriTokenBridge")
   .setAction(async () => ({
     default: async (_args, hre) => {
       const { ethers } = await hre.network.getOrCreate();
@@ -26,7 +24,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       const balance = await ethers.provider.getBalance(deployer.address);
       const network = await ethers.provider.getNetwork();
 
-      const possibleAlignedServiceManagerAddress = process.env.ALIGNED_ETH_SERVICE_MANAGER_ADDRESS;
       const possibleEthNetwork = process.env.ETH_NETWORK;
       const possibleZkappTokenId = process.env.NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID;
       const possibleZkappVkHash = process.env.NORI_ETH_BRIDGE_ZKAPP_VERIFICATION_KEY_HASH;
@@ -34,7 +31,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       const issues: string[] = [];
       const bytes32Re = /^0x[0-9a-fA-F]{64}$/;
 
-      if (!possibleAlignedServiceManagerAddress) issues.push("Missing required env: ALIGNED_ETH_SERVICE_MANAGER_ADDRESS (run npm run pre-deploy first)");
       if (!possibleEthNetwork) issues.push("Missing required env: ETH_NETWORK");
       if (!possibleZkappTokenId) issues.push("Missing required env: NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID (32-byte hex of the Mina zkApp tokenID)");
       else if (!bytes32Re.test(possibleZkappTokenId)) issues.push("NORI_ETH_BRIDGE_ZKAPP_TOKEN_ID must be a 0x-prefixed 32-byte hex string");
@@ -60,11 +56,8 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
         process.exit(1);
       }
 
-      const alignedServiceManagerAddress = possibleAlignedServiceManagerAddress;
-      const ethNetwork = possibleEthNetwork;
       const zkappTokenId = possibleZkappTokenId;
       const zkappVkHash = possibleZkappVkHash;
-      const devnetFlag = DEVNET_NETWORKS.has(ethNetwork);
 
       const bridgeOperator =
         process.env.NORI_ETH_BRIDGE_OPERATOR_ADDRESS || deployer.address;
@@ -83,28 +76,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       logger.log(`  NORI_ETH_BRIDGE_UNLOCK_FEE_RATE: ${process.env.NORI_ETH_BRIDGE_UNLOCK_FEE_RATE || "(not set)"}`);
       logger.log(`  NORI_ETH_BRIDGE_PROOF_REQUEST_QUEUE_FEE_WEI: ${possibleProofRequestQueueFeeWei || "(not set, defaulting to 0)"}`);
 
-
-      // Deploy MinaAccountValidation
-      logger.log("Deploying MinaAccountValidation...");
-      const MinaAccountValidation = await ethers.getContractFactory("MinaAccountValidation");
-      const accountValidation = await MinaAccountValidation.deploy(alignedServiceManagerAddress);
-      const accountValidationDeployTx = accountValidation.deploymentTransaction();
-      if (!accountValidationDeployTx) throw new Error("MinaAccountValidation did not deploy");
-      const accountValidationReceipt = await accountValidationDeployTx.wait();
-      if (!accountValidationReceipt) throw new Error("MinaAccountValidation receipt invalid");
-      logger.log(`MinaAccountValidation deployed to: ${accountValidation.target}`);
-      logger.log(`Gas used: ${accountValidationReceipt.gasUsed.toString()}`);
-
-      // Deploy MinaStateSettlement
-      logger.log("Deploying MinaStateSettlement...");
-      const MinaStateSettlement = await ethers.getContractFactory("MinaStateSettlement");
-      const stateSettlement = await MinaStateSettlement.deploy(alignedServiceManagerAddress, devnetFlag);
-      const stateSettlementDeployTx = stateSettlement.deploymentTransaction();
-      if (!stateSettlementDeployTx) throw new Error("MinaStateSettlement did not deploy");
-      const stateSettlementReceipt = await stateSettlementDeployTx.wait();
-      if (!stateSettlementReceipt) throw new Error("MinaStateSettlement receipt invalid");
-      logger.log(`MinaStateSettlement deployed to: ${stateSettlement.target}`);
-      logger.log(`Gas used: ${stateSettlementReceipt.gasUsed.toString()}`);
 
       // Deploy NoriProofRequestQueue
       // Must precede the bridge: the bridge takes the queue address as an
@@ -130,8 +101,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       const NoriTokenBridge = await ethers.getContractFactory("NoriTokenBridge");
       const tokenBridge = await NoriTokenBridge.deploy(
         bridgeOperator,
-        stateSettlement.target,
-        accountValidation.target,
         proofQueue.target,
         zkappTokenId,
         zkappVkHash,
@@ -164,8 +133,6 @@ export const deploy = task("deploy", "Deploy MinaAccountValidation, MinaStateSet
       const env = {
         NORI_ETH_TOKEN_BRIDGE_ADDRESS: tokenBridge.target,
         NORI_ETH_PROOF_QUEUE_ADDRESS: proofQueue.target,
-        NORI_ETH_MINA_STATE_SETTLEMENT_ADDRESS: stateSettlement.target,
-        NORI_ETH_MINA_ACCOUNT_VALIDATION_ADDRESS: accountValidation.target,
         NORI_ETH_BRIDGE_OPERATOR_ADDRESS: bridgeOperator,
       };
       const envContent =

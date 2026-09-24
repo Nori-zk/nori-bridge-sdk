@@ -9,15 +9,14 @@
     },
     "type": "module",
     "scripts": {
-        "build": "mkdir -p lib && (test -d lib/aligned_layer || git clone https://github.com/yetanotherco/aligned_layer --recursive lib/aligned_layer) && ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && node stabilize-types.mjs . && tsc -p tsconfig.package.json",
+        "build": "ETH_NETWORK=hardhat npm run clean && ETH_NETWORK=hardhat hardhat compile && node stabilize-types.mjs . && tsc -p tsconfig.package.json",
         "test": "ETH_NETWORK=hardhat hardhat test",
         "test-ci": "ETH_NETWORK=hardhat hardhat test",
         "clean": "hardhat clean",
         "format": "prettier --check --ignore-unknown **/*",
         "format:fix": "prettier --write --ignore-unknown **/*",
-        "lint": "npx eslint tasks bin test *.ts",
-        "lint:fix": "npx eslint tasks bin test *.ts --fix",
-        "pre-deploy": "dotenv -e .env -- npx tsx bin/preDeploy.ts",
+        "lint": "npx eslint tasks test *.ts",
+        "lint:fix": "npx eslint tasks test *.ts --fix",
         "deploy": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK deploy'",
         "deploy-timelock": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK deployTimelock'",
         "test:lock": "dotenv -e .env -- sh -c 'npx hardhat --network $ETH_NETWORK lockTokens \"$@\"' --",
@@ -35,6 +34,7 @@
     "author": "",
     "license": "MIT",
     "dependencies": {
+        "@openzeppelin/contracts": "5.0.2",
         "esm-iso-logger": "1.0.2"
     },
     "devDependencies": {
