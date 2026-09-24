@@ -15,7 +15,6 @@ import {
     TokenContract,
     Provable,
     type DeployArgs,
-    UInt8,
     Bytes,
     Struct,
     Reducer,

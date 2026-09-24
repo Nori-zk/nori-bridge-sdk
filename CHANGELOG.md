@@ -1,5 +1,32 @@
 # Changelog
 
+## 23/9/26 - Dependency audit and build/test configuration across all workspaces
+
+An audit and tooling pass over the whole monorepo. Every workspace was given the same treatment: dependencies audited and brought into line, build and test configuration made consistent, and the full source built, typechecked, linted and tested. The defects that surfaced are fixed here.
+
+### Changes
+
+- `package.json`: pin `typescript` to `^6.0.3`, add a `mocha` override, add `@eslint/json`, add root `typecheck` and `clean:tsbuildinfo` scripts.
+- `package-lock.json`: regenerated.
+- `tsconfig.json`: drop `incremental`, which was leaving a stale `.tsbuildinfo` outside `build/` and causing builds to emit nothing.
+- `eslint.config.js`: scope the JS/TS rule sets to JS/TS files and add JSONC language support via `@eslint/json`.
+- `cache-server/package.json`, `cache-server/tsconfig.json`, `cache-server/tsconfig.typecheck.json`, `cache-server/jest.config.js`: add the `typecheck` script and config, exclude specs from the build, point `ts-jest` at the typecheck config.
+- `contracts/ethereum/package.json`, `contracts/ethereum/tsconfig.json`: trim the publish allowlist to `build/`.
+- `contracts/ethereum/hardhat.config.ts`: add the missing `.js` extensions on the task imports.
+- `contracts/ethereum/index.ts`: type the link reference maps.
+- `contracts/ethereum/test/NoriProofRequestQueue.ts`, `contracts/ethereum/test/NoriTokenBridge.ts`: fix the generated-types import paths.
+- `contracts/mina/package.json`, `contracts/mina/tsconfig.json`, `contracts/mina/tsconfig.typecheck.json`, `contracts/mina/src/tsconfig.json`, `contracts/mina/jest.config.js`, `contracts/mina/.gitignore`: group the build scripts, add `typecheck` and `build:test`, exclude the example proof construction from the publish build, compile the worker test tree into `.test-build`.
+- `contracts/mina/src/NoriTokenBridge.ts`, `contracts/mina/src/bin/deploy.ts`, `contracts/mina/src/bin/deployWithKeys.ts`, `contracts/mina/src/workers/tokenBridgeTester/worker.ts`: drop unused imports.
+- `contracts/mina/src/workers/tokenBridgeWorker/worker.ts`: type the `FinalizationRegistry` override.
+- `contracts/mina/src/tests/testUtils.ts`, `contracts/mina/src/tests/NoriTokenBridge.full.local.integration.spec.ts`: use a type-only import, drop a stale lint suppression.
+- `o1js-zk-utils/package.json`, `o1js-zk-utils/tsconfig.json`, `o1js-zk-utils/tsconfig.typecheck.json`, `o1js-zk-utils/jest.config.js`: add `typecheck`, exclude test vectors and examples from the publish build.
+- `o1js-zk-utils/src/utils.ts`, `o1js-zk-utils/src/utils.spec.ts`: drop unused imports.
+- `o1js-zk-utils/src/proofRequestQueueVectors.spec.ts`: replace non-null assertions with a lookup helper that reports a missing vector by name.
+- `workers/package.json`, `workers/tsconfig.json`, `workers/tsconfig.typecheck.json`, `workers/src/tsconfig.json`, `workers/jest.config.js`, `workers/.gitignore`: same treatment, with the child process test tree compiled into `.test-build`.
+- `minimal-client/package.json`, `minimal-client/tsconfig.json`: update dev dependencies.
+
+`npm audit` now reports zero vulnerabilities. Root `build`, `typecheck` and `lint` pass across all six workspaces, and the suites run clean: `contracts/ethereum` 137/137, `o1js-zk-utils` 172/172, `workers` 4/4, `contracts/mina` unit 10/11 with the remaining case requiring network access.
+
 ## 22/9/26 - Merge path SDK: SCRAP/load-runner-trail into CHORE/integration-audit-fix-develop-18-9-26-final
 
 ### Merge path

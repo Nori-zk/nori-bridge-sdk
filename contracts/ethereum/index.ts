@@ -24,8 +24,8 @@ export interface Artifact {
   }>;
   bytecode: string;
   deployedBytecode: string;
-  linkReferences: Record<string, any>;
-  deployedLinkReferences: Record<string, any>;
+  linkReferences: Record<string, Record<string, Array<{ start: number; length: number }>>>;
+  deployedLinkReferences: Record<string, Record<string, Array<{ start: number; length: number }>>>;
 }
 
 export const noriTokenBridgeJson: Artifact = noriTokenBridgeRaw as Artifact;

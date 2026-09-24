@@ -1,7 +1,6 @@
 import {
     type Cache,
     Field,
-    Poseidon,
     type SmartContract,
     UInt64,
     UInt8,

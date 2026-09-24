@@ -29,6 +29,7 @@
         "clean": "rimraf build",
         "build": "npm run clean && tsc",
         "buildw": "tsc --watch",
+        "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
         "coverage": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage --runInBand",
         "format": "prettier --check --ignore-unknown **/*",
         "format:fix": "prettier --write --ignore-unknown **/*",
@@ -54,7 +55,7 @@
         "prettier": "^3.8.1",
         "rimraf": "^6.1.2",
         "ts-jest": "^29.4.6",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
         "typescript-eslint": "^8.55.0",
         "npm-workspaces-publish-tool": "0.0.18"
     },
