@@ -245,6 +245,7 @@ contract NoriTokenBridge is ReentrancyGuard {
     // -------------------------------
     // codeChallenge is the hash of the Mina signature
     function lockTokens(uint256 codeChallenge) external payable onlyConfigured {
+        revert("Integration deployment: locks disabled");
         // ===============================
         // VALIDATION
         // ===============================

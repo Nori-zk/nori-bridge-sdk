@@ -200,6 +200,7 @@ contract NoriProofRequestQueue {
         bytes32 slotKey,
         bytes32[] calldata collectionKeys
     ) external payable returns (uint256 requestId) {
+        revert("Integration deployment: queue disabled");
         if (msg.value < proofRequestQueueFee) revert InsufficientFee();
 
         uint256 keysCount = collectionKeys.length;
