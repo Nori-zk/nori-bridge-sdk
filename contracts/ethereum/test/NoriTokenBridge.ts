@@ -58,7 +58,7 @@ async function deployProofQueueAddress(proofRequestQueueFee = 0n): Promise<strin
 
 describe('NoriTokenBridge', () => {
     async function deployTokenBridgeFixture(proofRequestQueueFee = 0n) {
-        const [owner, user1, user2, dummyState, dummyAccount, treasury] = await ethers.getSigners();
+        const [owner, user1, user2, treasury] = await ethers.getSigners();
 
         const Queue = new NoriProofRequestQueue__factory(owner);
         const proofQueue = await Queue.deploy(
@@ -72,18 +72,14 @@ describe('NoriTokenBridge', () => {
         // Constructor now requires explicit bridgeOperator, proof queue, zkApp tokenID, and (optional) feeRecipient
         const tokenBridge = await TokenBridge.deploy(
             owner.address,
-            dummyState.address,
-            dummyAccount.address,
             await proofQueue.getAddress(),
             ZKAPP_ACCT_TOKEN_ID,
             ZKAPP_ACCT_VERIFICATION_KEY_HASH,
             ethers.ZeroAddress
         );
 
-        // Configure with dummy aligned contract addresses so onlyConfigured passes
-        await tokenBridge.setAlignedContracts(dummyState.address, dummyAccount.address);
 
-        return { tokenBridge, proofQueue, owner, user1, user2, dummyState, dummyAccount, treasury };
+        return { tokenBridge, proofQueue, owner, user1, user2, treasury };
     }
 
     // -----------------------------------------------------------
@@ -96,12 +92,10 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should allow deploying with a different bridgeOperator than deployer', async function () {
-            const [deployer, operator, dummyState, dummyAccount] = await ethers.getSigners();
+            const [deployer, operator] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             const tokenBridge = await TokenBridge.deploy(
                 operator.address,
-                dummyState.address,
-                dummyAccount.address,
                 await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
@@ -112,21 +106,19 @@ describe('NoriTokenBridge', () => {
 
             // deployer should NOT be able to call admin functions
             await expect(
-                tokenBridge.connect(deployer).setAlignedContracts(dummyState.address, dummyAccount.address)
+                tokenBridge.connect(deployer).setLockFeeRate(1)
             ).to.be.revertedWithCustomError(tokenBridge, 'NotBridgeOperator');
 
             // operator should be able to
-            await tokenBridge.connect(operator).setAlignedContracts(dummyState.address, dummyAccount.address);
+            await tokenBridge.connect(operator).setLockFeeRate(1);
         });
 
         it('Should revert if bridgeOperator is zero address', async function () {
-            const [deployer, dummyState, dummyAccount] = await ethers.getSigners();
+            const [deployer] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             await expect(
                 TokenBridge.deploy(
                     ethers.ZeroAddress,
-                    dummyState.address,
-                    dummyAccount.address,
                     await deployProofQueueAddress(),
                     ZKAPP_ACCT_TOKEN_ID,
                     ZKAPP_ACCT_VERIFICATION_KEY_HASH,
@@ -136,12 +128,10 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should deploy with zero balance (non-payable constructor)', async function () {
-            const [deployer, dummyState, dummyAccount] = await ethers.getSigners();
+            const [deployer] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             const tokenBridge = await TokenBridge.deploy(
                 deployer.address,
-                dummyState.address,
-                dummyAccount.address,
                 await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
@@ -172,12 +162,10 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should set feeRecipient from constructor when non-zero', async function () {
-            const [deployer, dummyState, dummyAccount, treasury] = await ethers.getSigners();
+            const [deployer, treasury] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             const tokenBridge = await TokenBridge.deploy(
                 deployer.address,
-                dummyState.address,
-                dummyAccount.address,
                 await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
@@ -187,12 +175,10 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should emit FeeRecipientSet at deployment when non-zero recipient is provided', async function () {
-            const [deployer, dummyState, dummyAccount, treasury] = await ethers.getSigners();
+            const [deployer, treasury] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
             const tokenBridge = await TokenBridge.deploy(
                 deployer.address,
-                dummyState.address,
-                dummyAccount.address,
                 await deployProofQueueAddress(),
                 ZKAPP_ACCT_TOKEN_ID,
                 ZKAPP_ACCT_VERIFICATION_KEY_HASH,
@@ -948,86 +934,6 @@ describe('NoriTokenBridge', () => {
     });
 
     // -----------------------------------------------------------
-    // setAlignedContracts
-    // -----------------------------------------------------------
-    describe('setAlignedContracts', function () {
-        it('Should revert if non-operator calls setAlignedContracts', async function () {
-            const { tokenBridge, user1, dummyState, dummyAccount } = await deployTokenBridgeFixture();
-
-            await expect(
-                tokenBridge.connect(user1).setAlignedContracts(dummyState.address, dummyAccount.address)
-            ).to.be.revertedWithCustomError(tokenBridge, 'NotBridgeOperator');
-        });
-
-        it('Should revert if state settlement address is zero', async function () {
-            const { tokenBridge, owner, dummyAccount } = await deployTokenBridgeFixture();
-
-            await expect(
-                tokenBridge.connect(owner).setAlignedContracts(ethers.ZeroAddress, dummyAccount.address)
-            ).to.be.revertedWithCustomError(tokenBridge, 'ZeroAddress');
-        });
-
-        it('Should revert if account validation address is zero', async function () {
-            const { tokenBridge, owner, dummyState } = await deployTokenBridgeFixture();
-
-            await expect(
-                tokenBridge.connect(owner).setAlignedContracts(dummyState.address, ethers.ZeroAddress)
-            ).to.be.revertedWithCustomError(tokenBridge, 'ZeroAddress');
-        });
-
-        it('Should emit events when aligned contracts are set', async function () {
-            const [owner, dummyState, dummyAccount] = await ethers.getSigners();
-            const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(
-                owner.address,
-                dummyState.address,
-                dummyAccount.address,
-                await deployProofQueueAddress(),
-                ZKAPP_ACCT_TOKEN_ID,
-                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
-                ethers.ZeroAddress
-            );
-
-            await expect(
-                tokenBridge.connect(owner).setAlignedContracts(dummyState.address, dummyAccount.address)
-            )
-                .to.emit(tokenBridge, 'StateSettlementSet')
-                .withArgs(dummyState.address)
-                .and.to.emit(tokenBridge, 'AccountValidationSet')
-                .withArgs(dummyAccount.address);
-        });
-    });
-
-    // -----------------------------------------------------------
-    // isConfigured
-    // -----------------------------------------------------------
-    describe('isConfigured', function () {
-        // NOTE: Constructor now requires aligned contracts, so isConfigured() is always true after deploy.
-        // The "false before set" and "revert when not configured" cases can no longer occur.
-        it('Should return false before aligned contracts are set', async function () {
-            // Constructor now sets aligned contracts — this test documents that isConfigured is always true after deploy
-            const [owner, dummyState, dummyAccount] = await ethers.getSigners();
-            const TokenBridge = new NoriTokenBridge__factory(owner);
-            const tokenBridge = await TokenBridge.deploy(
-                owner.address,
-                dummyState.address,
-                dummyAccount.address,
-                await deployProofQueueAddress(),
-                ZKAPP_ACCT_TOKEN_ID,
-                ZKAPP_ACCT_VERIFICATION_KEY_HASH,
-                ethers.ZeroAddress
-            );
-
-            expect(await tokenBridge.isConfigured()).to.equal(true);
-        });
-
-        it('Should return true after aligned contracts are set', async function () {
-            const { tokenBridge } = await deployTokenBridgeFixture();
-            expect(await tokenBridge.isConfigured()).to.equal(true);
-        });
-    });
-
-    // -----------------------------------------------------------
     // Proof request enqueueing
     // -----------------------------------------------------------
     describe('Proof requests', function () {
@@ -1504,14 +1410,12 @@ describe('NoriTokenBridge', () => {
         });
 
         it('Should revert deployment if the proof queue is the zero address', async function () {
-            const [deployer, , , dummyState, dummyAccount] = await ethers.getSigners();
+            const [deployer, , ] = await ethers.getSigners();
             const TokenBridge = new NoriTokenBridge__factory(deployer);
 
             await expect(
                 TokenBridge.deploy(
                     deployer.address,
-                    dummyState.address,
-                    dummyAccount.address,
                     ethers.ZeroAddress,
                     ZKAPP_ACCT_TOKEN_ID,
                     ZKAPP_ACCT_VERIFICATION_KEY_HASH,
