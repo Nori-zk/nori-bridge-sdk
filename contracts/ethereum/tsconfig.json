@@ -4,8 +4,7 @@
     "outDir": "target",
     "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "types": ["mocha", "node"],
-    "rootDir": ".",
-    "baseUrl": "."
+    "rootDir": "."
   },
   "exclude": ["node_modules", "build"],
   "files": ["./hardhat-env.d.ts"],

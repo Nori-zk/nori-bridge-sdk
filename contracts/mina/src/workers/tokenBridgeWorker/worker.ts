@@ -6,7 +6,7 @@
 // WASM memory on subsequent proves. Disabling auto-free is safe — WASM heap
 // is reclaimed when the worker is torn down on page refresh.
 // https://github.com/o1-labs/o1js/issues/2870
-(globalThis as any).FinalizationRegistry = class {
+(globalThis as unknown as { FinalizationRegistry: unknown }).FinalizationRegistry = class {
     register() { }
     unregister() {
         return false;

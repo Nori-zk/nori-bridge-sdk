@@ -87,7 +87,6 @@ let allAccounts: PublicKey[];
 
 const examples = buildExampleProofSeriesCreateArguments();
 // Decoded proof inputs — populated once in beforeAll
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RawProof = NodeProofLeftRaw;
 let ethInput1: EthInput;
 let rawProof1: RawProof;

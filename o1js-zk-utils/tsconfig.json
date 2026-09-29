@@ -2,13 +2,13 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "build",
+    "rootDir": "./src",
     "typeRoots": ["../node_modules/@types"],
-    "baseUrl": ".",
     "paths": {
       "o1js": ["../node_modules/o1js"],
-      "*": ["*", "src/*", "../node_modules/*"]
+      "*": ["./*", "./src/*", "../node_modules/*"]
     }
   },
-  "exclude": ["../node_modules", "node_modules", "build",  "**/*.spec.ts"],
+  "exclude": ["../node_modules", "node_modules", "build", "src/test-examples", "src/test-vectors", "src/merkle-attestor/testUtils.ts", "**/*.spec.ts"],
   "include": ["src/**/*.ts"]
 }

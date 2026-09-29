@@ -1,7 +1,7 @@
 /// <reference types="@nomicfoundation/hardhat-ethers" />
 /// <reference types="@nomicfoundation/hardhat-ethers-chai-matchers" />
 import { expect } from 'chai';
-import { NoriProofRequestQueue__factory } from 'types/ethers-contracts/index.js';
+import { NoriProofRequestQueue__factory } from '../types/ethers-contracts/index.js';
 import hre from 'hardhat';
 import entryLocationVectors from './test-vectors/proof-request-queue/entry-location-vectors.json' with { type: 'json' };
 const { ethers } = await hre.network.getOrCreate();

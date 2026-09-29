@@ -1,11 +1,21 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import o1js from 'eslint-plugin-o1js';
+import json from '@eslint/json';
+
+const jsTsFiles = ['**/*.{js,mjs,cjs,ts,mts,cts}'];
 
 export default [
-  eslint.configs.recommended,
-  ...tseslint.configs.recommended,
   {
+    files: jsTsFiles,
+    ...eslint.configs.recommended,
+  },
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: config.files ?? jsTsFiles,
+  })),
+  {
+    files: jsTsFiles,
     plugins: {
       o1js,
     },
@@ -42,6 +52,14 @@ export default [
       'no-constant-condition': 'off',
       'prefer-const': 'off',
       'no-global-assign': 'off',
+    },
+  },
+  {
+    files: ['**/*.json'],
+    plugins: { json },
+    language: 'json/jsonc',
+    rules: {
+      'json/no-duplicate-keys': 'error',
     },
   },
   {

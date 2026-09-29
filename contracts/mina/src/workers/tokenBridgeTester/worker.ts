@@ -23,7 +23,6 @@ import {
     Field,
     Mina,
     type NetworkId,
-    Poseidon,
     PrivateKey,
     PublicKey,
     Signature,
