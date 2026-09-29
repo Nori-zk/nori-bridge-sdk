@@ -21,6 +21,7 @@
     "scripts": {
         "clean": "rimraf build",
         "build": "npm run clean && tsc",
+        "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
         "build:cache": "cd ../contracts/mina/ && npm run build:cache-layouts",
         "serve": "npm run build && node build/bin/server.js",
         "lint": "npx eslint src/*",
@@ -45,7 +46,7 @@
         "rimraf": "^6.1.2",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
         "typescript-eslint": "^8.55.0",
         "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.57.0"
     },

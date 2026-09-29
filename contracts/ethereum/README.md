@@ -46,18 +46,10 @@ NORI_ETH_BRIDGE_LOCK_FEE_RATE=500
 # Unlock fee rate, 1 unit = 0.001%, e.g. 500 = 0.5% (optional, set post-deploy)
 NORI_ETH_BRIDGE_UNLOCK_FEE_RATE=500
 
-# Aligned layer =============================================================
-# AlignedLayer service manager contract address on Ethereum.
-# Resolved automatically by the pre-deploy helper from
-# https://github.com/yetanotherco/aligned_layer for the target network.
-ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0x...
-
 # Deploy outputs (written by deploy task) ====================================
 # Deployed contract addresses
 NORI_ETH_TOKEN_BRIDGE_ADDRESS=0x...
 NORI_ETH_PROOF_QUEUE_ADDRESS=0x...
-NORI_ETH_MINA_STATE_SETTLEMENT_ADDRESS=0x...
-NORI_ETH_MINA_ACCOUNT_VALIDATION_ADDRESS=0x...
 
 # Testing ====================================================================
 # Set to true to enable the lockTokens test facility
@@ -72,40 +64,9 @@ NORI_ETH_TOKEN_BRIDGE_TEST_MODE=true
 
 `npm run build`
 
-## Pre-deploy
-
-The pre-deploy helper resolves two values needed by the deploy task:
-
-1. **AlignedLayer service manager address** — fetched from the [aligned_layer](https://github.com/yetanotherco/aligned_layer) GitHub repo for the target network.
-
-Requires:
-- `ETH_NETWORK`
-
-```bash
-npm run pre-deploy
-```
-
-This writes `.env.nori-eth-pre-deploy` containing:
-
-```bash
-# AlignedLayer service manager contract address for the target network
-# Source: https://github.com/yetanotherco/aligned_layer
-ALIGNED_ETH_SERVICE_MANAGER_ADDRESS=0xFf731AB7b3653dc66878DC77E851D174f472d137
-```
-
-Copy this into your `.env`:
-
-```bash
-cat .env.nori-eth-pre-deploy >> .env
-```
-
-See `.env.nori-eth-pre-deploy.example` for the expected format.
-
 ## Deploy
 
-Deploys three contracts in sequence: MinaAccountValidation, MinaStateSettlement, and NoriTokenBridge.
-
-First copy the values from [pre-deploy](#pre-deploy) into your `.env`.
+Deploys two contracts in sequence: NoriProofRequestQueue and NoriTokenBridge.
 
 Requires:
 - `ETH_PRIVATE_KEY`
@@ -138,12 +99,9 @@ Configuration:
   NORI_ETH_BRIDGE_FEE_RECIPIENT_ADDRESS: (not set)
   NORI_ETH_BRIDGE_LOCK_FEE_RATE: (not set)
   NORI_ETH_BRIDGE_UNLOCK_FEE_RATE: (not set)
-Deploying MinaAccountValidation...
-MinaAccountValidation deployed to: 0x...
+Deploying NoriProofRequestQueue...
+NoriProofRequestQueue deployed to: 0x...
 Gas used: 123456
-Deploying MinaStateSettlement...
-MinaStateSettlement deployed to: 0x...
-Gas used: 234567
 Deploying NoriTokenBridge...
 NoriTokenBridge deployed to: 0x142B9d3fE3Caa2CE9DaA607A262Dc8561C694006
 Deployed in block: 10511301
@@ -151,8 +109,7 @@ Gas used: 296589
 Wrote .env.nori-eth-token-bridge
 Environment variables for future use:
 NORI_ETH_TOKEN_BRIDGE_ADDRESS=0x142B9d3fE3Caa2CE9DaA607A262Dc8561C694006
-NORI_ETH_MINA_STATE_SETTLEMENT_ADDRESS=0x...
-NORI_ETH_MINA_ACCOUNT_VALIDATION_ADDRESS=0x...
+NORI_ETH_PROOF_QUEUE_ADDRESS=0x...
 NORI_ETH_BRIDGE_OPERATOR_ADDRESS=0xC7e910807Dd2E3F49B34EfE7133cfb684520Da69
 ```
 

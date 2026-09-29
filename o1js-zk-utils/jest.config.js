@@ -5,7 +5,7 @@ export default {
   testEnvironment: 'node',
   testTimeout: 1_000_000,
   transform: {
-    '^.+\\.(t)s$': ['ts-jest', { useESM: true }],
+    '^.+\\.(t)s$': ['ts-jest', { useESM: true, tsconfig: 'tsconfig.typecheck.json' }],
     '^.+\\.(j)s$': 'babel-jest',
   },
   resolver: '<rootDir>/jest-resolver.cjs',

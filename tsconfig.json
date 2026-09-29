@@ -3,7 +3,6 @@
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "incremental": true,
     "lib": ["DOM", "ES2022"],
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,

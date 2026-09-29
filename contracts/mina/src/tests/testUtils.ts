@@ -20,7 +20,7 @@ import {
 } from '@nori-zk/o1js-zk-utils';
 
 import { env, type NetworkName } from '../env.js';
-import { NoriTokenBridge } from '../NoriTokenBridge.js';
+import type { NoriTokenBridge } from '../NoriTokenBridge.js';
 
 const logger = new Logger('NoriTokenBridgeTestUtils');
 

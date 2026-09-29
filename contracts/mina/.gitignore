@@ -1,5 +1,6 @@
 # NodeJS
 build
+.test-build
 node_modules
 coverage
 target
