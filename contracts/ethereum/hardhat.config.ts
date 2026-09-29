@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { type HardhatUserConfig } from 'hardhat/config';
 import hardhatTypechain from '@nomicfoundation/hardhat-typechain';
 import hardhatEthers from '@nomicfoundation/hardhat-ethers';
-import hardhatToolboxMochaEthers from '@nomicfoundation/hardhat-toolbox-mocha-ethers';
 import hardhatEthersChaiMatchers from '@nomicfoundation/hardhat-ethers-chai-matchers';
 import hardhatMocha from '@nomicfoundation/hardhat-mocha';
 import fs from "fs";
@@ -15,17 +14,17 @@ const logger = new Logger('HardhatConfig');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import "./tasks/lockTokens";
-import "./tasks/getTotalDeposited";
-import "./tasks/deploy";
-import "./tasks/getFeeInfo";
-import "./tasks/setFeeRate";
-import "./tasks/setFeeRecipient";
-import "./tasks/withdrawFees";
-import "./tasks/setBridgeOperator";
-import "./tasks/setProofRequestQueueFee";
-import "./tasks/withdrawProofRequestQueueFees";
-import "./tasks/previewFees";
+import "./tasks/lockTokens.js";
+import "./tasks/getTotalDeposited.js";
+import "./tasks/deploy.js";
+import "./tasks/getFeeInfo.js";
+import "./tasks/setFeeRate.js";
+import "./tasks/setFeeRecipient.js";
+import "./tasks/withdrawFees.js";
+import "./tasks/setBridgeOperator.js";
+import "./tasks/setProofRequestQueueFee.js";
+import "./tasks/withdrawProofRequestQueueFees.js";
+import "./tasks/previewFees.js";
 
 import { lockTokens } from './tasks/lockTokens.js';
 import { getTotalDeposited } from './tasks/getTotalDeposited.js';
@@ -116,7 +115,6 @@ const config: HardhatUserConfig = {
     hardhatMocha,
     hardhatTypechain,
     hardhatEthers,
-    hardhatToolboxMochaEthers,
     hardhatEthersChaiMatchers,
   ],
   solidity: {

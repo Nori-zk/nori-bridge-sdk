@@ -9,7 +9,6 @@ import {
     Bool,
     Field,
     type NetworkId,
-    Poseidon,
     UInt8,
 } from 'o1js';
 import { Logger, LogPrinter } from 'esm-iso-logger';

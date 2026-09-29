@@ -5,7 +5,7 @@ import { getRandomValues } from 'crypto';
 import {
     NoriProofRequestQueue__factory,
     NoriTokenBridge__factory,
-} from 'types/ethers-contracts/index.js';
+} from '../types/ethers-contracts/index.js';
 import hre from 'hardhat';
 const { ethers } = await hre.network.getOrCreate();
 
