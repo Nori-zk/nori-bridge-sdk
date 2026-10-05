@@ -437,7 +437,7 @@ export class NoriTokenBridge
             root: verifiedRequestsRootField,
             outputBlockNumber: input.outputBlockNumber,
             inputQueueCursor: input.inputQueueCursor,
-            outputQueueCursor: input.outputBlockNumber
+            outputQueueCursor: input.outputQueueCursor,
         }));
     }
     /**
